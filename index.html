@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catalogd | Your Media Library</title>
+    
+    <link rel="stylesheet" href="style.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+    <header>
+        <div class="logo">catalo<span>gd</span></div>
+        <nav>
+            <button id="login-btn">Sign In</button>
+        </nav>
+    </header>
+
+    <main>
+        <div class="search-container">
+            <input type="text" id="search-input" placeholder="Search movies, shows, or books...">
+        </div>
+
+        <div class="grid" id="results-grid">
+            </div>
+    </main>
+
+    <script>
+        // Supabase Configuration
+        const SUPABASE_URL = 'https://your-project-url.supabase.co';
+        const SUPABASE_KEY = 'your-anon-key';
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const searchInput = document.getElementById('search-input');
+        const resultsGrid = document.getElementById('results-grid');
+
+        // Combined Search Function
+        async function searchMedia(query) {
+            if (!query) return;
+
+            const tmdbKey = 'YOUR_TMDB_API_KEY';
+            const tmdbUrl = `https://api.themoviedb.org/3/search/multi?api_key=${tmdbKey}&query=${encodeURIComponent(query)}`;
+            
+            try {
+                const response = await fetch(tmdbUrl);
+                const data = await response.json();
+                displayResults(data.results);
+            } catch (error) {
+                console.error("Search failed:", error);
+            }
+        }
+
+        function displayResults(items) {
+            resultsGrid.innerHTML = '';
+            items.forEach(item => {
+                // Ensure there is a poster and it's not a person
+                if (!item.poster_path || item.media_type === 'person') return;
+
+                const card = document.createElement('div');
+                card.className = 'media-card';
+                
+                // Determine the correct badge class
+                const typeClass = item.media_type === 'movie' ? 'badge-movie' : 'badge-tv';
+
+                card.innerHTML = `
+                    <img src="https://image.tmdb.org/t/p/w500${item.poster_path}" alt="Poster">
+                    <div class="media-info">
+                        <strong>${item.title || item.name}</strong>
+                        <span class="badge ${typeClass}">${item.media_type}</span>
+                    </div>
+                `;
+                resultsGrid.appendChild(card);
+            });
+        }
+
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') searchMedia(e.target.value);
+        });
+    </script>
+</body>
+</html>
