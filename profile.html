@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Catalogd | My Profile</title>
-    <link rel="stylesheet" href="stylingIndex.css">
+    <link rel="stylesheet" href="stylingProfile.css">
     <style>
         .profile-container { max-width: 900px; margin: 60px auto; padding: 0 20px; }
         .profile-header { display: flex; align-items: center; gap: 30px; margin-bottom: 50px; }
@@ -42,5 +42,19 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="scriptingProfile.js"></script>
+
+    <div class="settings-section" style="margin-top: 50px; border-top: 1px solid #2c3440; padding-top: 20px;">
+        <button id="open-settings-btn" class="secondary-btn">Account Settings</button>
+    </div>
+
+    <div id="settings-modal" class="modal-overlay" style="display:none;">
+        <div class="auth-card">
+            <h2>Delete Account</h2>
+            <p style="color: #ff4d4d; font-size: 0.9rem;">Warning: This action is permanent. All your logs, ratings, and thoughts will be wiped.</p>
+            <input type="password" id="delete-confirm-password" placeholder="Confirm Password">
+            <button id="final-delete-btn" class="danger-btn" style="width: 100%; margin-top: 15px;">Permanently Delete My Account</button>
+            <button id="close-settings" class="close-btn">×</button>
+        </div>
+    </div>
 </body>
 </html>

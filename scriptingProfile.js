@@ -26,6 +26,36 @@ async function initProfile() {
         calculateStats(logs);
         renderRecent(logs, config.tmdb_token);
     }
+
+    const settingsModal = document.getElementById('settings-modal');
+    const openSettingsBtn = document.getElementById('open-settings-btn');
+    const closeSettings = document.getElementById('close-settings');
+    const finalDeleteBtn = document.getElementById('final-delete-btn');
+    const deletePasswordInput = document.getElementById('delete-confirm-password');
+
+    // This function handles the button clicks
+    function setupSettingsUI() {
+        if (!openSettingsBtn) return; // Safety check
+
+        openSettingsBtn.onclick = () => {
+            settingsModal.style.display = 'flex';
+        };
+
+        closeSettings.onclick = () => {
+            settingsModal.style.display = 'none';
+            deletePasswordInput.value = ''; // Clear password on close
+        };
+
+        // Close modal if clicking outside the card
+        window.onclick = (event) => {
+            if (event.target == settingsModal) {
+                settingsModal.style.display = 'none';
+            }
+        };
+    }
+
+    // Make sure to call this inside your initProfile() after the user is verified
+    setupSettingsUI();
 }
 
 function calculateStats(logs) {
@@ -82,6 +112,49 @@ async function renderRecent(logs, token) {
             grid.appendChild(card);
         } catch (e) { console.error("Error fetching recent item", e); }
     }
+
+    const settingsModal = document.getElementById('settings-modal');
+    const openSettingsBtn = document.getElementById('open-settings-btn');
+    const closeSettings = document.getElementById('close-settings');
+    const finalDeleteBtn = document.getElementById('final-delete-btn');
+    const deletePasswordInput = document.getElementById('delete-confirm-password');
+
+    openSettingsBtn.onclick = () => settingsModal.style.display = 'flex';
+    closeSettings.onclick = () => settingsModal.style.display = 'none';
+
+    finalDeleteBtn.onclick = async () => {
+        const password = deletePasswordInput.value;
+        if (!password) return alert("Please enter your password to confirm.");
+
+        const confirmAction = confirm("FINAL WARNING: Are you absolutely sure? This cannot be undone.");
+        if (!confirmAction) return;
+
+        // 1. Verify the password by attempting a re-login
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        const { error: signInError } = await supabaseClient.auth.signInWithPassword({
+            email: user.email,
+            password: password
+        });
+
+        if (signInError) {
+            alert("Incorrect password. Deletion cancelled.");
+            return;
+        }
+
+        // 2. Call a custom Database Function to delete the user
+        // You must create this function in your Supabase SQL Editor first!
+        const { error: deleteError } = await supabaseClient.rpc('delete_user_account');
+
+        if (deleteError) {
+            console.error(deleteError);
+            alert("Error: " + deleteError.message);
+        } else {
+            alert("Your account has been deleted. Goodbye!");
+            await supabaseClient.auth.signOut();
+            window.location.href = 'index.html';
+        }
+    };
+
 }
 
 initProfile();
