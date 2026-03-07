@@ -1,7 +1,7 @@
 :root {
     --bg: #14181c;
     --card: #1b2228;
-    --accent: #00e054; /* Catalogd Green */
+    --accent: #00e054;
     --text: #ffffff;
     --movie-tag: #ff9000;
     --tv-tag: #00b0f0;
@@ -11,39 +11,27 @@
 body {
     background-color: var(--bg);
     color: var(--text);
-    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    font-family: 'Segoe UI', sans-serif;
     margin: 0;
     padding: 20px;
-    line-height: 1.6;
 }
 
 header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid #2c3440;
-    padding-bottom: 20px;
     max-width: 1200px;
-    margin: 0 auto;
+    margin: 0 auto 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #2c3440;
 }
 
-.logo {
-    font-size: 2rem;
-    font-weight: 900;
-    letter-spacing: -1.5px;
-    text-transform: lowercase;
-}
-
-.logo span { 
-    color: var(--accent); 
-}
-
-.search-container {
-    margin-top: 40px;
-    text-align: center;
-}
+.logo { font-size: 2rem; font-weight: 900; cursor: pointer; }
+.logo span { color: var(--accent); }
 
 input {
+    display: block;
+    margin: 40px auto;
     padding: 15px 25px;
     width: 100%;
     max-width: 500px;
@@ -51,85 +39,41 @@ input {
     border: 2px solid #2c3440;
     background: var(--card);
     color: white;
-    font-size: 1rem;
-    outline: none;
-    transition: border-color 0.3s;
-}
-
-input:focus {
-    border-color: var(--accent);
 }
 
 .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: 25px;
-    margin-top: 40px;
     max-width: 1200px;
-    margin-left: auto;
-    margin-right: auto;
+    margin: 0 auto;
 }
 
 .media-card {
     background: var(--card);
     border-radius: 12px;
     overflow: hidden;
-    transition: transform 0.2s, box-shadow 0.2s;
     cursor: pointer;
-    position: relative;
+    transition: transform 0.2s;
     border: 1px solid #2c3440;
 }
 
-.media-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 20px rgba(0,0,0,0.5);
-}
-
-.media-card img {
-    width: 100%;
-    aspect-ratio: 2/3;
-    object-fit: cover;
-    display: block;
-}
-
-.media-info {
-    padding: 12px;
-}
-
-.media-info strong {
-    display: block;
-    font-size: 0.9rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 0.7rem;
-    font-weight: bold;
-    margin-top: 5px;
-    text-transform: uppercase;
-}
-
+.media-card:hover { transform: translateY(-5px); }
+.media-card img { width: 100%; aspect-ratio: 2/3; object-fit: cover; }
+.media-info { padding: 12px; }
+.badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; font-weight: bold; }
 .badge-movie { background: var(--movie-tag); color: #000; }
 .badge-tv { background: var(--tv-tag); color: #fff; }
 .badge-book { background: var(--book-tag); color: #fff; }
 
-#login-btn {
-    background: transparent;
-    color: var(--text);
-    border: 1px solid #456;
-    padding: 10px 20px;
-    border-radius: 20px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.2s;
+/* Modal Styles */
+.modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+    display: flex; justify-content: center; align-items: center; z-index: 1000;
 }
-
-#login-btn:hover {
-    background: var(--text);
-    color: var(--bg);
-}
+.auth-card { background: var(--card); padding: 40px; border-radius: 16px; width: 300px; text-align: center; position: relative; }
+.auth-card input { margin: 10px 0; width: 80%; border-radius: 8px; }
+.primary-btn { background: var(--accent); color: #000; border: none; padding: 10px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; width: 100%; }
+.secondary-btn { background: transparent; color: white; border: 1px solid #456; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
+#auth-switch { color: #9ab; cursor: pointer; margin-top: 15px; font-size: 0.8rem; }
+.close-btn { position: absolute; top: 10px; right: 15px; background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }

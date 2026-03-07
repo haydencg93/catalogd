@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Catalogd | Details</title>
+    <link rel="stylesheet" href="stylingIndex.css">
+    <link rel="stylesheet" href="stylingDetails.css">
+</head>
+<body>
+    <div id="backdrop-overlay"></div>
+    <header>
+        <div class="logo" onclick="window.location.href='index.html'">catalo<span>gd</span></div>
+    </header>
+    <main class="details-container">
+        <div id="poster-area"></div>
+        <div class="info-pane">
+            <h1 id="media-title"></h1>
+            <div id="media-meta" class="meta"></div>
+            <p id="media-overview"></p>
+            <div class="rating-section">
+                <h3>Log & Rate</h3>
+                <div id="star-rater" class="star-input">
+                    <span class="star" data-value="1">★</span>
+                    <span class="star" data-value="2">★</span>
+                    <span class="star" data-value="3">★</span>
+                    <span class="star" data-value="4">★</span>
+                    <span class="star" data-value="5">★</span>
+                </div>
+                <p id="rating-message">Tap a star to rate</p>
+            </div>
+        </div>
+    </main>
+    <script src="scriptingDetails.js"></script>
+</body>
+</html>
