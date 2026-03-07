@@ -5,6 +5,7 @@
     <title>Catalogd | Details</title>
     <link rel="stylesheet" href="stylingIndex.css">
     <link rel="stylesheet" href="stylingDetails.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
     <div id="backdrop-overlay"></div>
@@ -15,6 +16,11 @@
         <div id="poster-area"></div>
         <div class="info-pane">
             <h1 id="media-title"></h1>
+            <div id="watch-providers" class="providers-section">
+                <h4>Where to Watch</h4>
+                <div id="providers-list" class="provider-icons">
+                    </div>
+            </div>
             <div id="media-meta" class="meta"></div>
             <p id="media-overview"></p>
             <div class="rating-section">
@@ -27,6 +33,20 @@
                     <span class="star" data-value="5">★</span>
                 </div>
                 <p id="rating-message">Tap a star to rate</p>
+                <div class="log-entry">
+                    <div class="log-header">
+                        <h3>Your Thoughts</h3>
+                        <div class="date-input-group">
+                            <label for="watched-date">Date:</label>
+                            <input type="date" id="watched-date">
+                        </div>
+                    </div>
+                    <textarea id="user-notes" placeholder="Write a review or some notes..."></textarea>
+                    <div class="log-actions">
+                        <button id="save-log-btn" class="primary-btn">Save Log</button>
+                        <button id="delete-log-btn" class="danger-btn">Clear Entry</button>
+                    </div>
+                </div>
             </div>
         </div>
     </main>
