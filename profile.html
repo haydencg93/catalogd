@@ -15,17 +15,21 @@
     </style>
 </head>
 <body>
-    <header>
-        <div class="logo" onclick="window.location.href='index.html'">catalo<span>gd</span></div>
-        <button onclick="window.location.href='index.html'" class="secondary-btn">Back to Search</button>
-    </header>
+<header>
+    <div class="logo" onclick="window.location.href='index.html'">catalo<span>gd</span></div>
+    <div class="nav-actions">
+        <button onclick="window.location.href='diary.html'" class="secondary-btn">Diary</button>
+        <button onclick="window.location.href='index.html'" class="secondary-btn">Home</button>
+    </div>
+</header>
 
     <main class="profile-container">
         <div class="profile-header">
             <div id="user-avatar" class="avatar-placeholder">?</div>
             <div>
-                <h1 id="user-email" style="margin:0;">Loading...</h1>
-                <p class="meta">Member since <span id="member-since">...</span></p>
+                <h1 id="user-display-name" style="margin:0;">Loading...</h1>
+                <div id="user-username" style="color: #9ab; font-size: 1.1rem; margin-top: 4px;">@username</div>
+                <p class="meta" style="margin-top: 10px;">Member since <span id="member-since">...</span></p>
             </div>
         </div>
 
@@ -44,17 +48,7 @@
     <script src="scriptingProfile.js"></script>
 
     <div class="settings-section" style="margin-top: 50px; border-top: 1px solid #2c3440; padding-top: 20px;">
-        <button id="open-settings-btn" class="secondary-btn">Account Settings</button>
-    </div>
-
-    <div id="settings-modal" class="modal-overlay" style="display:none;">
-        <div class="auth-card">
-            <h2>Delete Account</h2>
-            <p style="color: #ff4d4d; font-size: 0.9rem;">Warning: This action is permanent. All your logs, ratings, and thoughts will be wiped.</p>
-            <input type="password" id="delete-confirm-password" placeholder="Confirm Password">
-            <button id="final-delete-btn" class="danger-btn" style="width: 100%; margin-top: 15px;">Permanently Delete My Account</button>
-            <button id="close-settings" class="close-btn">×</button>
-        </div>
+        <button onclick="window.location.href='settings.html'" class="secondary-btn">Account Settings</button>
     </div>
 </body>
 </html>

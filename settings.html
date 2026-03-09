@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Catalogd | Settings</title>
+    <link rel="stylesheet" href="stylingIndex.css">
+    <link rel="stylesheet" href="stylingSettings.css">
+</head>
+<body>
+    <header>
+        <div class="logo" onclick="window.location.href='index.html'">catalo<span>gd</span></div>
+        <nav class="nav-actions">
+            <button onclick="window.location.href='profile.html'" class="secondary-btn">Back to Profile</button>
+        </nav>
+    </header>
+
+    <main class="settings-container">
+        <h1>Account Settings</h1>
+
+        <section class="settings-card">
+            <h3>Public Profile</h3>
+            <div class="input-group">
+                <label>Display Name</label>
+                <input type="text" id="edit-name" placeholder="Full Name">
+            </div>
+            <div class="input-group">
+                <label>Username</label>
+                <input type="text" id="edit-username" placeholder="username">
+            </div>
+            <button id="save-profile-btn" class="primary-btn">Update Profile</button>
+        </section>
+
+        <section class="settings-card">
+            <h3>Security</h3>
+            <div class="input-group">
+                <label>New Password</label>
+                <input type="password" id="new-password" placeholder="Min 6 characters">
+            </div>
+            <div class="input-group">
+                <label>Confirm New Password</label>
+                <input type="password" id="confirm-new-password" placeholder="Repeat password">
+            </div>
+            <button id="change-password-btn" class="secondary-btn">Change Password</button>
+        </section>
+
+        <section class="settings-card danger-zone">
+            <h3>Danger Zone</h3>
+            <p>Once you delete your account, there is no going back. Please be certain.</p>
+            <div class="input-group">
+                <input type="password" id="delete-confirm-password" placeholder="Enter current password to confirm">
+            </div>
+            <button id="final-delete-btn" class="danger-btn">Delete Account</button>
+        </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="scriptingSettings.js"></script>
+</body>
+</html>

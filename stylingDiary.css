@@ -1,0 +1,201 @@
+/* Inherits variables from stylingIndex.css */
+
+.diary-container { 
+    max-width: 1000px; 
+    margin: 40px auto; 
+    padding: 0 20px; 
+}
+
+.diary-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+#diary-search {
+    margin: 0;
+    max-width: 300px;
+    padding: 10px 20px;
+}
+
+.table-wrapper { 
+    background: var(--card); 
+    border-radius: 12px; 
+    overflow: hidden; 
+    border: 1px solid #2c3440; 
+    margin-top: 20px;
+}
+
+table { 
+    width: 100%; 
+    border-collapse: collapse; 
+    text-align: left; 
+}
+
+th { 
+    padding: 15px; 
+    background: #242c33; 
+    color: #9ab; 
+    font-size: 0.8rem; 
+    text-transform: uppercase; 
+    letter-spacing: 1px;
+}
+
+th.sortable {
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+th.sortable:hover {
+    color: var(--accent);
+}
+
+td { 
+    padding: 12px 15px; 
+    border-bottom: 1px solid #2c3440; 
+    vertical-align: middle; 
+}
+
+tr:hover td { 
+    background: rgba(255,255,255,0.02); 
+}
+
+.diary-poster { 
+    width: 45px; 
+    aspect-ratio: 2/3;
+    object-fit: cover;
+    border-radius: 4px; 
+    display: block; 
+}
+
+.diary-name { 
+    font-weight: bold; 
+    color: var(--accent); 
+    cursor: pointer; 
+}
+
+.diary-year { 
+    color: #9ab; 
+    font-size: 0.9rem;
+}
+
+.review-indicator { 
+    color: var(--accent); 
+    font-size: 1.1rem; 
+    text-align: center;
+}
+
+.star-rating { 
+    color: var(--accent); 
+    letter-spacing: 1px; 
+    white-space: nowrap;
+}
+
+#load-more-container {
+    text-align: center;
+    padding: 25px;
+    display: none; /* Managed by JS */
+    border-top: 1px solid #2c3440;
+}
+
+#load-more-btn {
+    width: auto;
+    padding: 10px 40px;
+}
+
+/* Filter Nav Styling Overrides */
+.filter-nav {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.diary-container { 
+    max-width: 1000px; 
+    margin: 40px auto; 
+    padding: 0 20px; 
+}
+
+.diary-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.diary-controls {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+#rating-filter {
+    background: var(--card);
+    color: white;
+    border: 1px solid #2c3440;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+#diary-search {
+    margin: 0;
+    width: 250px;
+    padding: 10px 15px;
+    background: var(--card);
+    border: 1px solid #2c3440;
+    border-radius: 8px;
+    color: white;
+}
+
+.table-wrapper { 
+    background: var(--card); 
+    border-radius: 12px; 
+    overflow: hidden; 
+    border: 1px solid #2c3440; 
+}
+
+table { 
+    width: 100%; 
+    border-collapse: collapse; 
+    text-align: left; 
+}
+
+th { 
+    padding: 15px; 
+    background: #242c33; 
+    color: #9ab; 
+    font-size: 0.8rem; 
+    text-transform: uppercase; 
+}
+
+th.sortable { cursor: pointer; }
+th.sortable:hover { color: var(--accent); }
+
+td { 
+    padding: 12px 15px; 
+    border-bottom: 1px solid #2c3440; 
+    vertical-align: middle; 
+}
+
+.diary-poster { 
+    width: 45px; 
+    border-radius: 4px; 
+    display: block; 
+}
+
+.diary-name { 
+    font-weight: bold; 
+    color: var(--accent); 
+    cursor: pointer; 
+}
+
+.star-rating { color: var(--accent); letter-spacing: 1px; }
+
+#load-more-container {
+    text-align: center;
+    padding: 20px;
+    display: none;
+    border-top: 1px solid #2c3440;
+}

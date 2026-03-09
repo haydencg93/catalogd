@@ -20,14 +20,29 @@
             <input type="text" id="search-input" placeholder="Preparing library..." disabled>
             <div id="loader">Loading configuration...</div>
         </section>
+        <div class="filter-nav">
+            <button id="btn-movie" class="filter-btn active" onclick="switchTab('movie')">Movies</button>
+            <button id="btn-tv" class="filter-btn" onclick="switchTab('tv')">TV Shows</button>
+            <button id="btn-book" class="filter-btn" onclick="switchTab('book')">Books</button>
+        </div>
+
         <div class="grid" id="results-grid"></div>
     </main>
 
     <div id="auth-modal" class="modal-overlay" style="display:none;">
         <div class="auth-card">
             <h2 id="modal-title">Welcome Back</h2>
+            
+            <div id="signup-fields" style="display: none;">
+                <input type="text" id="auth-name" placeholder="Full Name (e.g. John Doe)">
+                <input type="text" id="auth-username" placeholder="Username">
+            </div>
+
             <input type="email" id="auth-email" placeholder="Email">
             <input type="password" id="auth-password" placeholder="Password">
+            
+            <input type="password" id="auth-retype" placeholder="Retype Password" style="display: none;">
+            
             <button id="auth-confirm-btn" class="primary-btn">Sign In</button>
             <p onclick="toggleAuthMode()" id="auth-switch">Need an account? Sign Up</p>
             <button id="close-auth" class="close-btn">×</button>

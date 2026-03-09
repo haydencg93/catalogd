@@ -83,17 +83,9 @@ input {
 #auth-switch { color: #9ab; cursor: pointer; margin-top: 15px; font-size: 0.8rem; }
 .close-btn { position: absolute; top: 10px; right: 15px; background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
 
-.danger-btn {
-    background: #ff4d4d;
-    color: white;
-    border: none;
-    padding: 12px 20px;
-    border-radius: 8px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-
-.danger-btn:hover {
-    background: #cc0000;
+.profile-header div .meta {
+    margin-top: 12px;
+    display: block;
+    color: #9ab;
+    font-size: 0.9rem;
 }

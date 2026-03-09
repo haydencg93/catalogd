@@ -11,9 +11,15 @@ async function initProfile() {
         return;
     }
 
-    // Set basic info
-    document.getElementById('user-email').textContent = user.email.split('@')[0];
-    document.getElementById('user-avatar').textContent = user.email[0].toUpperCase();
+    // Extract metadata from the user object
+    const meta = user.user_metadata || {};
+    const displayName = meta.display_name || user.email.split('@')[0];
+    const username = meta.username || 'user';
+
+    // Update the UI
+    document.getElementById('user-display-name').textContent = displayName;
+    document.getElementById('user-username').textContent = `@${username.toLowerCase()}`;
+    document.getElementById('user-avatar').textContent = displayName[0].toUpperCase();
     document.getElementById('member-since').textContent = new Date(user.created_at).toLocaleDateString();
 
     // Fetch User Stats from media_logs

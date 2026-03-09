@@ -1,0 +1,39 @@
+.settings-container { max-width: 600px; margin: 40px auto; padding: 0 20px; }
+.settings-card { 
+    background: var(--card); 
+    padding: 30px; 
+    border-radius: 12px; 
+    border: 1px solid #2c3440; 
+    margin-bottom: 30px; 
+}
+.settings-card h3 { margin-top: 0; color: var(--accent); margin-bottom: 20px; }
+.input-group { margin-bottom: 20px; }
+.input-group label { display: block; margin-bottom: 8px; color: #9ab; font-size: 0.9rem; }
+.input-group input { 
+    width: 100%; 
+    box-sizing: border-box; 
+    margin: 0; 
+    padding: 12px; 
+    background: #14181c; 
+    border: 1px solid #2c3440; 
+    border-radius: 8px; 
+    color: white; 
+}
+.danger-zone { border-color: #ff4d4d22; }
+.danger-zone h3 { color: #ff4d4d; }
+.danger-zone p { font-size: 0.85rem; color: #9ab; margin-bottom: 20px; }
+
+.danger-btn {
+    background: #ff4d4d;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.danger-btn:hover {
+    background: #cc0000;
+}

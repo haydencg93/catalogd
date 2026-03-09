@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catalogd | Diary</title>
+    <link rel="stylesheet" href="stylingIndex.css">
+    <link rel="stylesheet" href="stylingDiary.css">
+</head>
+<body>
+    <header>
+        <div class="logo" onclick="window.location.href='index.html'">catalo<span>gd</span></div>
+        <nav class="nav-actions">
+            <button onclick="window.location.href='profile.html'" class="secondary-btn">Profile</button>
+            <button onclick="window.location.href='index.html'" class="secondary-btn">Home</button>
+        </nav>
+    </header>
+
+<main class="diary-container">
+        <div class="diary-header">
+            <h1>Diary</h1>
+            <div class="diary-controls">
+                <select id="rating-filter" onchange="applyFilters()">
+                    <option value="all">All Ratings</option>
+                    <option value="5">★★★★★</option>
+                    <option value="4">★★★★</option>
+                    <option value="3">★★★</option>
+                    <option value="2">★★</option>
+                    <option value="1">★</option>
+                </select>
+                <input type="text" id="diary-search" placeholder="Search titles..." oninput="applyFilters()">
+            </div>
+        </div>
+        
+        <div class="filter-nav">
+            <button id="btn-all" class="filter-btn active" onclick="filterType('all')">All</button>
+            <button id="btn-movie" class="filter-btn" onclick="filterType('movie')">Movies</button>
+            <button id="btn-tv" class="filter-btn" onclick="filterType('tv')">TV</button>
+            <button id="btn-book" class="filter-btn" onclick="filterType('book')">Books</button>
+        </div>
+
+        <div class="table-wrapper">
+            <table id="diary-table">
+                <thead>
+                    <tr>
+                        <th onclick="toggleSort('date')" class="sortable">Date <span id="date-sort-icon">↓</span></th>
+                        <th>Cover</th>
+                        <th>Name</th>
+                        <th>Year</th>
+                        <th>Rating</th>
+                        <th>Review</th>
+                    </tr>
+                </thead>
+                <tbody id="diary-body">
+                    </tbody>
+            </table>
+            <div id="load-more-container">
+                <button id="load-more-btn" class="secondary-btn">Load More Entries</button>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="scriptingDiary.js"></script>
+</body>
+</html>

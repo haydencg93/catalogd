@@ -10,6 +10,10 @@ const authConfirmBtn = document.getElementById('auth-confirm-btn');
 const authSwitch = document.getElementById('auth-switch');
 const closeModal = document.getElementById('close-auth');
 const modalTitle = document.getElementById('modal-title');
+const authName = document.getElementById('auth-name');
+const authUsername = document.getElementById('auth-username');
+const authRetype = document.getElementById('auth-retype');
+const signupFields = document.getElementById('signup-fields');
 
 // 2. Global Variables
 let TMDB_TOKEN = '';
@@ -40,7 +44,7 @@ async function loadConfig() {
         });
 
         // Load trending content
-        fetchTrending(); 
+        fetchTrending('movie');
     } catch (err) {
         console.error("Critical Start Error:", err);
         loader.textContent = "Error: " + err.message;
@@ -77,25 +81,43 @@ async function handleAuth() {
     const email = authEmail.value;
     const password = authPassword.value;
 
-    if (!email || !password) return alert("Please fill in all fields.");
+    if (isSignUpMode) {
+        const name = authName.value;
+        const username = authUsername.value;
+        const retype = authRetype.value;
 
-    try {
-        let result;
-        if (isSignUpMode) {
-            result = await supabaseClient.auth.signUp({ email, password });
-            if (result.error) throw result.error;
-            alert("Check your email for a confirmation link!");
-        } else {
-            result = await supabaseClient.auth.signInWithPassword({ email, password });
-            if (result.error) throw result.error;
+        // Validation
+        if (!email || !password || !name || !username) return alert("Please fill in all fields.");
+        if (password !== retype) return alert("Passwords do not match!");
+        if (password.length < 6) return alert("Password must be at least 6 characters.");
+
+        try {
+            const { data, error } = await supabaseClient.auth.signUp({
+                email,
+                password,
+                options: {
+                    data: {
+                        display_name: name,
+                        username: username
+                    }
+                }
+            });
+            if (error) throw error;
+            alert("Success! Check your email for a confirmation link.");
+            closeAuthModal();
+        } catch (err) {
+            alert(err.message);
         }
-
-        if (!result.error) {
+    } else {
+        // Sign In Logic
+        try {
+            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            if (error) throw error;
             closeAuthModal();
             await checkUserStatus();
+        } catch (err) {
+            alert(err.message);
         }
-    } catch (err) {
-        alert(err.message);
     }
 }
 
@@ -108,34 +130,72 @@ function toggleAuthMode() {
     modalTitle.textContent = isSignUpMode ? "Create Account" : "Welcome Back";
     authConfirmBtn.textContent = isSignUpMode ? "Sign Up" : "Sign In";
     authSwitch.textContent = isSignUpMode ? "Already have an account? Sign In" : "Need an account? Sign Up";
+
+    // Show or hide registration-specific fields
+    signupFields.style.display = isSignUpMode ? "block" : "none";
+    authRetype.style.display = isSignUpMode ? "block" : "none";
 }
 
 // 6. Existing App Functions (Trending, Search, Render)
-async function fetchTrending() {
-    const url = `https://api.themoviedb.org/3/trending/all/day`;
-    const options = {
-        method: 'GET',
-        headers: { accept: 'application/json', Authorization: `Bearer ${TMDB_TOKEN}` }
-    };
+// 1. Add this to your Global Variables
+let currentTab = 'movie';
+
+// 2. Replace your fetchTrending function
+async function fetchTrending(type = 'movie') {
+    resultsGrid.innerHTML = '';
+    loader.style.display = 'block';
+    loader.textContent = `Fetching trending ${type}s...`;
 
     try {
-        const res = await fetch(url, options);
-        const data = await res.json();
-        const trending = (data.results || [])
-            .filter(item => item.media_type !== 'person' && item.poster_path)
-            .map(item => ({
+        if (type === 'book') {
+            // Fetch trending books from Open Library
+            const res = await fetch(`https://openlibrary.org/trending/daily.json?limit=15`);
+            const data = await res.json();
+            const books = (data.works || []).map(work => ({
+                title: work.title,
+                year: work.first_publish_year,
+                image: work.cover_edition_key ? `https://covers.openlibrary.org/b/olid/${work.cover_edition_key}-M.jpg` : '',
+                type: 'book',
+                id: work.key
+            }));
+            renderResults(books);
+        } else {
+            // Fetch trending Movies or TV from TMDB
+            const url = `https://api.themoviedb.org/3/trending/${type}/day`;
+            const options = {
+                method: 'GET',
+                headers: { accept: 'application/json', Authorization: `Bearer ${TMDB_TOKEN}` }
+            };
+            const res = await fetch(url, options);
+            const data = await res.json();
+            const items = (data.results || []).map(item => ({
                 title: item.title || item.name,
                 year: (item.release_date || item.first_air_date || '').split('-')[0],
                 image: `https://image.tmdb.org/t/p/w500${item.poster_path}`,
-                type: item.media_type,
+                type: type,
                 id: item.id
             }));
-
-        resultsGrid.innerHTML = ''; 
-        renderResults(trending);
-        loader.textContent = "Trending Today";
-    } catch (err) { console.error("Trending fetch failed:", err); }
+            renderResults(items);
+        }
+        loader.style.display = 'none';
+    } catch (err) {
+        console.error("Trending fetch failed:", err);
+        loader.textContent = "Failed to load content.";
+    }
 }
+
+// 3. Add the switchTab function
+window.switchTab = function(type) {
+    currentTab = type;
+    
+    // Update UI buttons
+    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(`btn-${type}`).classList.add('active');
+    
+    // Clear search and fetch
+    searchInput.value = '';
+    fetchTrending(type);
+};
 
 async function unifiedSearch(query) {
     if (!query || !TMDB_TOKEN) return;
