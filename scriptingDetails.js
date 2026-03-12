@@ -9,7 +9,10 @@ async function initDetails() {
         const response = await fetch('config.json');
         const config = await response.json();
         supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
+        
+        // 1. SELECT THE BUTTONS HERE
         const markSeasonBtn = document.getElementById('mark-season-btn');
+        const clearSeasonBtn = document.getElementById('clear-season-btn');
 
         let data;
         
@@ -60,16 +63,19 @@ async function initDetails() {
             markSeasonBtn.onclick = markSeasonAsWatched;
         }
         
-        setupRater();
+        if (clearSeasonBtn) {
+            clearSeasonBtn.onclick = clearSeasonProgress;
+        }
 
-        // ADD THIS LINE TO TRIGGER THE TRACKER
         if (type === 'tv') {
             setupTVTracker(config, id);
         }
+        
+        setupRater();
 
     } catch (err) { 
         console.error("Initialization error:", err); 
-    }    
+    }
 }
 
 async function setupTVTracker(config, seriesId) {
@@ -255,6 +261,37 @@ async function refreshProgressBar(seriesId, seasonNum) {
         }
     } catch (err) {
         console.error("Error updating progress bar:", err);
+    }
+}
+
+async function clearSeasonProgress() {
+    const seasonNum = document.getElementById('season-selector').value;
+    const { data: { user } } = await supabaseClient.auth.getUser();
+
+    if (!user) return alert("Please sign in to manage progress.");
+
+    const confirmClear = confirm(`Are you sure you want to clear all progress for Season ${seasonNum}?`);
+    if (!confirmClear) return;
+
+    // 1. Delete all logs for this specific series and season from Supabase
+    const { error } = await supabaseClient
+        .from('episode_logs')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('series_id', String(id)) // Ensure it's a string to match 'text' column
+        .eq('season_number', seasonNum);
+
+    if (error) {
+        console.error("Error clearing season:", error);
+        alert("Failed to clear season progress.");
+    } else {
+        // 2. Dynamically update the UI: Uncheck all boxes
+        document.querySelectorAll('.episode-item input[type="checkbox"]').forEach(cb => cb.checked = false);
+        
+        // 3. Reset the progress bar instantly
+        refreshProgressBar(id, seasonNum);
+        
+        alert(`Season ${seasonNum} progress cleared!`);
     }
 }
 
