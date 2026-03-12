@@ -32,6 +32,16 @@
             </div>
         </div>
         
+        <div class="diary-stats">
+            <div class="stat-item"><span id="total-logs">0</span> Logs</div>
+            <div class="stat-item"><span id="total-movies">0</span> Movies</div>
+            <div class="stat-item"><span id="total-books">0</span> Books</div>
+            <div class="stat-item"><span id="total-series">0</span> Series</div>
+            <div class="stat-item"><span id="total-seasons">0</span> Seasons</div>
+            <div class="stat-item"><span id="total-episodes">0</span> Episodes</div>
+            <div class="stat-item"><span id="total-time">0</span> Minutes</div>
+        </div>
+
         <div class="filter-nav">
             <button id="btn-all" class="filter-btn active" onclick="filterType('all')">All</button>
             <button id="btn-movie" class="filter-btn" onclick="filterType('movie')">Movies</button>
@@ -59,6 +69,14 @@
             </div>
         </div>
     </main>
+
+    <div id="review-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2 id="modal-title">Review</h2>
+            <div id="modal-body"></div>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="scriptingDiary.js"></script>

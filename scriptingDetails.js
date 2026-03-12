@@ -1,81 +1,55 @@
 const params = new URLSearchParams(window.location.search);
 const id = params.get('id');
 const type = params.get('type');
-
-let supabaseClient = null; // To be initialized in initDetails
+let supabaseClient = null;
 
 async function initDetails() {
     try {
         const response = await fetch('config.json');
         const config = await response.json();
         supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
-        
-        // 1. SELECT THE BUTTONS HERE
-        const markSeasonBtn = document.getElementById('mark-season-btn');
-        const clearSeasonBtn = document.getElementById('clear-season-btn');
+
+        const tmdbOptions = { 
+            headers: { Authorization: `Bearer ${config.tmdb_token}` } 
+        };
 
         let data;
-        
         if (type === 'book') {
-            // Fetch from OpenLibrary API
-            // The ID for books is the OpenLibrary key (e.g., /works/OL123W)
-            const bookRes = await fetch(`https://openlibrary.org${id}.json`);
-            const bookData = await bookRes.json();
-            
+            const res = await fetch(`https://openlibrary.org${id}.json`).then(r => r.json());
             data = {
-                title: bookData.title,
-                overview: bookData.description?.value || bookData.description || "No description available.",
-                poster_path: bookData.covers ? `https://covers.openlibrary.org/b/id/${bookData.covers[0]}-L.jpg` : null,
-                meta: `Published: ${bookData.first_publish_date || 'Unknown'}`
+                title: res.title,
+                overview: res.description?.value || res.description || "No description.",
+                poster_path: res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-L.jpg` : null,
+                meta: `Published: ${res.first_publish_date || 'Unknown'}`
             };
         } else {
-            // Fetch from TMDB API
-            const options = { 
-                method: 'GET', 
-                headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` } 
-            };
-            const tmdbRes = await fetch(`https://api.themoviedb.org/3/${type}/${id}`, options);
-            const tmdbData = await tmdbRes.json();
-            
+            const res = await fetch(`https://api.themoviedb.org/3/${type}/${id}`, tmdbOptions).then(r => r.json());
             data = {
-                title: tmdbData.title || tmdbData.name,
-                overview: tmdbData.overview,
-                poster_path: `https://image.tmdb.org/t/p/w500${tmdbData.poster_path}`,
-                backdrop: tmdbData.backdrop_path ? `https://image.tmdb.org/t/p/original${tmdbData.backdrop_path}` : null,
-                meta: `${(tmdbData.release_date || tmdbData.first_air_date || '').split('-')[0]} • ${tmdbData.genres?.map(g => g.name).join(', ')}`
+                title: res.title || res.name,
+                overview: res.overview,
+                poster_path: `https://image.tmdb.org/t/p/w500${res.poster_path}`,
+                backdrop: res.backdrop_path ? `https://image.tmdb.org/t/p/original${res.backdrop_path}` : null,
+                meta: `${(res.release_date || res.first_air_date || '').split('-')[0]} • ${res.genres?.map(g => g.name).join(', ')}`
             };
         }
 
-        // Render the normalized data to the UI
+        // UI Injection
         document.getElementById('media-title').textContent = data.title;
         document.getElementById('media-overview').textContent = data.overview;
         document.getElementById('media-meta').textContent = data.meta;
+        document.getElementById('poster-area').innerHTML = `<img src="${data.poster_path}" alt="poster">`;
+        if (data.backdrop) document.getElementById('backdrop-overlay').style.backgroundImage = `url(${data.backdrop})`;
 
-        await fetchWatchProviders(config);
-        
-        // Render Poster/Backdrop
-        document.getElementById('poster-area').innerHTML = `<img src="${data.poster_path}" alt="${data.title}">`;
-        if (type !== 'book' && data.backdrop) {
-            document.getElementById('backdrop-overlay').style.backgroundImage = `url(${data.backdrop})`;
-        }
+        // Navigation to Log Page
+        document.getElementById('go-to-log').onclick = () => {
+            window.location.href = `log.html?id=${id}&type=${type}`;
+        };
 
-        if (markSeasonBtn) {
-            markSeasonBtn.onclick = markSeasonAsWatched;
-        }
-        
-        if (clearSeasonBtn) {
-            clearSeasonBtn.onclick = clearSeasonProgress;
-        }
+        if (type === 'tv') setupTVTracker(config, id);
+        fetchWatchProviders(config);
+        fetchMediaHistory();
 
-        if (type === 'tv') {
-            setupTVTracker(config, id);
-        }
-        
-        setupRater();
-
-    } catch (err) { 
-        console.error("Initialization error:", err); 
-    }
+    } catch (err) { console.error(err); }
 }
 
 async function setupTVTracker(config, seriesId) {
@@ -102,21 +76,75 @@ async function setupTVTracker(config, seriesId) {
     loadEpisodes(config, seriesId, res.seasons[0].season_number);
 }
 
+async function fetchMediaHistory() {
+    const historyList = document.getElementById('history-list');
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    
+    if (!user) {
+        historyList.innerHTML = "<p class='meta'>Sign in to see history.</p>";
+        return;
+    }
+
+    const { data: logs, error } = await supabaseClient
+        .from('media_logs')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('media_id', id)
+        .order('watched_on', { ascending: false })
+        .order('created_at', { ascending: false });
+
+    if (error || !logs || logs.length === 0) {
+        historyList.innerHTML = "<p class='meta'>No logs yet.</p>";
+        return;
+    }
+
+    historyList.innerHTML = logs.map(log => {
+        let label = "Logged";
+        if (log.media_type === 'tv') {
+            if (log.episode_number) label = `S${log.season_number} E${log.episode_number}`;
+            else if (log.season_number) label = `Season ${log.season_number}`;
+        }
+
+        return `
+            <div class="history-item">
+                <div class="history-header">
+                    <span class="history-label">${label}</span>
+                    <span class="history-stars">${'★'.repeat(log.rating)}</span>
+                </div>
+                <div class="history-date">${log.watched_on}</div>
+                ${log.notes ? `<p class="history-notes">"${log.notes}"</p>` : ''}
+            </div>
+        `;
+    }).join('');
+}
+
 async function loadEpisodes(config, seriesId, seasonNum) {
     const list = document.getElementById('episode-list');
     list.innerHTML = 'Loading episodes...';
 
     try {
-        // 1. Get episode list from TMDB FIRST
         const res = await fetch(`https://api.themoviedb.org/3/tv/${seriesId}/season/${seasonNum}`, {
             headers: { Authorization: `Bearer ${config.tmdb_token}` }
         }).then(r => r.json());
 
-        // 2. Get user status and watched episodes SECOND
         const { data: { user } } = await supabaseClient.auth.getUser();
         let watchedSet = new Set();
+        let isSeasonReviewed = false;
 
         if (user) {
+            // 1. Check if the WHOLE SEASON has been reviewed
+            const { data: seasonReview } = await supabaseClient
+                .from('media_logs')
+                .select('id')
+                .eq('user_id', user.id)
+                .eq('media_id', seriesId)
+                .eq('season_number', seasonNum)
+                .is('episode_number', null)
+                .maybeSingle();
+
+            isSeasonReviewed = !!seasonReview;
+
+            // 2. Get specific episode checkmarks
             const { data: watched } = await supabaseClient
                 .from('episode_logs')
                 .select('episode_number')
@@ -125,43 +153,44 @@ async function loadEpisodes(config, seriesId, seasonNum) {
                 .eq('user_id', user.id);
 
             if (watched) watchedSet = new Set(watched.map(w => w.episode_number));
+
+            // 3. Get specific episode REVIEWS
+            const { data: reviewedEps } = await supabaseClient
+                .from('media_logs')
+                .select('episode_number')
+                .eq('user_id', user.id)
+                .eq('media_id', seriesId)
+                .eq('season_number', seasonNum)
+                .not('episode_number', 'is', null);
+
+            if (reviewedEps) {
+                reviewedEps.forEach(r => watchedSet.add(r.episode_number));
+            }
         }
 
-        // 3. Now that 'res' and 'watchedSet' exist, do the math
         const totalEpisodes = res.episodes.length;
-        const watchedCount = watchedSet.size;
+        // If the whole season is reviewed, watchedCount = totalEpisodes
+        const watchedCount = isSeasonReviewed ? totalEpisodes : watchedSet.size;
         const percentage = Math.round((watchedCount / totalEpisodes) * 100);
 
-        // 4. Render the list
-        list.innerHTML = res.episodes.map(ep => `
+        list.innerHTML = res.episodes.map(ep => {
+            // Check if this specific episode is reviewed or marked
+            const isWatched = isSeasonReviewed || watchedSet.has(ep.episode_number);
+            return `
             <div class="episode-item">
                 <input type="checkbox" id="ep-${ep.episode_number}" 
-                    ${watchedSet.has(ep.episode_number) ? 'checked' : ''} 
+                    ${isWatched ? 'checked' : ''} 
+                    ${isSeasonReviewed ? 'disabled' : ''} 
                     onclick="toggleEpisode('${seriesId}', ${seasonNum}, ${ep.episode_number})">
                 <label for="ep-${ep.episode_number}">E${ep.episode_number}: ${ep.name}</label>
             </div>
-        `).join('');
+        `}).join('');
 
-        // 5. Update the progress bar
-        let progressContainer = document.getElementById('progress-container');
-        
-        // If the container doesn't exist yet, create it and insert it before the episode list
-        if (!progressContainer) {
-            progressContainer = document.createElement('div');
-            progressContainer.id = 'progress-container';
-            list.parentNode.insertBefore(progressContainer, list);
-        }
-
-        progressContainer.innerHTML = `
-            <div class="progress-bar-bg">
-                <div class="progress-bar-fill" style="width: ${percentage}%"></div>
-            </div>
-            <p class="meta">${watchedCount} / ${totalEpisodes} episodes watched (${percentage}%)</p>
-        `;
+        updateProgressBarUI(watchedCount, totalEpisodes, percentage);
 
     } catch (err) {
         console.error("Error loading episodes:", err);
-        list.innerHTML = "Error loading episodes. Check console.";
+        list.innerHTML = "Error loading episodes.";
     }
 }
 
@@ -229,39 +258,49 @@ async function markSeasonAsWatched() {
 }
 
 async function refreshProgressBar(seriesId, seasonNum) {
-    try {
-        const { data: { user } } = await supabaseClient.auth.getUser();
-        if (!user) return;
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) return;
 
-        // 1. Get current watched count from Supabase
-        const { data: watched } = await supabaseClient
-            .from('episode_logs')
-            .select('episode_number')
-            .eq('series_id', String(seriesId))
-            .eq('season_number', seasonNum)
-            .eq('user_id', user.id);
+    // Check for Season Review
+    const { data: seasonReview } = await supabaseClient
+        .from('media_logs')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('media_id', seriesId)
+        .eq('season_number', seasonNum)
+        .is('episode_number', null)
+        .maybeSingle();
 
-        const watchedCount = watched ? watched.length : 0;
+    const totalEpisodes = document.querySelectorAll('.episode-item').length;
 
-        // 2. We need the total episode count for this season. 
-        // We can grab this from the existing list in the UI.
-        const totalEpisodes = document.querySelectorAll('.episode-item').length;
-        
-        if (totalEpisodes > 0) {
-            const percentage = Math.round((watchedCount / totalEpisodes) * 100);
-
-            // 3. Update the Progress Bar and Text
-            const barFill = document.querySelector('.progress-bar-fill');
-            const progressMeta = document.querySelector('#progress-container .meta');
-
-            if (barFill) barFill.style.width = `${percentage}%`;
-            if (progressMeta) {
-                progressMeta.textContent = `${watchedCount} / ${totalEpisodes} episodes watched (${percentage}%)`;
-            }
-        }
-    } catch (err) {
-        console.error("Error updating progress bar:", err);
+    if (seasonReview) {
+        updateProgressBarUI(totalEpisodes, totalEpisodes, 100);
+        return;
     }
+
+    // Check for Episode Marks + Episode Reviews
+    const { data: watched } = await supabaseClient.from('episode_logs').select('episode_number')
+        .eq('series_id', String(seriesId)).eq('season_number', seasonNum).eq('user_id', user.id);
+    
+    const { data: reviewed } = await supabaseClient.from('media_logs').select('episode_number')
+        .eq('media_id', seriesId).eq('season_number', seasonNum).eq('user_id', user.id).not('episode_number', 'is', null);
+
+    const uniqueWatched = new Set([
+        ...(watched || []).map(w => w.episode_number),
+        ...(reviewed || []).map(r => r.episode_number)
+    ]);
+
+    const count = uniqueWatched.size;
+    const percent = Math.round((count / totalEpisodes) * 100);
+    updateProgressBarUI(count, totalEpisodes, percent);
+}
+
+// Helper function to keep code clean
+function updateProgressBarUI(count, total, percent) {
+    const barFill = document.querySelector('.progress-bar-fill');
+    const progressMeta = document.querySelector('#progress-container .meta');
+    if (barFill) barFill.style.width = `${percent}%`;
+    if (progressMeta) progressMeta.textContent = `${count} / ${total} episodes watched (${percent}%)`;
 }
 
 async function clearSeasonProgress() {

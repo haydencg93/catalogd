@@ -199,3 +199,65 @@ td {
     display: none;
     border-top: 1px solid #2c3440;
 }
+
+.diary-meta {
+    display: block;
+    font-size: 0.8rem;
+    color: #9ab;
+    font-weight: normal;
+    margin-top: 4px;
+}
+
+.diary-stats {
+    display: flex;
+    gap: 30px;
+    background: var(--card);
+    padding: 15px 25px;
+    border-radius: 12px;
+    border: 1px solid #2c3440;
+    margin-bottom: 25px;
+}
+.stat-item { color: #9ab; font-size: 0.9rem; text-transform: uppercase; }
+.stat-item span { color: var(--accent); font-weight: bold; font-size: 1.2rem; margin-right: 5px; }
+
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0; top: 0;
+    width: 100%; height: 100%;
+    background-color: rgba(0,0,0,0.8);
+    backdrop-filter: blur(5px);
+}
+
+.modal-content {
+    background-color: #1b2228;
+    margin: 15% auto;
+    padding: 30px;
+    border: 1px solid #2c3440;
+    border-radius: 16px;
+    width: 50%;
+    max-width: 600px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.close-modal {
+    color: #9ab;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close-modal:hover { color: #fff; }
+
+#modal-title { margin-top: 0; color: var(--accent); font-size: 1.5rem; }
+#modal-body { 
+    color: #fff; 
+    line-height: 1.6; 
+    white-space: pre-wrap; /* Preserves the whole series note formatting! */
+    margin-top: 20px;
+}
+
+.review-indicator { cursor: pointer; font-size: 1.2rem; }

@@ -13,7 +13,20 @@
         <div class="logo" onclick="window.location.href='index.html'">catalo<span>gd</span></div>
     </header>
     <main class="details-container">
-        <div id="poster-area"></div>
+        <div class="details-container">
+            <div id="left-col">
+                <div id="poster-area"></div>
+                
+                <div id="journal-history" class="history-section">
+                    <h4>Your Logs</h4>
+                    <div id="history-list">
+                        </div>
+                </div>
+            </div>
+            
+            <div class="info-pane">
+                </div>
+        </div>
         <div class="info-pane">
             <h1 id="media-title"></h1>
             <div id="watch-providers" class="providers-section">
@@ -35,27 +48,8 @@
             </div>
             <div class="rating-section">
                 <h3>Log & Rate</h3>
-                <div id="star-rater" class="star-input">
-                    <span class="star" data-value="1">★</span>
-                    <span class="star" data-value="2">★</span>
-                    <span class="star" data-value="3">★</span>
-                    <span class="star" data-value="4">★</span>
-                    <span class="star" data-value="5">★</span>
-                </div>
-                <p id="rating-message">Tap a star to rate</p>
-                <div class="log-entry">
-                    <div class="log-header">
-                        <h3>Your Thoughts</h3>
-                        <div class="date-input-group">
-                            <label for="watched-date">Date:</label>
-                            <input type="date" id="watched-date">
-                        </div>
-                    </div>
-                    <textarea id="user-notes" placeholder="Write a review or some notes..."></textarea>
-                    <div class="log-actions">
-                        <button id="save-log-btn" class="primary-btn">Save Log</button>
-                        <button id="delete-log-btn" class="danger-btn">Clear Entry</button>
-                    </div>
+                <div class="main-actions" style="margin: 20px 0;">
+                    <button id="go-to-log" class="primary-btn">Log or Review</button>
                 </div>
             </div>
         </div>

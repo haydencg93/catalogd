@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Catalogd | Log Entry</title>
+    <link rel="stylesheet" href="stylingIndex.css">
+    <link rel="stylesheet" href="stylingLog.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <header>
+        <div class="logo" onclick="window.location.href='index.html'">catalo<span>gd</span></div>
+    </header>
+
+    <main class="log-container">
+        <div class="log-card">
+            <h1 id="media-title">Loading...</h1>
+            
+            <div class="input-group">
+                <label>What are you logging?</label>
+                <select id="log-scope">
+                    <option value="entire">Entire Series / Movie / Book</option>
+                    <option value="season">Specific Season</option>
+                    <option value="episode">Specific Episode</option>
+                </select>
+            </div>
+
+            <div id="dropdown-group" class="tracker-controls" style="display:none;">
+                <select id="season-select"></select>
+                <select id="episode-select" style="display:none;"></select>
+            </div>
+
+            <div class="rating-section">
+                <div id="star-rater" class="star-input">
+                    <span class="star" data-value="1">★</span>
+                    <span class="star" data-value="2">★</span>
+                    <span class="star" data-value="3">★</span>
+                    <span class="star" data-value="4">★</span>
+                    <span class="star" data-value="5">★</span>
+                </div>
+                <input type="date" id="watched-date">
+                <textarea id="user-notes" placeholder="Write your thoughts..."></textarea>
+                <button id="save-log-btn" class="primary-btn">Save to Diary</button>
+            </div>
+        </div>
+    </main>
+    <script src="scriptingLog.js"></script>
+</body>
+</html>

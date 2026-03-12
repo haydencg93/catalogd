@@ -19,7 +19,8 @@ async function initDiary() {
         const { data: logs } = await supabaseClient
             .from('media_logs')
             .select('*')
-            .order('watched_on', { ascending: false });
+            .order('watched_on', { ascending: false }) // Primary Sort: The date inputted
+            .order('created_at', { ascending: false }); // Secondary Sort: The actual time of the log
 
         allLogs = logs || [];
         
@@ -49,6 +50,45 @@ window.applyFilters = async () => {
     // Reset pagination and render
     currentPage = 1;
     renderDiary(config.tmdb_token);
+
+    // --- Dynamic Stats Calculation ---
+    const totalLogs = filteredLogs.length;
+    const totalMovies = filteredLogs.filter(l => l.media_type === 'movie').length;
+    const totalBooks = filteredLogs.filter(l => l.media_type === 'book').length;
+
+    // Series: Count unique TMDB IDs where type is TV
+    const uniqueSeries = new Set(
+        filteredLogs.filter(l => l.media_type === 'tv').map(l => l.media_id)
+    ).size;
+
+    // Seasons: Count logs where a season_number exists but episode_number is null
+    const totalSeasons = filteredLogs.filter(l => 
+        l.media_type === 'tv' && l.season_number && !l.episode_number
+    ).length;
+
+    // Episodes: Direct Episode Logs + Sum of Episodes within Season Logs
+    const directEpisodes = filteredLogs.filter(l => l.episode_number).length;
+    const episodesInSeasons = filteredLogs.reduce((acc, l) => acc + (l.ep_count_in_season || 0), 0);
+    const totalEpisodes = directEpisodes + episodesInSeasons;
+
+    // Time: sum of the runtime column
+    const totalMinutes = filteredLogs.reduce((acc, log) => acc + (log.runtime || 0), 0);
+    const d = Math.floor(totalMinutes / 1440);
+    const h = Math.floor((totalMinutes % 1440) / 60);
+    const m = totalMinutes % 60;
+
+    // Update UI
+    document.getElementById('total-logs').textContent = totalLogs;
+    document.getElementById('total-movies').textContent = totalMovies;
+    document.getElementById('total-books').textContent = totalBooks;
+    document.getElementById('total-series').textContent = uniqueSeries;
+    document.getElementById('total-seasons').textContent = totalSeasons;
+    document.getElementById('total-episodes').textContent = totalEpisodes;
+
+    const timeElement = document.getElementById('total-time');
+    if (timeElement) {
+        timeElement.textContent = `${d}d ${h}h ${m}m`;
+    }
 };
 
 // 2. Type Switcher (All/Movie/TV/Book)
@@ -73,6 +113,15 @@ window.toggleSort = (column) => {
         filteredLogs.sort((a, b) => {
             const dateA = new Date(a.watched_on || 0);
             const dateB = new Date(b.watched_on || 0);
+
+            // If the watched_on dates are exactly the same...
+            if (dateA.getTime() === dateB.getTime()) {
+                // ...sort by the creation timestamp instead
+                const createA = new Date(a.created_at);
+                const createB = new Date(b.created_at);
+                return sortOrder === 'desc' ? createB - createA : createA - createB;
+            }
+
             return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
         });
 
@@ -122,7 +171,9 @@ async function renderDiary(token, append = false) {
 
 async function fetchAndFormatRow(log, token) {
     try {
-        let title, year, image;
+        let title, year, image, displayTitle;
+        
+        // 1. Fetch Basic Media Info
         if (log.media_type === 'book') {
             const res = await fetch(`https://openlibrary.org${log.media_id}.json`).then(r => r.json());
             title = res.title;
@@ -137,14 +188,44 @@ async function fetchAndFormatRow(log, token) {
             image = `https://image.tmdb.org/t/p/w92${res.poster_path}`;
         }
 
+        // 2. Logic to build the "Display Title" based on log depth
+        if (log.media_type === 'tv') {
+            if (log.episode_number) {
+                // It's an episode log
+                displayTitle = `${title} <span class="diary-meta">S${log.season_number} E${log.episode_number}</span>`;
+            } else if (log.season_number) {
+                // It's a full season log
+                displayTitle = `${title} <span class="diary-meta">Season ${log.season_number}</span>`;
+            } else {
+                // It's a general series log
+                displayTitle = title;
+            }
+        } else {
+            displayTitle = title;
+        }
+
+        let reviewHtml = '<td></td>';
+        if (log.notes) {
+            // Escape single quotes and newlines so they don't break the onclick string
+            const safeTitle = title.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+            const safeNotes = log.notes
+                .replace(/'/g, "\\'")
+                .replace(/"/g, "&quot;")
+                .replace(/\n/g, "\\n")
+                .replace(/\r/g, "\\r");
+
+            reviewHtml = `<td class="review-indicator" onclick="showReviewModal('${safeTitle}', '${safeNotes}')">📝</td>`;
+        }
         return `
             <tr>
                 <td class="diary-year">${log.watched_on || 'Unknown'}</td>
                 <td><img src="${image}" class="diary-poster" alt="poster"></td>
-                <td class="diary-name" onclick="window.location.href='details.html?id=${log.media_id}&type=${log.media_type}'">${title}</td>
+                <td class="diary-name" onclick="window.location.href='details.html?id=${log.media_id}&type=${log.media_type}'">
+                    ${displayTitle}
+                </td>
                 <td class="diary-year">${year}</td>
                 <td class="star-rating">${'★'.repeat(log.rating)}</td>
-                <td class="review-indicator">${log.notes ? '📝' : ''}</td>
+                ${reviewHtml}
             </tr>`;
     } catch (e) { 
         return ''; 
@@ -160,5 +241,24 @@ function setupLoadMore(token) {
         };
     }
 }
+
+window.showReviewModal = (title, notes) => {
+    const modal = document.getElementById('review-modal');
+    document.getElementById('modal-title').textContent = `Review: ${title}`;
+    document.getElementById('modal-body').textContent = notes;
+    modal.style.display = 'block';
+};
+
+// Close modal logic
+document.querySelector('.close-modal').onclick = () => {
+    document.getElementById('review-modal').style.display = 'none';
+};
+
+window.onclick = (event) => {
+    const modal = document.getElementById('review-modal');
+    if (event.target == modal) {
+        modal.style.display = 'none';
+    }
+};
 
 initDiary();
