@@ -33,6 +33,16 @@
                 <select id="episode-select" style="display:none;"></select>
             </div>
 
+            <div class="media-actions">
+                <button id="like-btn" class="action-btn-icon">
+                    <span class="heart-icon">❤</span> Like
+                </button>
+                <div class="status-toggles">
+                    <button id="watchlist-btn" class="secondary-btn">Add to Watchlist</button>
+                    <button id="rewatch-btn" class="secondary-btn">Mark as Rewatch</button>
+                </div>
+            </div>
+
             <div class="rating-section">
                 <div id="star-rater" class="star-input">
                     <span class="star" data-value="1">★</span>
@@ -41,6 +51,8 @@
                     <span class="star" data-value="4">★</span>
                     <span class="star" data-value="5">★</span>
                 </div>
+                <div id="rating-display" style="color: #9ab; text-align: center; margin-bottom: 10px;">0.0 Stars</div>
+
                 <input type="date" id="watched-date">
                 <textarea id="user-notes" placeholder="Write your thoughts..."></textarea>
                 <button id="save-log-btn" class="primary-btn">Save to Diary</button>

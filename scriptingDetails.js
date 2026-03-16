@@ -99,19 +99,34 @@ async function fetchMediaHistory() {
     }
 
     historyList.innerHTML = logs.map(log => {
-        let label = "Logged";
-        if (log.media_type === 'tv') {
-            if (log.episode_number) label = `S${log.season_number} E${log.episode_number}`;
-            else if (log.season_number) label = `Season ${log.season_number}`;
+        // Fix: Define the label based on media type and scope
+        let displayLabel = type.charAt(0).toUpperCase() + type.slice(1); // e.g., "Movie"
+        
+        if (type === 'tv') {
+            if (log.episode_number) {
+                displayLabel = `S${log.season_number} E${log.episode_number}`;
+            } else if (log.season_number) {
+                displayLabel = `Season ${log.season_number}`;
+            } else {
+                displayLabel = `Entire Series`;
+            }
         }
+
+        // Calculate stars
+        const fullStars = '★'.repeat(Math.floor(log.rating));
+        const halfStar = (log.rating % 1 !== 0) ? '½' : '';
+        
+        // Icons for Like and Rewatch
+        const likeIcon = log.is_liked ? ' <span style="color:#ff4d4d">❤</span>' : '';
+        const rewatchIcon = log.is_rewatch ? ' <span style="color:#00e054; font-size: 0.7rem;">(Rewatch)</span>' : '';
 
         return `
             <div class="history-item">
                 <div class="history-header">
-                    <span class="history-label">${label}</span>
-                    <span class="history-stars">${'★'.repeat(log.rating)}</span>
+                    <span class="history-label">${displayLabel}${likeIcon}</span>
+                    <span class="history-stars">${fullStars}${halfStar}</span>
                 </div>
-                <div class="history-date">${log.watched_on}</div>
+                <div class="history-date">${log.watched_on} ${rewatchIcon}</div>
                 ${log.notes ? `<p class="history-notes">"${log.notes}"</p>` : ''}
             </div>
         `;

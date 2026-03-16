@@ -37,14 +37,22 @@
         </div>
 
         <div class="stats-bar">
-            <div class="stat-card"><span id="stat-count" class="stat-value">0</span><span class="stat-label">Total Logs</span></div>
-            <div class="stat-card"><span id="stat-avg" class="stat-value">0</span><span class="stat-label">Avg Rating</span></div>
-            <div class="stat-card"><span id="stat-books" class="stat-value">0</span><span class="stat-label">Books Read</span></div>
+            <div class="stat-card" style="grid-column: span 3;">
+                <span id="stat-count" class="stat-value">0</span>
+                <span class="stat-label">Total Logs</span>
+            </div>
         </div>
 
-        <h2>Recent Activity</h2>
-        <div class="grid" id="recent-grid">
+        <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="margin: 0;">Recent Activity</h2>
+            <div class="filter-nav" style="margin: 0;">
+                <button class="filter-btn active" onclick="filterRecent('all')">All</button>
+                <button class="filter-btn" onclick="filterRecent('movie')">Movies</button>
+                <button class="filter-btn" onclick="filterRecent('tv')">TV</button>
+                <button class="filter-btn" onclick="filterRecent('book')">Books</button>
             </div>
+        </div>
+        <div class="grid" id="recent-grid"></div>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

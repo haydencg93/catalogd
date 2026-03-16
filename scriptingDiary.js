@@ -53,6 +53,10 @@ window.applyFilters = async () => {
 
     // --- Dynamic Stats Calculation ---
     const totalLogs = filteredLogs.length;
+
+    const totalRatingSum = filteredLogs.reduce((acc, log) => acc + (log.rating || 0), 0);
+    const avgRating = totalLogs > 0 ? (totalRatingSum / totalLogs).toFixed(1) : "0.0";
+
     const totalMovies = filteredLogs.filter(l => l.media_type === 'movie').length;
     const totalBooks = filteredLogs.filter(l => l.media_type === 'book').length;
 
@@ -79,6 +83,7 @@ window.applyFilters = async () => {
 
     // Update UI
     document.getElementById('total-logs').textContent = totalLogs;
+    document.getElementById('avg-rating').textContent = avgRating;
     document.getElementById('total-movies').textContent = totalMovies;
     document.getElementById('total-books').textContent = totalBooks;
     document.getElementById('total-series').textContent = uniqueSeries;
