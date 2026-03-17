@@ -53,15 +53,35 @@ body {
     display: block;
 }
 
-.media-card img {
-    border-radius: 6px;
-    transition: transform 0.2s ease, border-color 0.2s;
-    border: 1px solid transparent;
+/* Update these rules in stylingWatchlist.css */
+
+.media-card {
+    position: relative;
+    border-radius: 12px; /* Matches index page */
+    overflow: hidden;    /* Clips image corners to 12px */
+    border: 1px solid transparent; /* Placeholder for the hover border */
+    transition: transform 0.2s ease, border-color 0.2s; /* Matches index timing */
+    background: var(--card);
 }
 
+.media-card:hover {
+    transform: translateY(-5px); /* Matches index animation */
+    box-shadow: 0 10px 20px rgba(0, 224, 84, 0.1);
+}
+
+.media-card img {
+    width: 100%;
+    display: block;
+    aspect-ratio: 2/3;
+    object-fit: cover;
+    border-radius: 0; /* Let the parent .media-card handle the rounding */
+    border: none;     /* Removed to prevent clipping issues */
+    transition: none; /* Let the parent handle the transition */
+}   
+
+/* Remove this specific rule if it exists to avoid conflicts */
 .media-card:hover img {
-    transform: translateY(-5px);
-    border-color: var(--accent);
+    border-color: transparent; 
 }
 
 .filter-nav {

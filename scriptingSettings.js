@@ -9,16 +9,21 @@ async function initSettings() {
     if (!user) { window.location.href = 'index.html'; return; }
 
     // Prefill current data
-    document.getElementById('edit-name').value = user.user_metadata.display_name || '';
-    document.getElementById('edit-username').value = user.user_metadata.username || '';
+    const meta = user.user_metadata || {};
+    document.getElementById('edit-name').value = meta.display_name || '';
+    document.getElementById('edit-username').value = meta.username || '';
+    document.getElementById('edit-avatar').value = meta.avatar_url || '';
+    document.getElementById('edit-banner').value = meta.banner_url || '';
 
-    // --- Update Profile ---
+    // Update Profile
     document.getElementById('save-profile-btn').onclick = async () => {
-        const newName = document.getElementById('edit-name').value;
-        const newUsername = document.getElementById('edit-username').value;
-
         const { error } = await supabaseClient.auth.updateUser({
-            data: { display_name: newName, username: newUsername }
+            data: { 
+                display_name: document.getElementById('edit-name').value, 
+                username: document.getElementById('edit-username').value,
+                avatar_url: document.getElementById('edit-avatar').value,
+                banner_url: document.getElementById('edit-banner').value
+            }
         });
 
         if (error) alert(error.message);

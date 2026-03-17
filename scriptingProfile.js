@@ -1,5 +1,5 @@
 let supabaseClient = null;
-let allUserLogs = []; // Global variable to hold all logs for filtering
+let allUserLogs = [];
 
 async function initProfile() {
     const response = await fetch('config.json');
@@ -12,28 +12,36 @@ async function initProfile() {
         return;
     }
 
-    // Extract metadata from the user object
     const meta = user.user_metadata || {};
     const displayName = meta.display_name || user.email.split('@')[0];
     const username = meta.username || 'user';
+    
+    // 1. Handle Banner
+    const bannerContainer = document.getElementById('profile-banner');
+    if (meta.banner_url && meta.banner_url.trim() !== "") {
+        // We wrap the URL in the same linear-gradient used in the CSS
+        bannerContainer.style.backgroundImage = `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('${meta.banner_url}')`;
+    }
 
-    // Update the UI
+    // 2. Handle Avatar
+    const avatarContainer = document.getElementById('user-avatar');
+    if (meta.avatar_url) {
+        avatarContainer.innerHTML = `<img src="${meta.avatar_url}" style="width:100%; height:100%; object-fit:cover;">`;
+        avatarContainer.style.background = "transparent";
+    } else {
+        avatarContainer.textContent = displayName[0].toUpperCase();
+    }
+
+    // 3. Handle Text Info
     document.getElementById('user-display-name').textContent = displayName;
     document.getElementById('user-username').textContent = `@${username.toLowerCase()}`;
-    document.getElementById('user-avatar').textContent = displayName[0].toUpperCase();
     document.getElementById('member-since').textContent = new Date(user.created_at).toLocaleDateString();
 
-    // Fetch User Stats from media_logs
-    const { data: logs } = await supabaseClient
-        .from('media_logs')
-        .select('*')
-        .eq('user_id', user.id);
-
+    // 4. Fetch Stats
+    const { data: logs } = await supabaseClient.from('media_logs').select('*').eq('user_id', user.id);
     if (logs) {
         allUserLogs = logs; 
-        document.getElementById('stat-count').textContent = logs.length; // Keep total logs
-        
-        // Ensure it defaults to 'all' on every load
+        document.getElementById('stat-count').textContent = logs.length;
         filterRecent('all'); 
     }
 
@@ -43,66 +51,43 @@ async function initProfile() {
         .eq('user_id', user.id);
 
     document.getElementById('watchlist-count').textContent = watchlistCount || 0;
+}
 
+function setupSettingsUI() {
     const settingsModal = document.getElementById('settings-modal');
     const openSettingsBtn = document.getElementById('open-settings-btn');
     const closeSettings = document.getElementById('close-settings');
-    const finalDeleteBtn = document.getElementById('final-delete-btn');
-    const deletePasswordInput = document.getElementById('delete-confirm-password');
 
-    // This function handles the button clicks
-    function setupSettingsUI() {
-        if (!openSettingsBtn) return; // Safety check
+    if (!openSettingsBtn || !settingsModal) return; 
 
-        openSettingsBtn.onclick = () => {
-            settingsModal.style.display = 'flex';
-        };
+    openSettingsBtn.onclick = () => {
+        settingsModal.style.display = 'flex';
+    };
 
-        closeSettings.onclick = () => {
+    closeSettings.onclick = () => {
+        settingsModal.style.display = 'none';
+    };
+
+    window.onclick = (event) => {
+        if (event.target == settingsModal) {
             settingsModal.style.display = 'none';
-            deletePasswordInput.value = ''; // Clear password on close
-        };
-
-        // Close modal if clicking outside the card
-        window.onclick = (event) => {
-            if (event.target == settingsModal) {
-                settingsModal.style.display = 'none';
-            }
-        };
-    }
-
-    // Make sure to call this inside your initProfile() after the user is verified
-    setupSettingsUI();
-}
-
-function calculateStats(logs) {
-    document.getElementById('stat-count').textContent = logs.length;
+        }
+    };
 }
 
 window.filterRecent = (type) => {
-    // 1. Update button UI
     const buttons = document.querySelectorAll('.filter-nav .filter-btn');
     
     buttons.forEach(btn => {
-        // Remove active from everyone first
         btn.classList.remove('active');
-        
-        // Check if the button's text (lowercase) matches the type clicked
-        // e.g., if type is 'movie', match button with text 'Movies'
         const btnText = btn.textContent.toLowerCase();
         
-        if (type === 'all' && btnText === 'all') {
-            btn.classList.add('active');
-        } else if (type === 'movie' && btnText === 'movies') {
-            btn.classList.add('active');
-        } else if (type === 'tv' && btnText === 'tv') {
-            btn.classList.add('active');
-        } else if (type === 'book' && btnText === 'books') {
-            btn.classList.add('active');
-        }
+        if (type === 'all' && btnText === 'all') btn.classList.add('active');
+        else if (type === 'movie' && btnText === 'movies') btn.classList.add('active');
+        else if (type === 'tv' && btnText === 'tv') btn.classList.add('active');
+        else if (type === 'book' && btnText === 'books') btn.classList.add('active');
     });
 
-    // 2. Filter the global logs array
     const filtered = type === 'all' 
         ? allUserLogs 
         : allUserLogs.filter(l => l.media_type === type);
@@ -110,7 +95,6 @@ window.filterRecent = (type) => {
     renderRecent(filtered);
 };
 
-// Just a simple list for now, you could fetch posters from TMDB later if you want it fancy
 async function renderRecent(logs) {
     const grid = document.getElementById('recent-grid');
     grid.innerHTML = '<p class="meta">Loading activity...</p>';
@@ -120,13 +104,10 @@ async function renderRecent(logs) {
         return;
     }
 
-    // Sort by creation date and take the top 10
     const sortedLogs = logs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 10);
-    
     const config = await fetch('config.json').then(r => r.json());
 
     try {
-        // 1. Create the array of promises
         const mediaPromises = sortedLogs.map(async (log) => {
             let title, image;
             try {
@@ -143,14 +124,11 @@ async function renderRecent(logs) {
                 }
                 return { ...log, title, image };
             } catch (innerError) {
-                console.error("Row fetch error", innerError);
                 return { ...log, title: "Unknown", image: "" };
             }
         });
 
-        // 2. CRITICAL FIX: Wait for all promises to resolve into actual data
         const fullLogs = await Promise.all(mediaPromises);
-
         grid.innerHTML = ''; 
 
         fullLogs.forEach(log => {
@@ -175,7 +153,6 @@ async function renderRecent(logs) {
             grid.appendChild(card);
         });
     } catch (err) {
-        console.error("Error rendering activity:", err);
         grid.innerHTML = "<p class='meta'>Error loading activity.</p>";
     }
 }

@@ -11,6 +11,7 @@ x    - Buy Availability
     - Default mark as watch if a log exists
 - Details
     - Add Search bar for searching for another media
+    - Actors/Characters
 - #Books (Chapters/Pages)
 - #Friends Functionality
 - #Import/Export Functionality
