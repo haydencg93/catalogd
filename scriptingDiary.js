@@ -37,51 +37,55 @@ async function initDiary() {
 window.applyFilters = async () => {
     const searchTerm = document.getElementById('diary-search').value.toLowerCase();
     const ratingLimit = document.getElementById('rating-filter').value;
+    
+    // Fetch config for the token
     const configRes = await fetch('config.json');
     const config = await configRes.json();
 
-    // Filter by Type (All, Movie, TV, Book)
+    // Filter by Type and Rating (Database fields)
     filteredLogs = allLogs.filter(log => {
         const matchesType = currentType === 'all' || log.media_type === currentType;
         const matchesRating = ratingLimit === 'all' || log.rating == parseInt(ratingLimit);
         return matchesType && matchesRating;
     });
 
-    // Reset pagination and render
+    // Reset pagination
     currentPage = 1;
+    
+    // Trigger optimized render
     renderDiary(config.tmdb_token);
 
-    // --- Dynamic Stats Calculation ---
-    const totalLogs = filteredLogs.length;
+    // Update the UI Stats (Your original logic)
+    updateStatsDisplay();
+};
 
+// 2. Type Switcher
+window.filterType = (type) => {
+    currentType = type;
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.id === `btn-${type}`) btn.classList.add('active');
+    });
+    applyFilters();
+};
+
+function updateStatsDisplay() {
+    const totalLogs = filteredLogs.length;
     const totalRatingSum = filteredLogs.reduce((acc, log) => acc + (log.rating || 0), 0);
     const avgRating = totalLogs > 0 ? (totalRatingSum / totalLogs).toFixed(1) : "0.0";
-
     const totalMovies = filteredLogs.filter(l => l.media_type === 'movie').length;
     const totalBooks = filteredLogs.filter(l => l.media_type === 'book').length;
-
-    // Series: Count unique TMDB IDs where type is TV
-    const uniqueSeries = new Set(
-        filteredLogs.filter(l => l.media_type === 'tv').map(l => l.media_id)
-    ).size;
-
-    // Seasons: Count logs where a season_number exists but episode_number is null
-    const totalSeasons = filteredLogs.filter(l => 
-        l.media_type === 'tv' && l.season_number && !l.episode_number
-    ).length;
-
-    // Episodes: Direct Episode Logs + Sum of Episodes within Season Logs
+    const uniqueSeries = new Set(filteredLogs.filter(l => l.media_type === 'tv').map(l => l.media_id)).size;
+    const totalSeasons = filteredLogs.filter(l => l.media_type === 'tv' && l.season_number && !l.episode_number).length;
     const directEpisodes = filteredLogs.filter(l => l.episode_number).length;
     const episodesInSeasons = filteredLogs.reduce((acc, l) => acc + (l.ep_count_in_season || 0), 0);
     const totalEpisodes = directEpisodes + episodesInSeasons;
-
-    // Time: sum of the runtime column
     const totalMinutes = filteredLogs.reduce((acc, log) => acc + (log.runtime || 0), 0);
+
     const d = Math.floor(totalMinutes / 1440);
     const h = Math.floor((totalMinutes % 1440) / 60);
     const m = totalMinutes % 60;
 
-    // Update UI
     document.getElementById('total-logs').textContent = totalLogs;
     document.getElementById('avg-rating').textContent = avgRating;
     document.getElementById('total-movies').textContent = totalMovies;
@@ -89,12 +93,9 @@ window.applyFilters = async () => {
     document.getElementById('total-series').textContent = uniqueSeries;
     document.getElementById('total-seasons').textContent = totalSeasons;
     document.getElementById('total-episodes').textContent = totalEpisodes;
-
     const timeElement = document.getElementById('total-time');
-    if (timeElement) {
-        timeElement.textContent = `${d}d ${h}h ${m}m`;
-    }
-};
+    if (timeElement) timeElement.textContent = `${d}d ${h}h ${m}m`;
+}
 
 // 2. Type Switcher (All/Movie/TV/Book)
 window.filterType = (type) => {
@@ -147,31 +148,42 @@ async function renderDiary(token, append = false) {
     const start = (currentPage - 1) * PAGE_SIZE;
     const end = start + PAGE_SIZE;
     
-    // Get the current slice
+    // Get the current slice of logs to display
     let pageItems = filteredLogs.slice(start, end);
 
-    let html = '';
-    for (const log of pageItems) {
-        const rowHtml = await fetchAndFormatRow(log, token);
-        
-        // Final Title Search Filter (since titles aren't in the DB, we filter during render)
-        if (searchTerm) {
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = rowHtml;
-            const titleText = tempDiv.querySelector('.diary-name').textContent.toLowerCase();
-            if (!titleText.includes(searchTerm)) continue;
+    try {
+        // FETCH IN PARALLEL: This prevents the "Loading..." hang
+        const rowPromises = pageItems.map(log => fetchAndFormatRow(log, token));
+        const rows = await Promise.all(rowPromises);
+
+        let html = '';
+        for (const rowHtml of rows) {
+            if (!rowHtml) continue;
+
+            // Search Filter: Check if the searchTerm exists in the generated HTML
+            if (searchTerm) {
+                // We create a temporary element to check the text content only
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = rowHtml;
+                const rowText = tempDiv.textContent.toLowerCase();
+                
+                if (!rowText.includes(searchTerm)) continue;
+            }
+            
+            html += rowHtml;
         }
-        
-        html += rowHtml;
-    }
 
-    if (!append) {
-        tbody.innerHTML = html || '<tr><td colspan="6" style="text-align:center">No matches found.</td></tr>';
-    } else {
-        tbody.innerHTML += html;
-    }
+        if (!append) {
+            tbody.innerHTML = html || '<tr><td colspan="6" style="text-align:center">No matches found.</td></tr>';
+        } else {
+            tbody.innerHTML += html;
+        }
 
-    loadMoreContainer.style.display = end < filteredLogs.length ? 'block' : 'none';
+        loadMoreContainer.style.display = end < filteredLogs.length ? 'block' : 'none';
+    } catch (err) {
+        console.error("Render error:", err);
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: red;">Error loading data.</td></tr>';
+    }
 }
 
 async function fetchAndFormatRow(log, token) {

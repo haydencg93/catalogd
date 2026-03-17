@@ -226,3 +226,64 @@
     margin: 8px 0 0;
     line-height: 1.4;
 }
+
+/* Add to stylingDetails.css */
+.secondary-btn.active {
+    background: var(--accent) !important;
+    border-color: var(--accent) !important;
+    color: #14181c !important;
+    font-weight: bold;
+}
+
+/* Ensure main-actions layout is clean */
+.main-actions {
+    display: flex;
+    gap: 15px;
+}
+
+.main-actions .primary-btn, 
+.main-actions .secondary-btn {
+    flex: 1;
+    text-align: center;
+}
+
+/* Watch Providers Organization */
+/* Stack Stream and Buy vertically */
+#providers-list {
+    display: flex;
+    flex-direction: column; /* This forces the vertical stack */
+    gap: 20px;
+    margin-top: 15px;
+}
+
+.provider-group {
+    display: flex;
+    flex-direction: column; /* Stack label above icons within each group */
+    gap: 8px;
+}
+
+.provider-type-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: #9ab;
+    letter-spacing: 1.5px;
+    font-weight: bold;
+}
+
+.provider-icons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px; /* Space between icons */
+}
+
+.provider-logo {
+    width: 45px;
+    height: 45px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.1);
+    transition: transform 0.2s;
+}
+
+.provider-logo:hover {
+    transform: scale(1.1);
+}

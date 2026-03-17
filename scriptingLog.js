@@ -4,7 +4,6 @@ const type = params.get('type');
 let supabaseClient, tmdbToken;
 let currentMediaRuntime = 0;
 let isLiked = false;
-let isWatchlist = false;
 let isRewatch = false;
 let currentRating = 0;
 
@@ -134,11 +133,6 @@ function setupActionButtons() {
         likeBtn.classList.toggle('active', isLiked);
     };
 
-    watchlistBtn.onclick = () => {
-        isWatchlist = !isWatchlist;
-        watchlistBtn.classList.toggle('active', isWatchlist);
-    };
-
     rewatchBtn.onclick = () => {
         isRewatch = !isRewatch;
         rewatchBtn.classList.toggle('active', isRewatch);
@@ -152,22 +146,18 @@ async function saveLog() {
     const scope = document.getElementById('log-scope').value;
     const userNotes = document.getElementById('user-notes').value;
     const watchedDate = document.getElementById('watched-date').value;
-    
-    // Use the currentRating variable set by the star click logic
-    const rating = currentRating; 
+    const rating = currentRating; // Captures value from your half-star logic
 
     try {
         if (scope === 'entire' && type === 'tv') {
-            // 1. Fetch the full series data to get all seasons
             const res = await fetch(`https://api.themoviedb.org/3/tv/${id}`, {
                 headers: { Authorization: `Bearer ${tmdbToken}` }
             }).then(r => r.json());
 
-            const seasons = res.seasons.filter(s => s.season_number > 0); // Ignore Specials
+            const seasons = res.seasons.filter(s => s.season_number > 0);
             const lastSeason = seasons[seasons.length - 1].season_number;
             const footer = `\n\n[REVIEWED AS WHOLE SERIES FOR SEASON(S) 1-${lastSeason}]`;
 
-            // 2. Loop and log each season individually
             for (const s of seasons) {
                 await supabaseClient.from('media_logs').upsert({
                     user_id: user.id,
@@ -180,15 +170,12 @@ async function saveLog() {
                     episode_number: null,
                     runtime: (res.episode_run_time[0] || 30) * s.episode_count,
                     ep_count_in_season: s.episode_count,
-                    is_liked: isLiked,        // NEW: Boolean from heart button
-                    is_watchlist: isWatchlist, // NEW: Boolean from toggle
-                    is_rewatch: isRewatch      // NEW: Boolean from toggle
+                    is_liked: isLiked,
+                    is_rewatch: isRewatch
+                    // is_watchlist is removed
                 }, { onConflict: 'user_id,media_id,media_type,season_number,episode_number' });
             }
-            alert("Entire series logged by season!");
-
         } else if (scope === 'season') {
-            // Log a single specific season
             const sNum = document.getElementById('season-select').value;
             const sRes = await fetch(`https://api.themoviedb.org/3/tv/${id}/season/${sNum}`, {
                 headers: { Authorization: `Bearer ${tmdbToken}` }
@@ -206,13 +193,9 @@ async function saveLog() {
                 runtime: currentMediaRuntime * sRes.episodes.length,
                 ep_count_in_season: sRes.episodes.length,
                 is_liked: isLiked,
-                is_watchlist: isWatchlist,
                 is_rewatch: isRewatch
             }, { onConflict: 'user_id,media_id,media_type,season_number,episode_number' });
-            alert("Season logged!");
-
         } else {
-            // Standard Episode or Movie/Book log
             const logData = {
                 user_id: user.id,
                 media_id: id,
@@ -225,22 +208,28 @@ async function saveLog() {
                 runtime: currentMediaRuntime,
                 ep_count_in_season: 0,
                 is_liked: isLiked,
-                is_watchlist: isWatchlist,
                 is_rewatch: isRewatch
             };
             
             await supabaseClient.from('media_logs').upsert(logData, {
                 onConflict: 'user_id,media_id,media_type,season_number,episode_number'
             });
-            alert("Log saved!");
         }
-        
-        // Redirect back to details page
+
+        // Automatically remove this item from your watchlist now that it's logged
+        await supabaseClient
+            .from('user_watchlist')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('media_id', String(id))
+            .eq('media_type', type);
+
+        alert("Log saved and removed from watchlist!");
         window.location.href = `details.html?id=${id}&type=${type}`;
         
     } catch (err) {
         console.error("Save Error:", err);
-        alert("Error saving log. Check console for details.");
+        alert("Error saving log.");
     }
 }
 

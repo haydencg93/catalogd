@@ -1,0 +1,65 @@
+/* 1. Import general styles from profile */
+@import url('stylingProfile.css');
+
+/* 2. Global Body & Container Fixes */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg);
+}
+
+.profile-container {
+    /* Push the content roughly 1/4 of the screen over */
+    max-width: 1000px;
+    margin-left: 15%; 
+    margin-top: 60px;
+    padding: 0 40px;
+}
+
+/* 3. Watchlist Specific Typography */
+.profile-container h1 {
+    font-size: 2.8rem; /* Slightly larger for that bold look */
+    font-weight: 800;
+    margin-bottom: 5px;
+    letter-spacing: -1.5px;
+    color: var(--text);
+    text-align: left;
+}
+
+#watchlist-subtitle {
+    margin-bottom: 30px;
+    font-size: 1.1rem;
+    font-weight: 400;
+    color: #9ab;
+    /* Keeps the line proportional to the shifted text */
+    border-bottom: 1px solid #2c3440;
+    padding-bottom: 25px;
+    max-width: 90%; 
+}
+
+/* 4. Grid Layout Alignment */
+#watchlist-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+    gap: 25px;
+    margin-top: 20px;
+}
+
+/* 5. Card Polish */
+.media-card .title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #fff;
+    margin-top: 12px;
+    display: block;
+}
+
+.media-card img {
+    border-radius: 6px;
+    transition: transform 0.2s ease, border-color 0.2s;
+    border: 1px solid transparent;
+}
+
+.media-card:hover img {
+    transform: translateY(-5px);
+    border-color: var(--accent);
+}

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Catalogd | Watchlist</title>
+    <link rel="stylesheet" href="stylingWatchlist.css">
+    <link rel="icon" type="image/x-icon" href="catalogdFavicon.png" />
+</head>
+<body>
+    <header>
+        <div class="logo" onclick="window.location.href='index.html'">
+            <img src="catalogdLogo.png" alt="Catalogd" width="300" height="82">
+        </div>
+        <nav class="nav-actions">
+            <button onclick="window.location.href='profile.html'" class="secondary-btn">Back to Profile</button>
+        </nav>
+    </header>
+
+    <main class="profile-container">
+        <h1>My Watchlist</h1>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <p class="meta" id="watchlist-subtitle" style="margin: 0; border: none; padding: 0;">Loading...</p>
+            <div class="filter-nav">
+                <button id="btn-all" class="filter-btn active" onclick="filterWatchlist('all')">All</button>
+                <button id="btn-movie" class="filter-btn" onclick="filterWatchlist('movie')">Movies</button>
+                <button id="btn-tv" class="filter-btn" onclick="filterWatchlist('tv')">TV</button>
+                <button id="btn-book" class="filter-btn" onclick="filterWatchlist('book')">Books</button>
+            </div>
+        </div>
+        
+        <div class="grid" id="watchlist-grid"></div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="scriptingWatchlist.js"></script>
+</body>
+</html>

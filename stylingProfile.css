@@ -151,3 +151,15 @@ input {
     font-size: 0.8rem;
     letter-spacing: 1px;
 }
+
+/* Watchlist Stats Card Button */
+.stat-card[onclick] {
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.stat-card[onclick]:hover {
+    background: rgba(0, 224, 84, 0.05);
+    border-color: var(--accent) !important;
+    transform: translateY(-3px);
+}

@@ -48,7 +48,7 @@ async function initDetails() {
         if (type === 'tv') setupTVTracker(config, id);
         fetchWatchProviders(config);
         fetchMediaHistory();
-
+        setupWatchlist(id, type);
     } catch (err) { console.error(err); }
 }
 
@@ -350,7 +350,7 @@ async function clearSeasonProgress() {
 }
 
 async function fetchWatchProviders(config) {
-    if (type === 'book') return; // Books don't have streaming providers in TMDB
+    if (type === 'book') return; 
 
     const url = `https://api.themoviedb.org/3/${type}/${id}/watch/providers`;
     const options = { 
@@ -360,16 +360,46 @@ async function fetchWatchProviders(config) {
 
     try {
         const res = await fetch(url, options).then(r => r.json());
-        // We'll default to 'US' region, but you can change this
-        const providers = res.results?.US?.flatrate || [];
+        const results = res.results?.US || {};
+        
+        const streaming = results.flatrate || [];
+        const buying = results.buy || [];
+        
         const container = document.getElementById('providers-list');
+        container.innerHTML = ''; // Clear existing
 
-        if (providers.length > 0) {
-            container.innerHTML = providers.map(p => `
-                <img src="https://image.tmdb.org/t/p/original${p.logo_path}" title="${p.provider_name}" class="provider-logo">
-            `).join('');
+        let html = '';
+
+        // Handle Streaming Section
+        if (streaming.length > 0) {
+            // ... inside fetchWatchProviders loop ...
+            html += `
+                <div class="provider-group">
+                    <span class="provider-type-label">Stream</span>
+                    <div class="provider-icons">
+                        ${streaming.map(p => `
+                            <img src="https://image.tmdb.org/t/p/original${p.logo_path}" title="${p.provider_name}" class="provider-logo">
+                        `).join('')}
+                    </div>
+                </div>`;
+        }
+
+        // Handle Buying Section
+        if (buying.length > 0) {
+            html += `<div class="provider-group">
+                        <span class="provider-type-label">Buy</span>
+                        <div class="provider-icons">
+                            ${buying.map(p => `
+                                <img src="https://image.tmdb.org/t/p/original${p.logo_path}" title="${p.provider_name}" class="provider-logo">
+                            `).join('')}
+                        </div>
+                     </div>`;
+        }
+
+        if (html === '') {
+            container.innerHTML = "<p class='meta'>Not available to stream or buy currently.</p>";
         } else {
-            container.innerHTML = "<p class='meta'>Not available to stream currently.</p>";
+            container.innerHTML = html;
         }
     } catch (err) { console.error("Providers error:", err); }
 }
@@ -488,6 +518,63 @@ function updateStars(rating) {
     document.querySelectorAll('.star').forEach(s => {
         s.classList.toggle('active', parseInt(s.getAttribute('data-value')) <= rating);
     });
+}
+
+async function setupWatchlist(mediaId, mediaType) {
+    const watchlistBtn = document.getElementById('watchlist-btn');
+    const { data: { user } } = await supabaseClient.auth.getUser();
+
+    if (!user) {
+        watchlistBtn.style.display = 'none';
+        return;
+    }
+
+    // 1. Check if it's already in the new watchlist table
+    const { data: existing } = await supabaseClient
+        .from('user_watchlist')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('media_id', String(mediaId))
+        .eq('media_type', mediaType)
+        .maybeSingle();
+
+    if (existing) {
+        watchlistBtn.classList.add('active');
+        watchlistBtn.textContent = 'On Watchlist';
+    }
+
+    watchlistBtn.onclick = async () => {
+        const isActive = watchlistBtn.classList.contains('active');
+        
+        if (!isActive) {
+            // ADD to watchlist
+            const { error } = await supabaseClient
+                .from('user_watchlist')
+                .insert({
+                    user_id: user.id,
+                    media_id: String(mediaId),
+                    media_type: mediaType
+                });
+
+            if (!error) {
+                watchlistBtn.classList.add('active');
+                watchlistBtn.textContent = 'On Watchlist';
+            }
+        } else {
+            // REMOVE from watchlist
+            const { error } = await supabaseClient
+                .from('user_watchlist')
+                .delete()
+                .eq('user_id', user.id)
+                .eq('media_id', String(mediaId))
+                .eq('media_type', mediaType);
+
+            if (!error) {
+                watchlistBtn.classList.remove('active');
+                watchlistBtn.textContent = 'Add to Watchlist';
+            }
+        }
+    };
 }
 
 initDetails();

@@ -37,6 +37,13 @@ async function initProfile() {
         filterRecent('all'); 
     }
 
+    const { count: watchlistCount } = await supabaseClient
+        .from('user_watchlist')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+    document.getElementById('watchlist-count').textContent = watchlistCount || 0;
+
     const settingsModal = document.getElementById('settings-modal');
     const openSettingsBtn = document.getElementById('open-settings-btn');
     const closeSettings = document.getElementById('close-settings');
@@ -113,38 +120,63 @@ async function renderRecent(logs) {
         return;
     }
 
+    // Sort by creation date and take the top 10
     const sortedLogs = logs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 10);
-    grid.innerHTML = ''; 
-
-    // 1. Fetch the config inside the function to ensure we have the token
+    
     const config = await fetch('config.json').then(r => r.json());
 
-    for (const log of sortedLogs) {
-        let title, image;
-        try {
-            if (log.media_type === 'book') {
-                const res = await fetch(`https://openlibrary.org${log.media_id}.json`).then(r => r.json());
-                title = res.title;
-                image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : '';
-            } else {
-                // 2. FIX: Use config.tmdb_token instead of 'token'
-                const res = await fetch(`https://api.themoviedb.org/3/${log.media_type}/${log.media_id}`, {
-                    headers: { Authorization: `Bearer ${config.tmdb_token}` } 
-                }).then(r => r.json());
-                
-                title = res.title || res.name;
-                image = `https://image.tmdb.org/p/w500${res.poster_path}`;
+    try {
+        // 1. Create the array of promises
+        const mediaPromises = sortedLogs.map(async (log) => {
+            let title, image;
+            try {
+                if (log.media_type === 'book') {
+                    const res = await fetch(`https://openlibrary.org${log.media_id}.json`).then(r => r.json());
+                    title = res.title;
+                    image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : '';
+                } else {
+                    const res = await fetch(`https://api.themoviedb.org/3/${log.media_type}/${log.media_id}`, {
+                        headers: { Authorization: `Bearer ${config.tmdb_token}` } 
+                    }).then(r => r.json());
+                    title = res.title || res.name;
+                    image = res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : '';
+                }
+                return { ...log, title, image };
+            } catch (innerError) {
+                console.error("Row fetch error", innerError);
+                return { ...log, title: "Unknown", image: "" };
             }
+        });
 
-            // ... rest of your star/badge/card logic ...
+        // 2. CRITICAL FIX: Wait for all promises to resolve into actual data
+        const fullLogs = await Promise.all(mediaPromises);
+
+        grid.innerHTML = ''; 
+
+        fullLogs.forEach(log => {
             const card = document.createElement('div');
             card.className = 'media-card';
-            // ... (keep your existing innerHTML logic)
-            grid.appendChild(card);
+            card.onclick = () => window.location.href = `details.html?id=${log.media_id}&type=${log.media_type}`;
 
-        } catch (e) { 
-            console.error("Error fetching recent item", e); 
-        }
+            const stars = '★'.repeat(log.rating || 0);
+            const reviewBadge = log.notes ? `<div class="review-badge">📝</div>` : '';
+
+            card.innerHTML = `
+                ${reviewBadge}
+                <img src="${log.image || 'placeholder.png'}" alt="${log.title}">
+                <div class="media-info">
+                    <div class="title" style="font-weight:bold; margin-bottom:5px;">${log.title}</div>
+                    <div class="meta">
+                        <span class="badge badge-${log.media_type}">${log.media_type}</span>
+                        <span style="color: var(--accent); margin-left: 5px;">${stars}</span>
+                    </div>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    } catch (err) {
+        console.error("Error rendering activity:", err);
+        grid.innerHTML = "<p class='meta'>Error loading activity.</p>";
     }
 }
 
