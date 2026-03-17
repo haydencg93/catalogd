@@ -2,17 +2,18 @@
 @import url('stylingProfile.css');
 
 /* 2. Global Body & Container Fixes */
+/* 2. Global Body & Container Fixes */
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background-color: var(--bg);
 }
 
 .profile-container {
-    /* Push the content roughly 1/4 of the screen over */
-    max-width: 1000px;
-    margin-left: 15%; 
-    margin-top: 60px;
+    /* Set a max-width and use 'auto' for horizontal margins to center it perfectly */
+    max-width: 1100px; 
+    margin: 60px auto; 
     padding: 0 40px;
+    box-sizing: border-box;
 }
 
 /* 3. Watchlist Specific Typography */
@@ -30,10 +31,9 @@ body {
     font-size: 1.1rem;
     font-weight: 400;
     color: #9ab;
-    /* Keeps the line proportional to the shifted text */
     border-bottom: 1px solid #2c3440;
     padding-bottom: 25px;
-    max-width: 90%; 
+    width: 100%; /* Reset to full width of the container */
 }
 
 /* 4. Grid Layout Alignment */
@@ -62,4 +62,29 @@ body {
 .media-card:hover img {
     transform: translateY(-5px);
     border-color: var(--accent);
+}
+
+.filter-nav {
+    display: flex;
+    gap: 10px;
+    margin-right: 0;
+}
+
+/* Ensure the header container aligns with your 15% margin-left */
+.profile-container > div:first-of-type {
+    width: 100%; /* Reset to full width */
+    max-width: 100%; 
+    border-bottom: 1px solid #2c3440;
+    padding-bottom: 20px;
+    margin-bottom: 30px;
+}
+
+/* Hover effect for buttons to match the Catalogd theme */
+.filter-btn {
+    transition: all 0.2s ease;
+}
+
+.filter-btn:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
 }

@@ -7,7 +7,10 @@ x    - Diary Search
 x    - Recent Activity on Profile
 x    - Move watchlist button to details instead of log
 x    - Buy Availability
-    
+- Log
+    - Default mark as watch if a log exists
+- Details
+    - Add Search bar for searching for another media
 - #Books (Chapters/Pages)
 - #Friends Functionality
 - #Import/Export Functionality
