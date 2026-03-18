@@ -8,14 +8,18 @@ x    - Recent Activity on Profile
 x    - Move watchlist button to details instead of log
 x    - Buy Availability
 - Log
-    - Default mark as watch if a log exists
+    - Default mark as rewatch if a log exists
 - Details
-    - Add Search bar for searching for another media
+x    - Add Search bar for searching for another media
     - Actors/Characters
 - #Books (Chapters/Pages)
+    - Mark as Read
+    - Log
+x    - Where to Read and Buy
 - #Friends Functionality
 - #Import/Export Functionality
 - Profile Pictures/Customization
+x    - Pics/Banner
 x    - Watchlist Page
     - Reviews Page
     - Lists Functionality (Lists Page)
