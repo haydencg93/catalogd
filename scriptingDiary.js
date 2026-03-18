@@ -38,24 +38,21 @@ window.applyFilters = async () => {
     const searchTerm = document.getElementById('diary-search').value.toLowerCase();
     const ratingLimit = document.getElementById('rating-filter').value;
     
-    // Fetch config for the token
+    // 1. Await the config so we actually have the token before moving on
     const configRes = await fetch('config.json');
     const config = await configRes.json();
 
-    // Filter by Type and Rating (Database fields)
+    // 2. Filter the locally updated allLogs
     filteredLogs = allLogs.filter(log => {
         const matchesType = currentType === 'all' || log.media_type === currentType;
-        const matchesRating = ratingLimit === 'all' || log.rating == parseInt(ratingLimit);
+        const matchesRating = ratingLimit === 'all' || Math.floor(log.rating) == parseInt(ratingLimit);
         return matchesType && matchesRating;
     });
 
-    // Reset pagination
     currentPage = 1;
     
-    // Trigger optimized render
-    renderDiary(config.tmdb_token);
-
-    // Update the UI Stats (Your original logic)
+    // 3. Now render with the guaranteed token
+    await renderDiary(config.tmdb_token);
     updateStatsDisplay();
 };
 
@@ -157,12 +154,12 @@ async function renderDiary(token, append = false) {
         const rows = await Promise.all(rowPromises);
 
         let html = '';
+
         for (const rowHtml of rows) {
             if (!rowHtml) continue;
 
-            // Search Filter: Check if the searchTerm exists in the generated HTML
-            if (searchTerm) {
-                // We create a temporary element to check the text content only
+            // Search Filter: ONLY check if there is actually a search term
+            if (searchTerm.trim() !== "") {
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = rowHtml;
                 const rowText = tempDiv.textContent.toLowerCase();
@@ -234,7 +231,7 @@ async function fetchAndFormatRow(log, token) {
             reviewHtml = `<td class="review-indicator" onclick="showReviewModal('${safeTitle}', '${safeNotes}')">📝</td>`;
         }
         return `
-            <tr>
+            <tr id="row-${log.id}">
                 <td class="diary-year">${log.watched_on || 'Unknown'}</td>
                 <td><img src="${image}" class="diary-poster" alt="poster"></td>
                 <td class="diary-name" onclick="window.location.href='details.html?id=${log.media_id}&type=${log.media_type}'">
@@ -243,6 +240,9 @@ async function fetchAndFormatRow(log, token) {
                 <td class="diary-year">${year}</td>
                 <td class="star-rating">${'★'.repeat(log.rating)}</td>
                 ${reviewHtml}
+                <td style="text-align:center;">
+                    <span onclick="deleteDiaryEntry('${log.id}')" style="cursor:pointer; color:#ff4d4d;">🗑️</span>
+                </td>
             </tr>`;
     } catch (e) { 
         return ''; 
@@ -275,6 +275,36 @@ window.onclick = (event) => {
     const modal = document.getElementById('review-modal');
     if (event.target == modal) {
         modal.style.display = 'none';
+    }
+};
+
+window.deleteDiaryEntry = async (logId) => {
+    if (!confirm("Are you sure you want to delete this entry from your diary?")) return;
+
+    try {
+        // 1. Delete from Supabase
+        const { error } = await supabaseClient
+            .from('media_logs')
+            .delete()
+            .eq('id', logId);
+
+        if (error) {
+            alert("Error: " + error.message);
+            return;
+        }
+
+        // 2. Show the success alert
+        alert("Entry deleted successfully.");
+
+        // 3. Force a full page reload
+        // This ensures all global arrays and the table are rebuilt from scratch
+        setTimeout(() => {
+            location.reload();
+                         });
+
+    } catch (err) {
+        console.error("Delete failed:", err);
+        alert("An unexpected error occurred.");
     }
 };
 

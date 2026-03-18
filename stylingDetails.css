@@ -287,3 +287,90 @@
 .provider-logo:hover {
     transform: scale(1.1);
 }
+
+/* Styling for Book-specific links */
+.book-link-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.book-external-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #9ab;
+    text-decoration: none;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    padding: 4px 0;
+}
+
+.book-external-link img {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    background: white; /* Helpful for favicons with transparency */
+    object-fit: contain;
+}
+
+.book-external-link:hover {
+    color: #00e054; /* Your accent green */
+    transform: translateX(5px);
+}
+
+.book-external-link span {
+    font-weight: 500;
+}
+
+/* Book Progress Tracker Styling */
+.book-progress-details {
+    padding: 10px 0;
+}
+
+#tv-tracker h3 {
+    margin-bottom: 20px;
+    font-size: 1.2rem;
+    color: #fff;
+}
+
+.progress-stats {
+    display: flex;
+    justify-content: space-between;
+    margin: 10px 0 20px;
+}
+
+/* Update these in stylingDetails.css */
+.quick-update-row {
+    display: flex;
+    flex-direction: row; /* Keep them on one line for a cleaner look */
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 12px;
+    border-radius: 8px;
+    margin-top: 15px;
+    align-items: center;
+}
+
+#quick-page-input {
+    flex: 1; /* Takes up available space but doesn't bloat */
+    max-width: 150px; /* Limits the width so it doesn't look "huge" */
+    background: #14181c;
+    border: 1px solid #2c3440;
+    color: white;
+    padding: 8px 12px; /* Reduced padding for normal size */
+    font-size: 1rem;
+    border-radius: 6px;
+    outline: none;
+}
+
+#quick-page-input:focus {
+    border-color: #00e054;
+}
+
+.quick-update-row .primary-btn {
+    flex: 2;
+    padding: 10px;
+    font-size: 0.9rem;
+}

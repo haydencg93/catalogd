@@ -124,3 +124,32 @@ input {
     color: #000;
     border-color: var(--accent);
 }
+
+/* Add to the bottom of stylingIndex.css */
+
+.poster-wrapper {
+    position: relative; /* Necessary to position the label inside */
+}
+
+.trending-label {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(5px);
+    color: var(--accent);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    z-index: 2;
+    border: 1px solid var(--accent);
+}
+
+/* Optional: Subtle animation to make it pop */
+.media-card:hover .trending-label {
+    background: var(--accent);
+    color: #000;
+}

@@ -30,7 +30,6 @@ async function loadConfig() {
         TMDB_TOKEN = config.tmdb_token;
         
         // Initialize the client using the unique variable name
-        // 'supabase' (lowercase) is the library from the CDN
         supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
         
         // Check if user is already logged in
@@ -43,8 +42,18 @@ async function loadConfig() {
             if (e.key === 'Enter') unifiedSearch(searchInput.value);
         });
 
-        // Load trending content
-        fetchTrending('movie');
+        const urlParams = new URLSearchParams(window.location.search);
+        const searchQuery = urlParams.get('search');
+
+        if (searchQuery) {
+            // If a search query exists, run the search and skip trending
+            searchInput.value = searchQuery;
+            unifiedSearch(searchQuery);
+        } else {
+            // Only load trending content if there is no active search
+            fetchTrending('movie');
+        }
+
     } catch (err) {
         console.error("Critical Start Error:", err);
         loader.textContent = "Error: " + err.message;
@@ -158,7 +167,7 @@ async function fetchTrending(type = 'movie') {
                 type: 'book',
                 id: work.key
             }));
-            renderResults(books);
+            renderResults(books, true);
         } else {
             // Fetch trending Movies or TV from TMDB
             const url = `https://api.themoviedb.org/3/trending/${type}/day`;
@@ -175,7 +184,7 @@ async function fetchTrending(type = 'movie') {
                 type: type,
                 id: item.id
             }));
-            renderResults(items);
+            renderResults(items, true);
         }
         loader.style.display = 'none';
     } catch (err) {
@@ -198,7 +207,22 @@ window.switchTab = function(type) {
 };
 
 async function unifiedSearch(query) {
-    if (!query || !TMDB_TOKEN) return;
+    // 1. ADDED: If the query is empty, treat it as a "clear" action
+    if (!query || query.trim() === "") {
+        // Reset the search input value just in case
+        searchInput.value = '';
+        // Remove the search param from the URL without refreshing the page
+        const url = new URL(window.location);
+        url.searchParams.delete('search');
+        window.history.pushState({}, '', url);
+        
+        // Go back to showing trending movies
+        fetchTrending('movie'); 
+        return;
+    }
+
+    if (!TMDB_TOKEN) return;
+    
     loader.style.display = 'block';
     loader.textContent = "Exploring the archives...";
     resultsGrid.innerHTML = '';
@@ -229,10 +253,13 @@ async function unifiedSearch(query) {
         if (combined.length === 0) {
             loader.textContent = "No results found.";
         } else {
-            renderResults(combined);
+            renderResults(combined, false);
             loader.style.display = 'none';
         }
-    } catch (err) { console.error("Search failed:", err); }
+    } catch (err) { 
+        console.error("Search failed:", err); 
+        loader.textContent = "Search failed. Please try again.";
+    }
 }
 
 async function fetchBooks(query) {
@@ -250,13 +277,19 @@ async function fetchBooks(query) {
         }));
 }
 
-function renderResults(items) {
+// Replace your existing renderResults function with this one
+function renderResults(items, isTrending = false) {
     items.forEach(item => {
         const card = document.createElement('div');
         card.className = 'media-card';
         card.onclick = () => window.location.href = `details.html?id=${item.id}&type=${item.type}`;
+        
+        // Create the trending badge HTML if isTrending is true
+        const trendingBadge = isTrending ? `<div class="trending-label">Trending Today</div>` : '';
+
         card.innerHTML = `
             <div class="poster-wrapper">
+                ${trendingBadge}
                 <img src="${item.image}" alt="${item.title}" loading="lazy">
                 <span class="badge badge-${item.type}">${item.type}</span>
             </div>

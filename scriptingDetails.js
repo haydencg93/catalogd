@@ -15,13 +15,47 @@ async function initDetails() {
 
         let data;
         if (type === 'book') {
+            // 1. Fetch the general Work data
             const res = await fetch(`https://openlibrary.org${id}.json`).then(r => r.json());
+            
+            // 2. Fetch the list of Editions to find an ISBN
+            const editionsRes = await fetch(`https://openlibrary.org${id}/editions.json`).then(r => r.json());
+            
+            // 3. Loop through editions to grab the first available ISBN
+            let foundIsbn = null;
+            if (editionsRes.entries) {
+                for (const edition of editionsRes.entries) {
+                    const isbn13 = edition.isbn_13?.[0];
+                    const isbn10 = edition.isbn_10?.[0];
+                    if (isbn13 || isbn10) {
+                        foundIsbn = isbn13 || isbn10;
+                        break; 
+                    }
+                }
+            }
+
             data = {
                 title: res.title,
                 overview: res.description?.value || res.description || "No description.",
                 poster_path: res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-L.jpg` : null,
-                meta: `Published: ${res.first_publish_date || 'Unknown'}`
+                meta: `Published: ${res.first_publish_date || 'Unknown'}`,
+                isbn: foundIsbn // Pass this to your display function
             };
+
+            let pageCount = null;
+            if (editionsRes.entries) {
+                for (const edition of editionsRes.entries) {
+                    pageCount = pageCount || edition.number_of_pages;
+                    if (pageCount) break; 
+                }
+            }
+            data.pages = pageCount;
+
+            // After the UI Injection section in initDetails
+            if (type === 'book') {
+                displayBookLinks(data.isbn);
+                setupBookTracker(data.pages); // New function below
+            }
         } else {
             const res = await fetch(`https://api.themoviedb.org/3/${type}/${id}`, tmdbOptions).then(r => r.json());
             data = {
@@ -46,10 +80,203 @@ async function initDetails() {
         };
 
         if (type === 'tv') setupTVTracker(config, id);
-        fetchWatchProviders(config);
+        setupHeader();
+
+        if (type === 'book') {
+            displayBookLinks(data.isbn);
+        } else {
+            fetchWatchProviders(config);
+        }
+
         fetchMediaHistory();
         setupWatchlist(id, type);
     } catch (err) { console.error(err); }
+}
+
+function setupBookTracker(totalPages) {
+    const trackerSection = document.getElementById('tv-tracker');
+    const list = document.getElementById('episode-list');
+    
+    trackerSection.style.display = 'block';
+    trackerSection.querySelector('h3').textContent = "Reading Progress";
+    
+    const controls = document.querySelector('.tracker-controls');
+    if (controls) controls.style.display = 'none';
+
+    list.style.display = 'block'; 
+    
+    if (!totalPages) {
+        list.innerHTML = `<p class="meta">Page count not available. Please log manually.</p>`;
+        return;
+    }
+
+    // Injected UI with Input Field for direct marking
+    list.innerHTML = `
+        <div class="book-progress-container">
+            <div class="progress-bar-bg">
+                <div id="book-bar-fill" class="progress-bar-fill" style="width: 0%;"></div>
+            </div>
+            <div class="progress-stats">
+                <p id="book-percent" class="meta">0% read</p>
+                <p class="meta">Total: ${totalPages} pages</p>
+            </div>
+            <div class="quick-update-row">
+                <input type="number" id="quick-page-input" placeholder="Current Page #" min="1" max="${totalPages}">
+                <button onclick="updatePageProgress(${totalPages})" class="primary-btn">Mark as Read</button>
+            </div>
+        </div>
+    `;
+    
+    fetchBookProgress(totalPages); 
+}
+
+async function updatePageProgress(totalPages) {
+    const input = document.getElementById('quick-page-input');
+    const newPage = parseInt(input.value);
+
+    // Requirement: Block 100% completion in quick tracker
+    if (newPage >= totalPages) {
+        alert("To mark a book as finished, please use the 'Log or Review' button to rate and review your experience.");
+        input.value = '';
+        return;
+    }
+
+    if (!newPage || newPage < 1) {
+        return alert(`Enter a page between 1 and ${totalPages - 1}`);
+    }
+
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) return alert("Please sign in.");
+
+    const { data: activeLog } = await supabaseClient
+        .from('media_logs')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('media_id', id)
+        .eq('is_finished', false)
+        .maybeSingle();
+
+    const logData = {
+        user_id: user.id,
+        media_id: id,
+        media_type: 'book',
+        current_page: newPage,
+        total_pages: totalPages,
+        is_finished: false, // Always false from this quick update
+        watched_on: new Date().toISOString().split('T')[0]
+    };
+
+    if (activeLog) logData.id = activeLog.id;
+
+    const { error } = await supabaseClient.from('media_logs').upsert(logData);
+
+    if (!error) {
+        input.value = '';
+        fetchBookProgress(totalPages);
+        fetchMediaHistory();
+    }
+}
+
+async function fetchBookProgress(totalPages) {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user || !totalPages) return;
+
+    // Only show progress for the ACTIVE (unfinished) log
+    const { data: logs } = await supabaseClient
+        .from('media_logs')
+        .select('current_page')
+        .eq('user_id', user.id)
+        .eq('media_id', id)
+        .eq('is_finished', false)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+    const fill = document.getElementById('book-bar-fill');
+    const text = document.getElementById('book-percent');
+
+    if (logs && logs.length > 0) {
+        const currentPage = logs[0].current_page;
+        const percent = Math.min(Math.round((currentPage / totalPages) * 100), 100);
+        fill.style.width = `${percent}%`;
+        text.textContent = `${percent}% read (Page ${currentPage})`;
+    } else {
+        // If no active log, progress is 0% (ready for reread/first read)
+        fill.style.width = `0%`;
+        text.textContent = `0% read (Start reading to track progress)`;
+    }
+}
+
+function displayBookLinks(isbn) {
+    const providerSection = document.getElementById('watch-providers');
+    const list = document.getElementById('providers-list');
+    
+    // Update heading for books
+    providerSection.querySelector('h4').textContent = "Get this Book";
+
+    if (!isbn) {
+        list.innerHTML = "<p class='meta'>No ISBN available for library/store links.</p>";
+        return;
+    }
+
+    // Define the logos you provided
+    const logos = {
+        worldcat: "https://search.worldcat.org/favicons/android-chrome-192x192.png",
+        bwb: "https://www.betterworldbooks.com/images/logos/favicon.ico",
+        amazon: "https://www.amazon.com/favicon.ico"
+    };
+
+    list.innerHTML = `
+        <div class="provider-group">
+            <span class="provider-type-label">Check nearby libraries</span>
+            <div class="book-link-list">
+                <a href="https://www.worldcat.org/isbn/${isbn}" target="_blank" class="book-external-link">
+                    <img src="${logos.worldcat}" alt="WorldCat"> <span>WorldCat</span>
+                </a>
+            </div>
+        </div>
+        <div class="provider-group">
+            <span class="provider-type-label">Buy this book</span>
+            <div class="book-link-list">
+                <a href="https://www.betterworldbooks.com/search/results?q=${isbn}" target="_blank" class="book-external-link">
+                    <img src="${logos.bwb}" alt="Better World Books"> <span>Better World Books</span>
+                </a>
+                <a href="https://www.amazon.com/s?k=${isbn}" target="_blank" class="book-external-link">
+                    <img src="${logos.amazon}" alt="Amazon"> <span>Amazon</span>
+                </a>
+            </div>
+        </div>
+    `;
+}
+
+async function setupHeader() {
+    const searchInput = document.getElementById('search-input');
+    const loginBtn = document.getElementById('login-btn');
+    const profileBtn = document.getElementById('profile-btn');
+
+    // 1. Handle Search (Redirect to index with query)
+    searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && searchInput.value.trim() !== "") {
+            // Redirect to index.html and pass the search term as a URL parameter
+            window.location.href = `index.html?search=${encodeURIComponent(searchInput.value)}`;
+        }
+    });
+
+    // 2. Handle Auth State (Sign In / Sign Out)
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    
+    if (user) {
+        loginBtn.textContent = "Sign Out";
+        loginBtn.onclick = async () => {
+            await supabaseClient.auth.signOut();
+            location.reload();
+        };
+        if (profileBtn) profileBtn.style.display = 'inline-block';
+    } else {
+        loginBtn.textContent = "Sign In";
+        // Since the auth modal is on index.html, we redirect to sign in
+        loginBtn.onclick = () => window.location.href = 'index.html'; 
+        if (profileBtn) profileBtn.style.display = 'none';
+    }
 }
 
 async function setupTVTracker(config, seriesId) {
@@ -121,10 +348,13 @@ async function fetchMediaHistory() {
         const rewatchIcon = log.is_rewatch ? ' <span style="color:#00e054; font-size: 0.7rem;">(Rewatch)</span>' : '';
 
         return `
-            <div class="history-item">
+            <div class="history-item" id="log-${log.id}">
                 <div class="history-header">
                     <span class="history-label">${displayLabel}${likeIcon}</span>
-                    <span class="history-stars">${fullStars}${halfStar}</span>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <span class="history-stars">${fullStars}${halfStar}</span>
+                        <span class="delete-icon" onclick="deleteLog('${log.id}')" style="cursor:pointer; color:#ff4d4d; font-size:0.8rem;">🗑️</span>
+                    </div>
                 </div>
                 <div class="history-date">${log.watched_on} ${rewatchIcon}</div>
                 ${log.notes ? `<p class="history-notes">"${log.notes}"</p>` : ''}
@@ -576,5 +806,23 @@ async function setupWatchlist(mediaId, mediaType) {
         }
     };
 }
+
+window.deleteLog = async (logId) => {
+    if (!confirm("Delete this log entry permanently?")) return;
+
+    const { error } = await supabaseClient
+        .from('media_logs')
+        .delete()
+        .eq('id', logId);
+
+    if (error) {
+        alert("Error deleting log: " + error.message);
+    } else {
+        // Remove from UI immediately
+        document.getElementById(`log-${logId}`)?.remove();
+        // Optional: refresh history to show "No logs yet" if empty
+        fetchMediaHistory();
+    }
+};
 
 initDetails();
