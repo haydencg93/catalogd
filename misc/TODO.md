@@ -17,6 +17,7 @@ x    - Add Search bar for searching for another media
     - Log
 x    - Where to Read and Buy
 - #Friends Functionality
+    - Ensure to create a new table with ONLY username, name, other public information of a profile for the sake of security and viewing other accounts
 - #Import/Export Functionality
 - Profile Pictures/Customization
 x    - Pics/Banner
