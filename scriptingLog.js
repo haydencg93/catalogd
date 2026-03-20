@@ -164,21 +164,22 @@ function setupActionButtons() {
 }
 
 async function saveLog() {
+    // 1. Check Authentication
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) return alert("Please sign in.");
 
-    // Define variables at the start to avoid ReferenceErrors
-    const scope = document.getElementById('log-scope').value;
+    // 2. Capture Form Data
+    const scopeValue = document.getElementById('log-scope').value;
     const userNotes = document.getElementById('user-notes').value;
     const watchedDate = document.getElementById('watched-date').value;
     const rating = currentRating;
 
     try {
         if (type === 'book') {
-            // Requirement 4: If logging a chapter, it is always a new log
-            if (scope === 'chapter') {
+            // --- BOOK LOGIC ---
+            if (scopeValue === 'chapter') {
                 const chapterNum = parseInt(document.getElementById('book-chapter').value);
-                await supabaseClient.from('media_logs').insert({
+                const { error } = await supabaseClient.from('media_logs').insert({
                     user_id: user.id,
                     media_id: id,
                     media_type: 'book',
@@ -188,20 +189,12 @@ async function saveLog() {
                     rating: rating,
                     is_liked: isLiked
                 });
+                if (error) throw error;
             } else {
-                // Fetch total pages from Open Library to handle "100% completion" logic
-                const olRes = await fetch(`https://openlibrary.org${id}/editions.json`).then(r => r.json());
-                let totalPages = 0;
-                if (olRes.entries) {
-                    for (const ed of olRes.entries) {
-                        if (ed.number_of_pages) {
-                            totalPages = ed.number_of_pages;
-                            break;
-                        }
-                    }
-                }
+                // Handle "Entire Book" or "Progress"
+                const olRes = await fetch(`https://openlibrary.org${id}.json`).then(r => r.json());
+                const totalPages = olRes.number_of_pages || 0;
 
-                // Requirement 3: Check for an unfinished progress row to update
                 const { data: activeLog } = await supabaseClient
                     .from('media_logs')
                     .select('id')
@@ -217,43 +210,61 @@ async function saveLog() {
                     rating: rating,
                     notes: userNotes,
                     watched_on: watchedDate,
-                    is_finished: true, // Marking as finished
-                    current_page: totalPages, // Requirement 1: Assume 100% finished
+                    is_finished: true, 
+                    current_page: totalPages,
                     total_pages: totalPages,
                     is_liked: isLiked,
                     is_rewatch: isRewatch
                 };
 
-                // If active reading progress exists, overwrite it. Otherwise, new log (Reread)
                 if (activeLog) finalData.id = activeLog.id;
-
-                await supabaseClient.from('media_logs').upsert(finalData);
+                const { error } = await supabaseClient.from('media_logs').upsert(finalData);
+                if (error) throw error;
             }
         } else {
-            // ... Keep your existing Movie/TV logic here ...
-            if (scope === 'entire' && type === 'tv') {
-                // (Existing whole series TV logic)
-            } else if (scope === 'season') {
-                // (Existing season TV logic)
-            } else {
-                // (Existing single episode/movie logic)
+            // --- MOVIE & TV LOGIC ---
+            const payload = {
+                user_id: user.id,
+                media_id: id,
+                media_type: type,
+                rating: rating,
+                notes: userNotes,
+                watched_on: watchedDate,
+                is_liked: isLiked,
+                is_rewatch: isRewatch,
+                runtime: currentMediaRuntime 
+            };
+
+            // Handle TV-specific depth
+            if (type === 'tv') {
+                if (scopeValue === 'season') {
+                    payload.season_number = parseInt(document.getElementById('season-select').value);
+                } else if (scopeValue === 'episode') {
+                    payload.season_number = parseInt(document.getElementById('season-select').value);
+                    payload.episode_number = parseInt(document.getElementById('episode-select').value);
+                }
             }
+
+            const { error } = await supabaseClient.from('media_logs').insert(payload);
+            if (error) throw error;
         }
 
-        // Cleanup Watchlist and Redirect
-        const { count } = await supabaseClient
+        // 3. Cleanup Watchlist
+        await supabaseClient
             .from('user_watchlist')
-            .delete({ count: 'exact' })
+            .delete()
             .eq('user_id', user.id)
             .eq('media_id', String(id))
             .eq('media_type', type);
 
-        alert(count > 0 ? "Log saved and removed from watchlist!" : "Log saved successfully!");
+        alert("Log saved successfully!");
+        
+        // REDIRECT CHANGE: Back to details page instead of diary
         window.location.href = `details.html?id=${id}&type=${type}`;
 
     } catch (err) {
         console.error("Save Error:", err);
-        alert("Error saving log.");
+        alert("Error saving log: " + err.message);
     }
 }
 
