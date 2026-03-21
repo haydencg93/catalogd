@@ -139,6 +139,7 @@ async function startImport(data, userId) {
                 media_type: mediaInfo.type,
                 rating: rowRating,
                 watched_on: watchedDate,
+                runtime: mediaInfo.runtime, // ADD THIS LINE
                 is_rewatch: row.Rewatch === 'Yes',
                 created_at: new Date().toISOString()
             };
@@ -290,29 +291,50 @@ async function processAdvancedData(importType, data, userId) {
 async function resolveMedia(title, year) {
     if (!title) return null;
     
-    // Search TMDB for Movies (default for Letterboxd)
     const query = encodeURIComponent(title);
-    const url = `https://api.themoviedb.org/3/search/movie?query=${query}&year=${year || ''}`;
+    const movieUrl = `https://api.themoviedb.org/3/search/movie?query=${query}&year=${year || ''}`;
     
     try {
-        const res = await fetch(url, {
+        const res = await fetch(movieUrl, {
             headers: { Authorization: `Bearer ${tmdbToken}` }
         }).then(r => r.json());
 
         if (res.results && res.results.length > 0) {
-            return { id: res.results[0].id, type: 'movie' };
+            const movieId = res.results[0].id;
+            // Fetch full details to get the runtime
+            const detailUrl = `https://api.themoviedb.org/3/movie/${movieId}?api_key=`; // Note: using Bearer token in headers is better
+            const details = await fetch(`https://api.themoviedb.org/3/movie/${movieId}`, {
+                headers: { Authorization: `Bearer ${tmdbToken}` }
+            }).then(r => r.json());
+
+            return { 
+                id: movieId, 
+                type: 'movie', 
+                runtime: details.runtime || 0 // Movies use .runtime
+            };
         }
         
-        // Fallback: search TV if no movie found (Letterboxd sometimes has miniseries)
+        // Fallback for TV
         const tvUrl = `https://api.themoviedb.org/3/search/tv?query=${query}&first_air_date_year=${year || ''}`;
         const tvRes = await fetch(tvUrl, {
             headers: { Authorization: `Bearer ${tmdbToken}` }
         }).then(r => r.json());
 
         if (tvRes.results && tvRes.results.length > 0) {
-            return { id: tvRes.results[0].id, type: 'tv' };
+            const tvId = tvRes.results[0].id;
+            const details = await fetch(`https://api.themoviedb.org/3/tv/${tvId}`, {
+                headers: { Authorization: `Bearer ${tmdbToken}` }
+            }).then(r => r.json());
+
+            return { 
+                id: tvId, 
+                type: 'tv', 
+                // TV shows use episode_run_time (an array)
+                runtime: details.episode_run_time ? details.episode_run_time[0] : 0 
+            };
         }
     } catch (e) {
+        console.error("TMDB Resolve Error:", e);
         return null;
     }
     return null;
