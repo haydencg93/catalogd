@@ -6,6 +6,7 @@
     <link rel="stylesheet" href="stylingIndex.css">
     <link rel="stylesheet" href="stylingSettings.css">
     <link rel="icon" type="image/x-icon" href="catalogdFavicon.png" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 </head>
 <body>
     <header>
@@ -54,6 +55,53 @@
             <button id="change-password-btn" class="secondary-btn">Change Password</button>
         </section>
 
+        <section class="settings-card">
+            <h3>Data</h3>
+            <p class="meta" style="margin-bottom: 15px;">Import your data from Letterboxd (diary.csv). We will match titles with our database.</p>
+            
+            <div class="input-group">
+                <label>Select CSV File</label>
+                <input type="file" id="import-csv-input" accept=".csv">
+            </div>
+                <div class="input-group" style="flex-direction: row; align-items: center; gap: 10px; margin-top: 10px;">
+                    <input type="checkbox" id="overwrite-toggle" style="width: auto;">
+                    <label for="overwrite-toggle" style="margin: 0;">Overwrite existing entries with same date/rating</label>
+                </div>
+                <button id="start-import-btn" class="secondary-btn" style="margin-top: 10px;">Start Import</button>
+            <hr style="background-color: #2c3440; height: 2px; border: none; margin:20px;">
+            <h3>Advanced Data</h3>
+            <p class="meta" style="color: #ffb347; font-weight: bold; margin-bottom: 15px;">
+                ⚠️ IMPORTANT: You must import your "diary.csv" first before importing Reviews or Likes!
+            </p>
+
+            <div class="import-block" style="margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #2c3440;">
+                <label>Import Watchlist (watchlist.csv)</label>
+                <input type="file" id="import-watchlist-input" accept=".csv" style="margin-top: 5px;">
+                <button onclick="handleAdvancedImport('watchlist')" class="secondary-btn" style="margin-top: 10px;">Sync Watchlist</button>
+            </div>
+
+            <div class="import-block" style="margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #2c3440;">
+                <label>Import Likes (films.csv)</label>
+                <input type="file" id="import-likes-input" accept=".csv" style="margin-top: 5px;">
+                <button onclick="handleAdvancedImport('likes')" class="secondary-btn" style="margin-top: 10px;">Update Likes</button>
+            </div>
+
+            <div class="import-block">
+                <label>Import Extended Reviews (reviews.csv)</label>
+                <input type="file" id="import-reviews-input" accept=".csv" style="margin-top: 5px;">
+                <button onclick="handleAdvancedImport('reviews')" class="secondary-btn" style="margin-top: 10px;">Update Reviews</button>
+            </div>
+            <div id="import-status" style="display:none; margin-top: 15px;">
+                <div style="background: #2c3440; height: 10px; border-radius: 5px; overflow: hidden;">
+                    <div id="import-progress-bar" style="width: 0%; height: 100%; background: var(--accent); transition: width 0.3s;"></div>
+                </div>
+                <p id="import-text" class="meta" style="margin-top: 5px; font-size: 0.8rem;">Ready to import...</p>
+                <div id="import-log-container" style="display:none; margin-top: 20px; max-height: 200px; overflow-y: auto; background: #1a1d23; padding: 15px; border-radius: 8px; border: 1px solid #2c3440;">
+                    <h4 style="margin-top: 0; color: #9ab; font-size: 0.9rem; text-transform: uppercase;">Import Report</h4>
+                    <ul id="import-log-list" style="list-style: none; padding: 0; margin: 0; font-size: 0.85rem; color: #ccd6e0;"></ul>
+                </div>
+            </div>
+        </section>
         <section class="settings-card danger-zone">
             <h3>Danger Zone</h3>
             <p>Once you delete your account, there is no going back. Please be certain.</p>
