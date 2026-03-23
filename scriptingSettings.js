@@ -131,84 +131,104 @@ async function startLetterboxdExport(userId, rangeType, startDate, endDate) {
     const progressBar = document.getElementById('export-progress-bar');
     const progressText = document.getElementById('export-text');
     const logList = document.getElementById('export-log-list');
-    const logContainer = document.getElementById('export-log-container');
 
     statusDiv.style.display = 'block';
-    logContainer.style.display = 'block';
     logList.innerHTML = '';
     
-    // 1. Build Query for Movie logs
-    let query = supabaseClient
+    const zip = new JSZip();
+
+    // --- PART 1: DIARY EXPORT ---
+    let diaryQuery = supabaseClient
         .from('media_logs')
         .select('*')
         .eq('user_id', userId)
         .eq('media_type', 'movie');
 
-    // Apply date filter if range is selected
     if (rangeType === 'range') {
-        if (startDate) query = query.gte('watched_on', startDate);
-        if (endDate) query = query.lte('watched_on', endDate);
+        if (startDate) diaryQuery = diaryQuery.gte('watched_on', startDate);
+        if (endDate) diaryQuery = diaryQuery.lte('watched_on', endDate);
     }
 
-    const { data: logs, error } = await query;
+    const { data: diaryLogs } = await diaryQuery;
+    let diaryCsv = "tmdbID,Title,Year,Rating,WatchedDate,Rewatch,Tags,Review\n";
 
-    if (error || !logs || logs.length === 0) {
-        alert("No movie logs found for this criteria.");
-        return;
-    }
+    if (diaryLogs && diaryLogs.length > 0) {
+        for (let i = 0; i < diaryLogs.length; i++) {
+            const log = diaryLogs[i];
+            progressText.textContent = `Processing Diary: ${i + 1}/${diaryLogs.length}`;
+            progressBar.style.width = `${((i + 1) / diaryLogs.length) * 50}%`;
 
-    // 2. CSV Headers
-    let csvRows = [['tmdbID', 'Title', 'Year', 'Rating', 'WatchedDate', 'Rewatch', 'Tags', 'Review']];
-    let successCount = 0;
+            try {
+                const res = await fetch(`https://api.themoviedb.org/3/movie/${log.media_id}`, {
+                    headers: { Authorization: `Bearer ${tmdbToken}` }
+                }).then(r => r.json());
 
-    for (let i = 0; i < logs.length; i++) {
-        const log = logs[i];
-        const progress = Math.round(((i + 1) / logs.length) * 100);
-        progressBar.style.width = `${progress}%`;
-        progressText.textContent = `Processing ${i + 1}/${logs.length}...`;
-
-        try {
-            const res = await fetch(`https://api.themoviedb.org/3/movie/${log.media_id}`, {
-                headers: { Authorization: `Bearer ${tmdbToken}` }
-            }).then(r => r.json());
-
-            const title = res.title || "Unknown Title";
-            const year = (res.release_date || "").split('-')[0];
-            const watchedDate = log.watched_on || log.created_at.split('T')[0];
-            
-            csvRows.push([
-                log.media_id,
-                `"${title.replace(/"/g, '""')}"`,
-                year,
-                log.rating || "",
-                watchedDate,
-                log.is_rewatch ? 'Yes' : 'No',
-                'Catalogd',
-                `"${(log.notes || "").replace(/"/g, '""').replace(/\n/g, ' ')}"`
-            ]);
-
-            addExportLog(title, "Exported with TMDB ID", "success");
-            successCount++;
-        } catch (err) {
-            console.error("TMDB Fetch Error:", err);
-            addExportLog(`Media ID ${log.media_id}`, "Failed to fetch metadata", "error");
+                const row = [
+                    log.media_id,
+                    `"${(res.title || "Unknown").replace(/"/g, '""')}"`,
+                    (res.release_date || "").split('-')[0],
+                    log.rating || "",
+                    log.watched_on || log.created_at.split('T')[0],
+                    log.is_rewatch ? 'Yes' : 'No',
+                    'Catalogd',
+                    `"${(log.notes || "").replace(/"/g, '""').replace(/\n/g, ' ')}"`
+                ];
+                diaryCsv += row.join(",") + "\n";
+                addExportLog(res.title || log.media_id, "Added to Diary CSV", "success");
+            } catch (e) { addExportLog(log.media_id, "Fetch failed", "error"); }
+            await new Promise(r => setTimeout(r, 100));
         }
-        
-        await new Promise(r => setTimeout(r, 100));
     }
 
-    // 3. Generate and Trigger Download
-    const csvContent = csvRows.map(row => row.join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
+    // --- PART 2: WATCHLIST EXPORT ---
+    progressText.textContent = `Fetching Watchlist...`;
+    const { data: watchlistLogs } = await supabaseClient
+        .from('user_watchlist')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('media_type', 'movie');
+
+    let watchlistCsv = "tmdbID,Title,Year,Date\n";
+
+    if (watchlistLogs && watchlistLogs.length > 0) {
+        for (let i = 0; i < watchlistLogs.length; i++) {
+            const item = watchlistLogs[i];
+            progressText.textContent = `Processing Watchlist: ${i + 1}/${watchlistLogs.length}`;
+            progressBar.style.width = `${50 + (((i + 1) / watchlistLogs.length) * 50)}%`;
+
+            try {
+                const res = await fetch(`https://api.themoviedb.org/3/movie/${item.media_id}`, {
+                    headers: { Authorization: `Bearer ${tmdbToken}` }
+                }).then(r => r.json());
+
+                const row = [
+                    item.media_id,
+                    `"${(res.title || "Unknown").replace(/"/g, '""')}"`,
+                    (res.release_date || "").split('-')[0],
+                    item.created_at.split('T')[0]
+                ];
+                watchlistCsv += row.join(",") + "\n";
+                addExportLog(res.title || item.media_id, "Added to Watchlist CSV", "success");
+            } catch (e) { /* skip */ }
+            await new Promise(r => setTimeout(r, 100));
+        }
+    }
+
+    // --- PART 3: BUNDLE AND DOWNLOAD ---
+    progressText.textContent = "Zipping files...";
+    zip.file("catalogd_diary.csv", diaryCsv);
+    zip.file("catalogd_watchlist.csv", watchlistCsv);
+
+    const content = await zip.generateAsync({ type: "blob" });
+    const url = URL.createObjectURL(content);
     const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `catalogd_letterboxd_export_${rangeType}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.href = url;
+    link.download = `Catalogd_Export_${new Date().toISOString().split('T')[0]}.zip`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 
-    progressText.textContent = `Done! Successfully exported ${successCount} movies.`;
+    progressText.textContent = "Export Complete! ZIP downloaded.";
 }
 
 function addExportLog(title, message, type) {
