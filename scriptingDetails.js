@@ -351,9 +351,12 @@ async function fetchMediaHistory() {
             <div class="history-item" id="log-${log.id}">
                 <div class="history-header">
                     <span class="history-label">${displayLabel}${likeIcon}</span>
-                    <div style="display: flex; gap: 10px; align-items: center;">
+                    <div style="display: flex; gap: 12px; align-items: center;">
                         <span class="history-stars">${fullStars}${halfStar}</span>
-                        <span class="delete-icon" onclick="deleteLog('${log.id}')" style="cursor:pointer; color:#ff4d4d; font-size:0.8rem;">🗑️</span>
+                        <span onclick="window.location.href='log.html?id=${id}&type=${type}&logId=${log.id}'" 
+                            style="cursor:pointer; color:var(--accent); font-size:0.9rem;">✏️</span>
+                        <span class="delete-icon" onclick="deleteLog('${log.id}')" 
+                            style="cursor:pointer; color:#ff4d4d; font-size:0.9rem;">🗑️</span>
                     </div>
                 </div>
                 <div class="history-date">${log.watched_on} ${rewatchIcon}</div>

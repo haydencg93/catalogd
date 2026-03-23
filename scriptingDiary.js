@@ -241,7 +241,12 @@ async function fetchAndFormatRow(log, token) {
                 <td class="star-rating">${'★'.repeat(log.rating)}</td>
                 ${reviewHtml}
                 <td style="text-align:center;">
-                    <span onclick="deleteDiaryEntry('${log.id}')" style="cursor:pointer; color:#ff4d4d;">🗑️</span>
+                    <div style="display: flex; gap: 15px; justify-content: center; align-items: center;">
+                        <span onclick="window.location.href='log.html?id=${log.media_id}&type=${log.media_type}&logId=${log.id}'" 
+                            style="cursor:pointer; color:var(--accent); font-size: 1.1rem;" title="Edit Log">✏️</span>
+                        <span onclick="deleteDiaryEntry('${log.id}')" 
+                            style="cursor:pointer; color:#ff4d4d; font-size: 1.1rem;" title="Delete Log">🗑️</span>
+                    </div>
                 </td>
             </tr>`;
     } catch (e) { 

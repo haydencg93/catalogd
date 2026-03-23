@@ -6,6 +6,7 @@ let currentMediaRuntime = 0;
 let isLiked = false;
 let isRewatch = false;
 let currentRating = 0;
+const logId = params.get('logId');
 
 async function initLog() {
     const config = await fetch('config.json').then(r => r.json());
@@ -65,9 +66,50 @@ async function initLog() {
         }
     }
 
+    if (logId) {
+        fetchExistingLogData();
+    }
+
     setupStars();
     setupActionButtons();
     document.getElementById('save-log-btn').onclick = saveLog;
+}
+
+async function fetchExistingLogData() {
+    const { data: log, error } = await supabaseClient
+        .from('media_logs')
+        .select('*')
+        .eq('id', logId)
+        .single();
+
+    if (log) {
+        // Fill Rating
+        currentRating = log.rating;
+        updateStarUI();
+        document.getElementById('rating-display').textContent = `${currentRating.toFixed(1)} / 5.0`;
+
+        // Fill Notes & Date
+        document.getElementById('user-notes').value = log.notes || '';
+        document.getElementById('watched-date').value = log.watched_on;
+
+        // Fill Toggles
+        isLiked = log.is_liked;
+        isRewatch = log.is_rewatch;
+        document.getElementById('like-btn').classList.toggle('active', isLiked);
+        document.getElementById('rewatch-btn').classList.toggle('active', isRewatch);
+
+        // Fill Scope (Limited for edits to prevent breaking relational data)
+        const scope = document.getElementById('log-scope');
+        if (log.episode_number) {
+            scope.value = 'episode';
+            // Trigger the dropdown setups manually if needed
+        } else if (log.season_number) {
+            scope.value = 'season';
+        }
+
+        // Change Button Text
+        document.getElementById('save-log-btn').textContent = "Update Journal Entry";
+    }
 }
 
 function setupDropdowns(seasons) {
@@ -243,6 +285,22 @@ async function saveLog() {
                     payload.season_number = parseInt(document.getElementById('season-select').value);
                     payload.episode_number = parseInt(document.getElementById('episode-select').value);
                 }
+            }
+
+            if (logId) {
+                payload.id = logId; // ADD the ID so Supabase performs an UPDATE instead of INSERT
+            }
+
+            try {
+                const { error } = await supabaseClient
+                    .from('media_logs')
+                    .upsert(payload); // Upsert handles both new and existing IDs
+
+                if (error) throw error;
+                alert(logId ? "Entry updated!" : "Log saved successfully!");
+                window.location.href = `details.html?id=${id}&type=${type}`;
+            } catch (err) {
+                alert("Error: " + err.message);
             }
 
             const { error } = await supabaseClient.from('media_logs').insert(payload);
