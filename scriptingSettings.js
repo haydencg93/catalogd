@@ -50,6 +50,43 @@ async function initSettings() {
         }
     };
 
+    // --- Export Functionality ---
+    const rangeSelect = document.getElementById('export-range-select');
+    const dateInputs = document.getElementById('date-range-inputs');
+
+    rangeSelect.onchange = async () => {
+        const isRange = rangeSelect.value === 'range';
+        // Use 'flex' instead of 'block' to respect the CSS we just added
+        dateInputs.style.display = isRange ? 'flex' : 'none';
+        
+        if (isRange) {
+            // Query for the oldest record to provide a smart default
+            const { data: firstLog } = await supabaseClient
+                .from('media_logs')
+                .select('watched_on')
+                .order('watched_on', { ascending: true })
+                .limit(1)
+                .single();
+
+            // Default: Oldest entry found or empty
+            document.getElementById('export-start-date').value = firstLog?.watched_on || '';
+            // Default: Today
+            document.getElementById('export-end-date').value = new Date().toISOString().split('T')[0];
+        }
+    };
+
+    // 2. Updated Export Trigger
+    document.getElementById('start-export-btn').onclick = async () => {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) return alert("Please sign in to export data.");
+        
+        const rangeType = rangeSelect.value;
+        const startDate = document.getElementById('export-start-date').value;
+        const endDate = document.getElementById('export-end-date').value;
+        
+        startLetterboxdExport(user.id, rangeType, startDate, endDate);
+    };
+
     // --- Import Functionality ---
     const importBtn = document.getElementById('start-import-btn');
     const fileInput = document.getElementById('import-csv-input');
@@ -87,6 +124,103 @@ async function initSettings() {
             }
         }
     };
+}
+
+async function startLetterboxdExport(userId, rangeType, startDate, endDate) {
+    const statusDiv = document.getElementById('export-status');
+    const progressBar = document.getElementById('export-progress-bar');
+    const progressText = document.getElementById('export-text');
+    const logList = document.getElementById('export-log-list');
+    const logContainer = document.getElementById('export-log-container');
+
+    statusDiv.style.display = 'block';
+    logContainer.style.display = 'block';
+    logList.innerHTML = '';
+    
+    // 1. Build Query for Movie logs
+    let query = supabaseClient
+        .from('media_logs')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('media_type', 'movie');
+
+    // Apply date filter if range is selected
+    if (rangeType === 'range') {
+        if (startDate) query = query.gte('watched_on', startDate);
+        if (endDate) query = query.lte('watched_on', endDate);
+    }
+
+    const { data: logs, error } = await query;
+
+    if (error || !logs || logs.length === 0) {
+        alert("No movie logs found for this criteria.");
+        return;
+    }
+
+    // 2. CSV Headers
+    let csvRows = [['tmdbID', 'Title', 'Year', 'Rating', 'WatchedDate', 'Rewatch', 'Tags', 'Review']];
+    let successCount = 0;
+
+    for (let i = 0; i < logs.length; i++) {
+        const log = logs[i];
+        const progress = Math.round(((i + 1) / logs.length) * 100);
+        progressBar.style.width = `${progress}%`;
+        progressText.textContent = `Processing ${i + 1}/${logs.length}...`;
+
+        try {
+            const res = await fetch(`https://api.themoviedb.org/3/movie/${log.media_id}`, {
+                headers: { Authorization: `Bearer ${tmdbToken}` }
+            }).then(r => r.json());
+
+            const title = res.title || "Unknown Title";
+            const year = (res.release_date || "").split('-')[0];
+            const watchedDate = log.watched_on || log.created_at.split('T')[0];
+            
+            csvRows.push([
+                log.media_id,
+                `"${title.replace(/"/g, '""')}"`,
+                year,
+                log.rating || "",
+                watchedDate,
+                log.is_rewatch ? 'Yes' : 'No',
+                'Catalogd',
+                `"${(log.notes || "").replace(/"/g, '""').replace(/\n/g, ' ')}"`
+            ]);
+
+            addExportLog(title, "Exported with TMDB ID", "success");
+            successCount++;
+        } catch (err) {
+            console.error("TMDB Fetch Error:", err);
+            addExportLog(`Media ID ${log.media_id}`, "Failed to fetch metadata", "error");
+        }
+        
+        await new Promise(r => setTimeout(r, 100));
+    }
+
+    // 3. Generate and Trigger Download
+    const csvContent = csvRows.map(row => row.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `catalogd_letterboxd_export_${rangeType}_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    progressText.textContent = `Done! Successfully exported ${successCount} movies.`;
+}
+
+function addExportLog(title, message, type) {
+    const logList = document.getElementById('export-log-list');
+    const li = document.createElement('li');
+    li.style.cssText = "margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px solid #2c3440;";
+    
+    let color = type === 'success' ? '#4CAF50' : '#ff4d4d';
+    let icon = type === 'success' ? '🎬' : '❌';
+
+    li.innerHTML = `<span style="color: ${color}">${icon} ${title}</span>: <span style="opacity: 0.7">${message}</span>`;
+    logList.prepend(li);
 }
 
 async function startImport(data, userId) {
