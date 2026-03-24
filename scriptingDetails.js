@@ -478,7 +478,6 @@ async function loadEpisodes(config, seriesId, seasonNum) {
             <div class="episode-item">
                 <input type="checkbox" id="ep-${ep.episode_number}" 
                     ${isWatched ? 'checked' : ''} 
-                    ${isSeasonReviewed ? 'disabled' : ''} 
                     onclick="toggleEpisode('${seriesId}', ${seasonNum}, ${ep.episode_number})">
                 <label for="ep-${ep.episode_number}">E${ep.episode_number}: ${ep.name}</label>
             </div>

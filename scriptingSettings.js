@@ -75,7 +75,6 @@ async function initSettings() {
         }
     };
 
-    // 2. Updated Export Trigger
     document.getElementById('start-export-btn').onclick = async () => {
         const { data: { user } } = await supabaseClient.auth.getUser();
         if (!user) return alert("Please sign in to export data.");
@@ -136,6 +135,7 @@ async function startLetterboxdExport(userId, rangeType, startDate, endDate) {
     logList.innerHTML = '';
     
     const zip = new JSZip();
+    const listsFolder = zip.folder("lists"); // Create the 'lists' directory
 
     // --- PART 1: DIARY EXPORT ---
     let diaryQuery = supabaseClient
@@ -156,7 +156,7 @@ async function startLetterboxdExport(userId, rangeType, startDate, endDate) {
         for (let i = 0; i < diaryLogs.length; i++) {
             const log = diaryLogs[i];
             progressText.textContent = `Processing Diary: ${i + 1}/${diaryLogs.length}`;
-            progressBar.style.width = `${((i + 1) / diaryLogs.length) * 50}%`;
+            progressBar.style.width = `${((i + 1) / (diaryLogs.length * 1.5)) * 100}%`;
 
             try {
                 const res = await fetch(`https://api.themoviedb.org/3/movie/${log.media_id}`, {
@@ -174,14 +174,12 @@ async function startLetterboxdExport(userId, rangeType, startDate, endDate) {
                     `"${(log.notes || "").replace(/"/g, '""').replace(/\n/g, ' ')}"`
                 ];
                 diaryCsv += row.join(",") + "\n";
-                addExportLog(res.title || log.media_id, "Added to Diary CSV", "success");
             } catch (e) { addExportLog(log.media_id, "Fetch failed", "error"); }
-            await new Promise(r => setTimeout(r, 100));
+            await new Promise(r => setTimeout(r, 50));
         }
     }
 
     // --- PART 2: WATCHLIST EXPORT ---
-    progressText.textContent = `Fetching Watchlist...`;
     const { data: watchlistLogs } = await supabaseClient
         .from('user_watchlist')
         .select('*')
@@ -189,32 +187,58 @@ async function startLetterboxdExport(userId, rangeType, startDate, endDate) {
         .eq('media_type', 'movie');
 
     let watchlistCsv = "tmdbID,Title,Year,Date\n";
-
-    if (watchlistLogs && watchlistLogs.length > 0) {
-        for (let i = 0; i < watchlistLogs.length; i++) {
-            const item = watchlistLogs[i];
-            progressText.textContent = `Processing Watchlist: ${i + 1}/${watchlistLogs.length}`;
-            progressBar.style.width = `${50 + (((i + 1) / watchlistLogs.length) * 50)}%`;
-
+    if (watchlistLogs) {
+        for (const item of watchlistLogs) {
             try {
                 const res = await fetch(`https://api.themoviedb.org/3/movie/${item.media_id}`, {
                     headers: { Authorization: `Bearer ${tmdbToken}` }
                 }).then(r => r.json());
-
-                const row = [
-                    item.media_id,
-                    `"${(res.title || "Unknown").replace(/"/g, '""')}"`,
-                    (res.release_date || "").split('-')[0],
-                    item.created_at.split('T')[0]
-                ];
+                const row = [item.media_id, `"${res.title}"`, (res.release_date || "").split('-')[0], item.created_at.split('T')[0]];
                 watchlistCsv += row.join(",") + "\n";
-                addExportLog(res.title || item.media_id, "Added to Watchlist CSV", "success");
-            } catch (e) { /* skip */ }
-            await new Promise(r => setTimeout(r, 100));
+            } catch (e) {}
         }
     }
 
-    // --- PART 3: BUNDLE AND DOWNLOAD ---
+    // --- PART 3: CUSTOM LISTS EXPORT ---
+    progressText.textContent = `Fetching your lists...`;
+    const { data: userLists } = await supabaseClient
+        .from('media_lists')
+        .select('*, list_items(*)')
+        .eq('user_id', userId);
+
+    if (userLists && userLists.length > 0) {
+        for (const list of userLists) {
+            progressText.textContent = `Exporting List: ${list.name}`;
+            
+            // Letterboxd List Import Format: Header starts with tmdbID or Title
+            let listCsv = "tmdbID,Title,Year,URL,Description\n";
+            
+            for (const item of list.list_items) {
+                if (item.media_type !== 'movie') continue; // Letterboxd only imports movies in lists
+
+                try {
+                    const res = await fetch(`https://api.themoviedb.org/3/movie/${item.media_id}`, {
+                        headers: { Authorization: `Bearer ${tmdbToken}` }
+                    }).then(r => r.json());
+
+                    const row = [
+                        item.media_id,
+                        `"${(res.title || "Unknown").replace(/"/g, '""')}"`,
+                        (res.release_date || "").split('-')[0],
+                        `https://www.themoviedb.org/movie/${item.media_id}`,
+                        "" // Description column
+                    ];
+                    listCsv += row.join(",") + "\n";
+                } catch (e) { console.error("Error exporting list item", e); }
+                await new Promise(r => setTimeout(r, 50));
+            }
+            // Add the individual list CSV to the 'lists' folder in the ZIP
+            listsFolder.file(`${list.name.replace(/\s+/g, '_').toLowerCase()}.csv`, listCsv);
+            addExportLog(list.name, `Exported ${list.list_items.length} items to folder`, "success");
+        }
+    }
+
+    // --- PART 4: BUNDLE AND DOWNLOAD ---
     progressText.textContent = "Zipping files...";
     zip.file("catalogd_diary.csv", diaryCsv);
     zip.file("catalogd_watchlist.csv", watchlistCsv);
@@ -223,12 +247,12 @@ async function startLetterboxdExport(userId, rangeType, startDate, endDate) {
     const url = URL.createObjectURL(content);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `Catalogd_Export_${new Date().toISOString().split('T')[0]}.zip`;
+    link.download = `Catalogd_Full_Export_${new Date().toISOString().split('T')[0]}.zip`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 
-    progressText.textContent = "Export Complete! ZIP downloaded.";
+    progressText.textContent = "Export Complete! Check your downloads.";
 }
 
 function addExportLog(title, message, type) {
@@ -363,9 +387,22 @@ window.handleAdvancedImport = async (type) => {
     const { data: { user } } = await supabaseClient.auth.getUser();
 
     Papa.parse(file, {
-        header: true,
+        header: false, // Set to false first to handle the Letterboxd metadata rows
         skipEmptyLines: true,
-        complete: (results) => processAdvancedData(type, results.data, user.id)
+        complete: (results) => {
+            if (type === 'list') {
+                processListData(results.data, user.id);
+            } else {
+                // For other types, convert back to header-based format or adjust processAdvancedData
+                const headers = results.data[0];
+                const rows = results.data.slice(1).map(row => {
+                    let obj = {};
+                    headers.forEach((h, i) => obj[h] = row[i]);
+                    return obj;
+                });
+                processAdvancedData(type, rows, user.id);
+            }
+        }
     });
 };
 
@@ -440,6 +477,90 @@ async function processAdvancedData(importType, data, userId) {
 
     progressText.textContent = `${importType} sync complete!`;
     alert(`Import Finished!\nSuccess: ${successCount}\nFailed/Skipped: ${failCount}`);
+}
+
+async function processListData(rawData, userId) {
+    const statusDiv = document.getElementById('import-status');
+    const progressBar = document.getElementById('import-progress-bar');
+    const progressText = document.getElementById('import-text');
+    const logList = document.getElementById('import-log-list');
+
+    statusDiv.style.display = 'block';
+    document.getElementById('import-log-container').style.display = 'block';
+    logList.innerHTML = '';
+
+    // 1. Extract List Metadata (Letterboxd format)
+    // Row 0 is often "Letterboxd list export v7"
+    // Row 1 is "Date, Name, Tags, URL, Description"
+    // Row 2 is the actual values for the list itself
+    const listName = rawData[2][1] || "Imported List";
+    const listDescription = rawData[2][4] || "";
+
+    // 2. Find where the actual movie data starts (usually after "Position, Name, Year...")
+    const headerRowIndex = rawData.findIndex(row => row.includes("Position") && row.includes("Name"));
+    if (headerRowIndex === -1) return alert("Could not find movie data in CSV.");
+
+    const movieRows = rawData.slice(headerRowIndex + 1);
+
+    try {
+        progressText.textContent = `Creating list: ${listName}...`;
+        
+        // 3. Create the List in media_lists
+        const { data: newList, error: listError } = await supabaseClient
+            .from('media_lists')
+            .insert({
+                user_id: userId,
+                name: listName,
+                description: listDescription,
+                is_public: true
+            })
+            .select()
+            .single();
+
+        if (listError) throw listError;
+
+        let successCount = 0;
+
+        // 4. Process each movie
+        for (let i = 0; i < movieRows.length; i++) {
+            const row = movieRows[i];
+            const title = row[1]; // Index 1 is 'Name'
+            const year = row[2];  // Index 2 is 'Year'
+
+            const progress = Math.round(((i + 1) / movieRows.length) * 100);
+            progressBar.style.width = `${progress}%`;
+            progressText.textContent = `Adding to ${listName}: ${title}`;
+
+            const mediaInfo = await resolveMedia(title, year);
+            if (mediaInfo) {
+                const { error: itemError } = await supabaseClient
+                    .from('list_items')
+                    .insert({
+                        list_id: newList.id,
+                        media_id: String(mediaInfo.id),
+                        media_type: mediaInfo.type
+                    });
+
+                if (!itemError) {
+                    addImportLog(title, "Added to list", "success");
+                    successCount++;
+                } else {
+                    addImportLog(title, "Error adding to list", "error");
+                }
+            } else {
+                addImportLog(title, "Not found on TMDB", "error");
+            }
+            // Small delay to respect TMDB rate limits
+            await new Promise(r => setTimeout(r, 150));
+        }
+
+        progressText.textContent = "List import complete!";
+        alert(`Imported "${listName}" with ${successCount} items.`);
+
+    } catch (err) {
+        console.error(err);
+        alert("Failed to create list: " + err.message);
+    }
 }
 
 async function resolveMedia(title, year) {
