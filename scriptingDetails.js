@@ -106,21 +106,45 @@ async function fetchCredits(config, mediaId, mediaType) {
             headers: { Authorization: `Bearer ${config.tmdb_token}` }
         }).then(r => r.json());
 
-        // Get top 12 cast members
-        const topCast = res.cast.slice(0, 12);
+        // 1. Find the Director (or Showrunner/Exec Producer for TV)
+        const director = res.crew.find(person => 
+            person.job === 'Director' || 
+            person.job === 'Executive Producer' && mediaType === 'tv'
+        );
         
-        castList.innerHTML = topCast.map(person => `
-            <div class="cast-card" onclick="window.location.href='cast.html?personId=${person.id}'">
+        // 2. Take top cast members
+        const topCast = res.cast.slice(0, 11);
+
+        // 3. Assemble the final list with Director at the start
+        let finalDisplayList = [];
+        
+        if (director) {
+            finalDisplayList.push({
+                id: director.id,
+                name: director.name,
+                character: director.job, // Will display as "Director"
+                profile_path: director.profile_path,
+                isDirector: true
+            });
+        }
+        
+        // Add the rest of the cast
+        topCast.forEach(actor => finalDisplayList.push(actor));
+
+        // 4. Render to UI
+        castList.innerHTML = finalDisplayList.map(person => `
+            <div class="cast-card ${person.isDirector ? 'director-highlight' : ''}" 
+                 onclick="window.location.href='cast.html?personId=${person.id}'">
                 <img src="${person.profile_path ? 'https://image.tmdb.org/t/p/w185' + person.profile_path : 'https://via.placeholder.com/185x278?text=No+Photo'}" alt="${person.name}">
                 <div class="cast-info">
-                    <p class="cast-name">${person.name}</p>
-                    <p class="cast-role">${person.character}</p>
+                    <span class="cast-name">${person.name}</span>
+                    <span class="cast-role">${person.character || 'Cast'} ${person.isDirector ? '🎬' : ''}</span>
                 </div>
             </div>
         `).join('');
 
-    } catch (err) {
-        console.error("Error fetching credits:", err);
+    } catch (err) { 
+        console.error("Credits error:", err); 
     }
 }
 
