@@ -302,9 +302,6 @@ async function saveLog() {
             } catch (err) {
                 alert("Error: " + err.message);
             }
-
-            const { error } = await supabaseClient.from('media_logs').insert(payload);
-            if (error) throw error;
         }
 
         // 3. Cleanup Watchlist

@@ -54,7 +54,7 @@ async function initDetails() {
             // After the UI Injection section in initDetails
             if (type === 'book') {
                 displayBookLinks(data.isbn);
-                setupBookTracker(data.pages); // New function below
+                setupBookTracker(data.pages);
             }
         } else {
             const res = await fetch(`https://api.themoviedb.org/3/${type}/${id}`, tmdbOptions).then(r => r.json());
@@ -169,16 +169,9 @@ function setupBookTracker(totalPages) {
     // Injected UI with Input Field for direct marking
     list.innerHTML = `
         <div class="book-progress-container">
-            <div class="progress-bar-bg">
-                <div id="book-bar-fill" class="progress-bar-fill" style="width: 0%;"></div>
-            </div>
-            <div class="progress-stats">
-                <p id="book-percent" class="meta">0% read</p>
-                <p class="meta">Total: ${totalPages} pages</p>
-            </div>
             <div class="quick-update-row">
                 <input type="number" id="quick-page-input" placeholder="Current Page #" min="1" max="${totalPages}">
-                <button onclick="updatePageProgress(${totalPages})" class="primary-btn">Mark as Read</button>
+                <button onclick="updatePageProgress(${totalPages})" class="primary-btn">Update Progress</button>
             </div>
         </div>
     `;
@@ -247,18 +240,11 @@ async function fetchBookProgress(totalPages) {
         .order('created_at', { ascending: false })
         .limit(1);
 
-    const fill = document.getElementById('book-bar-fill');
-    const text = document.getElementById('book-percent');
-
     if (logs && logs.length > 0) {
         const currentPage = logs[0].current_page;
-        const percent = Math.min(Math.round((currentPage / totalPages) * 100), 100);
-        fill.style.width = `${percent}%`;
-        text.textContent = `${percent}% read (Page ${currentPage})`;
+        updateUnifiedProgress(currentPage, totalPages, "pages read");
     } else {
-        // If no active log, progress is 0% (ready for reread/first read)
-        fill.style.width = `0%`;
-        text.textContent = `0% read (Start reading to track progress)`;
+        updateUnifiedProgress(0, totalPages, "pages read");
     }
 }
 
@@ -342,6 +328,8 @@ async function setupTVTracker(config, seriesId) {
     trackerSection.style.display = 'block';
     
     const seasonSelector = document.getElementById('season-selector');
+    const markBtn = document.getElementById('mark-season-btn'); // Get the button
+    const clearBtn = document.getElementById('clear-season-btn'); // Get the clear button
     
     // 1. Fetch Series Detail to get number of seasons
     const res = await fetch(`https://api.themoviedb.org/3/tv/${seriesId}`, {
@@ -356,6 +344,12 @@ async function setupTVTracker(config, seriesId) {
     seasonSelector.onchange = () => loadEpisodes(config, seriesId, seasonSelector.value);
     
     // Load first season by default
+    loadEpisodes(config, seriesId, res.seasons[0].season_number);
+
+    markBtn.onclick = () => markSeasonAsWatched();
+    clearBtn.onclick = () => clearSeasonProgress();
+
+    seasonSelector.onchange = () => loadEpisodes(config, seriesId, seasonSelector.value);
     loadEpisodes(config, seriesId, res.seasons[0].season_number);
 }
 
@@ -490,7 +484,7 @@ async function loadEpisodes(config, seriesId, seasonNum) {
             </div>
         `}).join('');
 
-        updateProgressBarUI(watchedCount, totalEpisodes, percentage);
+        updateUnifiedProgress(watchedCount, totalEpisodes, "episodes watched");
 
     } catch (err) {
         console.error("Error loading episodes:", err);
@@ -515,48 +509,38 @@ async function toggleEpisode(seriesId, seasonNum, epNum) {
 }
 
 async function markSeasonAsWatched() {
-    const seasonNum = document.getElementById('season-selector').value;
+    const seasonNum = parseInt(document.getElementById('season-selector').value);
     const { data: { user } } = await supabaseClient.auth.getUser();
 
     if (!user) return alert("Please sign in to log progress.");
 
+    // Fetch episodes for the selected season
     const configRes = await fetch('config.json');
     const config = await configRes.json();
-    
     const res = await fetch(`https://api.themoviedb.org/3/tv/${id}/season/${seasonNum}`, {
         headers: { Authorization: `Bearer ${config.tmdb_token}` }
     }).then(r => r.json());
 
-    // Ensure series_id is a String to match your table's 'text' format
+    // CRITICAL: Ensure series_id is a String and numbers are Integers
     const logs = res.episodes.map(ep => ({
         user_id: user.id,
-        series_id: String(id), 
-        season_number: parseInt(seasonNum),
+        series_id: String(id), // Convert to String for DB text columns
+        season_number: seasonNum,
         episode_number: ep.episode_number
     }));
 
     const { error } = await supabaseClient
         .from('episode_logs')
-        .upsert(logs, { 
-            onConflict: 'user_id,series_id,season_number,episode_number' 
-        });
+        .upsert(logs, { onConflict: 'user_id,series_id,season_number,episode_number' });
 
     if (error) {
-        console.error("Supabase Error Details:", error); // Check the browser console!
-        alert("Error: " + error.message);
+        console.error("Upsert Error:", error);
+        alert("Database Error: " + error.message);
     } else {
-        loadEpisodes(config, id, seasonNum);
-        alert(`Season ${seasonNum} marked as watched!`);
-    }
-
-    // At the very end of markSeasonAsWatched()
-    if (error) {
-        console.error("Supabase Error Details:", error);
-        alert("Error: " + error.message);
-    } else {
-        // Instead of forcing a full list reload, just update the boxes and the bar
+        // Refresh UI
+        refreshProgressBar(id, seasonNum);
+        // Re-check the boxes visually
         document.querySelectorAll('.episode-item input[type="checkbox"]').forEach(cb => cb.checked = true);
-        refreshProgressBar(id, seasonNum); 
         alert(`Season ${seasonNum} marked as watched!`);
     }
 }
@@ -565,46 +549,35 @@ async function refreshProgressBar(seriesId, seasonNum) {
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) return;
 
-    // Check for Season Review
-    const { data: seasonReview } = await supabaseClient
-        .from('media_logs')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('media_id', seriesId)
-        .eq('season_number', seasonNum)
-        .is('episode_number', null)
-        .maybeSingle();
-
     const totalEpisodes = document.querySelectorAll('.episode-item').length;
 
-    if (seasonReview) {
-        updateProgressBarUI(totalEpisodes, totalEpisodes, 100);
-        return;
-    }
+    // Check how many episodes are marked in episode_logs
+    const { data: watched, error } = await supabaseClient
+        .from('episode_logs')
+        .select('episode_number')
+        .eq('series_id', String(seriesId))
+        .eq('season_number', parseInt(seasonNum))
+        .eq('user_id', user.id);
 
-    // Check for Episode Marks + Episode Reviews
-    const { data: watched } = await supabaseClient.from('episode_logs').select('episode_number')
-        .eq('series_id', String(seriesId)).eq('season_number', seasonNum).eq('user_id', user.id);
+    if (error) return console.error(error);
+
+    const count = watched ? watched.length : 0;
+    const percent = totalEpisodes > 0 ? Math.round((count / totalEpisodes) * 100) : 0;
     
-    const { data: reviewed } = await supabaseClient.from('media_logs').select('episode_number')
-        .eq('media_id', seriesId).eq('season_number', seasonNum).eq('user_id', user.id).not('episode_number', 'is', null);
-
-    const uniqueWatched = new Set([
-        ...(watched || []).map(w => w.episode_number),
-        ...(reviewed || []).map(r => r.episode_number)
-    ]);
-
-    const count = uniqueWatched.size;
-    const percent = Math.round((count / totalEpisodes) * 100);
-    updateProgressBarUI(count, totalEpisodes, percent);
+    updateUnifiedProgress(count, totalEpisodes, "episodes watched");
 }
 
 // Helper function to keep code clean
-function updateProgressBarUI(count, total, percent) {
-    const barFill = document.querySelector('.progress-bar-fill');
-    const progressMeta = document.querySelector('#progress-container .meta');
+function updateUnifiedProgress(current, total, unitLabel) {
+    const barFill = document.getElementById('main-progress-fill');
+    const statsText = document.getElementById('progress-stats-text');
+    
+    const percent = total > 0 ? Math.min(Math.round((current / total) * 100), 100) : 0;
+    
     if (barFill) barFill.style.width = `${percent}%`;
-    if (progressMeta) progressMeta.textContent = `${count} / ${total} episodes watched (${percent}%)`;
+    if (statsText) {
+        statsText.textContent = `${current} / ${total} ${unitLabel} (${percent}%)`;
+    }
 }
 
 async function clearSeasonProgress() {
