@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Catalogd | List Details</title>
+    <link rel="stylesheet" href="stylingIndex.css">
+    <link rel="stylesheet" href="stylingProfile.css">
+    <link rel="stylesheet" href="stylingDetails.css">
+    <link rel="stylesheet" href="stylingListDetails.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <header>
+        <div class="logo" onclick="window.location.href='index.html'">
+            <img src="catalogdLogo.png" alt="Catalogd" width="200">
+        </div>
+        <div class="nav-actions">
+            <button onclick="window.location.href='lists.html'" class="secondary-btn">Back to Lists</button>
+        </div>
+    </header>
+
+    <main class="profile-container">
+        <div class="list-header-info">
+            <h1 id="list-name">Loading List...</h1>
+            <p id="list-desc" class="meta">Manage your collection below.</p>
+        </div>
+
+        <section class="search-container">
+            <h3>Add to List</h3>
+            <input type="text" id="list-search-input" placeholder="Search for something to add...">
+            <div id="search-results" class="search-results-dropdown"></div>
+        </section>
+
+        <h2>Items in this List</h2>
+        <div id="list-content" class="list-items-grid">
+            <p class="meta">No items in this list yet.</p>
+        </div>
+    </main>
+
+    <script src="scriptingListDetails.js"></script>
+</body>
+</html>

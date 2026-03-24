@@ -94,6 +94,7 @@ async function initDetails() {
 
         fetchMediaHistory();
         setupWatchlist(id, type);
+        setupListManager(id, type);
     } catch (err) { console.error(err); }
 }
 
@@ -880,6 +881,87 @@ window.deleteLog = async (logId) => {
         document.getElementById(`log-${logId}`)?.remove();
         // Optional: refresh history to show "No logs yet" if empty
         fetchMediaHistory();
+    }
+};
+
+async function setupListManager(mediaId, mediaType) {
+    const addBtn = document.getElementById('add-to-list-btn');
+    const modal = document.getElementById('list-modal');
+    const closeBtn = document.getElementById('close-list-modal');
+    const listContainer = document.getElementById('user-lists-selection');
+    
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) {
+        addBtn.style.display = 'none';
+        return;
+    }
+
+    addBtn.onclick = async () => {
+        modal.style.display = 'flex';
+        listContainer.innerHTML = '<p class="meta">Loading lists...</p>';
+        
+        // Fetch all of user's lists
+        const { data: lists } = await supabaseClient
+            .from('media_lists')
+            .select('id, name');
+
+        // Check which lists already contain this item
+        const { data: existingEntries } = await supabaseClient
+            .from('list_items')
+            .select('list_id')
+            .eq('media_id', String(mediaId));
+
+        const existingListIds = new Set(existingEntries.map(e => e.list_id));
+
+        if (lists.length === 0) {
+            listContainer.innerHTML = '<p class="meta">No lists found. Create one in your profile!</p>';
+            return;
+        }
+
+        listContainer.innerHTML = lists.map(list => {
+            const isAdded = existingListIds.has(list.id);
+            return `
+                <div class="list-select-item">
+                    <span>${list.name}</span>
+                    <button class="${isAdded ? 'danger-btn' : 'primary-btn'}" 
+                            onclick="toggleListItem('${list.id}', '${mediaId}', '${mediaType}', ${isAdded})">
+                        ${isAdded ? 'Remove' : 'Add'}
+                    </button>
+                </div>
+            `;
+        }).join('');
+    };
+
+    closeBtn.onclick = () => modal.style.display = 'none';
+}
+
+// Helper to add/remove items
+window.toggleListItem = async (listId, mediaId, mediaType, isCurrentlyAdded) => {
+    try {
+        if (isCurrentlyAdded) {
+            await supabaseClient.from('list_items')
+                .delete()
+                .eq('list_id', listId)
+                .eq('media_id', String(mediaId));
+        } else {
+            await supabaseClient.from('list_items')
+                .insert({
+                    list_id: listId, 
+                    media_id: String(mediaId), 
+                    media_type: mediaType
+                });
+        }
+        
+        // Instead of triggering a click (which can be glitchy), 
+        // just call the refresh part of the setup function
+        const addBtn = document.getElementById('add-to-list-btn');
+        if (addBtn) {
+            // Re-trigger the logic to update the button labels (Add/Remove)
+            addBtn.dispatchEvent(new Event('click'));
+        }
+        
+    } catch (err) {
+        console.error("Error toggling list item:", err);
     }
 };
 

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Catalogd | My Lists</title>
+    <link rel="stylesheet" href="stylingIndex.css">
+    <link rel="stylesheet" href="stylingProfile.css">
+    <link rel="stylesheet" href="stylingLists.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <header>
+        <div class="logo" onclick="window.location.href='index.html'">
+            <img src="catalogdLogo.png" alt="Catalogd" width="200">
+        </div>
+        <div class="nav-actions">
+            <button onclick="window.location.href='profile.html'" class="secondary-btn">Back to Profile</button>
+        </div>
+    </header>
+
+    <main class="profile-container">
+        <h1>My Lists</h1>
+        
+        <section class="create-list-section">
+            <h3>Create New List</h3>
+            <div class="input-group">
+                <input type="text" id="list-name-input" placeholder="List Name (e.g., Best Sci-Fi 2024)">
+                <button id="create-list-btn" class="primary-btn" style="width: auto;">Create List</button>
+            </div>
+        </section>
+
+        <div id="lists-container" class="list-grid">
+            <p class="meta">Loading your lists...</p>
+        </div>
+    </main>
+
+    <script src="scriptingLists.js"></script>
+</body>
+</html>

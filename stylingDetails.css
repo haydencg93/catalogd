@@ -449,3 +449,100 @@
     color: var(--accent);
     font-weight: bold;
 }
+
+/* List Selection Modal Styling */
+#user-lists-selection {
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 10px;
+    margin-top: 20px;
+}
+
+/* Custom scrollbar for the list selection */
+#user-lists-selection::-webkit-scrollbar {
+    width: 6px;
+}
+#user-lists-selection::-webkit-scrollbar-thumb {
+    background: #2c3440;
+    border-radius: 10px;
+}
+
+.list-select-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #2c3440;
+    transition: background 0.2s;
+}
+
+.list-select-item:last-child {
+    border-bottom: none;
+}
+
+.list-select-item span {
+    font-weight: 600;
+    color: #fff;
+    font-size: 1rem;
+}
+
+/* Modal Close Button Tweak */
+.close-btn {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: none;
+    border: none;
+    color: #9ab;
+    font-size: 1.8rem;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.close-btn:hover {
+    color: #fff;
+}
+
+/* Core Modal Background */
+.modal-overlay {
+    position: fixed; 
+    inset: 0; 
+    background: rgba(0,0,0,0.85);
+    display: none; /* Controlled by JS */
+    justify-content: center; 
+    align-items: center; 
+    z-index: 2000;
+}
+
+/* The Box inside the modal */
+.auth-card { 
+    background: #1b2228; 
+    padding: 40px; 
+    border-radius: 16px; 
+    width: 320px; 
+    text-align: center; 
+    position: relative;
+    border: 1px solid #2c3440;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+}
+
+/* Force the list buttons to be much smaller */
+#user-lists-selection .list-select-item button {
+    width: auto !important;     /* Stop it from filling the row */
+    flex: 0 1 auto !important;  /* Override any flex-grow settings */
+    padding: 4px 10px !important; /* Very tight padding for 1/4 size look */
+    font-size: 0.7rem !important; /* Smaller text for a smaller button */
+    min-width: 60px !important;   /* Minimum width so it's still clickable */
+    height: 28px !important;      /* Fixed height for consistency */
+    border-radius: 14px !important;
+    margin: 0 !important;
+}
+
+/* Ensure the container isn't forcing children to stretch */
+.list-select-item {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 10px;
+    padding: 8px 0;
+}

@@ -1,0 +1,37 @@
+.list-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; margin-top: 30px; }
+.list-card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid #2c3440; cursor: pointer; transition: 0.2s; }
+.list-card:hover { border-color: var(--accent); transform: translateY(-3px); }
+.create-list-section { background: var(--card); padding: 25px; border-radius: 12px; margin-bottom: 40px; border: 1px solid var(--accent); }
+.input-group { display: flex; gap: 10px; margin-top: 15px; }
+input[type="text"] { margin: 0; flex-grow: 1; }
+
+.list-poster-preview {
+    display: flex;
+    background: #14181c;
+    padding: 10px;
+    border-radius: 8px;
+    height: 120px;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+
+.preview-poster {
+    width: 80px;
+    height: 110px;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 2px solid var(--card);
+    box-shadow: 5px 0 15px rgba(0,0,0,0.5);
+    margin-left: -40px; /* This creates the overlapping effect */
+    transition: transform 0.2s;
+}
+
+.preview-poster:first-child {
+    margin-left: 0;
+}
+
+.list-card:hover .preview-poster {
+    transform: translateY(-5px);
+}
