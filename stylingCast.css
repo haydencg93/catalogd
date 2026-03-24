@@ -1,0 +1,162 @@
+/* --- Layout Container --- */
+.cast-container {
+    max-width: 1100px;
+    margin: 60px auto;
+    padding: 0 20px;
+}
+
+/* --- Profile Header Section --- */
+#person-header {
+    display: flex;
+    gap: 40px;
+    margin-bottom: 50px;
+    align-items: flex-start;
+}
+
+.person-img {
+    width: 280px;
+    border-radius: 12px;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#person-bio-area {
+    flex: 1;
+}
+
+#person-name {
+    font-size: 3.5rem;
+    margin: 0 0 20px 0;
+    color: #fff;
+}
+
+#person-biography {
+    line-height: 1.6;
+    color: #9ab;
+    font-size: 1.1rem;
+    margin-bottom: 30px;
+}
+
+/* --- Known For Section (Index-Style Cards) --- */
+.known-for-section {
+    margin-top: 40px;
+    padding-top: 25px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.known-for-section h3 {
+    margin-bottom: 20px;
+    color: #fff;
+}
+
+.known-for-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+}
+
+/* Replicating Index.html Card Style */
+.known-for-grid .media-card {
+    background: #1b2228; /* Matches your index card background */
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.3s ease, opacity 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.known-for-grid .media-card img {
+    width: 100%;
+    aspect-ratio: 2/3;
+    object-fit: cover;
+    display: block;
+}
+
+.known-for-grid .media-info {
+    padding: 12px;
+}
+
+/* Interactive Focus Effect */
+.known-for-grid:hover .media-card {
+    opacity: 0.5;
+    transform: scale(0.98);
+}
+
+.known-for-grid .media-card:hover {
+    opacity: 1 !important;
+    transform: scale(1.05) translateY(-5px) !important;
+    box-shadow: 0 10px 25px rgba(0, 224, 84, 0.2);
+    border-color: #00e054; /* Your accent color */
+}
+
+/* --- Filmography List Section --- */
+#filmography {
+    margin-top: 50px;
+}
+
+#filmography h3 {
+    border-bottom: 1px solid #2c3440;
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+    font-size: 1.5rem;
+    color: #fff;
+}
+
+.film-row {
+    display: flex;
+    gap: 20px;
+    padding: 10px 15px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+    transition: background 0.2s;
+    align-items: center;
+}
+
+.film-row:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.film-year {
+    color: #678;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 1.1rem;
+    min-width: 60px;
+}
+
+.mini-poster {
+    width: 40px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    flex-shrink: 0;
+}
+
+.film-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.film-title {
+    color: #fff;
+    font-size: 1.1rem;
+}
+
+.film-role {
+    color: #9ab;
+    font-style: italic;
+    font-size: 0.95rem;
+    margin-top: 4px;
+}
+
+/* Media Type Badge (TV vs Movie) */
+.type-badge {
+    font-size: 0.7rem;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 8px;
+    vertical-align: middle;
+    color: #9ab;
+    text-transform: uppercase;
+}

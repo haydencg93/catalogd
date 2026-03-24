@@ -88,9 +88,40 @@ async function initDetails() {
             fetchWatchProviders(config);
         }
 
+        if (type !== 'book') {
+            fetchCredits(config, id, type);
+        }
+
         fetchMediaHistory();
         setupWatchlist(id, type);
     } catch (err) { console.error(err); }
+}
+
+async function fetchCredits(config, mediaId, mediaType) {
+    const castList = document.getElementById('cast-list');
+    const url = `https://api.themoviedb.org/3/${mediaType}/${mediaId}/credits`;
+    
+    try {
+        const res = await fetch(url, {
+            headers: { Authorization: `Bearer ${config.tmdb_token}` }
+        }).then(r => r.json());
+
+        // Get top 12 cast members
+        const topCast = res.cast.slice(0, 12);
+        
+        castList.innerHTML = topCast.map(person => `
+            <div class="cast-card" onclick="window.location.href='cast.html?personId=${person.id}'">
+                <img src="${person.profile_path ? 'https://image.tmdb.org/t/p/w185' + person.profile_path : 'https://via.placeholder.com/185x278?text=No+Photo'}" alt="${person.name}">
+                <div class="cast-info">
+                    <p class="cast-name">${person.name}</p>
+                    <p class="cast-role">${person.character}</p>
+                </div>
+            </div>
+        `).join('');
+
+    } catch (err) {
+        console.error("Error fetching credits:", err);
+    }
 }
 
 function setupBookTracker(totalPages) {

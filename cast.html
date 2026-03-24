@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Catalogd | Cast</title>
+    <link rel="stylesheet" href="stylingIndex.css">
+    <link rel="stylesheet" href="stylingDetails.css">
+    <link rel="stylesheet" href="stylingCast.css">
+    <link rel="icon" type="image/x-icon" href="catalogdFavicon.png" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <header>
+        <div class="logo" onclick="window.location.href='index.html'">
+            <img src="catalogdLogo.png" alt="Catalogd" width="300" height="82">
+        </div>
+        
+        <section class="search-section" style="flex-grow: 1; margin: 0 40px;">
+            <input type="text" id="search-input" placeholder="Search for movies, shows, or books..." style="margin: 0; max-width: 400px;">
+        </section>
+
+        <div class="nav-actions">
+            <button id="profile-btn" class="secondary-btn" style="display:none;" onclick="window.location.href='profile.html'">My Profile</button>
+            <button id="login-btn" class="secondary-btn">Sign In</button>
+        </div>
+    </header>
+
+    <main class="cast-container">
+        <section id="person-header">
+            <div id="person-image-container"></div>
+            <div id="person-bio-area">
+                <h1 id="person-name">Loading...</h1>
+                <p id="person-biography" class="meta"></p>
+            </div>
+        </section>
+
+        <section id="filmography">
+            <h3>Filmography</h3>
+            <div id="film-list"></div>
+        </section>
+    </main>
+
+    <script src="scriptingCast.js"></script>
+</body>
+</html>
