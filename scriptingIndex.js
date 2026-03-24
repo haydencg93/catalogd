@@ -37,7 +37,7 @@ async function loadConfig() {
 
         // Setup Search UI
         searchInput.disabled = false;
-        searchInput.placeholder = "Search for movies, shows, or books...";
+        searchInput.placeholder = "Search for movies, shows, books, cast members, ...";
         searchInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') unifiedSearch(searchInput.value);
         });
@@ -207,22 +207,15 @@ window.switchTab = function(type) {
 };
 
 async function unifiedSearch(query) {
-    // 1. ADDED: If the query is empty, treat it as a "clear" action
     if (!query || query.trim() === "") {
-        // Reset the search input value just in case
         searchInput.value = '';
-        // Remove the search param from the URL without refreshing the page
         const url = new URL(window.location);
         url.searchParams.delete('search');
         window.history.pushState({}, '', url);
-        
-        // Go back to showing trending movies
         fetchTrending('movie'); 
         return;
     }
 
-    if (!TMDB_TOKEN) return;
-    
     loader.style.display = 'block';
     loader.textContent = "Exploring the archives...";
     resultsGrid.innerHTML = '';
@@ -239,17 +232,38 @@ async function unifiedSearch(query) {
             fetchBooks(query)
         ]);
 
+        const seenPeople = new Set();
         const tmdbResults = (tmdbRes.results || [])
-            .filter(item => item.media_type !== 'person' && item.poster_path)
-            .map(item => ({
-                title: item.title || item.name,
-                year: (item.release_date || item.first_air_date || '').split('-')[0],
-                image: `https://image.tmdb.org/t/p/w500${item.poster_path}`,
-                type: item.media_type,
-                id: item.id
-            }));
+            .map(item => {
+                if (item.media_type === 'person') {
+                    // Filter: Only show the main Acting/Directing profiles, skip obscure crew duplicates
+                    if (seenPeople.has(item.name)) return null; 
+                    seenPeople.add(item.name);
+
+                    return {
+                        title: item.name,
+                        year: item.known_for_department || 'Person',
+                        // High-quality placeholder if image is missing
+                        image: item.profile_path 
+                            ? `https://image.tmdb.org/t/p/w500${item.profile_path}` 
+                            : `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=1b2228&color=9ab&size=512`,
+                        type: 'person',
+                        id: item.id
+                    };
+                } else if (item.poster_path) {
+                    return {
+                        title: item.title || item.name,
+                        year: (item.release_date || item.first_air_date || '').split('-')[0],
+                        image: `https://image.tmdb.org/t/p/w500${item.poster_path}`,
+                        type: item.media_type,
+                        id: item.id
+                    };
+                }
+                return null;
+            }).filter(Boolean);
 
         const combined = [...tmdbResults, ...bookData];
+        
         if (combined.length === 0) {
             loader.textContent = "No results found.";
         } else {
@@ -258,7 +272,7 @@ async function unifiedSearch(query) {
         }
     } catch (err) { 
         console.error("Search failed:", err); 
-        loader.textContent = "Search failed. Please try again.";
+        loader.textContent = "Search failed.";
     }
 }
 
@@ -277,25 +291,33 @@ async function fetchBooks(query) {
         }));
 }
 
-// Replace your existing renderResults function with this one
 function renderResults(items, isTrending = false) {
     items.forEach(item => {
         const card = document.createElement('div');
         card.className = 'media-card';
-        card.onclick = () => window.location.href = `details.html?id=${item.id}&type=${item.type}`;
         
-        // Create the trending badge HTML if isTrending is true
+        card.onclick = () => {
+            if (item.type === 'person') {
+                window.location.href = `cast.html?personId=${item.id}`;
+            } else {
+                window.location.href = `details.html?id=${item.id}&type=${item.type}`;
+            }
+        };
+        
         const trendingBadge = isTrending ? `<div class="trending-label">Trending Today</div>` : '';
 
         card.innerHTML = `
             <div class="poster-wrapper">
                 ${trendingBadge}
-                <img src="${item.image}" alt="${item.title}" loading="lazy">
+                <img src="${item.image}" 
+                     alt="${item.title}" 
+                     loading="lazy" 
+                     onerror="this.onerror=null; this.src='https://via.placeholder.com/500x750?text=No+Image';">
                 <span class="badge badge-${item.type}">${item.type}</span>
             </div>
             <div class="media-info">
                 <div class="title">${item.title}</div>
-                <div class="meta">${item.year || 'Unknown Year'}</div>
+                <div class="meta">${item.year || 'Unknown'}</div>
             </div>`;
         resultsGrid.appendChild(card);
     });

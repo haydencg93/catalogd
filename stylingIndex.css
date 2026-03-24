@@ -171,3 +171,13 @@ input {
     border-color: var(--accent);
     z-index: 10; /* Ensures the popped-out card stays on top of others */
 }
+
+.media-info .title {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 2.4em; /* Keeps titles aligned even if one is 1 line and another is 2 */
+    margin-bottom: 5px;
+    font-weight: bold;
+}
