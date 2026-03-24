@@ -23,14 +23,35 @@ async function initCastPage() {
             `;
         }
 
-        // 2. Fetch Credits
+        // 2. Fetch ALL Credits (Fixed: Moved this up so actingCredits can use it)
         const credits = await fetch(`https://api.themoviedb.org/3/person/${personId}/combined_credits`, { headers }).then(r => r.json());
 
-        // 3. Known For Section (Top 4 by popularity)
-        const knownFor = [...credits.cast]
-            .sort((a, b) => b.popularity - a.popularity)
-            .slice(0, 4);
+        // 3. Known For Section
+        // Fixed: Defined actingCredits and filtered for items with posters
+        const actingCredits = (credits.cast || []).filter(item => item.poster_path);
+        
+        const uniqueCredits = [];
+        const seenIds = new Set();
+        
+        actingCredits.forEach(item => {
+            if (!seenIds.has(item.id)) {
+                uniqueCredits.push(item);
+                seenIds.add(item.id);
+            }
+        });
 
+        const knownFor = uniqueCredits.sort((a, b) => {
+            // Heavily weight Vote Count to prioritize iconic films over TV cameos
+            const typeWeightA = a.media_type === 'movie' ? 2 : 1;
+            const typeWeightB = b.media_type === 'movie' ? 2 : 1;
+
+            const scoreA = (a.vote_count || 0) * typeWeightA;
+            const scoreB = (b.vote_count || 0) * typeWeightB;
+            
+            return scoreB - scoreA;
+        }).slice(0, 4);
+
+        // Render Known For HTML
         const knownForHtml = `
             <div class="known-for-section">
                 <h3>Known For</h3>
@@ -55,7 +76,7 @@ async function initCastPage() {
         `;
         document.getElementById('person-bio-area').insertAdjacentHTML('beforeend', knownForHtml);
 
-        // 4. Sort Full Filmography by Year
+        // 4. Sort Full Filmography by Year (Newest at top)
         const sorted = credits.cast.sort((a, b) => {
             const dateA = a.release_date || a.first_air_date || '0000';
             const dateB = b.release_date || b.first_air_date || '0000';
@@ -83,7 +104,7 @@ async function initCastPage() {
         }).join('');
 
     } catch (err) {
-        console.error("Error:", err);
+        console.error("Error initializing cast page:", err);
     }
 }
 
