@@ -122,7 +122,17 @@ async function initSettings() {
                 window.location.href = 'index.html';
             }
         }
-    };
+
+        const hash = window.location.hash;
+        if (hash && hash.includes('type=recovery')) {
+            // The user is automatically signed in to a temporary session by Supabase
+            alert("Password recovery mode active. Please enter your new password in the Security section.");
+            
+            // Optional: Smooth scroll to the password section
+            document.getElementById('new-password').scrollIntoView({ behavior: 'smooth' });
+            document.getElementById('new-password').focus();
+        };
+    }
 }
 
 async function startLetterboxdExport(userId, rangeType, startDate, endDate) {

@@ -323,6 +323,32 @@ function renderResults(items, isTrending = false) {
     });
 }
 
+// Add this function to Section 4: Authentication Logic
+async function handleForgotPassword() {
+    const email = authEmail.value;
+
+    if (!email) {
+        alert("Please enter your email address first so we know where to send the link.");
+        authEmail.focus();
+        return;
+    }
+
+    try {
+        const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+            // This is where the user is sent after clicking the email link
+            // We send them to settings.html where they can type a new password
+            redirectTo: window.location.origin + '/settings.html',
+        });
+
+        if (error) throw error;
+
+        alert("Success! Check your email for a password reset link.");
+        closeAuthModal();
+    } catch (err) {
+        alert("Error: " + err.message);
+    }
+}
+
 // 7. Event Listeners & Start
 authConfirmBtn.addEventListener('click', handleAuth);
 closeModal.addEventListener('click', closeAuthModal);

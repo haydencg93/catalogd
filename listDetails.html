@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="stylingDetails.css">
     <link rel="stylesheet" href="stylingListDetails.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 </head>
 <body>
     <header>
@@ -21,8 +22,20 @@
 
     <main class="profile-container">
         <div class="list-header-info">
-            <h1 id="list-name">Loading List...</h1>
-            <p id="list-desc" class="meta">Manage your collection below.</p>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h1 id="list-name">Loading List...</h1>
+                    <p id="list-desc" class="meta">Manage your collection below.</p>
+                </div>
+                <div class="list-controls">
+                    <label class="ranked-toggle-wrapper">
+                        <input type="checkbox" id="ranked-toggle">
+                        <span>Ranked List</span>
+                    </label>
+                    <button id="manage-order-btn" class="secondary-btn" style="display:none;">Reorder Items</button>
+                    <button id="save-order-btn" class="primary-btn" style="display:none;">Save Order</button>
+                </div>
+            </div>
         </div>
 
         <section class="search-container">
