@@ -5,15 +5,6 @@
     <title>Catalogd | My Profile</title>
     <link rel="stylesheet" href="stylingProfile.css">
     <link rel="icon" type="image/x-icon" href="catalogdFavicon.png" />
-    <style>
-        .profile-container { max-width: 900px; margin: 60px auto; padding: 0 20px; }
-        .profile-header { display: flex; align-items: center; gap: 30px; margin-bottom: 50px; }
-        .avatar-placeholder { width: 100px; height: 100px; background: var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; color: #000; font-weight: bold; }
-        .stats-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 50px; }
-        .stat-card { background: var(--card); padding: 20px; border-radius: 12px; text-align: center; border: 1px solid #2c3440; }
-        .stat-value { display: block; font-size: 2rem; font-weight: bold; color: var(--accent); }
-        .stat-label { color: #9ab; font-size: 0.9rem; text-transform: uppercase; }
-    </style>
 </head>
 <body>
 <header>
@@ -37,6 +28,11 @@
             </div>
         </div>
 
+        <div class="user-bio-container" style="margin-bottom: 30px;">
+            <p id="display-bio" style="font-size: 1.1rem; line-height: 1.6; color: #ccd6e0; margin-bottom: 10px;"></p>
+            <a id="display-website" href="#" target="_blank" style="color: var(--accent); text-decoration: none; font-size: 0.9rem;"></a>
+        </div>
+
         <div class="stats-bar">
             <div class="stat-card" style="grid-column: span 2;">
                 <span id="stat-count" class="stat-value">0</span>
@@ -47,6 +43,26 @@
                 <span class="stat-label">Watchlist →</span>
             </div>
         </div>
+
+        <section id="favorites-section" style="margin-bottom: 50px;">
+            <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">Favorites</h2>
+                <div class="filter-nav" style="margin: 0;">
+                    <button class="filter-btn active" onclick="filterFavs('all')">All</button>
+                    <button class="filter-btn" onclick="filterFavs('movie')">Movies</button>
+                    <button class="filter-btn" onclick="filterFavs('tv')">TV</button>
+                    <button class="filter-btn" onclick="filterFavs('book')">Books</button>
+                </div>
+            </div>
+            <div class="grid" id="favorites-grid"></div>
+        </section>
+
+        <section id="active-tracking-section" style="margin-bottom: 50px; display: none;">
+            <div class="section-header">
+                <h2 style="margin: 0;">Currently Watching/Reading</h2>
+            </div>
+            <div class="grid" id="active-grid"></div>
+        </section>
 
         <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <h2 style="margin: 0;">Recent Activity</h2>

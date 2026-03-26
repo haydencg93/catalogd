@@ -40,7 +40,31 @@
                 <label>Banner Image URL</label>
                 <input type="url" id="edit-banner" placeholder="https://example.com/banner.jpg">
             </div>
+            <div class="input-group">
+                <label>Bio</label>
+                <textarea id="edit-bio" placeholder="Tell the world about your taste..." 
+                        style="width: 100%; background: #14181c; border: 1px solid #2c3440; border-radius: 8px; color: white; padding: 12px; font-family: inherit; resize: vertical;"></textarea>
+            </div>
+            <div class="input-group">
+                <label>Website Link</label>
+                <input type="url" id="edit-website" placeholder="https://letterboxd.com/user">
+            </div>
             <button id="save-profile-btn" class="primary-btn">Update Profile</button>
+        </section>
+
+        <section class="settings-card">
+            <h3>Favorites</h3>
+            <p class="meta">Select your top 5 for each category. Your #1 from each becomes your "Top 3 All".</p>
+            
+            <div class="input-group">
+                <label>Search to add Favorite</label>
+                <input type="text" id="fav-search-input" placeholder="Search movies, tv, or books...">
+                <div id="fav-search-results" class="search-results-dropdown"></div>
+            </div>
+
+            <div id="favorites-manager">
+            </div>
+            <button id="save-favs-btn" class="primary-btn" style="margin-top: 20px;">Save Favorites</button>
         </section>
 
         <section class="settings-card">

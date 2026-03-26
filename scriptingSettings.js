@@ -1,14 +1,35 @@
 let supabaseClient = null;
 let tmdbToken = null;
+let currentFavs = { movie: [], tv: [], book: [], all: [] };
 
 async function initSettings() {
     const response = await fetch('config.json');
     const config = await response.json();
-    supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
+    supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key, {
+            auth: {
+                persistSession: true,
+                autoRefreshToken: true,
+                detectSessionInUrl: true
+            }
+        });
     tmdbToken = config.tmdb_token;
 
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) { window.location.href = 'index.html'; return; }
+
+    // Fetch existing Bio/Website/Favs to prefill
+    const { data: profile } = await supabaseClient
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+    if (profile) {
+        document.getElementById('edit-bio').value = profile.bio || '';
+        document.getElementById('edit-website').value = profile.website_url || '';
+        currentFavs = profile.favorites || { movie: [], tv: [], book: [], all: [] };
+        renderFavManager(); // Function to show current favs in settings
+    }
 
     // Prefill current data
     const meta = user.user_metadata || {};
@@ -16,21 +37,6 @@ async function initSettings() {
     document.getElementById('edit-username').value = meta.username || '';
     document.getElementById('edit-avatar').value = meta.avatar_url || '';
     document.getElementById('edit-banner').value = meta.banner_url || '';
-
-    // Update Profile
-    document.getElementById('save-profile-btn').onclick = async () => {
-        const { error } = await supabaseClient.auth.updateUser({
-            data: { 
-                display_name: document.getElementById('edit-name').value, 
-                username: document.getElementById('edit-username').value,
-                avatar_url: document.getElementById('edit-avatar').value,
-                banner_url: document.getElementById('edit-banner').value
-            }
-        });
-
-        if (error) alert(error.message);
-        else alert("Profile updated successfully!");
-    };
 
     // --- Change Password ---
     document.getElementById('change-password-btn').onclick = async () => {
@@ -125,14 +131,110 @@ async function initSettings() {
 
         const hash = window.location.hash;
         if (hash && hash.includes('type=recovery')) {
-            // The user is automatically signed in to a temporary session by Supabase
             alert("Password recovery mode active. Please enter your new password in the Security section.");
-            
-            // Optional: Smooth scroll to the password section
             document.getElementById('new-password').scrollIntoView({ behavior: 'smooth' });
             document.getElementById('new-password').focus();
-        };
+        }
     }
+    setupFavoritesSearch();
+}
+
+// Function to handle the Favorites search
+const favSearchInput = document.getElementById('fav-search-input');
+const favSearchResults = document.getElementById('fav-search-results');
+
+favSearchInput.oninput = async () => {
+    const query = favSearchInput.value;
+    if (query.length < 3) {
+        favSearchResults.innerHTML = '';
+        return;
+    }
+
+    // Search TMDB (Movies/TV)
+    const options = { headers: { Authorization: `Bearer ${tmdbToken}` } };
+    const res = await fetch(`https://api.themoviedb.org/3/search/multi?query=${encodeURIComponent(query)}`, options);
+    const data = await res.json();
+
+    favSearchResults.innerHTML = '';
+    favSearchResults.style.display = 'block';
+
+    data.results.slice(0, 5).forEach(item => {
+        if (item.media_type === 'person') return;
+        
+        const div = document.createElement('div');
+        div.className = 'search-item-dropdown';
+        div.style.padding = '10px';
+        div.style.cursor = 'pointer';
+        div.style.borderBottom = '1px solid #2c3440';
+        div.innerHTML = `<strong>${item.title || item.name}</strong> (${item.media_type})`;
+        
+        div.onclick = () => {
+            addFavorite({
+                id: item.id,
+                title: item.title || item.name,
+                type: item.media_type,
+                image: `https://image.tmdb.org/t/p/w500${item.poster_path}`
+            });
+            favSearchResults.innerHTML = '';
+            favSearchInput.value = '';
+        };
+        favSearchResults.appendChild(div);
+    });
+};
+
+// Update Profile
+async function saveAllProfileData() {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) return alert("Session lost. Please log in again.");
+
+    // 1. Update Auth Metadata (Avatar/Banner/Names)
+    const { error: authError } = await supabaseClient.auth.updateUser({
+        data: { 
+            display_name: document.getElementById('edit-name').value, 
+            username: document.getElementById('edit-username').value,
+            avatar_url: document.getElementById('edit-avatar').value,
+            banner_url: document.getElementById('edit-banner').value
+        }
+    });
+
+    // 2. Update Profiles Table (Bio/Website/Favorites)
+    const { error: profileError } = await supabaseClient
+        .from('profiles')
+        .update({
+            bio: document.getElementById('edit-bio').value,
+            website_url: document.getElementById('edit-website').value,
+            favorites: currentFavs // This is what saves your Top 5 lists
+        })
+        .eq('id', user.id);
+
+    if (authError || profileError) {
+        alert("Error: " + (authError?.message || profileError?.message));
+    } else {
+        alert("Changes saved successfully!");
+    }
+}
+
+// Attach the function to BOTH buttons inside initSettings
+document.getElementById('save-profile-btn').onclick = saveAllProfileData;
+document.getElementById('save-favs-btn').onclick = saveAllProfileData;
+
+function addFavorite(item) {
+    if (currentFavs[item.type].length >= 5) {
+        return alert("You can only have 5 favorites per category!");
+    }
+    
+    currentFavs[item.type].push(item);
+    updateTopAll(); // Syncs the #1s to the 'all' list
+    renderFavManager(); // Refresh the UI
+}
+
+function updateTopAll() {
+    // Take #1 from each category and put into 'all'
+    const topMovie = currentFavs.movie[0];
+    const topTv = currentFavs.tv[0];
+    const topBook = currentFavs.book[0];
+    
+    currentFavs.all = [topMovie, topTv, topBook].filter(Boolean);
 }
 
 async function startLetterboxdExport(userId, rangeType, startDate, endDate) {
@@ -624,5 +726,129 @@ async function resolveMedia(title, year) {
     }
     return null;
 }
+
+// --- Favorites Search Logic ---
+function setupFavoritesSearch() {
+    const favSearchInput = document.getElementById('fav-search-input');
+    const favSearchResults = document.getElementById('fav-search-results');
+
+    favSearchInput.oninput = async () => {
+        const query = favSearchInput.value;
+        if (query.length < 3) {
+            favSearchResults.innerHTML = '';
+            favSearchResults.style.display = 'none';
+            return;
+        }
+
+        const options = { headers: { Authorization: `Bearer ${tmdbToken}` } };
+        const res = await fetch(`https://api.themoviedb.org/3/search/multi?query=${encodeURIComponent(query)}`, options);
+        const data = await res.json();
+        const bookRes = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=3`).then(r => r.json());
+
+        bookRes.docs.forEach(book => {
+            const year = book.first_publish_year ? ` (${book.first_publish_year})` : "";
+            const div = document.createElement('div');
+            div.className = 'search-item-dropdown';
+            div.innerHTML = `<strong>${book.title}${year}</strong> <span style="opacity:0.6; font-size:0.8rem;">— BOOK</span>`;
+            
+            div.onclick = () => {
+                addFavorite({
+                    id: book.key,
+                    title: `${book.title}${year}`,
+                    type: 'book',
+                    image: book.cover_i ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg` : 'placeholder.png'
+                });
+                favSearchResults.innerHTML = '';
+                favSearchResults.style.display = 'none';
+                favSearchInput.value = '';
+            };
+            favSearchResults.appendChild(div);
+        });
+
+        favSearchResults.innerHTML = '';
+        favSearchResults.style.display = 'block';
+
+        data.results.slice(0, 5).forEach(item => {
+            if (item.media_type === 'person') return;
+            
+            // 1. Correctly detect the date based on media type
+            const dateStr = item.release_date || item.first_air_date || "";
+            
+            // 2. Only create the parenthesis if a year actually exists
+            const year = dateStr ? ` (${dateStr.split('-')[0]})` : "";
+            
+            const div = document.createElement('div');
+            div.className = 'search-item-dropdown';
+            div.style.padding = '10px';
+            div.style.cursor = 'pointer';
+            div.style.borderBottom = '1px solid #2c3440';
+            
+            // 3. Render the title with the year appended
+            div.innerHTML = `<strong>${item.title || item.name}${year}</strong> <span style="opacity:0.6; font-size:0.8rem;">— ${item.media_type}</span>`;
+            
+            div.onclick = () => {
+                addFavorite({
+                    id: item.id,
+                    title: `${item.title || item.name}${year}`, // Store it with the year string
+                    type: item.media_type,
+                    image: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : 'https://via.placeholder.com/500x750?text=No+Image'
+                });
+                favSearchResults.innerHTML = '';
+                favSearchResults.style.display = 'none';
+                favSearchInput.value = '';
+            };
+            favSearchResults.appendChild(div);
+        });
+    };
+}
+
+// --- Render the Favorites Manager in Settings ---
+function renderFavManager() {
+    const container = document.getElementById('favorites-manager');
+    container.innerHTML = ''; // Clear existing
+
+    const categories = ['movie', 'tv', 'book'];
+    
+    categories.forEach(cat => {
+        const section = document.createElement('div');
+        section.className = 'fav-category-admin';
+        section.style.marginBottom = '20px';
+        
+        const label = cat.charAt(0).toUpperCase() + cat.slice(1) + 's';
+        section.innerHTML = `<h4 style="color: #9ab; margin-bottom: 10px;">Top 5 ${label}</h4>`;
+        
+        const list = currentFavs[cat] || [];
+        
+        const itemContainer = document.createElement('div');
+        itemContainer.style.display = 'flex';
+        itemContainer.style.gap = '10px';
+        itemContainer.style.flexWrap = 'wrap';
+
+        list.forEach((item, index) => {
+            const itemDiv = document.createElement('div');
+            itemDiv.style.cssText = "background: #14181c; padding: 5px 10px; border-radius: 6px; display: flex; align-items: center; gap: 8px; border: 1px solid #2c3440;";
+            itemDiv.innerHTML = `
+                <span style="color: var(--accent); font-weight: bold;">#${index + 1}</span>
+                <span style="font-size: 0.9rem;">${item.title}</span>
+                <span onclick="removeFavorite('${cat}', ${index})" style="cursor: pointer; color: #ff4d4d; font-weight: bold;">×</span>
+            `;
+            itemContainer.appendChild(itemDiv);
+        });
+
+        if (list.length === 0) {
+            itemContainer.innerHTML = `<p style="font-size: 0.8rem; opacity: 0.5;">No ${cat}s added yet.</p>`;
+        }
+
+        section.appendChild(itemContainer);
+        container.appendChild(section);
+    });
+}
+
+// --- Helper to Remove Favorites ---
+window.removeFavorite = (type, index) => {
+    currentFavs[type].splice(index, 1);
+    updateTopAll();
+    renderFavManager();
+};
 
 initSettings();

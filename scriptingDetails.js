@@ -95,6 +95,7 @@ async function initDetails() {
         fetchMediaHistory();
         setupWatchlist(id, type);
         setupListManager(id, type);
+        setupStatusManager(id, type);
     } catch (err) { console.error(err); }
 }
 
@@ -779,6 +780,56 @@ function updateStars(rating) {
     document.querySelectorAll('.star').forEach(s => {
         s.classList.toggle('active', parseInt(s.getAttribute('data-value')) <= rating);
     });
+}
+
+async function setupStatusManager(mediaId, mediaType) {
+    const statusBtn = document.getElementById('status-btn');
+    const { data: { user } } = await supabaseClient.auth.getUser();
+
+    if (!user) {
+        statusBtn.style.display = 'none';
+        return;
+    }
+
+    // Check the new media_status table
+    const { data: statusData } = await supabaseClient
+        .from('media_status')
+        .select('status')
+        .eq('user_id', user.id)
+        .eq('media_id', String(mediaId))
+        .maybeSingle();
+
+    if (statusData?.status === 'active') {
+        statusBtn.classList.add('active');
+        statusBtn.textContent = mediaType === 'book' ? 'Currently Reading' : 'Currently Watching';
+    }
+
+    statusBtn.onclick = async () => {
+        const isCurrentlyActive = statusBtn.classList.contains('active');
+        const newStatus = isCurrentlyActive ? 'completed' : 'active';
+        
+        const { error } = await supabaseClient
+            .from('media_status')
+            .upsert({
+                user_id: user.id,
+                media_id: String(mediaId),
+                media_type: mediaType,
+                status: newStatus,
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'user_id,media_id,media_type' });
+
+        if (!error) {
+            if (newStatus === 'active') {
+                statusBtn.classList.add('active');
+                statusBtn.textContent = mediaType === 'book' ? 'Currently Reading' : 'Currently Watching';
+                // Remove from watchlist if they start it
+                await supabaseClient.from('user_watchlist').delete().eq('user_id', user.id).eq('media_id', mediaId);
+            } else {
+                statusBtn.classList.remove('active');
+                statusBtn.textContent = 'Mark as Active';
+            }
+        }
+    };
 }
 
 async function setupWatchlist(mediaId, mediaType) {
