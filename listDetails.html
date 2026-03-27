@@ -16,7 +16,7 @@
             <img src="catalogdLogo.png" alt="Catalogd" width="300" height="82">
         </div>
         <div class="nav-actions">
-            <button onclick="window.location.href='lists.html'" class="secondary-btn">Back to Lists</button>
+            <button id="back-to-lists-btn" class="secondary-btn">Back to Lists</button>
             <button onclick="window.location.href='index.html'" class="secondary-btn">Home</button>
         </div>
     </header>
@@ -35,6 +35,10 @@
                     </label>
                     <button id="manage-order-btn" class="secondary-btn" style="display:none;">Reorder Items</button>
                     <button id="save-order-btn" class="primary-btn" style="display:none;">Save Order</button>
+                    <select id="visibility-select" class="secondary-btn" style="padding: 5px 10px; height: auto; font-size: 0.8rem;">
+                        <option value="true">Public</option>
+                        <option value="false">Private</option>
+                    </select>
                 </div>
             </div>
         </div>

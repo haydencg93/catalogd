@@ -1,12 +1,14 @@
 let supabaseClient = null;
 let allUserLogs = [];
+let isOwner = false;
+let profileUserId = null;
 
 async function initProfile() {
     try {
         const response = await fetch('config.json');
         const config = await response.json();
 
-        // 1. Initialize with strict persistence settings
+        // 1. Initialize Supabase
         supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key, {
             auth: {
                 persistSession: true,
@@ -15,31 +17,66 @@ async function initProfile() {
             }
         });
 
-        // 2. IMPORTANT: Wait for Supabase to recover the session from storage
-        // Without this, the next line often returns null even if you are logged in
-        const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+        // 2. Identify the Subject of the Profile
+        const params = new URLSearchParams(window.location.search);
+        const urlUserId = params.get('id'); // e.g., profile.html?id=UUID
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const loggedInUserId = session?.user?.id;
 
-        if (sessionError || !session) {
-            console.warn("No session found, redirecting...");
+        // If 'id' is in URL, view that user. If not, view the logged-in user.
+        profileUserId = urlUserId || loggedInUserId;
+        isOwner = (profileUserId === loggedInUserId);
+
+        if (!profileUserId) {
+            console.warn("No user specified and no active session. Redirecting...");
             window.location.href = 'index.html';
             return;
         }
 
-        const user = session.user;
-
-        // 4. Fetch Profile Data (Bio, Website, Favorites)
-        // We do this separately because these are in your custom 'public.profiles' table
+        // 3. Fetch Profile Data (Bio, Website, Favorites, Username)
+        // We fetch from the 'profiles' table using the profileUserId
         const { data: profile, error: profileError } = await supabaseClient
             .from('profiles')
-            .select('bio, website_url, favorites')
-            .eq('id', user.id)
+            .select('*') // Ensure all columns are fetched
+            .eq('id', profileUserId)
             .single();
 
-        if (profileError) {
-            console.warn("Profile table fetch error (check if SQL was run):", profileError);
+        if (profile) {
+            const avatarContainer = document.getElementById('user-avatar');
+            const bannerContainer = document.getElementById('profile-banner');
+
+            // 1. Render Banner
+            if (profile.banner_url && profile.banner_url.trim() !== "") {
+                bannerContainer.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('${profile.banner_url}')`;
+            } else {
+                bannerContainer.style.background = "#2c3440";
+            }
+
+            // 2. Render Avatar
+            if (profile.avatar_url && profile.avatar_url.trim() !== "") {
+                // Clear text before adding image
+                avatarContainer.textContent = ""; 
+                const img = document.createElement('img');
+                img.src = profile.avatar_url;
+                img.style.cssText = "width:100%; height:100%; object-fit:cover; border-radius:50%;";
+                avatarContainer.appendChild(img);
+                avatarContainer.style.background = "transparent";
+            } else {
+                // Fallback to initials
+                const name = profile.display_name || profile.username || "U";
+                avatarContainer.textContent = name[0].toUpperCase();
+                avatarContainer.style.background = "var(--accent)";
+            }
         }
 
-        // 5. Render Profile Metadata (Bio & Website)
+        if (profileError) {
+            console.error("Error fetching profile:", profileError);
+        }
+
+        // 4. Set up Social Networking UI (Follow/Unfollow vs Settings)
+        setupSocialUI(loggedInUserId, profileUserId);
+
+        // 5. Render Profile Metadata
         if (profile) {
             document.getElementById('display-bio').textContent = profile.bio || "No bio yet.";
             
@@ -47,58 +84,52 @@ async function initProfile() {
             if (profile.website_url) {
                 webElement.href = profile.website_url;
                 try {
-                    // Try to show just the domain name (e.g., letterboxd.com)
                     webElement.textContent = new URL(profile.website_url).hostname;
                 } catch (e) {
                     webElement.textContent = "Website";
                 }
+                webElement.style.display = 'inline-block';
             } else {
                 webElement.style.display = 'none';
             }
 
-            // Store favorites globally for the filter buttons
+            // Update Identity Elements
+            document.getElementById('user-display-name').textContent = profile.display_name || "User";
+            document.getElementById('user-username').textContent = `@${(profile.username || 'user').toLowerCase()}`;
+            document.getElementById('member-since').textContent = new Date(profile.created_at).toLocaleDateString();
+
+            // Handle Avatar & Banner
+            const avatarContainer = document.getElementById('user-avatar');
+            if (profile && profile.avatar_url && profile.avatar_url.trim() !== "") {
+                avatarContainer.innerHTML = `<img src="${profile.avatar_url}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`;
+                avatarContainer.style.background = "transparent";
+            } else {
+                // Fallback to Initials if no URL exists
+                const displayName = profile?.display_name || "User";
+                avatarContainer.textContent = displayName[0].toUpperCase();
+                avatarContainer.style.background = "var(--accent)";
+                avatarContainer.innerHTML = displayName[0].toUpperCase(); // Ensure text is set
+            }
+
+            // Handle Banner Rendering
+            const bannerContainer = document.getElementById('profile-banner');
+            if (profile && profile.banner_url && profile.banner_url.trim() !== "") {
+                bannerContainer.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('${profile.banner_url}')`;
+            } else {
+                // Default theme color if no banner is set
+                bannerContainer.style.background = "#2c3440";
+            }
+
+            // Render Favorites
             window.userFavorites = profile.favorites || { movie: [], tv: [], book: [], all: [] }; 
-            filterFavs('all'); // Initial render of favorites
+            filterFavs('all');
         }
 
-        // 6. Render User Identity (Avatar, Banner, Names)
-        const meta = user.user_metadata || {};
-        
-        // Use Profile table as primary source, then Metadata, then Email
-        const displayName = profile?.display_name || meta.display_name || user.email.split('@')[0];
-        const username = profile?.username || meta.username || 'user';
-        const avatarUrl = profile?.avatar_url || meta.avatar_url;
-        const bannerUrl = profile?.banner_url || meta.banner_url;
-        
-        // Update Text Elements
-        document.getElementById('user-display-name').textContent = displayName;
-        document.getElementById('user-username').textContent = `@${username.toLowerCase()}`;
-        document.getElementById('member-since').textContent = new Date(user.created_at).toLocaleDateString();
-
-        // Handle Banner with proper fallback
-        const bannerContainer = document.getElementById('profile-banner');
-        if (bannerUrl && bannerUrl.trim() !== "") {
-            bannerContainer.style.backgroundImage = `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('${bannerUrl}')`;
-        } else {
-            bannerContainer.style.background = "#1b2228"; // Default dark gray
-        }
-
-        // Handle Avatar with proper fallback
-        const avatarContainer = document.getElementById('user-avatar');
-        if (avatarUrl && avatarUrl.trim() !== "") {
-            avatarContainer.innerHTML = `<img src="${avatarUrl}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`;
-            avatarContainer.style.background = "transparent";
-        } else {
-            avatarContainer.innerHTML = ''; // Clear "?" placeholder
-            avatarContainer.textContent = displayName[0].toUpperCase();
-            avatarContainer.style.background = "var(--accent)";
-        }
-
-        // 7. Fetch Activity Stats & Logs
+        // 6. Fetch Activity Stats & Logs for this specific profile
         const { data: logs } = await supabaseClient
             .from('media_logs')
             .select('*')
-            .eq('user_id', user.id);
+            .eq('user_id', profileUserId);
 
         if (logs) {
             allUserLogs = logs; 
@@ -106,27 +137,131 @@ async function initProfile() {
             filterRecent('all'); 
         }
 
+        // 7. Fetch Active Tracking
         const { data: activeStatuses } = await supabaseClient
             .from('media_status')
             .select('*')
-            .eq('user_id', user.id)
+            .eq('user_id', profileUserId)
             .eq('status', 'active');
 
         if (activeStatuses && activeStatuses.length > 0) {
             document.getElementById('active-tracking-section').style.display = 'block';
             renderActiveItems(activeStatuses);
+        } else {
+            document.getElementById('active-tracking-section').style.display = 'none';
         }
 
-        // Fetch Watchlist Count
+        // 8. Fetch Watchlist Count
         const { count: watchlistCount } = await supabaseClient
             .from('user_watchlist')
             .select('*', { count: 'exact', head: true })
-            .eq('user_id', user.id);
+            .eq('user_id', profileUserId);
 
+        const listsBtn = document.querySelector('button[onclick*="lists.html"]');
+        if (listsBtn) {
+            listsBtn.onclick = () => {
+                window.location.href = `lists.html?id=${profileUserId}`;
+            };
+        }
+
+        const diaryBtn = document.querySelector('button[onclick*="diary.html"]');
+        if (diaryBtn) {
+            diaryBtn.onclick = () => {
+                // Redirect to diary.html with the profileUserId (either the visitor or the owner)
+                window.location.href = `diary.html?id=${profileUserId}`;
+            };
+        }
+
+        const watchlistCard = document.querySelector('.stat-card[onclick*="watchlist.html"]');
+        if (watchlistCard) {
+            watchlistCard.onclick = () => {
+                // Redirect to watchlist.html with the target user's ID
+                window.location.href = `watchlist.html?id=${profileUserId}`;
+            };
+        }
+
+        // 9. Fetch Follower/Following Counts
+        const { count: followingCount } = await supabaseClient
+            .from('follows')
+            .select('*', { count: 'exact', head: true })
+            .eq('follower_id', profileUserId);
+
+        const { count: followersCount } = await supabaseClient
+            .from('follows')
+            .select('*', { count: 'exact', head: true })
+            .eq('following_id', profileUserId);
+
+        document.getElementById('following-count').textContent = followingCount || 0;
+        document.getElementById('followers-count').textContent = followersCount || 0;
         document.getElementById('watchlist-count').textContent = watchlistCount || 0;
+        setupSocialModalListeners();
 
     } catch (err) {
         console.error("Critical Profile Init Error:", err);
+    }
+}
+
+async function setupSocialUI(currentUserId, targetUserId) {
+    const settingsBtnContainer = document.querySelector('.settings-section');
+    
+    // Remove any existing follow button to prevent duplicates on re-init
+    const existingFollow = document.getElementById('follow-toggle-btn');
+    if (existingFollow) existingFollow.remove();
+
+    if (isOwner) {
+        // Show settings if viewing own profile
+        if (settingsBtnContainer) settingsBtnContainer.style.display = 'block';
+    } else {
+        // Hide settings and show Follow button if viewing another user
+        if (settingsBtnContainer) settingsBtnContainer.style.display = 'none';
+
+        const profileHeader = document.querySelector('.profile-header');
+        const followBtn = document.createElement('button');
+        followBtn.id = 'follow-toggle-btn';
+        followBtn.className = 'primary-btn';
+        followBtn.style.marginTop = '15px';
+        profileHeader.appendChild(followBtn);
+
+        if (!currentUserId) {
+            followBtn.textContent = 'Sign in to Follow';
+            followBtn.onclick = () => window.location.href = 'index.html';
+            return;
+        }
+
+        // Check follow status
+        const { data: isFollowing } = await supabaseClient
+            .from('follows')
+            .select('id')
+            .eq('follower_id', currentUserId)
+            .eq('following_id', targetUserId)
+            .maybeSingle();
+
+        followBtn.textContent = isFollowing ? 'Unfollow' : 'Follow';
+        followBtn.classList.toggle('secondary-btn', !!isFollowing);
+
+        followBtn.onclick = async () => {
+            if (followBtn.textContent === 'Follow') {
+                const { error } = await supabaseClient
+                    .from('follows')
+                    .insert({ follower_id: currentUserId, following_id: targetUserId });
+                
+                if (!error) {
+                    followBtn.textContent = 'Unfollow';
+                    followBtn.classList.add('secondary-btn');
+                }
+            } else {
+                const { error } = await supabaseClient
+                    .from('follows')
+                    .delete()
+                    .eq('follower_id', currentUserId)
+                    .eq('following_id', targetUserId);
+                
+                if (!error) {
+                    followBtn.textContent = 'Follow';
+                    followBtn.classList.remove('secondary-btn');
+                }
+            }
+        };
     }
 }
 
@@ -326,5 +461,73 @@ window.filterFavs = (type) => {
         grid.appendChild(card);
     });
 };
+
+// Add these to your event listener setup or initProfile
+function setupSocialModalListeners() {
+    const modal = document.getElementById('social-modal');
+    const closeBtn = document.getElementById('close-social-modal');
+
+    document.getElementById('followers-stat-btn').onclick = () => openSocialModal('followers');
+    document.getElementById('following-stat-btn').onclick = () => openSocialModal('following');
+
+    closeBtn.onclick = () => modal.style.display = 'none';
+    window.onclick = (event) => {
+        if (event.target == modal) modal.style.display = 'none';
+    };
+}
+
+async function openSocialModal(type) {
+    const modal = document.getElementById('social-modal');
+    const body = document.getElementById('social-modal-body');
+    const title = document.getElementById('social-modal-title');
+    
+    title.textContent = type === 'followers' ? 'Followers' : 'Following';
+    body.innerHTML = '<p class="meta">Loading users...</p>';
+    modal.style.display = 'block';
+
+    try {
+        let query;
+        if (type === 'followers') {
+            // "profiles:follower_id" tells Supabase to join profiles on the follower_id column
+            query = supabaseClient
+                .from('follows')
+                .select('profiles:follower_id(id, username, display_name, avatar_url)')
+                .eq('following_id', profileUserId);
+        } else {
+            query = supabaseClient
+                .from('follows')
+                .select('profiles:following_id(id, username, display_name, avatar_url)')
+                .eq('follower_id', profileUserId);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        body.innerHTML = '';
+        if (!data || data.length === 0) {
+            body.innerHTML = `<p class="meta">No ${type} yet.</p>`;
+            return;
+        }
+
+        data.forEach(entry => {
+            const u = entry.profiles;
+            if (!u) return;
+            const avatar = u.avatar_url || `https://ui-avatars.com/api/?name=${u.username}&background=1b2228&color=9ab`;
+            
+            const row = document.createElement('div');
+            row.className = 'social-user-row';
+            row.onclick = () => window.location.href = `profile.html?id=${u.id}`;
+            row.innerHTML = `
+                <img src="${avatar}" class="social-avatar">
+                <div class="social-info">
+                    <span class="social-name">${u.display_name || u.username}</span>
+                    <span class="social-username">@${u.username}</span>
+                </div>`;
+            body.appendChild(row);
+        });
+    } catch (err) {
+        body.innerHTML = `<p class="meta" style="color:red;">Error: ${err.message}</p>`;
+    }
+}
 
 initProfile();

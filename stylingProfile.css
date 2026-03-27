@@ -287,3 +287,80 @@ input {
     max-width: 1200px;
     margin: 10px auto 0; /* Added 10px top margin as an extra buffer */
 }
+
+/* Update your Social Modal Styles */
+.modal {
+    display: none; 
+    position: fixed; /* Ensures it stays relative to the screen, not the page height */
+    z-index: 9999; /* Higher than any other element */
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(5px);
+    overflow: hidden; /* Prevents the background page from scrolling */
+}
+
+.social-modal-content {
+    background-color: #1b2228;
+    margin: 5% auto; /* Centers it vertically and horizontally */
+    padding: 25px;
+    border: 1px solid #2c3440;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    position: relative; /* Context for the close button */
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #2c3440;
+    padding-bottom: 15px;
+    margin-bottom: 15px;
+}
+
+.social-list-container {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.social-user-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 10px;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+
+.social-user-row:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.social-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--accent);
+}
+
+.social-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.social-name {
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.social-username {
+    color: #9ab;
+    font-size: 0.8rem;
+}

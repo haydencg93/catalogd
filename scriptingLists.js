@@ -1,18 +1,58 @@
 let supabaseClient = null;
+let listOwnerId = null;
+let isViewerOwner = false;
 
 async function initLists() {
     const response = await fetch('config.json');
     const config = await response.json();
     supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
 
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) {
+    const params = new URLSearchParams(window.location.search);
+    const urlId = params.get('id');
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    const currentUserId = session?.user?.id;
+
+    // Determine who owns the lists we are looking at
+    listOwnerId = urlId || currentUserId;
+    isViewerOwner = (listOwnerId === currentUserId);
+
+    if (!listOwnerId) {
         window.location.href = 'index.html';
         return;
     }
 
-    document.getElementById('create-list-btn').onclick = () => createList(user.id);
-    fetchUserLists(user.id);
+    // --- DYNAMIC BACK BUTTON LOGIC ---
+    const backToProfileBtn = document.getElementById('back-to-profile-btn');
+    if (backToProfileBtn) {
+        backToProfileBtn.onclick = () => {
+            // Redirect back to the profile of the person who owns these lists
+            window.location.href = `profile.html?id=${listOwnerId}`;
+        };
+    }
+
+    // UI Adjustments
+    const createSection = document.querySelector('.create-list-section');
+    const pageTitle = document.querySelector('h1');
+
+    if (isViewerOwner) {
+        pageTitle.textContent = "My Lists";
+        if (createSection) createSection.style.display = 'block';
+        document.getElementById('create-list-btn').onclick = () => createList(currentUserId);
+    } else {
+        // Viewing someone else's lists
+        if (createSection) createSection.style.display = 'none';
+        
+        // Fetch the owner's name to make the title look better
+        const { data: profile } = await supabaseClient
+            .from('profiles')
+            .select('display_name')
+            .eq('id', listOwnerId)
+            .single();
+        
+        pageTitle.textContent = profile ? `${profile.display_name}'s Lists` : "Lists";
+    }
+
+    fetchUserLists(listOwnerId);
 }
 
 async function fetchUserLists(userId) {

@@ -34,11 +34,19 @@
         </div>
 
         <div class="stats-bar">
-            <div class="stat-card" style="grid-column: span 2;">
+            <div class="stat-card">
                 <span id="stat-count" class="stat-value">0</span>
                 <span class="stat-label">Total Logs</span>
             </div>
-            <div class="stat-card" onclick="window.location.href='watchlist.html'" style="cursor: pointer; border-color: var(--accent);">
+            <div class="stat-card" id="following-stat-btn" style="cursor: pointer;">
+                <span id="following-count" class="stat-value">0</span>
+                <span class="stat-label">Following</span>
+            </div>
+            <div class="stat-card" id="followers-stat-btn" style="cursor: pointer;">
+                <span id="followers-count" class="stat-value">0</span>
+                <span class="stat-label">Followers</span>
+            </div>
+            <div class="stat-card" onclick="window.location.href='watchlist.html' + (profileUserId ? '?id=' + profileUserId : '')" style="cursor: pointer; border-color: var(--accent);">
                 <span id="watchlist-count" class="stat-value">0</span>
                 <span class="stat-label">Watchlist →</span>
             </div>
@@ -74,6 +82,17 @@
             </div>
         </div>
         <div class="grid" id="recent-grid"></div>
+
+        <div id="social-modal" class="modal">
+            <div class="modal-content social-modal-content">
+                <div class="modal-header">
+                    <h2 id="social-modal-title">Users</h2>
+                    <span class="close-modal" id="close-social-modal">&times;</span>
+                </div>
+                <div id="social-modal-body" class="social-list-container">
+                    </div>
+            </div>
+        </div>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
