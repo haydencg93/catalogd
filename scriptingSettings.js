@@ -187,23 +187,35 @@ async function saveAllProfileData() {
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) return alert("Session lost. Please log in again.");
 
-    // 1. Update Auth Metadata (Avatar/Banner/Names)
+    // 1. Get values from the UI
+    const nameValue = document.getElementById('edit-name').value;
+    const usernameValue = document.getElementById('edit-username').value;
+    const avatarValue = document.getElementById('edit-avatar').value;
+    const bannerValue = document.getElementById('edit-banner').value;
+    const bioValue = document.getElementById('edit-bio').value;
+    const websiteValue = document.getElementById('edit-website').value;
+
+    // 2. Update Auth Metadata (Keep this for session consistency)
     const { error: authError } = await supabaseClient.auth.updateUser({
         data: { 
-            display_name: document.getElementById('edit-name').value, 
-            username: document.getElementById('edit-username').value,
-            avatar_url: document.getElementById('edit-avatar').value,
-            banner_url: document.getElementById('edit-banner').value
+            display_name: nameValue, 
+            username: usernameValue,
+            avatar_url: avatarValue,
+            banner_url: bannerValue
         }
     });
 
-    // 2. Update Profiles Table (Bio/Website/Favorites)
+    // 3. FIX: Update Profiles Table with ALL fields including Avatar and Banner
     const { error: profileError } = await supabaseClient
         .from('profiles')
         .update({
-            bio: document.getElementById('edit-bio').value,
-            website_url: document.getElementById('edit-website').value,
-            favorites: currentFavs // This is what saves your Top 5 lists
+            display_name: nameValue,  // Added this
+            username: usernameValue,  // Added this
+            avatar_url: avatarValue,  // FIX: This sends it to the DB table
+            banner_url: bannerValue,  // FIX: This sends it to the DB table
+            bio: bioValue,
+            website_url: websiteValue,
+            favorites: currentFavs 
         })
         .eq('id', user.id);
 
@@ -211,6 +223,8 @@ async function saveAllProfileData() {
         alert("Error: " + (authError?.message || profileError?.message));
     } else {
         alert("Changes saved successfully!");
+        // Optional: Refresh the page to show updated data
+        window.location.reload();
     }
 }
 
