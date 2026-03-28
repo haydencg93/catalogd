@@ -237,6 +237,11 @@ input {
     color: #000;
     font-weight: bold;
     flex-shrink: 0; /* Ensures it stays a circle in the header flex row */
+    width: 100px;
+    height: 100px;
+    flex-shrink: 0; /* CRITICAL: Stops the header from squeezing the circle */
+    border-radius: 50%;
+    overflow: hidden;
 }
 
 .avatar-placeholder img {
@@ -374,3 +379,30 @@ input {
     color: #9ab;
     font-size: 0.8rem;
 }
+
+/* Container for badges in the top right of posters */
+.media-card .poster-wrapper .badge-container {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    flex-direction: column; /* Stack icons vertically */
+    gap: 4px;
+    z-index: 5;
+}
+
+.card-icon-badge {
+    background: rgba(20, 24, 28, 0.85);
+    backdrop-filter: blur(4px);
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+.icon-heart { color: #ff4d4d; } /* Red for likes */

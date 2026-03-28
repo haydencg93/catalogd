@@ -51,6 +51,24 @@ async function initProfile() {
         }
         // --------------------------------
 
+        const diaryNavBtn = document.querySelector('button[onclick*="diary.html"]');
+        const listsNavBtn = document.querySelector('button[onclick*="lists.html"]');
+
+        if (diaryNavBtn) {
+            diaryNavBtn.onclick = () => {
+                // If we're looking at someone else, append their ID to the link
+                const urlSuffix = isOwner ? '' : `?id=${profileUserId}`;
+                window.location.href = `diary.html${urlSuffix}`;
+            };
+        }
+
+        if (listsNavBtn) {
+            listsNavBtn.onclick = () => {
+                const urlSuffix = isOwner ? '' : `?id=${profileUserId}`;
+                window.location.href = `lists.html${urlSuffix}`;
+            };
+        }
+
         if (profileError) throw profileError;
 
         if (profile) {
@@ -260,12 +278,15 @@ async function renderActiveItems(items) {
 }
 
 window.filterRecent = (type) => {
-    const buttons = document.querySelectorAll('.filter-nav .filter-btn');
+    // FIX: Scope the selector to ONLY look at buttons in the Recent Activity header
+    const activitySection = document.getElementById('recent-grid').previousElementSibling;
+    const buttons = activitySection.querySelectorAll('.filter-btn');
     
     buttons.forEach(btn => {
         btn.classList.remove('active');
         const btnText = btn.textContent.toLowerCase();
         
+        // Match specific types
         if (type === 'all' && btnText === 'all') btn.classList.add('active');
         else if (type === 'movie' && btnText === 'movies') btn.classList.add('active');
         else if (type === 'tv' && btnText === 'tv') btn.classList.add('active');
@@ -321,11 +342,17 @@ async function renderRecent(logs) {
             card.onclick = () => window.location.href = `details.html?id=${log.media_id}&type=${log.media_type}`;
 
             const stars = '★'.repeat(log.rating || 0);
-            const reviewBadge = log.notes ? `<div class="review-badge">📝</div>` : '';
+            
+            // Create the HTML for badges only if data exists
+            const reviewBadge = log.notes ? `<div class="card-icon-badge">📝</div>` : '';
+            const likeBadge = log.is_liked ? `<div class="card-icon-badge icon-heart">❤️</div>` : '';
 
             card.innerHTML = `
                 <div class="poster-wrapper">
-                    ${log.notes ? `<div class="review-badge">📝</div>` : ''}
+                    <div class="badge-container">
+                        ${likeBadge}
+                        ${reviewBadge}
+                    </div>
                     <img src="${log.image || 'placeholder.png'}" alt="${log.title}">
                 </div>
                 <div class="media-info">
