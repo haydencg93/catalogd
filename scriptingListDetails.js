@@ -6,6 +6,7 @@ let isRanked = false;
 let isManaging = false;
 let currentItems = [];
 let sortableInstance = null;
+let isOwner = false;
 
 async function initListDetails() {
     const response = await fetch('config.json');
@@ -13,13 +14,70 @@ async function initListDetails() {
     supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
     tmdbToken = config.tmdb_token;
 
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) return window.location.href = 'index.html';
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    const currentUserId = session?.user?.id;
 
-    // IMPORTANT: Wait for list info (isRanked status) before fetching items
-    await fetchListInfo(); 
-    await fetchListItems();
-    setupSearch();
+    // 1. Fetch List Info and Check Ownership
+    const { data: list } = await supabaseClient
+        .from('media_lists')
+        .select('*')
+        .eq('id', listId)
+        .single();
+
+    if (!list) {
+        console.error("List not found");
+        window.location.href = 'index.html';
+        return;
+    }
+
+    // This block handles both UI permissions and the dynamic back button
+    if (list) {
+        isOwner = (list.user_id === currentUserId);
+        isRanked = list.is_ranked;
+
+        // DYNAMIC BACK BUTTON: Ensures visitors go back to the owner's lists hub
+        const backBtn = document.getElementById('back-to-lists-btn');
+        if (backBtn) {
+            backBtn.onclick = () => {
+                window.location.href = `lists.html?id=${list.user_id}`;
+            };
+        }
+
+        // 2. Hide Management UI if not the owner
+        if (!isOwner) {
+            document.querySelector('.search-container').style.display = 'none';
+            document.querySelector('.list-controls').style.display = 'none';
+            document.getElementById('manage-order-btn').style.display = 'none';
+            document.getElementById('visibility-select').style.display = 'none';
+            
+            // IMPORTANT: Privacy check
+            if (list.is_public === false) {
+                alert("This list is private.");
+                window.location.href = 'index.html';
+                return;
+            }
+        } else {
+            // Setup Visibility Toggle for owner
+            const visSelect = document.getElementById('visibility-select');
+            if (visSelect) {
+                visSelect.value = String(list.is_public);
+                visSelect.onchange = async () => {
+                    const { error } = await supabaseClient
+                        .from('media_lists')
+                        .update({ is_public: visSelect.value === 'true' })
+                        .eq('id', listId);
+                    if (!error) alert("Visibility updated!");
+                };
+            }
+        }
+
+        // 3. Render contents
+        document.getElementById('list-name').textContent = list.name;
+        document.getElementById('list-desc').textContent = list.description || "Collection";
+        
+        await fetchListItems();
+        if (isOwner) setupSearch();
+    }
 }
 
 async function fetchListInfo() {

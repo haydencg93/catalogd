@@ -186,6 +186,26 @@ async function fetchTrending(type = 'movie') {
             }));
             renderResults(items, true);
         }
+
+        if (type === 'user') {
+            const { data: recentUsers } = await supabaseClient
+                .from('profiles')
+                .select('id, username, display_name, avatar_url')
+                .order('created_at', { ascending: false })
+                .limit(10);
+            
+            const mapped = (recentUsers || []).map(u => ({
+                title: u.display_name || u.username,
+                year: "New Member",
+                image: u.avatar_url || `https://ui-avatars.com/api/?name=${u.username}`,
+                type: 'user',
+                id: u.id
+            }));
+            renderResults(mapped, true);
+            loader.style.display = 'none';
+            return;
+        }
+
         loader.style.display = 'none';
     } catch (err) {
         console.error("Trending fetch failed:", err);
@@ -219,6 +239,39 @@ async function unifiedSearch(query) {
     loader.style.display = 'block';
     loader.textContent = "Exploring the archives...";
     resultsGrid.innerHTML = '';
+
+    if (currentTab === 'user') {
+        try {
+            const { data: users, error } = await supabaseClient
+                .from('profiles')
+                .select('id, username, display_name, avatar_url')
+                .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
+                .limit(20);
+
+            if (error) throw error;
+
+            if (!users || users.length === 0) {
+                loader.textContent = "No users found.";
+                return;
+            }
+
+            const mappedUsers = users.map(u => ({
+                title: u.display_name || u.username,
+                year: `@${u.username}`,
+                // Change 'size=512' to include 'font-size=0.33' (default is 0.5)
+image: u.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.display_name || u.username)}&background=1b2228&color=9ab&size=512&font-size=0.33`,
+                type: 'user', // We'll use this to route to profile.html
+                id: u.id
+            }));
+
+            renderResults(mappedUsers, false);
+            loader.style.display = 'none';
+        } catch (err) {
+            console.error("User search failed:", err);
+            loader.textContent = "User search failed.";
+        }
+        return; // Exit early so it doesn't run the movie/book search
+    }
 
     const options = {
         method: 'GET',
@@ -295,20 +348,26 @@ function renderResults(items, isTrending = false) {
     items.forEach(item => {
         const card = document.createElement('div');
         card.className = 'media-card';
+        // Add this line so our CSS knows it's a user
+        card.setAttribute('data-type', item.type);
         
         card.onclick = () => {
             if (item.type === 'person') {
                 window.location.href = `cast.html?personId=${item.id}`;
+            } else if (item.type === 'user') {
+                window.location.href = `profile.html?id=${item.id}`;
             } else {
                 window.location.href = `details.html?id=${item.id}&type=${item.type}`;
             }
         };
         
-        const trendingBadge = isTrending ? `<div class="trending-label">Trending Today</div>` : '';
+        const trendingBadge = isTrending && item.type !== 'user' ? `<div class="trending-label">Trending Today</div>` : '';
+        const userBadge = item.type === 'user' ? `<div class="trending-label">Member</div>` : '';
 
         card.innerHTML = `
             <div class="poster-wrapper">
                 ${trendingBadge}
+                ${userBadge}
                 <img src="${item.image}" 
                      alt="${item.title}" 
                      loading="lazy" 
@@ -317,7 +376,7 @@ function renderResults(items, isTrending = false) {
             </div>
             <div class="media-info">
                 <div class="title">${item.title}</div>
-                <div class="meta">${item.year || 'Unknown'}</div>
+                <div class="meta">${item.year || ''}</div>
             </div>`;
         resultsGrid.appendChild(card);
     });

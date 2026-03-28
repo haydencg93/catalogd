@@ -1,6 +1,8 @@
 let supabaseClient = null;
 let allWatchlistItems = []; // Store everything here
 let tmdbToken = null;
+let watchlistOwnerId = null;
+let isViewerOwner = false;
 
 async function initWatchlist() {
     const response = await fetch('config.json');
@@ -8,17 +10,53 @@ async function initWatchlist() {
     tmdbToken = config.tmdb_token;
     supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
 
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) { window.location.href = 'index.html'; return; }
+    // 1. Identify whose watchlist to load
+    const params = new URLSearchParams(window.location.search);
+    const urlId = params.get('id');
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    const loggedInUserId = session?.user?.id;
 
+    watchlistOwnerId = urlId || loggedInUserId;
+    isViewerOwner = (watchlistOwnerId === loggedInUserId);
+
+    if (!watchlistOwnerId) {
+        window.location.href = 'index.html';
+        return;
+    }
+
+    // 2. UI Adjustments
+    const pageTitle = document.querySelector('h1');
+    const backBtn = document.querySelector('button[onclick*="profile.html"]');
+    
+    if (!isViewerOwner) {
+        // Fetch owner name for a better title
+        const { data: profile } = await supabaseClient
+            .from('profiles')
+            .select('display_name')
+            .eq('id', watchlistOwnerId)
+            .single();
+        
+        pageTitle.textContent = profile ? `${profile.display_name}'s Watchlist` : "Watchlist";
+    } else {
+        pageTitle.textContent = "My Watchlist";
+    }
+
+    // Dynamic Back Button
+    if (backBtn) {
+        backBtn.onclick = () => {
+            window.location.href = `profile.html?id=${watchlistOwnerId}`;
+        };
+    }
+
+    // 3. Fetch items for the specific owner
     const { data: items } = await supabaseClient
         .from('user_watchlist')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', watchlistOwnerId)
         .order('created_at', { ascending: false });
 
     allWatchlistItems = items || [];
-    filterWatchlist('all'); // Initial render
+    filterWatchlist('all'); 
 }
 
 window.filterWatchlist = (type) => {

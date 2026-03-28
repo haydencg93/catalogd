@@ -49,23 +49,21 @@ input {
     margin: 0 auto;
 }
 
-.review-badge {
+.media-card .poster-wrapper .review-badge {
     position: absolute;
-    top: 10px;
-    right: 10px;
+    top: 8px;
+    right: 8px;
     background: rgba(20, 24, 28, 0.8);
     backdrop-filter: blur(4px);
-    width: 28px;
-    height: 28px;
+    width: 26px;
+    height: 26px;
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    font-size: 0.9rem;
-    z-index: 2;
-    pointer-events: none; /* So it doesn't interfere with the card click */
-    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    font-size: 0.8rem;
+    z-index: 5;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
 }
 
 .media-card:hover { transform: translateY(-5px); }
@@ -221,11 +219,15 @@ input {
 }
 
 .avatar-placeholder {
-    border: 6px solid var(--bg); /* The "gap" border */
+    border: 6px solid var(--bg);
     position: relative;
     z-index: 3;
-    overflow: hidden; /* Ensures the img stays circular */
-    width: 100px; height: 100px;
+    overflow: hidden;
+    /* FIX: Force equal width and height */
+    width: 100px; 
+    height: 100px;
+    min-width: 100px; /* Prevents shrinking in flexbox */
+    min-height: 100px;
     background: var(--accent);
     border-radius: 50%;
     display: flex;
@@ -234,6 +236,14 @@ input {
     font-size: 2rem;
     color: #000;
     font-weight: bold;
+    flex-shrink: 0; /* Ensures it stays a circle in the header flex row */
+}
+
+.avatar-placeholder img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
 }
 
 .profile-header {
@@ -286,4 +296,81 @@ input {
     gap: 25px;
     max-width: 1200px;
     margin: 10px auto 0; /* Added 10px top margin as an extra buffer */
+}
+
+/* Update your Social Modal Styles */
+.modal {
+    display: none; 
+    position: fixed; /* Ensures it stays relative to the screen, not the page height */
+    z-index: 9999; /* Higher than any other element */
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(5px);
+    overflow: hidden; /* Prevents the background page from scrolling */
+}
+
+.social-modal-content {
+    background-color: #1b2228;
+    margin: 5% auto; /* Centers it vertically and horizontally */
+    padding: 25px;
+    border: 1px solid #2c3440;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    position: relative; /* Context for the close button */
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #2c3440;
+    padding-bottom: 15px;
+    margin-bottom: 15px;
+}
+
+.social-list-container {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.social-user-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 10px;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+
+.social-user-row:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.social-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--accent);
+}
+
+.social-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.social-name {
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.social-username {
+    color: #9ab;
+    font-size: 0.8rem;
 }

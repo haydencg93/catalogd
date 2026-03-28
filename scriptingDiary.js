@@ -3,8 +3,10 @@ let allLogs = [];
 let filteredLogs = [];
 let currentPage = 1;
 const PAGE_SIZE = 10;
-let sortOrder = 'desc'; // Default newest to oldest
+let sortOrder = 'desc';
 let currentType = 'all';
+let diaryOwnerId = null;
+let isViewerOwner = false;
 
 async function initDiary() {
     try {
@@ -12,22 +14,63 @@ async function initDiary() {
         const config = await response.json();
         supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
 
-        const { data: { user } } = await supabaseClient.auth.getUser();
-        if (!user) { window.location.href = 'index.html'; return; }
+        // 1. Identify whose diary to load
+        const params = new URLSearchParams(window.location.search);
+        const urlId = params.get('id');
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const loggedInUserId = session?.user?.id;
 
-        // Fetch logs sorted by date descending by default
+        // Fallback to logged-in user if no ID is in URL
+        diaryOwnerId = urlId || loggedInUserId;
+        isViewerOwner = (diaryOwnerId === loggedInUserId);
+
+        if (!diaryOwnerId) {
+            window.location.href = 'index.html';
+            return;
+        }
+
+        // 2. UI Adjustments for Networking
+        const pageTitle = document.querySelector('h1');
+        if (!isViewerOwner) {
+            // Fetch owner name for the title
+            const { data: profile } = await supabaseClient
+                .from('profiles')
+                .select('display_name')
+                .eq('id', diaryOwnerId)
+                .single();
+            
+            pageTitle.textContent = profile ? `${profile.display_name}'s Diary` : "Diary";
+            
+            // HIDE Action column (Edit/Delete) for non-owners via CSS injection
+            const style = document.createElement('style');
+            style.innerHTML = `
+                #diary-table th:nth-child(7), 
+                #diary-table td:nth-child(7) { display: none !important; }
+            `;
+            document.head.appendChild(style);
+        }
+
+        // 3. Fetch logs for the SPECIFIC user
         const { data: logs } = await supabaseClient
             .from('media_logs')
             .select('*')
-            .order('watched_on', { ascending: false }) // Primary Sort: The date inputted
-            .order('created_at', { ascending: false }); // Secondary Sort: The actual time of the log
+            .eq('user_id', diaryOwnerId) // Filter by the target user ID
+            .order('watched_on', { ascending: false })
+            .order('created_at', { ascending: false });
 
         allLogs = logs || [];
         
-        // Initial filter application
         applyFilters();
-        
         setupLoadMore(config.tmdb_token);
+
+        // 4. Update the "Profile" back button to stay in context
+        const backToProfileBtn = document.querySelector('button[onclick*="profile.html"]');
+        if (backToProfileBtn) {
+            backToProfileBtn.onclick = () => {
+                window.location.href = `profile.html?id=${diaryOwnerId}`;
+            };
+        }
+
     } catch (err) {
         console.error("Diary init error:", err);
     }
