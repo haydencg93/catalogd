@@ -259,7 +259,7 @@ async function unifiedSearch(query) {
                 title: u.display_name || u.username,
                 year: `@${u.username}`,
                 // Change 'size=512' to include 'font-size=0.33' (default is 0.5)
-image: u.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.display_name || u.username)}&background=1b2228&color=9ab&size=512&font-size=0.33`,
+                image: u.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.display_name || u.username)}&background=1b2228&color=9ab&size=512&font-size=0.33`,
                 type: 'user', // We'll use this to route to profile.html
                 id: u.id
             }));
@@ -328,6 +328,23 @@ image: u.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.
         loader.textContent = "Search failed.";
     }
 }
+
+window.toggleAuthMode = function() {
+    isSignUpMode = !isSignUpMode;
+    
+    // Update Text
+    modalTitle.textContent = isSignUpMode ? "Create Account" : "Welcome Back";
+    authConfirmBtn.textContent = isSignUpMode ? "Sign Up" : "Sign In";
+    authSwitch.textContent = isSignUpMode ? "Already have an account? Sign In" : "Need an account? Sign Up";
+
+    // Toggle Visibility
+    signupFields.style.display = isSignUpMode ? "block" : "none";
+    
+    // This ensures Confirm Password only shows during Sign Up
+    if (authRetype) {
+        authRetype.style.display = isSignUpMode ? "block" : "none";
+    }
+};
 
 async function fetchBooks(query) {
     const url = `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=10`;
