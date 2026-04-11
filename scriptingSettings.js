@@ -60,24 +60,25 @@ async function initSettings() {
     const rangeSelect = document.getElementById('export-range-select');
     const dateInputs = document.getElementById('date-range-inputs');
 
-    rangeSelect.onchange = async () => {
+rangeSelect.onchange = async () => {
         const isRange = rangeSelect.value === 'range';
-        // Use 'flex' instead of 'block' to respect the CSS we just added
         dateInputs.style.display = isRange ? 'flex' : 'none';
         
         if (isRange) {
-            // Query for the oldest record to provide a smart default
-            const { data: firstLog } = await supabaseClient
-                .from('media_logs')
-                .select('watched_on')
-                .order('watched_on', { ascending: true })
-                .limit(1)
-                .single();
+            // 1. Get Today's Date
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
 
-            // Default: Oldest entry found or empty
-            document.getElementById('export-start-date').value = firstLog?.watched_on || '';
-            // Default: Today
-            document.getElementById('export-end-date').value = new Date().toISOString().split('T')[0];
+            // 2. Calculate One Week Ago
+            const lastWeek = new Date();
+            lastWeek.setDate(today.getDate() - 7);
+            const lastWeekStr = lastWeek.toISOString().split('T')[0];
+
+            // 3. Set the defaults in the UI
+            document.getElementById('export-start-date').value = lastWeekStr;
+            document.getElementById('export-end-date').value = todayStr;
+
+            console.log(`📅 Default range set: ${lastWeekStr} to ${todayStr}`);
         }
     };
 
@@ -256,14 +257,20 @@ async function startLetterboxdExport(userId, rangeType, startDate, endDate) {
     const progressBar = document.getElementById('export-progress-bar');
     const progressText = document.getElementById('export-text');
     const logList = document.getElementById('export-log-list');
+    const logContainer = document.getElementById('export-log-container');
 
     statusDiv.style.display = 'block';
+    logContainer.style.display = 'block';
     logList.innerHTML = '';
     
     const zip = new JSZip();
-    const listsFolder = zip.folder("lists"); // Create the 'lists' directory
+    const listsFolder = zip.folder("lists"); 
 
-    // --- PART 1: DIARY EXPORT ---
+    // Initialize CSV strings at the top to avoid ReferenceErrors
+    let diaryCsv = "tmdbID,Title,Year,Rating,WatchedDate,Rewatch,Tags,Review\n";
+    let watchlistCsv = "tmdbID,Title,Year,Date\n";
+
+    // --- PART 1: DIARY EXPORT (Filtered by Date) ---
     let diaryQuery = supabaseClient
         .from('media_logs')
         .select('*')
@@ -271,28 +278,75 @@ async function startLetterboxdExport(userId, rangeType, startDate, endDate) {
         .eq('media_type', 'movie');
 
     if (rangeType === 'range') {
-        if (startDate) diaryQuery = diaryQuery.gte('watched_on', startDate);
-        if (endDate) diaryQuery = diaryQuery.lte('watched_on', endDate);
+        if (startDate && startDate !== "") {
+            // Now filtering by the date the entry was created in the database
+            diaryQuery = diaryQuery.gte('created_at', startDate); 
+        }
+        if (endDate && endDate !== "") {
+            diaryQuery = diaryQuery.lte('created_at', endDate);
+        }
     }
 
     const { data: diaryLogs } = await diaryQuery;
-    let diaryCsv = "tmdbID,Title,Year,Rating,WatchedDate,Rewatch,Tags,Review\n";
 
-    if (diaryLogs && diaryLogs.length > 0) {
-        for (let i = 0; i < diaryLogs.length; i++) {
-            const log = diaryLogs[i];
-            progressText.textContent = `Processing Diary: ${i + 1}/${diaryLogs.length}`;
-            progressBar.style.width = `${((i + 1) / (diaryLogs.length * 1.5)) * 100}%`;
+    // --- PART 2: WATCHLIST (Always All) ---
+    const { data: watchlistLogs } = await supabaseClient
+        .from('user_watchlist')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('media_type', 'movie');
 
-            try {
-                const res = await fetch(`https://api.themoviedb.org/3/movie/${log.media_id}`, {
-                    headers: { Authorization: `Bearer ${tmdbToken}` }
-                }).then(r => r.json());
+    // --- PART 3: CUSTOM LISTS (Always All) ---
+    const { data: userLists } = await supabaseClient
+        .from('media_lists')
+        .select('*, list_items(*)')
+        .eq('user_id', userId);
 
+    // Calculate totals for progress bar
+    const totalDiary = diaryLogs?.length || 0;
+    const totalWatchlist = watchlistLogs?.length || 0;
+    const totalListItems = userLists?.reduce((acc, list) => acc + list.list_items.length, 0) || 0;
+    const grandTotal = totalDiary + totalWatchlist + totalListItems;
+    let processedCount = 0;
+
+    if (grandTotal === 0) {
+        progressText.textContent = "No data found to export.";
+        progressBar.style.width = "100%";
+        return;
+    }
+
+    // Process Diary
+    for (let i = 0; i < totalDiary; i++) {
+        const log = diaryLogs[i];
+        processedCount++;
+        progressText.textContent = `Verifying Diary: ${i + 1}/${totalDiary}`;
+        progressBar.style.width = `${(processedCount / grandTotal) * 100}%`;
+
+        try {
+            const details = await fetch(`https://api.themoviedb.org/3/movie/${log.media_id}`, {
+                headers: { Authorization: `Bearer ${tmdbToken}` }
+            }).then(r => r.json());
+
+            const targetTitle = details.title;
+            const targetYear = (details.release_date || "").split('-')[0];
+
+            const searchRes = await fetch(`https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(targetTitle)}&year=${targetYear}`, {
+                headers: { Authorization: `Bearer ${tmdbToken}` }
+            }).then(r => r.json());
+
+            const verified = searchRes.results.find(m => 
+                m.title.toLowerCase() === targetTitle.toLowerCase() && 
+                (m.release_date || "").startsWith(targetYear)
+            );
+
+            if (verified) {
+                console.log(`🎬 Diary Item - ID: ${verified.id} | Name: ${verified.title} | Year: ${targetYear}`);
+                addExportLog(verified.title, `Verified (${log.watched_on})`, "success");
+                
                 const row = [
-                    log.media_id,
-                    `"${(res.title || "Unknown").replace(/"/g, '""')}"`,
-                    (res.release_date || "").split('-')[0],
+                    verified.id,
+                    `"${verified.title.replace(/"/g, '""')}"`,
+                    targetYear,
                     log.rating || "",
                     log.watched_on || log.created_at.split('T')[0],
                     log.is_rewatch ? 'Yes' : 'No',
@@ -300,71 +354,68 @@ async function startLetterboxdExport(userId, rangeType, startDate, endDate) {
                     `"${(log.notes || "").replace(/"/g, '""').replace(/\n/g, ' ')}"`
                 ];
                 diaryCsv += row.join(",") + "\n";
-            } catch (e) { addExportLog(log.media_id, "Fetch failed", "error"); }
-            await new Promise(r => setTimeout(r, 50));
-        }
+            }
+        } catch (e) { console.error(e); }
+        await new Promise(r => setTimeout(r, 50));
     }
 
-    // --- PART 2: WATCHLIST EXPORT ---
-    const { data: watchlistLogs } = await supabaseClient
-        .from('user_watchlist')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('media_type', 'movie');
-
-    let watchlistCsv = "tmdbID,Title,Year,Date\n";
-    if (watchlistLogs) {
+    // Process Watchlist
+    if (totalWatchlist > 0) {
         for (const item of watchlistLogs) {
+            processedCount++;
+            progressText.textContent = `Processing Watchlist...`;
+            progressBar.style.width = `${(processedCount / grandTotal) * 100}%`;
+
             try {
                 const res = await fetch(`https://api.themoviedb.org/3/movie/${item.media_id}`, {
                     headers: { Authorization: `Bearer ${tmdbToken}` }
                 }).then(r => r.json());
-                const row = [item.media_id, `"${res.title}"`, (res.release_date || "").split('-')[0], item.created_at.split('T')[0]];
+                
+                const year = (res.release_date || "").split('-')[0];
+                console.log(`📌 Watchlist Item - ID: ${res.id} | Name: ${res.title} | Year: ${year}`);
+                addExportLog(res.title, "Added to Watchlist", "success");
+                
+                const row = [res.id, `"${res.title}"`, year, item.created_at.split('T')[0]];
                 watchlistCsv += row.join(",") + "\n";
-            } catch (e) {}
+            } catch (e) { console.error(e); }
         }
     }
 
-    // --- PART 3: CUSTOM LISTS EXPORT ---
-    progressText.textContent = `Fetching your lists...`;
-    const { data: userLists } = await supabaseClient
-        .from('media_lists')
-        .select('*, list_items(*)')
-        .eq('user_id', userId);
-
-    if (userLists && userLists.length > 0) {
+    // Process Custom Lists
+    if (userLists) {
         for (const list of userLists) {
-            progressText.textContent = `Exporting List: ${list.name}`;
-            
-            // Letterboxd List Import Format: Header starts with tmdbID or Title
+            if (!list.list_items || list.list_items.length === 0) continue;
+
             let listCsv = "tmdbID,Title,Year,URL,Description\n";
+            let movieCountInList = 0;
+            const safeListName = list.name.replace(/[\\/:*?"<>|]/g, '$').replace(/\s+/g, '_').toLowerCase();
             
             for (const item of list.list_items) {
-                if (item.media_type !== 'movie') continue; // Letterboxd only imports movies in lists
-
+                if (item.media_type !== 'movie') continue;
+                processedCount++;
+                progressBar.style.width = `${(processedCount / grandTotal) * 100}%`;
+                
                 try {
                     const res = await fetch(`https://api.themoviedb.org/3/movie/${item.media_id}`, {
                         headers: { Authorization: `Bearer ${tmdbToken}` }
                     }).then(r => r.json());
 
-                    const row = [
-                        item.media_id,
-                        `"${(res.title || "Unknown").replace(/"/g, '""')}"`,
-                        (res.release_date || "").split('-')[0],
-                        `https://www.themoviedb.org/movie/${item.media_id}`,
-                        "" // Description column
-                    ];
+                    const year = (res.release_date || "").split('-')[0];
+                    const row = [res.id, `"${res.title}"`, year, `https://www.themoviedb.org/movie/${res.id}`, ""];
                     listCsv += row.join(",") + "\n";
-                } catch (e) { console.error("Error exporting list item", e); }
+                    movieCountInList++;
+                } catch (e) { console.error(e); }
                 await new Promise(r => setTimeout(r, 50));
             }
-            // Add the individual list CSV to the 'lists' folder in the ZIP
-            listsFolder.file(`${list.name.replace(/\s+/g, '_').toLowerCase()}.csv`, listCsv);
-            addExportLog(list.name, `Exported ${list.list_items.length} items to folder`, "success");
+
+            if (movieCountInList > 0) {
+                listsFolder.file(`${safeListName}.csv`, listCsv);
+                addExportLog(list.name, `List exported with ${movieCountInList} movies`, "success");
+            }
         }
     }
 
-    // --- PART 4: BUNDLE AND DOWNLOAD ---
+    // Finalize ZIP
     progressText.textContent = "Zipping files...";
     zip.file("catalogd_diary.csv", diaryCsv);
     zip.file("catalogd_watchlist.csv", watchlistCsv);
@@ -373,12 +424,13 @@ async function startLetterboxdExport(userId, rangeType, startDate, endDate) {
     const url = URL.createObjectURL(content);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `Catalogd_Full_Export_${new Date().toISOString().split('T')[0]}.zip`;
+    link.download = `Catalogd_Export_${new Date().toISOString().split('T')[0]}.zip`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 
-    progressText.textContent = "Export Complete! Check your downloads.";
+    progressText.textContent = "Export Complete!";
+    progressBar.style.width = "100%";
 }
 
 function addExportLog(title, message, type) {
