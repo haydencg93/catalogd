@@ -798,8 +798,12 @@ function setupFavoritesSearch() {
     const favSearchInput = document.getElementById('fav-search-input');
     const favSearchResults = document.getElementById('fav-search-results');
 
-    favSearchInput.oninput = async () => {
-        const query = favSearchInput.value;
+    // Debounce variable to prevent rapid-fire API calls
+    let timeout = null;
+
+    favSearchInput.oninput = () => {
+        clearTimeout(timeout);
+        const query = favSearchInput.value.trim();
         
         if (query.length < 3) {
             favSearchResults.innerHTML = '';
@@ -807,93 +811,90 @@ function setupFavoritesSearch() {
             return;
         }
 
-        const options = { headers: { Authorization: `Bearer ${tmdbToken}` } };
+        timeout = setTimeout(async () => {
+            const options = { headers: { Authorization: `Bearer ${tmdbToken}` } };
 
-        try {
-            // Fetch everything
-            const [movieRes, tvRes, bookRes] = await Promise.all([
-                fetch(`https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(query)}`, options).then(r => r.json()),
-                fetch(`https://api.themoviedb.org/3/search/tv?query=${encodeURIComponent(query)}`, options).then(r => r.json()),
-                fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=5`).then(r => r.json())
-            ]);
+            try {
+                // Fetch everything in parallel
+                const [movieRes, tvRes, bookRes] = await Promise.all([
+                    fetch(`https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(query)}`, options).then(r => r.json()),
+                    fetch(`https://api.themoviedb.org/3/search/tv?query=${encodeURIComponent(query)}`, options).then(r => r.json()),
+                    fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=5`).then(r => r.json())
+                ]);
 
-            favSearchResults.innerHTML = '';
-            favSearchResults.style.display = 'block';
+                // Clear UI once before rendering new results
+                favSearchResults.innerHTML = '';
+                favSearchResults.style.display = 'block';
 
-            // TRACKER: Keep track of IDs we've already displayed
-            const seenIds = new Set();
+                const seenIds = new Set();
 
-            const createSearchRow = (title, year, type, imageUrl, subtitle, clickAction) => {
-                const div = document.createElement('div');
-                div.className = 'search-item-dropdown';
-                div.style.cssText = `display: flex; align-items: center; gap: 12px; padding: 10px; cursor: pointer; border-bottom: 1px solid #2c3440;`;
-                div.innerHTML = `
-                    <img src="${imageUrl}" style="width: 40px; height: 60px; object-fit: cover; border-radius: 4px; background: #1a1d23;" alt="cover">
-                    <div style="flex: 1;">
-                        <div style="display: flex; align-items: baseline; gap: 6px;">
-                            <strong style="font-size: 1rem;">${title}${year}</strong>
-                            <span style="opacity:0.5; font-size: 0.7rem; text-transform: uppercase;">— ${type}</span>
+                const createSearchRow = (title, year, type, imageUrl, subtitle, clickAction) => {
+                    const div = document.createElement('div');
+                    div.className = 'search-item-dropdown';
+                    div.style.cssText = `display: flex; align-items: center; gap: 12px; padding: 10px; cursor: pointer; border-bottom: 1px solid #2c3440;`;
+                    div.innerHTML = `
+                        <img src="${imageUrl}" style="width: 40px; height: 60px; object-fit: cover; border-radius: 4px; background: #1a1d23;" alt="cover">
+                        <div style="flex: 1;">
+                            <div style="display: flex; align-items: baseline; gap: 6px;">
+                                <strong style="font-size: 1rem;">${title}${year}</strong>
+                                <span style="opacity:0.5; font-size: 0.7rem; text-transform: uppercase;">— ${type}</span>
+                            </div>
+                            <div style="font-size: 0.75rem; color: #9ab; margin-top: 2px;">${subtitle}</div>
                         </div>
-                        <div style="font-size: 0.75rem; color: #9ab; margin-top: 2px;">${subtitle}</div>
-                    </div>
-                `;
-                div.onclick = clickAction;
-                return div;
-            };
+                    `;
+                    div.onclick = clickAction;
+                    return div;
+                };
 
-            // --- PROCESS MOVIES ---
-            for (const item of movieRes.results.slice(0, 5)) {
-                if (seenIds.has(item.id)) continue; // Skip if already seen
-                seenIds.add(item.id);
+                // --- MOVIES ---
+                for (const item of movieRes.results.slice(0, 5)) {
+                    if (seenIds.has(item.id)) continue;
+                    seenIds.add(item.id);
 
-                const year = item.release_date ? ` (${item.release_date.split('-')[0]})` : "";
-                const img = item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : 'https://via.placeholder.com/92x138?text=No+Image';
-                
-                const detail = await fetch(`https://api.themoviedb.org/3/movie/${item.id}?append_to_response=credits`, options).then(r => r.json());
-                const director = detail.credits?.crew?.find(p => p.job === 'Director')?.name || "Unknown Director";
+                    const year = item.release_date ? ` (${item.release_date.split('-')[0]})` : "";
+                    const img = item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : 'https://via.placeholder.com/92x138?text=No+Image';
+                    
+                    // Note: We'll skip director fetch here for speed unless specifically needed
+                    // Use item.overview or "Movie" as subtitle to prevent lag in search dropdown
+                    favSearchResults.appendChild(createSearchRow(item.title, year, 'movie', img, "Movie", () => {
+                        addFavorite({ id: item.id, title: `${item.title}${year}`, type: 'movie', image: img.replace('w92', 'w500') });
+                        favSearchResults.innerHTML = ''; favSearchInput.value = '';
+                    }));
+                }
 
-                favSearchResults.appendChild(createSearchRow(item.title, year, 'movie', img, director, () => {
-                    addFavorite({ id: item.id, title: `${item.title}${year}`, type: 'movie', image: img.replace('w92', 'w500'), creator: director });
-                    favSearchResults.innerHTML = ''; favSearchInput.value = '';
-                }));
+                // --- TV ---
+                for (const item of tvRes.results.slice(0, 5)) {
+                    if (seenIds.has(item.id)) continue;
+                    seenIds.add(item.id);
+
+                    const year = item.first_air_date ? ` (${item.first_air_date.split('-')[0]})` : "";
+                    const img = item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : 'https://via.placeholder.com/92x138?text=No+Image';
+                    
+                    favSearchResults.appendChild(createSearchRow(item.name, year, 'tv', img, "TV Show", () => {
+                        addFavorite({ id: item.id, title: `${item.name}${year}`, type: 'tv', image: img.replace('w92', 'w500') });
+                        favSearchResults.innerHTML = ''; favSearchInput.value = '';
+                    }));
+                }
+
+                // --- BOOKS ---
+                bookRes.docs.forEach(book => {
+                    if (seenIds.has(book.key)) return;
+                    seenIds.add(book.key);
+
+                    const year = book.first_publish_year ? ` (${book.first_publish_year})` : "";
+                    const img = book.cover_i ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg` : 'https://via.placeholder.com/92x138?text=No+Cover';
+                    const author = book.author_name ? book.author_name[0] : "Unknown Author";
+
+                    favSearchResults.appendChild(createSearchRow(book.title, year, 'book', img, author, () => {
+                        addFavorite({ id: book.key, title: `${book.title}${year}`, type: 'book', image: img });
+                        favSearchResults.innerHTML = ''; favSearchInput.value = '';
+                    }));
+                });
+
+            } catch (error) {
+                console.error("Search error:", error);
             }
-
-            // --- PROCESS TV SHOWS ---
-            for (const item of tvRes.results.slice(0, 5)) {
-                if (seenIds.has(item.id)) continue; // Skip if already seen
-                seenIds.add(item.id);
-
-                const year = item.first_air_date ? ` (${item.first_air_date.split('-')[0]})` : "";
-                const img = item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : 'https://via.placeholder.com/92x138?text=No+Image';
-                
-                const detail = await fetch(`https://api.themoviedb.org/3/tv/${item.id}`, options).then(r => r.json());
-                const creator = detail.created_by?.[0]?.name || "Various Creators";
-
-                favSearchResults.appendChild(createSearchRow(item.name, year, 'tv', img, creator, () => {
-                    addFavorite({ id: item.id, title: `${item.name}${year}`, type: 'tv', image: img.replace('w92', 'w500'), creator: creator });
-                    favSearchResults.innerHTML = ''; favSearchInput.value = '';
-                }));
-            }
-
-            // --- PROCESS BOOKS ---
-            bookRes.docs.forEach(book => {
-                // Book keys are strings (e.g., "/works/OL123W"), so they won't collide with TMDB numbers
-                if (seenIds.has(book.key)) return; 
-                seenIds.add(book.key);
-
-                const year = book.first_publish_year ? ` (${book.first_publish_year})` : "";
-                const img = book.cover_i ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg` : 'https://via.placeholder.com/92x138?text=No+Cover';
-                const author = book.author_name ? book.author_name.join(', ') : "Unknown Author";
-
-                favSearchResults.appendChild(createSearchRow(book.title, year, 'book', img, author, () => {
-                    addFavorite({ id: book.key, title: `${book.title}${year}`, type: 'book', image: img, creator: author });
-                    favSearchResults.innerHTML = ''; favSearchInput.value = '';
-                }));
-            });
-
-        } catch (error) {
-            console.error("Search error:", error);
-        }
+        }, 300); // 300ms delay protects against "double typing" bugs
     };
 }
 
