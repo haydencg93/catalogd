@@ -798,73 +798,103 @@ function setupFavoritesSearch() {
     const favSearchInput = document.getElementById('fav-search-input');
     const favSearchResults = document.getElementById('fav-search-results');
 
-    favSearchInput.oninput = async () => {
-        const query = favSearchInput.value;
+    // Debounce variable to prevent rapid-fire API calls
+    let timeout = null;
+
+    favSearchInput.oninput = () => {
+        clearTimeout(timeout);
+        const query = favSearchInput.value.trim();
+        
         if (query.length < 3) {
             favSearchResults.innerHTML = '';
             favSearchResults.style.display = 'none';
             return;
         }
 
-        const options = { headers: { Authorization: `Bearer ${tmdbToken}` } };
-        const res = await fetch(`https://api.themoviedb.org/3/search/multi?query=${encodeURIComponent(query)}`, options);
-        const data = await res.json();
-        const bookRes = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=3`).then(r => r.json());
+        timeout = setTimeout(async () => {
+            const options = { headers: { Authorization: `Bearer ${tmdbToken}` } };
 
-        bookRes.docs.forEach(book => {
-            const year = book.first_publish_year ? ` (${book.first_publish_year})` : "";
-            const div = document.createElement('div');
-            div.className = 'search-item-dropdown';
-            div.innerHTML = `<strong>${book.title}${year}</strong> <span style="opacity:0.6; font-size:0.8rem;">— BOOK</span>`;
-            
-            div.onclick = () => {
-                addFavorite({
-                    id: book.key,
-                    title: `${book.title}${year}`,
-                    type: 'book',
-                    image: book.cover_i ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg` : 'placeholder.png'
-                });
+            try {
+                // Fetch everything in parallel
+                const [movieRes, tvRes, bookRes] = await Promise.all([
+                    fetch(`https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(query)}`, options).then(r => r.json()),
+                    fetch(`https://api.themoviedb.org/3/search/tv?query=${encodeURIComponent(query)}`, options).then(r => r.json()),
+                    fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=5`).then(r => r.json())
+                ]);
+
+                // Clear UI once before rendering new results
                 favSearchResults.innerHTML = '';
-                favSearchResults.style.display = 'none';
-                favSearchInput.value = '';
-            };
-            favSearchResults.appendChild(div);
-        });
+                favSearchResults.style.display = 'block';
 
-        favSearchResults.innerHTML = '';
-        favSearchResults.style.display = 'block';
+                const seenIds = new Set();
 
-        data.results.slice(0, 5).forEach(item => {
-            if (item.media_type === 'person') return;
-            
-            // 1. Correctly detect the date based on media type
-            const dateStr = item.release_date || item.first_air_date || "";
-            
-            // 2. Only create the parenthesis if a year actually exists
-            const year = dateStr ? ` (${dateStr.split('-')[0]})` : "";
-            
-            const div = document.createElement('div');
-            div.className = 'search-item-dropdown';
-            div.style.padding = '10px';
-            div.style.cursor = 'pointer';
-            div.style.borderBottom = '1px solid #2c3440';
-            
-            // 3. Render the title with the year appended
-            div.innerHTML = `<strong>${item.title || item.name}${year}</strong> <span style="opacity:0.6; font-size:0.8rem;">— ${item.media_type}</span>`;
-            
-            div.onclick = () => {
-                addFavorite({
-                    id: item.id,
-                    title: `${item.title || item.name}${year}`, // Store it with the year string
-                    type: item.media_type,
-                    image: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : 'https://via.placeholder.com/500x750?text=No+Image'
+                const createSearchRow = (title, year, type, imageUrl, subtitle, clickAction) => {
+                    const div = document.createElement('div');
+                    div.className = 'search-item-dropdown';
+                    div.style.cssText = `display: flex; align-items: center; gap: 12px; padding: 10px; cursor: pointer; border-bottom: 1px solid #2c3440;`;
+                    div.innerHTML = `
+                        <img src="${imageUrl}" style="width: 40px; height: 60px; object-fit: cover; border-radius: 4px; background: #1a1d23;" alt="cover">
+                        <div style="flex: 1;">
+                            <div style="display: flex; align-items: baseline; gap: 6px;">
+                                <strong style="font-size: 1rem;">${title}${year}</strong>
+                                <span style="opacity:0.5; font-size: 0.7rem; text-transform: uppercase;">— ${type}</span>
+                            </div>
+                            <div style="font-size: 0.75rem; color: #9ab; margin-top: 2px;">${subtitle}</div>
+                        </div>
+                    `;
+                    div.onclick = clickAction;
+                    return div;
+                };
+
+                // --- MOVIES ---
+                for (const item of movieRes.results.slice(0, 5)) {
+                    if (seenIds.has(item.id)) continue;
+                    seenIds.add(item.id);
+
+                    const year = item.release_date ? ` (${item.release_date.split('-')[0]})` : "";
+                    const img = item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : 'https://via.placeholder.com/92x138?text=No+Image';
+                    
+                    // Note: We'll skip director fetch here for speed unless specifically needed
+                    // Use item.overview or "Movie" as subtitle to prevent lag in search dropdown
+                    favSearchResults.appendChild(createSearchRow(item.title, year, 'movie', img, "Movie", () => {
+                        addFavorite({ id: item.id, title: `${item.title}${year}`, type: 'movie', image: img.replace('w92', 'w500') });
+                        favSearchResults.innerHTML = ''; favSearchInput.value = '';
+                    }));
+                }
+
+                // --- TV ---
+                for (const item of tvRes.results.slice(0, 5)) {
+                    if (seenIds.has(item.id)) continue;
+                    seenIds.add(item.id);
+
+                    const year = item.first_air_date ? ` (${item.first_air_date.split('-')[0]})` : "";
+                    const img = item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : 'https://via.placeholder.com/92x138?text=No+Image';
+                    
+                    favSearchResults.appendChild(createSearchRow(item.name, year, 'tv', img, "TV Show", () => {
+                        addFavorite({ id: item.id, title: `${item.name}${year}`, type: 'tv', image: img.replace('w92', 'w500') });
+                        favSearchResults.innerHTML = ''; favSearchInput.value = '';
+                    }));
+                }
+
+                // --- BOOKS ---
+                bookRes.docs.forEach(book => {
+                    if (seenIds.has(book.key)) return;
+                    seenIds.add(book.key);
+
+                    const year = book.first_publish_year ? ` (${book.first_publish_year})` : "";
+                    const img = book.cover_i ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg` : 'https://via.placeholder.com/92x138?text=No+Cover';
+                    const author = book.author_name ? book.author_name[0] : "Unknown Author";
+
+                    favSearchResults.appendChild(createSearchRow(book.title, year, 'book', img, author, () => {
+                        addFavorite({ id: book.key, title: `${book.title}${year}`, type: 'book', image: img });
+                        favSearchResults.innerHTML = ''; favSearchInput.value = '';
+                    }));
                 });
-                favSearchResults.innerHTML = '';
-                favSearchResults.style.display = 'none';
-                favSearchInput.value = '';
-            };
-            favSearchResults.appendChild(div);
-        });
+
+            } catch (error) {
+                console.error("Search error:", error);
+            }
+        }, 300); // 300ms delay protects against "double typing" bugs
     };
 }
 
