@@ -186,26 +186,6 @@ async function fetchTrending(type = 'movie') {
             }));
             renderResults(items, true);
         }
-
-        if (type === 'user') {
-            const { data: recentUsers } = await supabaseClient
-                .from('profiles')
-                .select('id, username, display_name, avatar_url')
-                .order('created_at', { ascending: false })
-                .limit(10);
-            
-            const mapped = (recentUsers || []).map(u => ({
-                title: u.display_name || u.username,
-                year: "New Member",
-                image: u.avatar_url || `https://ui-avatars.com/api/?name=${u.username}`,
-                type: 'user',
-                id: u.id
-            }));
-            renderResults(mapped, true);
-            loader.style.display = 'none';
-            return;
-        }
-
         loader.style.display = 'none';
     } catch (err) {
         console.error("Trending fetch failed:", err);
@@ -232,7 +212,7 @@ async function unifiedSearch(query) {
         const url = new URL(window.location);
         url.searchParams.delete('search');
         window.history.pushState({}, '', url);
-        fetchTrending('movie'); 
+        fetchTrending(currentTab); 
         return;
     }
 
@@ -240,63 +220,33 @@ async function unifiedSearch(query) {
     loader.textContent = "Exploring the archives...";
     resultsGrid.innerHTML = '';
 
-    if (currentTab === 'user') {
-        try {
-            const { data: users, error } = await supabaseClient
-                .from('profiles')
-                .select('id, username, display_name, avatar_url')
-                .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
-                .limit(20);
-
-            if (error) throw error;
-
-            if (!users || users.length === 0) {
-                loader.textContent = "No users found.";
-                return;
-            }
-
-            const mappedUsers = users.map(u => ({
-                title: u.display_name || u.username,
-                year: `@${u.username}`,
-                // Change 'size=512' to include 'font-size=0.33' (default is 0.5)
-                image: u.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.display_name || u.username)}&background=1b2228&color=9ab&size=512&font-size=0.33`,
-                type: 'user', // We'll use this to route to profile.html
-                id: u.id
-            }));
-
-            renderResults(mappedUsers, false);
-            loader.style.display = 'none';
-        } catch (err) {
-            console.error("User search failed:", err);
-            loader.textContent = "User search failed.";
-        }
-        return; // Exit early so it doesn't run the movie/book search
-    }
-
     const options = {
         method: 'GET',
         headers: { accept: 'application/json', Authorization: `Bearer ${TMDB_TOKEN}` }
     };
 
     try {
-        const tmdbUrl = `https://api.themoviedb.org/3/search/multi?query=${encodeURIComponent(query)}`;
-        const [tmdbRes, bookData] = await Promise.all([
-            fetch(tmdbUrl, options).then(res => res.json()),
-            fetchBooks(query)
+        // Run all searches at once: Media, Books, AND Users
+        const [tmdbRes, bookData, { data: users }] = await Promise.all([
+            fetch(`https://api.themoviedb.org/3/search/multi?query=${encodeURIComponent(query)}`, options).then(res => res.json()),
+            fetchBooks(query),
+            supabaseClient
+                .from('profiles')
+                .select('id, username, display_name, avatar_url')
+                .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
+                .limit(5) // Limit users so they don't overwhelm the media results
         ]);
 
+        // Process Media Results
         const seenPeople = new Set();
         const tmdbResults = (tmdbRes.results || [])
             .map(item => {
                 if (item.media_type === 'person') {
-                    // Filter: Only show the main Acting/Directing profiles, skip obscure crew duplicates
                     if (seenPeople.has(item.name)) return null; 
                     seenPeople.add(item.name);
-
                     return {
                         title: item.name,
                         year: item.known_for_department || 'Person',
-                        // High-quality placeholder if image is missing
                         image: item.profile_path 
                             ? `https://image.tmdb.org/t/p/w500${item.profile_path}` 
                             : `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=1b2228&color=9ab&size=512`,
@@ -315,7 +265,17 @@ async function unifiedSearch(query) {
                 return null;
             }).filter(Boolean);
 
-        const combined = [...tmdbResults, ...bookData];
+        // Process User Results
+        const mappedUsers = (users || []).map(u => ({
+            title: u.display_name || u.username,
+            year: `@${u.username}`,
+            image: u.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.display_name || u.username)}&background=1b2228&color=9ab&size=512&font-size=0.33`,
+            type: 'user',
+            id: u.id
+        }));
+
+        // Combine all and show users at the top
+        const combined = [...mappedUsers, ...tmdbResults, ...bookData];
         
         if (combined.length === 0) {
             loader.textContent = "No results found.";
