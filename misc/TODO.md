@@ -11,12 +11,16 @@ Get Done Today = ~
 <!-- ----------------------------------------------------------------------- -->
 <!-- BUGS: -->
 ## BUGS:
-- Add to watchlist not working on phone (more like look into why!)
+### In Progress
 - OpenLibrary Book search not showing all searches (Ex: "Together in a Broken World" by Paul Michael Winters)
+- Author(s)/Writer(s) for books
+- Search Author(s)
+- Collaborative lists
+- Fixing ranked lists bug
+### To Fix
 - "Mark as Active" on TV Shows
 - For Books, creates new log when modifying
 - Fix autofilling for editing tv show log
-- Make export more accurate (get all movies first then search for tmdbid in the logs table)
 
 <!-- ----------------------------------------------------------------------- -->
 <!-- Future Additions -->
