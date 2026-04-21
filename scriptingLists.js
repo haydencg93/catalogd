@@ -52,74 +52,102 @@ async function initLists() {
         pageTitle.textContent = profile ? `${profile.display_name}'s Lists` : "Lists";
     }
 
-    fetchUserLists(listOwnerId);
+    fetchUserLists(listOwnerId, currentUserId);
 }
 
-async function fetchUserLists(userId) {
+async function fetchUserLists(userId, currentUserId) { // Added currentUserId param
     const container = document.getElementById('lists-container');
     
-    // Fetch lists AND the 3 most recent items for each list
-    const { data: lists, error } = await supabaseClient
-        .from('media_lists')
-        .select(`
-            *, 
-            list_items(media_id, media_type, added_at)
-        `)
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
+    try {
+        const { data: ownedLists, error: ownedError } = await supabaseClient
+            .from('media_lists')
+            .select('*, list_items(media_id, media_type, added_at), list_collaborators(user_id)')
+            .eq('user_id', userId);
 
-    if (error) return console.error(error);
+        const { data: collabRecords, error: collabError } = await supabaseClient
+            .from('list_collaborators')
+            .select('list_id, media_lists(*, list_items(media_id, media_type, added_at))')
+            .eq('user_id', userId);
 
-    if (lists.length === 0) {
-        container.innerHTML = "<p class='meta'>You haven't created any lists yet.</p>";
-        return;
-    }
+        if (ownedError || collabError) throw (ownedError || collabError);
 
-    container.innerHTML = '';
-
-    for (const list of lists) {
-        // Sort items by date and take the top 3
-        const firstItems = list.list_items
-            .sort((a, b) => new Date(a.added_at) - new Date(b.added_at))
-            .slice(0, 3);
-
-        const listCard = document.createElement('div');
-        listCard.className = 'list-card';
-        listCard.onclick = () => window.location.href = `listDetails.html?id=${list.id}`;
-
-        // Create a container for the mini-posters
-        let postersHtml = '<div class="list-poster-preview">';
+        const collaborativeLists = collabRecords.map(record => record.media_lists).filter(Boolean);
         
-        // Fetch poster URLs for the preview
-        const config = await fetch('config.json').then(r => r.json());
-        
-        for (const item of firstItems) {
-            let posterUrl = 'placeholder.png';
-            try {
-                if (item.media_type === 'book') {
-                    const res = await fetch(`https://openlibrary.org${item.media_id}.json`).then(r => r.json());
-                    if (res.covers) posterUrl = `https://covers.openlibrary.org/b/id/${res.covers[0]}-S.jpg`;
-                } else {
-                    const res = await fetch(`https://api.themoviedb.org/3/${item.media_type}/${item.media_id}`, {
-                        headers: { Authorization: `Bearer ${config.tmdb_token}` }
-                    }).then(r => r.json());
-                    if (res.poster_path) posterUrl = `https://image.tmdb.org/t/p/w185${res.poster_path}`;
-                }
-            } catch (e) { console.error("Preview error", e); }
-            
-            postersHtml += `<img src="${posterUrl}" class="preview-poster">`;
+        const allListsMap = new Map();
+        [...ownedLists, ...collaborativeLists].forEach(list => {
+            // FIX for Bug 2 & 3:
+            if (!isViewerOwner) {
+                // If viewing someone else's profile, show only public lists.
+                // Note: If you are a collaborator on their private list, 
+                // it will show up here because you are "userId" (the listOwnerId).
+                if (!list.is_public) return; 
+            }
+            allListsMap.set(list.id, list);
+        });
+
+        const finalLists = Array.from(allListsMap.values()).sort((a, b) => 
+            new Date(b.created_at) - new Date(a.created_at)
+        );
+
+        console.log("Final Merged List Count:", finalLists.length);
+
+        // 4. Render
+        if (finalLists.length === 0) {
+            container.innerHTML = "<p class='meta'>No lists found.</p>";
+            return;
         }
-        
-        postersHtml += '</div>';
 
-        listCard.innerHTML = `
-            ${postersHtml}
-            <div class="list-card-content">
-                <h3 style="margin:10px 0 5px 0;">${list.name}</h3>
-                <p class="meta" style="margin:0;">${list.list_items.length} items</p>
-            </div>
-        `;
-        container.appendChild(listCard);
+        container.innerHTML = '';
+        const config = await fetch('config.json').then(r => r.json());
+
+        for (const list of finalLists) {
+            const isShared = list.user_id !== userId;
+            
+            const firstItems = list.list_items
+                .sort((a, b) => new Date(a.added_at) - new Date(b.added_at))
+                .slice(0, 3);
+
+            const listCard = document.createElement('div');
+            listCard.className = 'list-card';
+            listCard.onclick = () => window.location.href = `listDetails.html?id=${list.id}`;
+
+            let postersHtml = '<div class="list-poster-preview">';
+            for (const item of firstItems) {
+                let posterUrl = 'placeholder.png';
+                try {
+                    if (item.media_type === 'book') {
+                        const res = await fetch(`https://openlibrary.org${item.media_id}.json`).then(r => r.json());
+                        if (res.covers) posterUrl = `https://covers.openlibrary.org/b/id/${res.covers[0]}-S.jpg`;
+                    } else {
+                        const res = await fetch(`https://api.themoviedb.org/3/${item.media_type}/${item.media_id}`, {
+                            headers: { Authorization: `Bearer ${config.tmdb_token}` }
+                        }).then(r => r.json());
+                        if (res.poster_path) posterUrl = `https://image.tmdb.org/t/p/w185${res.poster_path}`;
+                    }
+                } catch (e) { console.warn("Poster fetch failed", e); }
+                postersHtml += `<img src="${posterUrl}" class="preview-poster">`;
+            }
+            postersHtml += '</div>';
+
+            const sharedBadge = isShared ? `<span class="collab-badge">Shared</span>` : '';
+
+            listCard.innerHTML = `
+                ${postersHtml}
+                <div class="list-card-content">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <h3 style="margin:10px 0 5px 0;">${list.name}</h3>
+                        ${sharedBadge}
+                    </div>
+                    <p class="meta" style="margin:0;">${list.list_items.length} items</p>
+                </div>
+            `;
+            container.appendChild(listCard);
+        }
+        console.log("--- RENDER COMPLETE ---");
+
+    } catch (err) {
+        console.error("Critical Fetch Error:", err);
+        container.innerHTML = "<p class='meta' style='color:red;'>Error loading lists. Check console for details.</p>";
     }
 }
 

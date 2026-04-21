@@ -18,6 +18,7 @@ Get Done Today = ~
 - Collaborative lists
 - Fixing ranked lists bug
 ### To Fix
+- Export doesn't export whether they liked it or not
 - "Mark as Active" on TV Shows
 - For Books, creates new log when modifying
 - Fix autofilling for editing tv show log
