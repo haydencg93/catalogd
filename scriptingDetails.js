@@ -20,7 +20,8 @@ async function initDetails() {
             
             // 2. Fetch the list of Editions to find an ISBN
             const editionsRes = await fetch(`https://openlibrary.org${id}/editions.json`).then(r => r.json());
-            
+            const authorData = res.authors || [];
+
             // 3. Loop through editions to grab the first available ISBN
             let foundIsbn = null;
             if (editionsRes.entries) {
@@ -39,7 +40,8 @@ async function initDetails() {
                 overview: res.description?.value || res.description || "No description.",
                 poster_path: res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-L.jpg` : null,
                 meta: `Published: ${res.first_publish_date || 'Unknown'}`,
-                isbn: foundIsbn // Pass this to your display function
+                isbn: foundIsbn, // Pass this to your display function
+                authors: authorData // Store the keys (e.g., /authors/OL23919A)
             };
 
             let pageCount = null;
@@ -84,8 +86,11 @@ async function initDetails() {
 
         if (type === 'book') {
             displayBookLinks(data.isbn);
+            setupBookTracker(data.pages);
+            fetchBookAuthors(data.authors); // New function
         } else {
             fetchWatchProviders(config);
+            fetchCredits(config, id, type);
         }
 
         if (type !== 'book') {
@@ -147,6 +152,47 @@ async function fetchCredits(config, mediaId, mediaType) {
 
     } catch (err) { 
         console.error("Credits error:", err); 
+    }
+}
+
+async function fetchBookAuthors(authorsList) {
+    const castSection = document.getElementById('cast-section');
+    const castList = document.getElementById('cast-list');
+    
+    // 1. Update Heading
+    castSection.querySelector('h3').textContent = "Authors & Writers";
+
+    if (!authorsList || authorsList.length === 0) {
+        castList.innerHTML = "<p class='meta'>Author information not available.</p>";
+        return;
+    }
+
+    try {
+        const authorCards = await Promise.all(authorsList.map(async (auth) => {
+            const authorKey = auth.author.key; // e.g., /authors/OL123A
+            const details = await fetch(`https://openlibrary.org${authorKey}.json`).then(r => r.json());
+            
+            // Open Library Author Photos use the 'id' (last part of key)
+            const authorId = authorKey.split('/').pop();
+            const photoUrl = details.photos 
+                ? `https://covers.openlibrary.org/a/id/${details.photos[0]}-M.jpg` 
+                : `https://ui-avatars.com/api/?name=${encodeURIComponent(details.name)}&background=1b2228&color=9ab&size=512`;
+
+            return `
+                <div class="cast-card" onclick="window.location.href='cast.html?authorId=${authorId}'">
+                    <img src="${photoUrl}" alt="${details.name}">
+                    <div class="cast-info">
+                        <span class="cast-name">${details.name}</span>
+                        <span class="cast-role">Author</span>
+                    </div>
+                </div>
+            `;
+        }));
+
+        castList.innerHTML = authorCards.join('');
+    } catch (err) {
+        console.error("Error fetching authors:", err);
+        castList.innerHTML = "<p class='meta'>Error loading authors.</p>";
     }
 }
 

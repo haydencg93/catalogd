@@ -17,8 +17,9 @@ const signupFields = document.getElementById('signup-fields');
 
 // 2. Global Variables
 let TMDB_TOKEN = '';
-let supabaseClient = null; // Use a unique name for the connection
+let supabaseClient = null; 
 let isSignUpMode = false;
+let currentTab = 'movie';
 
 // 3. Initialize App
 async function loadConfig() {
@@ -28,16 +29,12 @@ async function loadConfig() {
         const config = await response.json();
         
         TMDB_TOKEN = config.tmdb_token;
-        
-        // Initialize the client using the unique variable name
         supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
         
-        // Check if user is already logged in
         await checkUserStatus(); 
 
-        // Setup Search UI
         searchInput.disabled = false;
-        searchInput.placeholder = "Search for movies, shows, books, cast members, ...";
+        searchInput.placeholder = "Search for movies, shows, books, authors, ...";
         searchInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') unifiedSearch(searchInput.value);
         });
@@ -46,11 +43,9 @@ async function loadConfig() {
         const searchQuery = urlParams.get('search');
 
         if (searchQuery) {
-            // If a search query exists, run the search and skip trending
             searchInput.value = searchQuery;
             unifiedSearch(searchQuery);
         } else {
-            // Only load trending content if there is no active search
             fetchTrending('movie');
         }
 
@@ -61,7 +56,6 @@ async function loadConfig() {
 }
 
 // 4. Authentication Logic
-// Add this to your "Elements" section at the top of the file
 const profileBtn = document.getElementById('profile-btn');
 
 async function checkUserStatus() {
@@ -73,15 +67,10 @@ async function checkUserStatus() {
             await supabaseClient.auth.signOut();
             location.reload();
         };
-        
-        // REVEAL the profile button if it exists on this page
         if (profileBtn) profileBtn.style.display = 'inline-block';
-        
     } else {
         loginBtn.textContent = "Sign In";
         loginBtn.onclick = openAuthModal;
-        
-        // HIDE the profile button if logged out
         if (profileBtn) profileBtn.style.display = 'none';
     }
 }
@@ -95,7 +84,6 @@ async function handleAuth() {
         const username = authUsername.value;
         const retype = authRetype.value;
 
-        // Validation
         if (!email || !password || !name || !username) return alert("Please fill in all fields.");
         if (password !== retype) return alert("Passwords do not match!");
         if (password.length < 6) return alert("Password must be at least 6 characters.");
@@ -105,10 +93,7 @@ async function handleAuth() {
                 email,
                 password,
                 options: {
-                    data: {
-                        display_name: name,
-                        username: username
-                    }
+                    data: { display_name: name, username: username }
                 }
             });
             if (error) throw error;
@@ -118,7 +103,6 @@ async function handleAuth() {
             alert(err.message);
         }
     } else {
-        // Sign In Logic
         try {
             const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
             if (error) throw error;
@@ -130,7 +114,6 @@ async function handleAuth() {
     }
 }
 
-// 5. Modal UI Handlers
 function openAuthModal() { authModal.style.display = 'flex'; }
 function closeAuthModal() { authModal.style.display = 'none'; }
 
@@ -139,17 +122,10 @@ function toggleAuthMode() {
     modalTitle.textContent = isSignUpMode ? "Create Account" : "Welcome Back";
     authConfirmBtn.textContent = isSignUpMode ? "Sign Up" : "Sign In";
     authSwitch.textContent = isSignUpMode ? "Already have an account? Sign In" : "Need an account? Sign Up";
-
-    // Show or hide registration-specific fields
     signupFields.style.display = isSignUpMode ? "block" : "none";
     authRetype.style.display = isSignUpMode ? "block" : "none";
 }
 
-// 6. Existing App Functions (Trending, Search, Render)
-// 1. Add this to your Global Variables
-let currentTab = 'movie';
-
-// 2. Replace your fetchTrending function
 async function fetchTrending(type = 'movie') {
     resultsGrid.innerHTML = '';
     loader.style.display = 'block';
@@ -157,19 +133,17 @@ async function fetchTrending(type = 'movie') {
 
     try {
         if (type === 'book') {
-            // Fetch trending books from Open Library
             const res = await fetch(`https://openlibrary.org/trending/daily.json?limit=15`);
             const data = await res.json();
             const books = (data.works || []).map(work => ({
                 title: work.title,
                 year: work.first_publish_year,
-                image: work.cover_edition_key ? `https://covers.openlibrary.org/b/olid/${work.cover_edition_key}-M.jpg` : '',
+                image: work.cover_edition_key ? `https://covers.openlibrary.org/b/olid/${work.cover_edition_key}-M.jpg` : 'https://via.placeholder.com/500x750?text=No+Image',
                 type: 'book',
                 id: work.key
             }));
             renderResults(books, true);
         } else {
-            // Fetch trending Movies or TV from TMDB
             const url = `https://api.themoviedb.org/3/trending/${type}/day`;
             const options = {
                 method: 'GET',
@@ -193,22 +167,16 @@ async function fetchTrending(type = 'movie') {
     }
 }
 
-// 3. Add the switchTab function
 window.switchTab = function(type) {
     currentTab = type;
-    
-    // Update UI buttons
     document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
     document.getElementById(`btn-${type}`).classList.add('active');
-    
-    // Clear search and fetch
     searchInput.value = '';
     fetchTrending(type);
 };
 
 async function unifiedSearch(query) {
     if (!query || query.trim() === "") {
-        searchInput.value = '';
         const url = new URL(window.location);
         url.searchParams.delete('search');
         window.history.pushState({}, '', url);
@@ -226,24 +194,44 @@ async function unifiedSearch(query) {
     };
 
     try {
-        // Run all searches at once: Media, Books, AND Users
-        const [tmdbRes, bookData, { data: users }] = await Promise.all([
+        const [tmdbRes, bookData, authorData, { data: users }] = await Promise.all([
             fetch(`https://api.themoviedb.org/3/search/multi?query=${encodeURIComponent(query)}`, options).then(res => res.json()),
             fetchBooks(query),
+            fetchAuthors(query),
             supabaseClient
                 .from('profiles')
                 .select('id, username, display_name, avatar_url')
                 .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
-                .limit(5) // Limit users so they don't overwhelm the media results
+                .limit(5)
         ]);
 
-        // Process Media Results
-        const seenPeople = new Set();
+        const seenNames = new Set();
+        
+        // 1. Process Users First (Priority)
+        const mappedUsers = (users || []).map(u => ({
+            title: u.display_name || u.username,
+            year: `@${u.username}`,
+            image: u.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.display_name || u.username)}&background=1b2228&color=9ab&size=512&font-size=0.33`,
+            type: 'user',
+            id: u.id
+        }));
+
+        // 2. Process Authors from Open Library
+        const processedAuthors = authorData.filter(author => {
+            const nameKey = author.title.toLowerCase();
+            if (seenNames.has(nameKey)) return false;
+            seenNames.add(nameKey);
+            return true;
+        });
+
+        // 3. Process TMDB Results (Movies, TV, and People)
         const tmdbResults = (tmdbRes.results || [])
             .map(item => {
                 if (item.media_type === 'person') {
-                    if (seenPeople.has(item.name)) return null; 
-                    seenPeople.add(item.name);
+                    const nameKey = item.name.toLowerCase();
+                    // Avoid duplicate people if we already have them as an Author or Person
+                    if (seenNames.has(nameKey)) return null; 
+                    seenNames.add(nameKey);
                     return {
                         title: item.name,
                         year: item.known_for_department || 'Person',
@@ -265,17 +253,7 @@ async function unifiedSearch(query) {
                 return null;
             }).filter(Boolean);
 
-        // Process User Results
-        const mappedUsers = (users || []).map(u => ({
-            title: u.display_name || u.username,
-            year: `@${u.username}`,
-            image: u.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.display_name || u.username)}&background=1b2228&color=9ab&size=512&font-size=0.33`,
-            type: 'user',
-            id: u.id
-        }));
-
-        // Combine all and show users at the top
-        const combined = [...mappedUsers, ...tmdbResults, ...bookData];
+        const combined = [...mappedUsers, ...processedAuthors, ...tmdbResults, ...bookData];
         
         if (combined.length === 0) {
             loader.textContent = "No results found.";
@@ -289,25 +267,9 @@ async function unifiedSearch(query) {
     }
 }
 
-window.toggleAuthMode = function() {
-    isSignUpMode = !isSignUpMode;
-    
-    // Update Text
-    modalTitle.textContent = isSignUpMode ? "Create Account" : "Welcome Back";
-    authConfirmBtn.textContent = isSignUpMode ? "Sign Up" : "Sign In";
-    authSwitch.textContent = isSignUpMode ? "Already have an account? Sign In" : "Need an account? Sign Up";
-
-    // Toggle Visibility
-    signupFields.style.display = isSignUpMode ? "block" : "none";
-    
-    // This ensures Confirm Password only shows during Sign Up
-    if (authRetype) {
-        authRetype.style.display = isSignUpMode ? "block" : "none";
-    }
-};
-
 async function fetchBooks(query) {
-    const url = `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=10`;
+    // Increased limit to 20 to ensure deep-search titles like "Cujo" appear
+    const url = `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=20`;
     const res = await fetch(url);
     const data = await res.json();
     return (data.docs || [])
@@ -321,16 +283,44 @@ async function fetchBooks(query) {
         }));
 }
 
+async function fetchAuthors(query) {
+    const url = `https://openlibrary.org/search/authors.json?q=${encodeURIComponent(query)}&limit=5`;
+    try {
+        const res = await fetch(url);
+        const data = await res.json();
+        
+        const seenAuthorNames = new Set();
+        return (data.docs || [])
+            .map(doc => {
+                const nameKey = doc.name.toLowerCase();
+                if (seenAuthorNames.has(nameKey)) return null;
+                seenAuthorNames.add(nameKey);
+                
+                return {
+                    title: doc.name,
+                    year: 'Author',
+                    image: doc.key ? `https://covers.openlibrary.org/a/olid/${doc.key}-M.jpg` : `https://ui-avatars.com/api/?name=${encodeURIComponent(doc.name)}&background=1b2228&color=9ab&size=512`,
+                    type: 'author',
+                    id: doc.key
+                };
+            })
+            .filter(Boolean);
+    } catch (e) {
+        return [];
+    }
+}
+
 function renderResults(items, isTrending = false) {
     items.forEach(item => {
         const card = document.createElement('div');
         card.className = 'media-card';
-        // Add this line so our CSS knows it's a user
         card.setAttribute('data-type', item.type);
         
         card.onclick = () => {
             if (item.type === 'person') {
                 window.location.href = `cast.html?personId=${item.id}`;
+            } else if (item.type === 'author') {
+                window.location.href = `cast.html?authorId=${item.id}`;
             } else if (item.type === 'user') {
                 window.location.href = `profile.html?id=${item.id}`;
             } else {
@@ -359,25 +349,18 @@ function renderResults(items, isTrending = false) {
     });
 }
 
-// Add this function to Section 4: Authentication Logic
 async function handleForgotPassword() {
     const email = authEmail.value;
-
     if (!email) {
-        alert("Please enter your email address first so we know where to send the link.");
+        alert("Please enter your email address first.");
         authEmail.focus();
         return;
     }
-
     try {
         const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-            // This is where the user is sent after clicking the email link
-            // We send them to settings.html where they can type a new password
             redirectTo: window.location.origin + '/settings.html',
         });
-
         if (error) throw error;
-
         alert("Success! Check your email for a password reset link.");
         closeAuthModal();
     } catch (err) {
@@ -385,7 +368,6 @@ async function handleForgotPassword() {
     }
 }
 
-// 7. Event Listeners & Start
 authConfirmBtn.addEventListener('click', handleAuth);
 closeModal.addEventListener('click', closeAuthModal);
 window.toggleAuthMode = toggleAuthMode;
