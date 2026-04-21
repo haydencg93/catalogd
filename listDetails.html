@@ -28,6 +28,29 @@
                     <h1 id="list-name">Loading List...</h1>
                     <p id="list-desc" class="meta">Manage your collection below.</p>
                 </div>
+
+                <button id="open-collab-modal-btn" class="secondary-btn" style="display:none;">Collaborators</button>
+                <div id="collab-modal" class="modal">
+                    <div class="modal-content social-modal-content">
+                        <div class="modal-header">
+                            <h2>Collaborators</h2>
+                            <span class="close-modal" id="close-collab-modal">&times;</span>
+                        </div>
+                        
+                        <div class="search-container" style="background: rgba(255,255,255,0.03); margin-bottom: 20px;">
+                            <p class="meta" style="margin-top:0;">Invite by username</p>
+                            <div class="input-group" style="display: flex; gap: 10px;">
+                                <input type="text" id="collab-username" placeholder="Username..." style="margin:0; flex-grow:1;">
+                                <button id="add-collab-btn" class="primary-btn" style="width: auto; padding: 0 15px;">Invite</button>
+                            </div>
+                        </div>
+
+                        <div id="collab-list" class="social-list-container">
+                            <p class="meta">Loading editors...</p>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="list-controls">
                     <label class="ranked-toggle-wrapper">
                         <input type="checkbox" id="ranked-toggle">
