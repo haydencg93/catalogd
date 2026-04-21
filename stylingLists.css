@@ -35,3 +35,14 @@ input[type="text"] { margin: 0; flex-grow: 1; }
 .list-card:hover .preview-poster {
     transform: translateY(-5px);
 }
+
+.collab-badge {
+    background: rgba(0, 224, 84, 0.1);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    font-weight: bold;
+}
