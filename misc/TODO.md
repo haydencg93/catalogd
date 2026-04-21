@@ -12,9 +12,8 @@ Get Done Today = ~
 <!-- BUGS: -->
 ## BUGS:
 ### In Progress
-- OpenLibrary Book search not showing all searches (Ex: "Together in a Broken World" by Paul Michael Winters)
-- Author(s)/Writer(s) for books
-- Search Author(s)
+
+
 ### To Fix
 - Export doesn't export whether they liked it or not
 - "Mark as Active" on TV Shows

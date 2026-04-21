@@ -138,6 +138,7 @@ async function fetchTrending(type = 'movie') {
             const books = (data.works || []).map(work => ({
                 title: work.title,
                 year: work.first_publish_year,
+                author: work.author_name ? work.author_name[0] : null,
                 image: work.cover_edition_key ? `https://covers.openlibrary.org/b/olid/${work.cover_edition_key}-M.jpg` : 'https://via.placeholder.com/500x750?text=No+Image',
                 type: 'book',
                 id: work.key
@@ -207,7 +208,7 @@ async function unifiedSearch(query) {
 
         const seenNames = new Set();
         
-        // 1. Process Users First (Priority)
+        // 1. Process Users
         const mappedUsers = (users || []).map(u => ({
             title: u.display_name || u.username,
             year: `@${u.username}`,
@@ -216,7 +217,7 @@ async function unifiedSearch(query) {
             id: u.id
         }));
 
-        // 2. Process Authors from Open Library
+        // 2. Process Authors
         const processedAuthors = authorData.filter(author => {
             const nameKey = author.title.toLowerCase();
             if (seenNames.has(nameKey)) return false;
@@ -224,28 +225,27 @@ async function unifiedSearch(query) {
             return true;
         });
 
-        // 3. Process TMDB Results (Movies, TV, and People)
+        // 3. Process TMDB
         const tmdbResults = (tmdbRes.results || [])
             .map(item => {
                 if (item.media_type === 'person') {
                     const nameKey = item.name.toLowerCase();
-                    // Avoid duplicate people if we already have them as an Author or Person
                     if (seenNames.has(nameKey)) return null; 
                     seenNames.add(nameKey);
                     return {
                         title: item.name,
                         year: item.known_for_department || 'Person',
                         image: item.profile_path 
-                            ? `https://image.tmdb.org/t/p/w500${item.profile_path}` 
+                            ? `https://image.tmdb.org/p/w500${item.profile_path}` 
                             : `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=1b2228&color=9ab&size=512`,
                         type: 'person',
                         id: item.id
                     };
-                } else if (item.poster_path) {
+                } else if (item.poster_path || item.backdrop_path) {
                     return {
                         title: item.title || item.name,
                         year: (item.release_date || item.first_air_date || '').split('-')[0],
-                        image: `https://image.tmdb.org/t/p/w500${item.poster_path}`,
+                        image: `https://image.tmdb.org/t/p/w500${item.poster_path || item.backdrop_path}`,
                         type: item.media_type,
                         id: item.id
                     };
@@ -253,7 +253,26 @@ async function unifiedSearch(query) {
                 return null;
             }).filter(Boolean);
 
-        const combined = [...mappedUsers, ...processedAuthors, ...tmdbResults, ...bookData];
+        // 4. Combine and Sort by Relevancy Boost
+        let combined = [...mappedUsers, ...processedAuthors, ...tmdbResults, ...bookData];
+        
+        const q = query.toLowerCase().trim();
+        combined.sort((a, b) => {
+            const aTitle = a.title.toLowerCase();
+            const bTitle = b.title.toLowerCase();
+
+            // Boost 1: Exact matches to the top
+            if (aTitle === q && bTitle !== q) return -1;
+            if (bTitle === q && aTitle !== q) return 1;
+
+            // Boost 2: Starts with query
+            const aStarts = aTitle.startsWith(q);
+            const bStarts = bTitle.startsWith(q);
+            if (aStarts && !bStarts) return -1;
+            if (bStarts && !aStarts) return 1;
+
+            return 0; // Keep relative order
+        });
         
         if (combined.length === 0) {
             loader.textContent = "No results found.";
@@ -268,16 +287,18 @@ async function unifiedSearch(query) {
 }
 
 async function fetchBooks(query) {
-    // Increased limit to 20 to ensure deep-search titles like "Cujo" appear
-    const url = `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=20`;
+    // Increased limit to 50 and removed strict cover filter to improve discovery
+    const url = `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=50`;
     const res = await fetch(url);
     const data = await res.json();
     return (data.docs || [])
-        .filter(doc => doc.cover_i)
         .map(doc => ({
             title: doc.title,
             year: doc.first_publish_year,
-            image: `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`,
+            author: doc.author_name ? doc.author_name[0] : null,
+            image: doc.cover_i 
+                ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg` 
+                : `https://via.placeholder.com/500x750?text=${encodeURIComponent(doc.title)}`,
             type: 'book',
             id: doc.key
         }));
@@ -343,6 +364,7 @@ function renderResults(items, isTrending = false) {
             </div>
             <div class="media-info">
                 <div class="title">${item.title}</div>
+                ${item.author ? `<div class="meta" style="color: var(--accent); font-weight: 500;">${item.author}</div>` : ''}
                 <div class="meta">${item.year || ''}</div>
             </div>`;
         resultsGrid.appendChild(card);
