@@ -1,0 +1,956 @@
+{
+  "anime": "jojos-bizarre-adventure-tv",
+  "total_episodes": 190,
+  "episodes": [
+    {
+      "number": "1",
+      "title": "Dio the Invader",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "2",
+      "title": "A Letter from the Past",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "3",
+      "title": "Youth With Dio",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "4",
+      "title": "Overdrive",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "5",
+      "title": "The Dark Knights",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "6",
+      "title": "Pluck for Tomorrow",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "7",
+      "title": "The Successor",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "8",
+      "title": "Bloody Battle! JoJo and Dio",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "9",
+      "title": "The Final Ripple!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "10",
+      "title": "JoJo of New York",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "11",
+      "title": "Master of the Game",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "12",
+      "title": "The Pillar Man",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "13",
+      "title": "JoJo vs. The Ultimate Being",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "14",
+      "title": "Ultimate Warriors from Ancient Times",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "15",
+      "title": "A Hero's Proof",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "16",
+      "title": "Ripple Teacher Lisa Lisa",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "17",
+      "title": "Laying a Deeper Trap!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "18",
+      "title": "Stroheim's Unit Strikes Back",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "19",
+      "title": "Race Toward the Cliff of Death",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "20",
+      "title": "Caesar: A Lonely Youth",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "21",
+      "title": "The Hundred vs. Two Strategy",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "22",
+      "title": "A True Warrior",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "23",
+      "title": "The Warrior Returns to the Wind",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "24",
+      "title": "The Bond That Binds JoJo",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "25",
+      "title": "The Birth of a Superbeing!!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "26",
+      "title": "The Man Who Became a God",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "27",
+      "title": "A Man Possessed by an Evil Spirit",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "28",
+      "title": "Who Will Be the Judge?!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "29",
+      "title": "DIO's Curse",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "30",
+      "title": "Tower of Gray",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "31",
+      "title": "Silver Chariot",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "32",
+      "title": "Dark Blue Moon",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "33",
+      "title": "Strength",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "34",
+      "title": "Devil",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "35",
+      "title": "Yellow Temperance",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "36",
+      "title": "Emperor and Hanged Man, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "37",
+      "title": "Emperor and Hanged Man, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "38",
+      "title": "Empress",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "39",
+      "title": "Wheel of Fortune",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "40",
+      "title": "Justice, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "41",
+      "title": "Justice, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "42",
+      "title": "Lovers, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "43",
+      "title": "Lovers, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "44",
+      "title": "Sun",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "45",
+      "title": "Death Thirteen, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "46",
+      "title": "Death Thirteen, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "47",
+      "title": "Judgement, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "48",
+      "title": "Judgement, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "49",
+      "title": "High Priestess, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "50",
+      "title": "High Priestess, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "51",
+      "title": "\"The Fool\" Iggy and \"Geb\" N'Doul, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "52",
+      "title": "\"The Fool\" Iggy and \"Geb\" N'Doul, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "53",
+      "title": "\"Khnum\" Oingo and \"Tohth\" Boingo",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "54",
+      "title": "Anubis, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "55",
+      "title": "Anubis, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "56",
+      "title": "\"Bastet\" Mariah, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "57",
+      "title": "\"Bastet\" Mariah, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "58",
+      "title": "\"Sethan\" Alessi, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "59",
+      "title": "\"Sethan\" Alessi, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "60",
+      "title": "D'Arby the Gambler, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "61",
+      "title": "D'Arby the Gambler, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "62",
+      "title": "Hol Horse and Boingo, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "63",
+      "title": "Hol Horse and Boingo, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "64",
+      "title": "The Gatekeeper of Hell, Pet Shop, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "65",
+      "title": "The Gatekeeper of Hell, Pet Shop, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "66",
+      "title": "D'Arby the Player, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "67",
+      "title": "D'Arby the Player, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "68",
+      "title": "The Miasma of the Void, Vanilla Ice, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "69",
+      "title": "The Miasma of the Void, Vanilla Ice, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "70",
+      "title": "The Miasma of the Void, Vanilla Ice, Part 3",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "71",
+      "title": "DIO's World, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "72",
+      "title": "DIO's World, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "73",
+      "title": "DIO's World, Part 3",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "74",
+      "title": "The Faraway Journey, Farewell Friends",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "75",
+      "title": "Jotaro Kujo! Meets Josuke Higashikata",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "76",
+      "title": "Josuke Higashikata! Meets Angelo",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "77",
+      "title": "The Nijimura Brothers, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "78",
+      "title": "The Nijimura Brothers, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "79",
+      "title": "The Nijimura Brothers, Part 3",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "80",
+      "title": "Koichi Hirose (Echoes)",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "81",
+      "title": "Toshikazu Hazamada (Surface)",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "82",
+      "title": "Yukako Yamagishi Falls in Love, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "83",
+      "title": "Yukako Yamagishi Falls in Love, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "84",
+      "title": "Let's Go Eat Some Italian Food",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "85",
+      "title": "Red Hot Chili Pepper, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "86",
+      "title": "Red Hot Chili Pepper, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "87",
+      "title": "We Picked Up Something Crazy!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "88",
+      "title": "Let's Go to the Manga Artist's House, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "89",
+      "title": "Let's Go to the Manga Artist's House, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "90",
+      "title": "Let's Go Hunting!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "91",
+      "title": "Rohan Kishibe's Adventure",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "92",
+      "title": "Shigechi's Harvest, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "93",
+      "title": "Shigechi's Harvest, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "94",
+      "title": "Yukako Yamagishi Dreams of Cinderella",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "95",
+      "title": "Yoshikage Kira Just Wants to Live Quietly, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "96",
+      "title": "Yoshikage Kira Just Wants to Live Quietly, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "97",
+      "title": "Sheer Heart Attack, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "98",
+      "title": "Sheer Heart Attack, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "99",
+      "title": "Atom Heart Father",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "100",
+      "title": "Rock-Paper-Scissors Kid Is Coming!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "101",
+      "title": "I'm an Alien",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "102",
+      "title": "Highway Star, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "103",
+      "title": "Highway Star, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "104",
+      "title": "Cats Love Yoshikage Kira",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "105",
+      "title": "July 15th (Thursday), Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "106",
+      "title": "July 15th (Thursday), Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "107",
+      "title": "July 15th (Thursday), Part 3",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "108",
+      "title": "July 15th (Thursday), Part 4",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "109",
+      "title": "Another One Bites the Dust, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "110",
+      "title": "Another One Bites the Dust, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "111",
+      "title": "Crazy Diamond Is Unbreakable, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "112",
+      "title": "Crazy Diamond Is Unbreakable, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "113",
+      "title": "Goodbye, Morioh - The Golden Heart",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "114",
+      "title": "Gold Experience",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "115",
+      "title": "Bucciarati Is Coming",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "116",
+      "title": "Meet the Gangster Behind the Wall",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "117",
+      "title": "Joining the Gang",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "118",
+      "title": "Find Polpo's Fortune!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "119",
+      "title": "Moody Blues Strikes Back",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "120",
+      "title": "Sex Pistols Appears, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "121",
+      "title": "Sex Pistols Appears, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "122",
+      "title": "The First Order from the Boss",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "123",
+      "title": "The Hitman Team",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "124",
+      "title": "Narancia's Aerosmith",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "125",
+      "title": "The Second Order from the Boss",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "126",
+      "title": "Man in the Mirror and Purple Haze",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "127",
+      "title": "Express Train to Florence",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "128",
+      "title": "The Grateful Dead, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "129",
+      "title": "The Grateful Dead, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "130",
+      "title": "Baby Face",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "131",
+      "title": "Head to Venice!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "132",
+      "title": "White Album",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "133",
+      "title": "The Boss's Last Orders",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "134",
+      "title": "The Mystery of King Crimson",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "135",
+      "title": "The \"G\" in Guts",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "136",
+      "title": "Clash and Talking Head",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "137",
+      "title": "Notorious B.I.G",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "138",
+      "title": "Spice Girl",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "139",
+      "title": "A Little Story From the Past ~My Name Is Doppio~",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "140",
+      "title": "King Crimson vs. Metallica",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "141",
+      "title": "Beneath a Sky on the Verge of Falling",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "142",
+      "title": "Destination: Rome! The Colosseum",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "143",
+      "title": "Green Day and Oasis, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "144",
+      "title": "Green Day and Oasis, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "145",
+      "title": "Green Day and Oasis, Part 3",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "146",
+      "title": "His Name Is Diavolo",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "147",
+      "title": "The Requiem Quietly Plays, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "148",
+      "title": "The Requiem Quietly Plays, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "149",
+      "title": "Diavolo Surfaces",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "150",
+      "title": "King of Kings",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "151",
+      "title": "Gold Experience Requiem",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "152",
+      "title": "Sleeping Slaves",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "153",
+      "title": "Stone Ocean",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "154",
+      "title": "Stone Free",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "155",
+      "title": "The Visitor, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "156",
+      "title": "The Visitor, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "157",
+      "title": "Prisoner of Love",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "158",
+      "title": "Ermes's Sticker",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "159",
+      "title": "There's Six of Us!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "160",
+      "title": "Foo Fighters",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "161",
+      "title": "Marilyn Manson, the Debt Collector",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "162",
+      "title": "Operation Savage Garden (Head to the Courtyard!), Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "163",
+      "title": "Operation Savage Garden (Head to the Courtyard!), Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "164",
+      "title": "Torrential Downpour Warning",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "165",
+      "title": "Kiss of Love and Revenge, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "166",
+      "title": "Kiss of Love and Revenge, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "167",
+      "title": "Ultra Security House Unit",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "168",
+      "title": "The Secret of Guard Westwood",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "169",
+      "title": "Enter the Dragon's Dream",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "170",
+      "title": "Enter the Foo Fighters",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "171",
+      "title": "Birth of the \"Green\"",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "172",
+      "title": "F.F. - The Witness",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "173",
+      "title": "AWAKEN",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "174",
+      "title": "Time for Heaven! New Moon! New Priest!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "175",
+      "title": "Jail House Lock!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "176",
+      "title": "Jailbreak...",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "177",
+      "title": "Bohemian Rhapsody, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "178",
+      "title": "Bohemian Rhapsody, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "179",
+      "title": "Sky High",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "180",
+      "title": "Time for Heaven: Three Days Until the New Moon",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "181",
+      "title": "Under World",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "182",
+      "title": "Heavy Weather, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "183",
+      "title": "Heavy Weather, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "184",
+      "title": "Heavy Weather, Part 3",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "185",
+      "title": "Gravity of the New Moon",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "186",
+      "title": "C-MOON, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "187",
+      "title": "C-MOON, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "188",
+      "title": "Made in Heaven, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "189",
+      "title": "Made in Heaven, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "190",
+      "title": "What a Wonderful World",
+      "type": "Manga Canon"
+    }
+  ]
+}

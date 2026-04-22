@@ -15,14 +15,10 @@ async function initDetails() {
 
         let data;
         if (type === 'book') {
-            // 1. Fetch the general Work data
             const res = await fetch(`https://openlibrary.org${id}.json`).then(r => r.json());
-            
-            // 2. Fetch the list of Editions to find an ISBN
             const editionsRes = await fetch(`https://openlibrary.org${id}/editions.json`).then(r => r.json());
             const authorData = res.authors || [];
 
-            // 3. Loop through editions to grab the first available ISBN
             let foundIsbn = null;
             if (editionsRes.entries) {
                 for (const edition of editionsRes.entries) {
@@ -40,8 +36,8 @@ async function initDetails() {
                 overview: res.description?.value || res.description || "No description.",
                 poster_path: res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-L.jpg` : null,
                 meta: `Published: ${res.first_publish_date || 'Unknown'}`,
-                isbn: foundIsbn, // Pass this to your display function
-                authors: authorData // Store the keys (e.g., /authors/OL23919A)
+                isbn: foundIsbn,
+                authors: authorData
             };
 
             let pageCount = null;
@@ -52,12 +48,6 @@ async function initDetails() {
                 }
             }
             data.pages = pageCount;
-
-            // After the UI Injection section in initDetails
-            if (type === 'book') {
-                displayBookLinks(data.isbn);
-                setupBookTracker(data.pages);
-            }
         } else {
             const res = await fetch(`https://api.themoviedb.org/3/${type}/${id}`, tmdbOptions).then(r => r.json());
             data = {
@@ -69,32 +59,106 @@ async function initDetails() {
             };
         }
 
-        // UI Injection
         document.getElementById('media-title').textContent = data.title;
         document.getElementById('media-overview').textContent = data.overview;
         document.getElementById('media-meta').textContent = data.meta;
         document.getElementById('poster-area').innerHTML = `<img src="${data.poster_path}" alt="poster">`;
         if (data.backdrop) document.getElementById('backdrop-overlay').style.backgroundImage = `url(${data.backdrop})`;
 
-        // Navigation to Log Page
         document.getElementById('go-to-log').onclick = () => {
             window.location.href = `log.html?id=${id}&type=${type}`;
         };
 
-        if (type === 'tv') setupTVTracker(config, id);
         setupHeader();
 
+        if (type === 'tv') setupTVTracker(config, id);
+        
         if (type === 'book') {
             displayBookLinks(data.isbn);
             setupBookTracker(data.pages);
-            fetchBookAuthors(data.authors); // New function
+            fetchBookAuthors(data.authors);
         } else {
             fetchWatchProviders(config);
             fetchCredits(config, id, type);
         }
 
-        if (type !== 'book') {
-            fetchCredits(config, id, type);
+        let isAnime = false;
+        if (type === 'tv' || type === 'movie') {
+            const keywordUrl = `https://api.themoviedb.org/3/${type}/${id}/keywords`;
+            const kwRes = await fetch(keywordUrl, tmdbOptions).then(r => r.json());
+            const keywords = type === 'tv' ? kwRes.results : kwRes.keywords;
+            isAnime = keywords.some(k => k.name.toLowerCase() === 'anime');
+        }
+
+        // 2. If it is an Anime, handle the Filler Logic
+        if (isAnime) {
+            const slug = slugify(data.title);
+            const fillerContainer = document.getElementById('filler-status-container');
+            const fillerInfo = document.getElementById('filler-info');
+            const fillerAction = document.getElementById('filler-action-area');
+            
+            fillerContainer.style.display = 'block';
+
+            try {
+                // Try to fetch the local JSON file (adjust path to your GitHub structure)
+                const fillerFile = await fetch(`animeFillerListApi/data/${slug}.json`);
+                
+                if (fillerFile.ok) {
+                    const fillerData = await fillerFile.json();
+                    if (fillerData.error) {
+                        fillerInfo.textContent = "Filler status unavailable for this title.";
+                    } else {
+                        fillerInfo.textContent = `Anime Filler Data Available (${fillerData.total_episodes} eps)`;
+                        // Optional: You could call a function here to render the actual list
+                    }
+                } else {
+                    // File doesn't exist - Check if already requested in Supabase
+                    fillerInfo.textContent = "Filler list data not found.";
+                    checkIfAlreadyRequested(slug, data.title, fillerAction);
+                }
+            } catch (e) {
+                console.error("Filler fetch error:", e);
+            }
+        }
+
+        // 2. If it is an Anime, handle the Filler Logic
+        if (isAnime) {
+            const slug = slugify(data.title);
+            const fillerContainer = document.getElementById('filler-status-container');
+            const fillerInfo = document.getElementById('filler-info');
+            const fillerAction = document.getElementById('filler-action-area');
+            
+            fillerContainer.style.display = 'block';
+
+            try {
+                // Fetch the local JSON file
+                const fillerFile = await fetch(`animeFillerListApi/data/${slug}.json`);
+                
+                if (fillerFile.ok) {
+                    const fillerData = await fillerFile.json();
+                    
+                    if (fillerData.error) {
+                        fillerInfo.textContent = "Filler status unavailable for this title.";
+                        fillerAction.innerHTML = ""; // Clear button area if error exists
+                    } else {
+                        // Success: Show the "View Filler Episodes" button
+                        fillerInfo.textContent = ""; // Clear the status text
+                        fillerAction.innerHTML = `
+                            <button id="view-filler-btn" class="primary-btn" style="background: #ff9800; width: auto; padding: 10px 20px;">
+                                View Filler Episodes
+                            </button>`;
+                        
+                        document.getElementById('view-filler-btn').onclick = () => openFillerModal(fillerData);
+                    }
+                } else {
+                    // File doesn't exist - Check Supabase queue
+                    fillerInfo.textContent = "Filler list data not found.";
+                    checkIfAlreadyRequested(slug, data.title, fillerAction);
+                }
+            } catch (e) {
+                console.error("Filler fetch error:", e);
+                fillerInfo.textContent = "Error loading filler data.";
+            }
         }
 
         fetchMediaHistory();
@@ -102,6 +166,109 @@ async function initDetails() {
         setupListManager(id, type);
         setupStatusManager(id, type);
     } catch (err) { console.error(err); }
+}
+
+async function setupStatusManager(mediaId, mediaType) {
+    const statusBtn = document.getElementById('status-btn');
+    const modal = document.getElementById('status-modal');
+    const closeBtn = document.getElementById('close-status-modal');
+    const options = document.querySelectorAll('.status-option');
+    const { data: { user } } = await supabaseClient.auth.getUser();
+
+    if (!user) {
+        statusBtn.style.display = 'none';
+        return;
+    }
+
+    // Map labels for the UI
+    const labels = {
+        active: mediaType === 'book' ? 'Currently Reading' : 'Currently Watching',
+        paused: 'Paused',
+        dropped: 'Dropped',
+        none: 'Mark as...'
+    };
+
+    // 1. Initial State Fetch
+    const { data: statusData } = await supabaseClient
+        .from('media_status')
+        .select('status')
+        .eq('user_id', user.id)
+        .eq('media_id', String(mediaId))
+        .maybeSingle();
+
+    if (statusData?.status && labels[statusData.status]) {
+        statusBtn.textContent = labels[statusData.status];
+        if (statusData.status !== 'completed' && statusData.status !== 'none') {
+            statusBtn.classList.add('active');
+        }
+    }
+
+    // Update Modal labels dynamically for books vs movies
+    const activeLabelText = modal.querySelector('[data-status="active"] .status-label-text');
+    if (activeLabelText) activeLabelText.textContent = labels.active;
+
+    // 2. Open/Close Modal
+    statusBtn.onclick = () => modal.style.display = 'flex';
+    closeBtn.onclick = () => modal.style.display = 'none';
+    
+    // Close on backdrop click
+    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+
+    // 3. Status Selection Logic
+    options.forEach(opt => {
+        opt.onclick = async (e) => {
+            // Stop propagation to ensure we don't trigger the modal backdrop click
+            e.stopPropagation();
+            
+            const selectedStatus = opt.getAttribute('data-status');
+            
+            if (selectedStatus === 'none') {
+                // Delete the status record
+                const { error } = await supabaseClient
+                    .from('media_status')
+                    .delete()
+                    .eq('user_id', user.id)
+                    .eq('media_id', String(mediaId));
+                
+                if (!error) {
+                    statusBtn.textContent = labels.none;
+                    statusBtn.classList.remove('active');
+                }
+            } else {
+                // Upsert the new status
+                const { error } = await supabaseClient
+                    .from('media_status')
+                    .upsert({
+                        user_id: user.id,
+                        media_id: String(mediaId),
+                        media_type: mediaType,
+                        status: selectedStatus,
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'user_id,media_id,media_type' });
+
+                if (!error) {
+                    statusBtn.textContent = labels[selectedStatus];
+                    statusBtn.classList.add('active');
+                    
+                    // Cleanup watchlist if they start the item
+                    if (selectedStatus === 'active') {
+                        await supabaseClient.from('user_watchlist').delete()
+                            .eq('user_id', user.id)
+                            .eq('media_id', String(mediaId));
+                            
+                        const watchlistBtn = document.getElementById('watchlist-btn');
+                        if (watchlistBtn) {
+                            watchlistBtn.classList.remove('active');
+                            watchlistBtn.textContent = 'Add to Watchlist';
+                        }
+                    }
+                } else {
+                    console.error("Error updating status:", error);
+                }
+            }
+            modal.style.display = 'none';
+        };
+    });
 }
 
 async function fetchCredits(config, mediaId, mediaType) {
@@ -113,32 +280,26 @@ async function fetchCredits(config, mediaId, mediaType) {
             headers: { Authorization: `Bearer ${config.tmdb_token}` }
         }).then(r => r.json());
 
-        // 1. Find the Director (or Showrunner/Exec Producer for TV)
         const director = res.crew.find(person => 
             person.job === 'Director' || 
-            person.job === 'Executive Producer' && mediaType === 'tv'
+            (person.job === 'Executive Producer' && mediaType === 'tv')
         );
         
-        // 2. Take top cast members
         const topCast = res.cast.slice(0, 11);
-
-        // 3. Assemble the final list with Director at the start
         let finalDisplayList = [];
         
         if (director) {
             finalDisplayList.push({
                 id: director.id,
                 name: director.name,
-                character: director.job, // Will display as "Director"
+                character: director.job,
                 profile_path: director.profile_path,
                 isDirector: true
             });
         }
         
-        // Add the rest of the cast
         topCast.forEach(actor => finalDisplayList.push(actor));
 
-        // 4. Render to UI
         castList.innerHTML = finalDisplayList.map(person => `
             <div class="cast-card ${person.isDirector ? 'director-highlight' : ''}" 
                  onclick="window.location.href='cast.html?personId=${person.id}'">
@@ -149,17 +310,12 @@ async function fetchCredits(config, mediaId, mediaType) {
                 </div>
             </div>
         `).join('');
-
-    } catch (err) { 
-        console.error("Credits error:", err); 
-    }
+    } catch (err) { console.error("Credits error:", err); }
 }
 
 async function fetchBookAuthors(authorsList) {
     const castSection = document.getElementById('cast-section');
     const castList = document.getElementById('cast-list');
-    
-    // 1. Update Heading
     castSection.querySelector('h3').textContent = "Authors & Writers";
 
     if (!authorsList || authorsList.length === 0) {
@@ -169,10 +325,8 @@ async function fetchBookAuthors(authorsList) {
 
     try {
         const authorCards = await Promise.all(authorsList.map(async (auth) => {
-            const authorKey = auth.author.key; // e.g., /authors/OL123A
+            const authorKey = auth.author.key;
             const details = await fetch(`https://openlibrary.org${authorKey}.json`).then(r => r.json());
-            
-            // Open Library Author Photos use the 'id' (last part of key)
             const authorId = authorKey.split('/').pop();
             const photoUrl = details.photos 
                 ? `https://covers.openlibrary.org/a/id/${details.photos[0]}-M.jpg` 
@@ -188,32 +342,25 @@ async function fetchBookAuthors(authorsList) {
                 </div>
             `;
         }));
-
         castList.innerHTML = authorCards.join('');
-    } catch (err) {
-        console.error("Error fetching authors:", err);
-        castList.innerHTML = "<p class='meta'>Error loading authors.</p>";
-    }
+    } catch (err) { console.error("Error fetching authors:", err); }
 }
 
 function setupBookTracker(totalPages) {
     const trackerSection = document.getElementById('tv-tracker');
     const list = document.getElementById('episode-list');
-    
     trackerSection.style.display = 'block';
     trackerSection.querySelector('h3').textContent = "Reading Progress";
     
     const controls = document.querySelector('.tracker-controls');
     if (controls) controls.style.display = 'none';
-
     list.style.display = 'block'; 
     
     if (!totalPages) {
-        list.innerHTML = `<p class="meta">Page count not available. Please log manually.</p>`;
+        list.innerHTML = `<p class="meta">Page count not available.</p>`;
         return;
     }
 
-    // Injected UI with Input Field for direct marking
     list.innerHTML = `
         <div class="book-progress-container">
             <div class="quick-update-row">
@@ -222,7 +369,6 @@ function setupBookTracker(totalPages) {
             </div>
         </div>
     `;
-    
     fetchBookProgress(totalPages); 
 }
 
@@ -230,42 +376,28 @@ async function updatePageProgress(totalPages) {
     const input = document.getElementById('quick-page-input');
     const newPage = parseInt(input.value);
 
-    // Requirement: Block 100% completion in quick tracker
     if (newPage >= totalPages) {
-        alert("To mark a book as finished, please use the 'Log or Review' button to rate and review your experience.");
+        alert("To mark a book as finished, please use the 'Log or Review' button to rate and review.");
         input.value = '';
         return;
     }
 
-    if (!newPage || newPage < 1) {
-        return alert(`Enter a page between 1 and ${totalPages - 1}`);
-    }
+    if (!newPage || newPage < 1) return alert(`Enter a page between 1 and ${totalPages - 1}`);
 
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) return alert("Please sign in.");
 
-    const { data: activeLog } = await supabaseClient
-        .from('media_logs')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('media_id', id)
-        .eq('is_finished', false)
-        .maybeSingle();
+    const { data: activeLog } = await supabaseClient.from('media_logs').select('id')
+        .eq('user_id', user.id).eq('media_id', id).eq('is_finished', false).maybeSingle();
 
     const logData = {
-        user_id: user.id,
-        media_id: id,
-        media_type: 'book',
-        current_page: newPage,
-        total_pages: totalPages,
-        is_finished: false, // Always false from this quick update
-        watched_on: new Date().toISOString().split('T')[0]
+        user_id: user.id, media_id: id, media_type: 'book',
+        current_page: newPage, total_pages: totalPages,
+        is_finished: false, watched_on: new Date().toISOString().split('T')[0]
     };
-
     if (activeLog) logData.id = activeLog.id;
 
     const { error } = await supabaseClient.from('media_logs').upsert(logData);
-
     if (!error) {
         input.value = '';
         fetchBookProgress(totalPages);
@@ -277,37 +409,24 @@ async function fetchBookProgress(totalPages) {
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user || !totalPages) return;
 
-    // Only show progress for the ACTIVE (unfinished) log
-    const { data: logs } = await supabaseClient
-        .from('media_logs')
-        .select('current_page')
-        .eq('user_id', user.id)
-        .eq('media_id', id)
-        .eq('is_finished', false)
-        .order('created_at', { ascending: false })
-        .limit(1);
+    const { data: logs } = await supabaseClient.from('media_logs')
+        .select('current_page').eq('user_id', user.id).eq('media_id', id)
+        .eq('is_finished', false).order('created_at', { ascending: false }).limit(1);
 
-    if (logs && logs.length > 0) {
-        const currentPage = logs[0].current_page;
-        updateUnifiedProgress(currentPage, totalPages, "pages read");
-    } else {
-        updateUnifiedProgress(0, totalPages, "pages read");
-    }
+    const currentPage = logs?.[0]?.current_page || 0;
+    updateUnifiedProgress(currentPage, totalPages, "pages read");
 }
 
 function displayBookLinks(isbn) {
     const providerSection = document.getElementById('watch-providers');
     const list = document.getElementById('providers-list');
-    
-    // Update heading for books
     providerSection.querySelector('h4').textContent = "Get this Book";
 
     if (!isbn) {
-        list.innerHTML = "<p class='meta'>No ISBN available for library/store links.</p>";
+        list.innerHTML = "<p class='meta'>No ISBN available.</p>";
         return;
     }
 
-    // Define the logos you provided
     const logos = {
         worldcat: "https://search.worldcat.org/favicons/android-chrome-192x192.png",
         bwb: "https://www.betterworldbooks.com/images/logos/favicon.ico",
@@ -319,7 +438,7 @@ function displayBookLinks(isbn) {
             <span class="provider-type-label">Check nearby libraries</span>
             <div class="book-link-list">
                 <a href="https://www.worldcat.org/isbn/${isbn}" target="_blank" class="book-external-link">
-                    <img src="${logos.worldcat}" alt="WorldCat"> <span>WorldCat</span>
+                    <img src="${logos.worldcat}"> <span>WorldCat</span>
                 </a>
             </div>
         </div>
@@ -327,10 +446,10 @@ function displayBookLinks(isbn) {
             <span class="provider-type-label">Buy this book</span>
             <div class="book-link-list">
                 <a href="https://www.betterworldbooks.com/search/results?q=${isbn}" target="_blank" class="book-external-link">
-                    <img src="${logos.bwb}" alt="Better World Books"> <span>Better World Books</span>
+                    <img src="${logos.bwb}"> <span>Better World Books</span>
                 </a>
                 <a href="https://www.amazon.com/s?k=${isbn}" target="_blank" class="book-external-link">
-                    <img src="${logos.amazon}" alt="Amazon"> <span>Amazon</span>
+                    <img src="${logos.amazon}"> <span>Amazon</span>
                 </a>
             </div>
         </div>
@@ -342,122 +461,67 @@ async function setupHeader() {
     const loginBtn = document.getElementById('login-btn');
     const profileBtn = document.getElementById('profile-btn');
 
-    // 1. Handle Search (Redirect to index with query)
     searchInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter' && searchInput.value.trim() !== "") {
-            // Redirect to index.html and pass the search term as a URL parameter
             window.location.href = `index.html?search=${encodeURIComponent(searchInput.value)}`;
         }
     });
 
-    // 2. Handle Auth State (Sign In / Sign Out)
     const { data: { user } } = await supabaseClient.auth.getUser();
-    
     if (user) {
         loginBtn.textContent = "Sign Out";
-        loginBtn.onclick = async () => {
-            await supabaseClient.auth.signOut();
-            location.reload();
-        };
+        loginBtn.onclick = async () => { await supabaseClient.auth.signOut(); location.reload(); };
         if (profileBtn) profileBtn.style.display = 'inline-block';
     } else {
         loginBtn.textContent = "Sign In";
-        // Since the auth modal is on index.html, we redirect to sign in
         loginBtn.onclick = () => window.location.href = 'index.html'; 
         if (profileBtn) profileBtn.style.display = 'none';
     }
 }
 
 async function setupTVTracker(config, seriesId) {
-    if (type !== 'tv') return;
-    
     const trackerSection = document.getElementById('tv-tracker');
     trackerSection.style.display = 'block';
-    
     const seasonSelector = document.getElementById('season-selector');
-    const markBtn = document.getElementById('mark-season-btn'); // Get the button
-    const clearBtn = document.getElementById('clear-season-btn'); // Get the clear button
+    const markBtn = document.getElementById('mark-season-btn');
+    const clearBtn = document.getElementById('clear-season-btn');
     
-    // 1. Fetch Series Detail to get number of seasons
     const res = await fetch(`https://api.themoviedb.org/3/tv/${seriesId}`, {
         headers: { Authorization: `Bearer ${config.tmdb_token}` }
     }).then(r => r.json());
 
-    // 2. Populate Season Dropdown
-    seasonSelector.innerHTML = res.seasons.map(s => 
-        `<option value="${s.season_number}">${s.name}</option>`
-    ).join('');
-
+    seasonSelector.innerHTML = res.seasons.map(s => `<option value="${s.season_number}">${s.name}</option>`).join('');
     seasonSelector.onchange = () => loadEpisodes(config, seriesId, seasonSelector.value);
-    
-    // Load first season by default
     loadEpisodes(config, seriesId, res.seasons[0].season_number);
 
     markBtn.onclick = () => markSeasonAsWatched();
     clearBtn.onclick = () => clearSeasonProgress();
-
-    seasonSelector.onchange = () => loadEpisodes(config, seriesId, seasonSelector.value);
-    loadEpisodes(config, seriesId, res.seasons[0].season_number);
 }
 
 async function fetchMediaHistory() {
     const historyList = document.getElementById('history-list');
     const { data: { user } } = await supabaseClient.auth.getUser();
-    
-    if (!user) {
-        historyList.innerHTML = "<p class='meta'>Sign in to see history.</p>";
-        return;
-    }
+    if (!user) { historyList.innerHTML = "<p class='meta'>Sign in to see history.</p>"; return; }
 
-    const { data: logs, error } = await supabaseClient
-        .from('media_logs')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('media_id', id)
-        .order('watched_on', { ascending: false })
-        .order('created_at', { ascending: false });
+    const { data: logs } = await supabaseClient.from('media_logs').select('*')
+        .eq('user_id', user.id).eq('media_id', id).order('watched_on', { ascending: false });
 
-    if (error || !logs || logs.length === 0) {
-        historyList.innerHTML = "<p class='meta'>No logs yet.</p>";
-        return;
-    }
+    if (!logs || logs.length === 0) { historyList.innerHTML = "<p class='meta'>No logs yet.</p>"; return; }
 
     historyList.innerHTML = logs.map(log => {
-        // Fix: Define the label based on media type and scope
-        let displayLabel = type.charAt(0).toUpperCase() + type.slice(1); // e.g., "Movie"
-        
-        if (type === 'tv') {
-            if (log.episode_number) {
-                displayLabel = `S${log.season_number} E${log.episode_number}`;
-            } else if (log.season_number) {
-                displayLabel = `Season ${log.season_number}`;
-            } else {
-                displayLabel = `Entire Series`;
-            }
-        }
-
-        // Calculate stars
-        const fullStars = '★'.repeat(Math.floor(log.rating));
-        const halfStar = (log.rating % 1 !== 0) ? '½' : '';
-        
-        // Icons for Like and Rewatch
-        const likeIcon = log.is_liked ? ' <span style="color:#ff4d4d">❤</span>' : '';
-        const rewatchIcon = log.is_rewatch ? ' <span style="color:#00e054; font-size: 0.7rem;">(Rewatch)</span>' : '';
-
+        let label = type.charAt(0).toUpperCase() + type.slice(1);
+        if (type === 'tv') label = log.episode_number ? `S${log.season_number} E${log.episode_number}` : (log.season_number ? `Season ${log.season_number}` : `Series`);
+        const stars = '★'.repeat(Math.floor(log.rating)) + (log.rating % 1 !== 0 ? '½' : '');
         return `
             <div class="history-item" id="log-${log.id}">
                 <div class="history-header">
-                    <span class="history-label">${displayLabel}${likeIcon}</span>
-                    <div style="display: flex; gap: 12px; align-items: center;">
-                        <span class="history-stars">${fullStars}${halfStar}</span>
-                        <span onclick="window.location.href='log.html?id=${id}&type=${type}&logId=${log.id}'" 
-                            style="cursor:pointer; color:var(--accent); font-size:0.9rem;">✏️</span>
-                        <span class="delete-icon" onclick="deleteLog('${log.id}')" 
-                            style="cursor:pointer; color:#ff4d4d; font-size:0.9rem;">🗑️</span>
+                    <span class="history-label">${label}${log.is_liked ? ' ❤️' : ''}</span>
+                    <div style="display: flex; gap: 8px;">
+                        <span class="history-stars">${stars}</span>
+                        <span onclick="deleteLog('${log.id}')" style="cursor:pointer; color:#ff4d4d;">🗑️</span>
                     </div>
                 </div>
-                <div class="history-date">${log.watched_on} ${rewatchIcon}</div>
-                ${log.notes ? `<p class="history-notes">"${log.notes}"</p>` : ''}
+                <div class="history-date">${log.watched_on}</div>
             </div>
         `;
     }).join('');
@@ -465,8 +529,7 @@ async function fetchMediaHistory() {
 
 async function loadEpisodes(config, seriesId, seasonNum) {
     const list = document.getElementById('episode-list');
-    list.innerHTML = 'Loading episodes...';
-
+    list.innerHTML = 'Loading...';
     try {
         const res = await fetch(`https://api.themoviedb.org/3/tv/${seriesId}/season/${seasonNum}`, {
             headers: { Authorization: `Bearer ${config.tmdb_token}` }
@@ -474,82 +537,31 @@ async function loadEpisodes(config, seriesId, seasonNum) {
 
         const { data: { user } } = await supabaseClient.auth.getUser();
         let watchedSet = new Set();
-        let isSeasonReviewed = false;
-
         if (user) {
-            // 1. Check if the WHOLE SEASON has been reviewed
-            const { data: seasonReview } = await supabaseClient
-                .from('media_logs')
-                .select('id')
-                .eq('user_id', user.id)
-                .eq('media_id', seriesId)
-                .eq('season_number', seasonNum)
-                .is('episode_number', null)
-                .maybeSingle();
-
-            isSeasonReviewed = !!seasonReview;
-
-            // 2. Get specific episode checkmarks
-            const { data: watched } = await supabaseClient
-                .from('episode_logs')
-                .select('episode_number')
-                .eq('series_id', seriesId)
-                .eq('season_number', seasonNum)
-                .eq('user_id', user.id);
-
+            const { data: watched } = await supabaseClient.from('episode_logs')
+                .select('episode_number').eq('series_id', String(seriesId)).eq('season_number', seasonNum).eq('user_id', user.id);
             if (watched) watchedSet = new Set(watched.map(w => w.episode_number));
-
-            // 3. Get specific episode REVIEWS
-            const { data: reviewedEps } = await supabaseClient
-                .from('media_logs')
-                .select('episode_number')
-                .eq('user_id', user.id)
-                .eq('media_id', seriesId)
-                .eq('season_number', seasonNum)
-                .not('episode_number', 'is', null);
-
-            if (reviewedEps) {
-                reviewedEps.forEach(r => watchedSet.add(r.episode_number));
-            }
         }
 
-        const totalEpisodes = res.episodes.length;
-        // If the whole season is reviewed, watchedCount = totalEpisodes
-        const watchedCount = isSeasonReviewed ? totalEpisodes : watchedSet.size;
-        const percentage = Math.round((watchedCount / totalEpisodes) * 100);
-
-        list.innerHTML = res.episodes.map(ep => {
-            // Check if this specific episode is reviewed or marked
-            const isWatched = isSeasonReviewed || watchedSet.has(ep.episode_number);
-            return `
+        list.innerHTML = res.episodes.map(ep => `
             <div class="episode-item">
-                <input type="checkbox" id="ep-${ep.episode_number}" 
-                    ${isWatched ? 'checked' : ''} 
+                <input type="checkbox" id="ep-${ep.episode_number}" ${watchedSet.has(ep.episode_number) ? 'checked' : ''} 
                     onclick="toggleEpisode('${seriesId}', ${seasonNum}, ${ep.episode_number})">
                 <label for="ep-${ep.episode_number}">E${ep.episode_number}: ${ep.name}</label>
             </div>
-        `}).join('');
-
-        updateUnifiedProgress(watchedCount, totalEpisodes, "episodes watched");
-
-    } catch (err) {
-        console.error("Error loading episodes:", err);
-        list.innerHTML = "Error loading episodes.";
-    }
+        `).join('');
+        updateUnifiedProgress(watchedSet.size, res.episodes.length, "episodes watched");
+    } catch (err) { list.innerHTML = "Error loading episodes."; }
 }
 
 async function toggleEpisode(seriesId, seasonNum, epNum) {
-    const isChecked = document.getElementById(`ep-${epNum}`).checked;
     const { data: { user } } = await supabaseClient.auth.getUser();
-
+    if (!user) return;
+    const isChecked = document.getElementById(`ep-${epNum}`).checked;
     if (isChecked) {
-        await supabaseClient.from('episode_logs').insert({
-            user_id: user.id, series_id: seriesId, season_number: seasonNum, episode_number: epNum
-        });
+        await supabaseClient.from('episode_logs').insert({ user_id: user.id, series_id: String(seriesId), season_number: seasonNum, episode_number: epNum });
     } else {
-        await supabaseClient.from('episode_logs').delete()
-            .eq('user_id', user.id).eq('series_id', seriesId)
-            .eq('season_number', seasonNum).eq('episode_number', epNum);
+        await supabaseClient.from('episode_logs').delete().eq('user_id', user.id).eq('series_id', String(seriesId)).eq('season_number', seasonNum).eq('episode_number', epNum);
     }
     refreshProgressBar(seriesId, seasonNum);
 }
@@ -557,481 +569,168 @@ async function toggleEpisode(seriesId, seasonNum, epNum) {
 async function markSeasonAsWatched() {
     const seasonNum = parseInt(document.getElementById('season-selector').value);
     const { data: { user } } = await supabaseClient.auth.getUser();
-
-    if (!user) return alert("Please sign in to log progress.");
-
-    // Fetch episodes for the selected season
-    const configRes = await fetch('config.json');
-    const config = await configRes.json();
-    const res = await fetch(`https://api.themoviedb.org/3/tv/${id}/season/${seasonNum}`, {
-        headers: { Authorization: `Bearer ${config.tmdb_token}` }
-    }).then(r => r.json());
-
-    // CRITICAL: Ensure series_id is a String and numbers are Integers
-    const logs = res.episodes.map(ep => ({
-        user_id: user.id,
-        series_id: String(id), // Convert to String for DB text columns
-        season_number: seasonNum,
-        episode_number: ep.episode_number
-    }));
-
-    const { error } = await supabaseClient
-        .from('episode_logs')
-        .upsert(logs, { onConflict: 'user_id,series_id,season_number,episode_number' });
-
-    if (error) {
-        console.error("Upsert Error:", error);
-        alert("Database Error: " + error.message);
-    } else {
-        // Refresh UI
-        refreshProgressBar(id, seasonNum);
-        // Re-check the boxes visually
-        document.querySelectorAll('.episode-item input[type="checkbox"]').forEach(cb => cb.checked = true);
-        alert(`Season ${seasonNum} marked as watched!`);
-    }
+    if (!user) return alert("Please sign in.");
+    const config = await fetch('config.json').then(r => r.json());
+    const res = await fetch(`https://api.themoviedb.org/3/tv/${id}/season/${seasonNum}`, { headers: { Authorization: `Bearer ${config.tmdb_token}` } }).then(r => r.json());
+    const logs = res.episodes.map(ep => ({ user_id: user.id, series_id: String(id), season_number: seasonNum, episode_number: ep.episode_number }));
+    await supabaseClient.from('episode_logs').upsert(logs);
+    loadEpisodes(config, id, seasonNum);
 }
 
 async function refreshProgressBar(seriesId, seasonNum) {
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) return;
-
-    const totalEpisodes = document.querySelectorAll('.episode-item').length;
-
-    // Check how many episodes are marked in episode_logs
-    const { data: watched, error } = await supabaseClient
-        .from('episode_logs')
-        .select('episode_number')
-        .eq('series_id', String(seriesId))
-        .eq('season_number', parseInt(seasonNum))
-        .eq('user_id', user.id);
-
-    if (error) return console.error(error);
-
-    const count = watched ? watched.length : 0;
-    const percent = totalEpisodes > 0 ? Math.round((count / totalEpisodes) * 100) : 0;
-    
-    updateUnifiedProgress(count, totalEpisodes, "episodes watched");
+    const total = document.querySelectorAll('.episode-item').length;
+    const { data: watched } = await supabaseClient.from('episode_logs').select('episode_number').eq('series_id', String(seriesId)).eq('season_number', parseInt(seasonNum)).eq('user_id', user.id);
+    updateUnifiedProgress(watched ? watched.length : 0, total, "episodes watched");
 }
 
-// Helper function to keep code clean
-function updateUnifiedProgress(current, total, unitLabel) {
-    const barFill = document.getElementById('main-progress-fill');
-    const statsText = document.getElementById('progress-stats-text');
-    
+function updateUnifiedProgress(current, total, label) {
+    const bar = document.getElementById('main-progress-fill');
+    const text = document.getElementById('progress-stats-text');
     const percent = total > 0 ? Math.min(Math.round((current / total) * 100), 100) : 0;
-    
-    if (barFill) barFill.style.width = `${percent}%`;
-    if (statsText) {
-        statsText.textContent = `${current} / ${total} ${unitLabel} (${percent}%)`;
-    }
+    if (bar) bar.style.width = `${percent}%`;
+    if (text) text.textContent = `${current} / ${total} ${label} (${percent}%)`;
 }
 
 async function clearSeasonProgress() {
     const seasonNum = document.getElementById('season-selector').value;
     const { data: { user } } = await supabaseClient.auth.getUser();
-
-    if (!user) return alert("Please sign in to manage progress.");
-
-    const confirmClear = confirm(`Are you sure you want to clear all progress for Season ${seasonNum}?`);
-    if (!confirmClear) return;
-
-    // 1. Delete all logs for this specific series and season from Supabase
-    const { error } = await supabaseClient
-        .from('episode_logs')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('series_id', String(id)) // Ensure it's a string to match 'text' column
-        .eq('season_number', seasonNum);
-
-    if (error) {
-        console.error("Error clearing season:", error);
-        alert("Failed to clear season progress.");
-    } else {
-        // 2. Dynamically update the UI: Uncheck all boxes
-        document.querySelectorAll('.episode-item input[type="checkbox"]').forEach(cb => cb.checked = false);
-        
-        // 3. Reset the progress bar instantly
-        refreshProgressBar(id, seasonNum);
-        
-        alert(`Season ${seasonNum} progress cleared!`);
-    }
+    if (!user || !confirm(`Clear Season ${seasonNum} progress?`)) return;
+    await supabaseClient.from('episode_logs').delete().eq('user_id', user.id).eq('series_id', String(id)).eq('season_number', seasonNum);
+    refreshProgressBar(id, seasonNum);
+    document.querySelectorAll('.episode-item input').forEach(i => i.checked = false);
 }
 
 async function fetchWatchProviders(config) {
     if (type === 'book') return; 
-
-    const url = `https://api.themoviedb.org/3/${type}/${id}/watch/providers`;
-    const options = { 
-        method: 'GET', 
-        headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` } 
-    };
-
-    try {
-        const res = await fetch(url, options).then(r => r.json());
-        const results = res.results?.US || {};
-        
-        const streaming = results.flatrate || [];
-        const buying = results.buy || [];
-        
-        const container = document.getElementById('providers-list');
-        container.innerHTML = ''; // Clear existing
-
-        let html = '';
-
-        // Handle Streaming Section
-        if (streaming.length > 0) {
-            // ... inside fetchWatchProviders loop ...
-            html += `
-                <div class="provider-group">
-                    <span class="provider-type-label">Stream</span>
-                    <div class="provider-icons">
-                        ${streaming.map(p => `
-                            <img src="https://image.tmdb.org/t/p/original${p.logo_path}" title="${p.provider_name}" class="provider-logo">
-                        `).join('')}
-                    </div>
-                </div>`;
-        }
-
-        // Handle Buying Section
-        if (buying.length > 0) {
-            html += `<div class="provider-group">
-                        <span class="provider-type-label">Buy</span>
-                        <div class="provider-icons">
-                            ${buying.map(p => `
-                                <img src="https://image.tmdb.org/t/p/original${p.logo_path}" title="${p.provider_name}" class="provider-logo">
-                            `).join('')}
-                        </div>
-                     </div>`;
-        }
-
-        if (html === '') {
-            container.innerHTML = "<p class='meta'>Not available to stream or buy currently.</p>";
-        } else {
-            container.innerHTML = html;
-        }
-    } catch (err) { console.error("Providers error:", err); }
-}
-
-async function setupRater() {
-    const stars = document.querySelectorAll('.star');
-    const message = document.getElementById('rating-message');
-    const notesArea = document.getElementById('user-notes');
-    const dateInput = document.getElementById('watched-date');
-    const saveBtn = document.getElementById('save-log-btn');
-
-    // Set default date to today
-    if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
-
-    // 1. Check if user is logged in
-    const { data: { user } } = await supabaseClient.auth.getUser();
-
-    if (!user) {
-        message.textContent = "Sign in to save your ratings!";
-        if (saveBtn) saveBtn.disabled = true;
-        return;
-    }
-
-    // 2. Fetch existing log (Rating + Notes + Date)
-    const { data: log } = await supabaseClient
-        .from('media_logs')
-        .select('rating, notes, watched_on')
-        .eq('user_id', user.id)
-        .eq('media_id', id)
-        .maybeSingle();
-
-    if (log) {
-        if (log.rating) updateStars(log.rating);
-        if (log.notes) notesArea.value = log.notes;
-        if (log.watched_on) dateInput.value = log.watched_on;
-    }
-
-    // 3. Handle Star Clicks (Visual only, saves on button click)
-    stars.forEach(star => {
-        star.onclick = () => {
-            const val = parseInt(star.getAttribute('data-value'));
-            updateStars(val);
-        };
-    });
-
-    // 4. The Save Button Logic
-    if (saveBtn) {
-        saveBtn.onclick = async () => {
-            const currentRating = document.querySelectorAll('.star.active').length;
-            const currentNotes = notesArea.value;
-            const selectedDate = dateInput.value;
-
-            const { error } = await supabaseClient
-                .from('media_logs')
-                .upsert({ 
-                    user_id: user.id, 
-                    media_id: id, 
-                    media_type: type, 
-                    rating: currentRating,
-                    notes: currentNotes,
-                    watched_on: selectedDate
-                }, { onConflict: 'user_id, media_id, media_type' });
-
-            if (error) {
-                console.error("Supabase Save Error:", error.message);
-                alert("Error saving: " + error.message);
-            } else {
-                message.textContent = "Log saved successfully!";
-                alert("Log saved successfully!");
-            }
-            if (!error) {
-                alert("Journal entry updated!");
-                deleteBtn.style.display = 'inline-block'; // Show it now that data exists
-            }
-        };
-    }
-
-    const deleteBtn = document.getElementById('delete-log-btn');
-
-    // Existing check: only show delete if a log actually exists
-    if (!log) {
-        deleteBtn.style.display = 'none';
-    }
-
-    if (deleteBtn) {
-        deleteBtn.onclick = async () => {
-            // Double-check with the user
-            const confirmDelete = confirm("Are you sure you want to delete this log? This cannot be undone.");
-            
-            if (confirmDelete) {
-                const { error } = await supabaseClient
-                    .from('media_logs')
-                    .delete()
-                    .eq('user_id', user.id)
-                    .eq('media_id', id)
-                    .eq('media_type', type);
-
-                if (error) {
-                    console.error("Delete Error:", error.message);
-                    alert("Error deleting: " + error.message);
-                } else {
-                    alert("Entry deleted.");
-                    // Reset the UI to its original state
-                    notesArea.value = '';
-                    updateStars(0);
-                    dateInput.value = new Date().toISOString().split('T')[0];
-                    deleteBtn.style.display = 'none';
-                    document.getElementById('rating-message').textContent = "Tap a star to rate";
-                }
-            }
-        };
-    }
-}
-
-function updateStars(rating) {
-    document.querySelectorAll('.star').forEach(s => {
-        s.classList.toggle('active', parseInt(s.getAttribute('data-value')) <= rating);
-    });
-}
-
-async function setupStatusManager(mediaId, mediaType) {
-    const statusBtn = document.getElementById('status-btn');
-    const { data: { user } } = await supabaseClient.auth.getUser();
-
-    if (!user) {
-        statusBtn.style.display = 'none';
-        return;
-    }
-
-    // Check the new media_status table
-    const { data: statusData } = await supabaseClient
-        .from('media_status')
-        .select('status')
-        .eq('user_id', user.id)
-        .eq('media_id', String(mediaId))
-        .maybeSingle();
-
-    if (statusData?.status === 'active') {
-        statusBtn.classList.add('active');
-        statusBtn.textContent = mediaType === 'book' ? 'Currently Reading' : 'Currently Watching';
-    }
-
-    statusBtn.onclick = async () => {
-        const isCurrentlyActive = statusBtn.classList.contains('active');
-        const newStatus = isCurrentlyActive ? 'completed' : 'active';
-        
-        const { error } = await supabaseClient
-            .from('media_status')
-            .upsert({
-                user_id: user.id,
-                media_id: String(mediaId),
-                media_type: mediaType,
-                status: newStatus,
-                updated_at: new Date().toISOString()
-            }, { onConflict: 'user_id,media_id,media_type' });
-
-        if (!error) {
-            if (newStatus === 'active') {
-                statusBtn.classList.add('active');
-                statusBtn.textContent = mediaType === 'book' ? 'Currently Reading' : 'Currently Watching';
-                // Remove from watchlist if they start it
-                await supabaseClient.from('user_watchlist').delete().eq('user_id', user.id).eq('media_id', mediaId);
-            } else {
-                statusBtn.classList.remove('active');
-                statusBtn.textContent = 'Mark as Active';
-            }
-        }
-    };
+    const res = await fetch(`https://api.themoviedb.org/3/${type}/${id}/watch/providers`, { headers: { Authorization: `Bearer ${config.tmdb_token}` } }).then(r => r.json());
+    const results = res.results?.US || {};
+    const stream = results.flatrate || [];
+    const container = document.getElementById('providers-list');
+    container.innerHTML = stream.length ? stream.map(p => `<img src="https://image.tmdb.org/t/p/original${p.logo_path}" title="${p.provider_name}" class="provider-logo">`).join('') : "<p class='meta'>Not streaming.</p>";
 }
 
 async function setupWatchlist(mediaId, mediaType) {
-    const watchlistBtn = document.getElementById('watchlist-btn');
+    const btn = document.getElementById('watchlist-btn');
     const { data: { user } } = await supabaseClient.auth.getUser();
-
-    if (!user) {
-        watchlistBtn.style.display = 'none';
-        return;
-    }
-
-    // 1. Check if it's already in the new watchlist table
-    const { data: existing } = await supabaseClient
-        .from('user_watchlist')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('media_id', String(mediaId))
-        .eq('media_type', mediaType)
-        .maybeSingle();
-
-    if (existing) {
-        watchlistBtn.classList.add('active');
-        watchlistBtn.textContent = 'On Watchlist';
-    }
-
-    watchlistBtn.onclick = async () => {
-        const isActive = watchlistBtn.classList.contains('active');
-        
-        if (!isActive) {
-            // ADD to watchlist
-            const { error } = await supabaseClient
-                .from('user_watchlist')
-                .insert({
-                    user_id: user.id,
-                    media_id: String(mediaId),
-                    media_type: mediaType
-                });
-
-            if (!error) {
-                watchlistBtn.classList.add('active');
-                watchlistBtn.textContent = 'On Watchlist';
-            }
+    if (!user) { btn.style.display = 'none'; return; }
+    const { data: exists } = await supabaseClient.from('user_watchlist').select('id').eq('user_id', user.id).eq('media_id', String(mediaId)).maybeSingle();
+    if (exists) { btn.classList.add('active'); btn.textContent = 'On Watchlist'; }
+    btn.onclick = async () => {
+        if (btn.classList.contains('active')) {
+            await supabaseClient.from('user_watchlist').delete().eq('user_id', user.id).eq('media_id', String(mediaId));
+            btn.classList.remove('active'); btn.textContent = 'Add to Watchlist';
         } else {
-            // REMOVE from watchlist
-            const { error } = await supabaseClient
-                .from('user_watchlist')
-                .delete()
-                .eq('user_id', user.id)
-                .eq('media_id', String(mediaId))
-                .eq('media_type', mediaType);
-
-            if (!error) {
-                watchlistBtn.classList.remove('active');
-                watchlistBtn.textContent = 'Add to Watchlist';
-            }
+            await supabaseClient.from('user_watchlist').insert({ user_id: user.id, media_id: String(mediaId), media_type: mediaType });
+            btn.classList.add('active'); btn.textContent = 'On Watchlist';
         }
     };
+}
+
+async function setupListManager(mediaId, mediaType) {
+    const btn = document.getElementById('add-to-list-btn');
+    const modal = document.getElementById('list-modal');
+    const close = document.getElementById('close-list-modal');
+    const container = document.getElementById('user-lists-selection');
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) { btn.style.display = 'none'; return; }
+    btn.onclick = async () => {
+        modal.style.display = 'flex';
+        const { data: lists } = await supabaseClient.from('media_lists').select('id, name');
+        container.innerHTML = lists.map(l => `<div class="list-select-item"><span>${l.name}</span><button onclick="toggleListItem('${l.id}', '${mediaId}', '${mediaType}')" class="primary-btn">Add</button></div>`).join('');
+    };
+    close.onclick = () => modal.style.display = 'none';
 }
 
 window.deleteLog = async (logId) => {
-    if (!confirm("Delete this log entry permanently?")) return;
-
-    const { error } = await supabaseClient
-        .from('media_logs')
-        .delete()
-        .eq('id', logId);
-
-    if (error) {
-        alert("Error deleting log: " + error.message);
-    } else {
-        // Remove from UI immediately
-        document.getElementById(`log-${logId}`)?.remove();
-        // Optional: refresh history to show "No logs yet" if empty
-        fetchMediaHistory();
-    }
+    if (!confirm("Delete this log?")) return;
+    await supabaseClient.from('media_logs').delete().eq('id', logId);
+    document.getElementById(`log-${logId}`)?.remove();
 };
 
-async function setupListManager(mediaId, mediaType) {
-    const addBtn = document.getElementById('add-to-list-btn');
-    const modal = document.getElementById('list-modal');
-    const closeBtn = document.getElementById('close-list-modal');
-    const listContainer = document.getElementById('user-lists-selection');
-    
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) {
-        addBtn.style.display = 'none';
-        return;
-    }
+async function checkIfAlreadyRequested(slug, originalName, actionArea) {
+    const { data: existingRequest } = await supabaseClient
+        .from('filler_list_mgnt')
+        .select('filler_exists, notes')
+        .eq('name', slug)
+        .maybeSingle();
 
-    addBtn.onclick = async () => {
-        modal.style.display = 'flex';
-        listContainer.innerHTML = '<p class="meta">Loading lists...</p>';
-        
-        // Fetch all of user's lists
-        const { data: lists } = await supabaseClient
-            .from('media_lists')
-            .select('id, name');
-
-        // Check which lists already contain this item
-        const { data: existingEntries } = await supabaseClient
-            .from('list_items')
-            .select('list_id')
-            .eq('media_id', String(mediaId));
-
-        const existingListIds = new Set(existingEntries.map(e => e.list_id));
-
-        if (lists.length === 0) {
-            listContainer.innerHTML = '<p class="meta">No lists found. Create one in your profile!</p>';
-            return;
+    if (existingRequest) {
+        if (existingRequest.notes) {
+            actionArea.innerHTML = `<span class="meta">Status: ${existingRequest.notes}</span>`;
+        } else {
+            actionArea.innerHTML = `<span class="meta">Request pending... check back soon!</span>`;
         }
-
-        listContainer.innerHTML = lists.map(list => {
-            const isAdded = existingListIds.has(list.id);
-            return `
-                <div class="list-select-item">
-                    <span>${list.name}</span>
-                    <button class="${isAdded ? 'danger-btn' : 'primary-btn'}" 
-                            onclick="toggleListItem('${list.id}', '${mediaId}', '${mediaType}', ${isAdded})">
-                        ${isAdded ? 'Remove' : 'Add'}
-                    </button>
-                </div>
-            `;
-        }).join('');
-    };
-
-    closeBtn.onclick = () => modal.style.display = 'none';
+    } else {
+        // Show the Request Button
+        actionArea.innerHTML = `
+            <button id="request-filler-btn" class="secondary-btn" style="background: #ff9800; color: #fff;">
+                Request Filler List
+            </button>`;
+        
+        document.getElementById('request-filler-btn').onclick = () => requestFiller(slug);
+    }
 }
 
-// Helper to add/remove items
-window.toggleListItem = async (listId, mediaId, mediaType, isCurrentlyAdded) => {
-    try {
-        if (isCurrentlyAdded) {
-            await supabaseClient.from('list_items')
-                .delete()
-                .eq('list_id', listId)
-                .eq('media_id', String(mediaId));
-        } else {
-            await supabaseClient.from('list_items')
-                .insert({
-                    list_id: listId, 
-                    media_id: String(mediaId), 
-                    media_type: mediaType
-                });
-        }
-        
-        // Instead of triggering a click (which can be glitchy), 
-        // just call the refresh part of the setup function
-        const addBtn = document.getElementById('add-to-list-btn');
-        if (addBtn) {
-            // Re-trigger the logic to update the button labels (Add/Remove)
-            addBtn.dispatchEvent(new Event('click'));
-        }
-        
-    } catch (err) {
-        console.error("Error toggling list item:", err);
+async function requestFiller(slug) {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) return alert("Please sign in to request filler lists!");
+
+    const { error } = await supabaseClient
+        .from('filler_list_mgnt')
+        .insert({ name: slug, filler_exists: false });
+
+    if (!error) {
+        alert("Request sent! Our scraper will look for this soon.");
+        location.reload();
+    } else {
+        console.error(error);
     }
-};
+}
+
+function openFillerModal(data) {
+    const modal = document.getElementById('filler-modal');
+    const tbody = document.getElementById('filler-table-body');
+    const closeBtn = document.getElementById('close-filler-modal');
+
+    document.getElementById('filler-modal-title').textContent = `${data.anime} Filler List`;
+    
+    // Clear and build table
+    tbody.innerHTML = data.episodes.map(ep => {
+        // Determine class based on type string
+        let typeClass = 'type-canon'; // Default to green
+        const typeStr = ep.type.toLowerCase();
+
+        // Check for mixed first!
+        if (typeStr.includes('mixed')) {
+            typeClass = 'type-mixed';
+        } 
+        else if (typeStr.includes('filler')) {
+            typeClass = 'type-filler';
+        }
+        else if (typeStr.includes('canon')) {
+            typeClass = 'type-canon';
+        }
+
+        return `
+            <tr>
+                <td>${ep.number}</td>
+                <td>${ep.title}</td>
+                <td class="${typeClass}">${ep.type}</td>
+            </tr>
+        `;
+    }).join('');
+
+    modal.style.display = 'flex';
+    closeBtn.onclick = () => modal.style.display = 'none';
+    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+    document.getElementById('filler-modal-title').innerHTML = `
+        ${data.anime} Filler List
+        <div style="font-size: 0.9rem; color: #9ab; font-weight: normal; margin-top: 5px;">
+            Provided Through <a href="https://www.animefillerlist.com" target="_blank" style="color: #ff9800; text-decoration: none;">AnimeFillerList.com</a>
+        </div>
+    `;
+}
 
 initDetails();

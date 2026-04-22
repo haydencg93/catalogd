@@ -1,0 +1,1836 @@
+{
+  "anime": "bleach",
+  "total_episodes": 366,
+  "episodes": [
+    {
+      "number": "1",
+      "title": "The Day I Became a Shinigami",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "2",
+      "title": "The Shinigami's Work",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "3",
+      "title": "The Older Brother's Wish, the Younger Sister's Wish",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "4",
+      "title": "Cursed Parakeet",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "5",
+      "title": "Beat the Invisible Enemy!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "6",
+      "title": "Fight to the Death! Ichigo vs. Ichigo",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "7",
+      "title": "Greetings from a Stuffed Lion",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "8",
+      "title": "June 17, Memories in the Rain",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "9",
+      "title": "Unbeatable Enemy",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "10",
+      "title": "Assault on Trip at Sacred Ground!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "11",
+      "title": "The Legendary Quincy",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "12",
+      "title": "A Gentle Right Arm",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "13",
+      "title": "Flower and Hollow",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "14",
+      "title": "Back to Back, a Fight to the Death!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "15",
+      "title": "Kon's Great Plan",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "16",
+      "title": "Encounter, Renji Abarai!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "17",
+      "title": "Ichigo Dies!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "18",
+      "title": "Reclaim! The Power of the Shinigami!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "19",
+      "title": "Ichigo Becomes a Hollow!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "20",
+      "title": "Gin Ichimaru's Shadow",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "21",
+      "title": "Enter! The World of the Shinigami",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "22",
+      "title": "The Man Who Hates Shinigami",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "23",
+      "title": "14 Days Before Rukia's Execution",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "24",
+      "title": "Assemble! The 13 Divisions",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "25",
+      "title": "Penetrate the Center with an Enormous Bombshell?",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "26",
+      "title": "Formation! The Worst Tag",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "27",
+      "title": "Release the Death Blow!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "28",
+      "title": "Orihime Targeted",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "29",
+      "title": "Breakthrough! The Shinigami's Encompassing Net",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "30",
+      "title": "Renji's Confrontation",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "31",
+      "title": "The Resolution to Kill",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "32",
+      "title": "Stars and the Stray",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "33",
+      "title": "Miracle! The Mysterious New Hero",
+      "type": "Filler"
+    },
+    {
+      "number": "34",
+      "title": "Tragedy of Dawn",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "35",
+      "title": "Aizen Assassinated! The Darkness Which Approaches",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "36",
+      "title": "Kenpachi Zaraki Approaches!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "37",
+      "title": "Motive of the Fist",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "38",
+      "title": "Desperation! The Broken Zangetsu",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "39",
+      "title": "The Immortal Man",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "40",
+      "title": "The Shinigami whom Ganju Met",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "41",
+      "title": "Reunion, Ichigo and Rukia",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "42",
+      "title": "Yoruichi, Goddess of Flash, Dances!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "43",
+      "title": "The Despicable Shinigami",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "44",
+      "title": "Ishida Ultimate Power!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "45",
+      "title": "Overcome Your Limits!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "46",
+      "title": "Authentic Records! School of Shinigami",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "47",
+      "title": "The Avengers",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "48",
+      "title": "Hitsugaya Roars!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "49",
+      "title": "Rukia's Nightmare",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "50",
+      "title": "The Reviving Lion",
+      "type": "Filler"
+    },
+    {
+      "number": "51",
+      "title": "Morning of the Sentence",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "52",
+      "title": "Renji, Oath of the Soul! Death Match with Byakuya",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "53",
+      "title": "Gin Ichimaru's Temptation, Resolution Shattered",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "54",
+      "title": "An Accomplished Oath! Get Back Rukia!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "55",
+      "title": "The Strongest Shinigami! Ultimate Confrontation Between Teacher and Students",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "56",
+      "title": "Supersonic Battle! Determine the Goddess of Battle",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "57",
+      "title": "Senbonzakura, Crushed! Zangetsu Thrusts Through the Sky",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "58",
+      "title": "Unseal! The Black Blade, the Miraculous Power",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "59",
+      "title": "Conclusion of the Death Match! White Pride and Black Desire",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "60",
+      "title": "Reality of the Despair, the Assassin's Dagger is Swung",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "61",
+      "title": "Aizen Stands! Horrible Ambitions",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "62",
+      "title": "Gather Together! Group of the Strongest Shinigami",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "63",
+      "title": "Rukia's Resolution, Ichigo's Feelings",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "64",
+      "title": "New School Term, Renji Has Come to the Material World?!",
+      "type": "Filler"
+    },
+    {
+      "number": "65",
+      "title": "Creeping Terror, the Second Victim",
+      "type": "Filler"
+    },
+    {
+      "number": "66",
+      "title": "Breakthrough! The Trap Hidden in the Labyrinth",
+      "type": "Filler"
+    },
+    {
+      "number": "67",
+      "title": "Death Game! The Missing Classmate",
+      "type": "Filler"
+    },
+    {
+      "number": "68",
+      "title": "True Identity of the Devil, the Secret which Is Revealed",
+      "type": "Filler"
+    },
+    {
+      "number": "69",
+      "title": "Bounts! The Soul Hunters!",
+      "type": "Filler"
+    },
+    {
+      "number": "70",
+      "title": "Rukia's Return! Revival of the Substitute Team!",
+      "type": "Filler"
+    },
+    {
+      "number": "71",
+      "title": "The Moment of Collision! An Evil Hand Draws Near to the Quincy",
+      "type": "Filler"
+    },
+    {
+      "number": "72",
+      "title": "Water Attack! Escape from the Shutdown Hospital",
+      "type": "Filler"
+    },
+    {
+      "number": "73",
+      "title": "Gathering Bounts! The Man Who Makes His Move",
+      "type": "Filler"
+    },
+    {
+      "number": "74",
+      "title": "Memories of an Eternally Living Clan",
+      "type": "Filler"
+    },
+    {
+      "number": "75",
+      "title": "Earth-Shattering Event at 11th Squad! The Shinigami Who Rises Again",
+      "type": "Filler"
+    },
+    {
+      "number": "76",
+      "title": "Crashing Force! Fried vs. Zangetsu",
+      "type": "Filler"
+    },
+    {
+      "number": "77",
+      "title": "Unfading Grudge! The Shinigami whom Kenpachi Killed",
+      "type": "Filler"
+    },
+    {
+      "number": "78",
+      "title": "Shocking Revelations for the 13 Divisions!! The Truth Buried in History",
+      "type": "Filler"
+    },
+    {
+      "number": "79",
+      "title": "Yoshino's Decision of Death",
+      "type": "Filler"
+    },
+    {
+      "number": "80",
+      "title": "Assault from a Formidable Enemy! A Tiny Final Line of Defense?!",
+      "type": "Filler"
+    },
+    {
+      "number": "81",
+      "title": "Hitsugaya Moves! The Attacked City",
+      "type": "Filler"
+    },
+    {
+      "number": "82",
+      "title": "Ichigo vs. Dalk! Appearance of the Faded Darkness",
+      "type": "Filler"
+    },
+    {
+      "number": "83",
+      "title": "Grey Shadow, the Secret of the Dolls",
+      "type": "Filler"
+    },
+    {
+      "number": "84",
+      "title": "Dissension in the Substitute Team? Rukia's Betrayal",
+      "type": "Filler"
+    },
+    {
+      "number": "85",
+      "title": "Deadly Battle of Tears! Rukia vs. Orihime",
+      "type": "Filler"
+    },
+    {
+      "number": "86",
+      "title": "Rangiku Dances! Slice the Invisible Enemy!",
+      "type": "Filler"
+    },
+    {
+      "number": "87",
+      "title": "Byakuya Is Summoned! The Gotei 13 Start to Move",
+      "type": "Filler"
+    },
+    {
+      "number": "88",
+      "title": "Annihilation of the Lieutenants!? Trap in the Underground Cave",
+      "type": "Filler"
+    },
+    {
+      "number": "89",
+      "title": "Rematch?! Ishida vs. Nemu",
+      "type": "Filler"
+    },
+    {
+      "number": "90",
+      "title": "Renji Abarai, Bankai of the Soul!",
+      "type": "Filler"
+    },
+    {
+      "number": "91",
+      "title": "Shinigami and Quincy, the Reviving Power",
+      "type": "Filler"
+    },
+    {
+      "number": "92",
+      "title": "Invasion of the Shinigami World, Again",
+      "type": "Filler"
+    },
+    {
+      "number": "93",
+      "title": "The Bount Assault! The Gotei 13 of Destructive Earthquake",
+      "type": "Filler"
+    },
+    {
+      "number": "94",
+      "title": "Hitsugaya's Decision! The Clash Approaches",
+      "type": "Filler"
+    },
+    {
+      "number": "95",
+      "title": "Byakuya Takes the Field! Dance of the Wind-Splitting Cherry Blossoms",
+      "type": "Filler"
+    },
+    {
+      "number": "96",
+      "title": "Ichigo, Byakuya, Kariya, The Battle of the Three Extremes!",
+      "type": "Filler"
+    },
+    {
+      "number": "97",
+      "title": "Hitsugaya Strikes! Slice the Enemy in the Middle of the Forest",
+      "type": "Filler"
+    },
+    {
+      "number": "98",
+      "title": "Clash! Kenpachi Zaraki vs. Maki Ichinose",
+      "type": "Filler"
+    },
+    {
+      "number": "99",
+      "title": "Shinigami vs. Shinigami! The Uncontrollable Power",
+      "type": "Filler"
+    },
+    {
+      "number": "100",
+      "title": "Suì-Fēng Dies? The Last of the Special Forces",
+      "type": "Filler"
+    },
+    {
+      "number": "101",
+      "title": "Mayuri's Bankai!! Sawatari: Clash of the Demon",
+      "type": "Filler"
+    },
+    {
+      "number": "102",
+      "title": "The Last Quincy! The Exploding Power",
+      "type": "Filler"
+    },
+    {
+      "number": "103",
+      "title": "Ishida, Exceeding the Limits to Attack!",
+      "type": "Filler"
+    },
+    {
+      "number": "104",
+      "title": "10th Division's Death Struggle! The Release of Hyōrinmaru",
+      "type": "Filler"
+    },
+    {
+      "number": "105",
+      "title": "Kariya! Countdown to the Detonation",
+      "type": "Filler"
+    },
+    {
+      "number": "106",
+      "title": "Life and Revenge! Ishida, the Ultimate Choice",
+      "type": "Filler"
+    },
+    {
+      "number": "107",
+      "title": "The Swung-Down Edge! The Moment of Ruin",
+      "type": "Filler"
+    },
+    {
+      "number": "108",
+      "title": "The Wailing Bount! The Last Clash",
+      "type": "Filler"
+    },
+    {
+      "number": "109",
+      "title": "Ichigo and Rukia, Thoughts in the Revolving Around Heaven",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "110",
+      "title": "Reopening of the Substitute Business! The Terrifying Transfer Student",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "111",
+      "title": "Shock! The Father's True Identity",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "112",
+      "title": "The Commencement of War, Visoreds and the Arrancars",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "113",
+      "title": "Prelude to the Apocalypse, The Arrancar's Offensive",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "114",
+      "title": "Reunion, Ichigo and Rukia and Soul Reapers",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "115",
+      "title": "Mission! The Soul Reapers Have Come",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "116",
+      "title": "The Evil Eye, Aizen Returns",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "117",
+      "title": "Rukia's Battle Commences! The Freezing White Blade",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "118",
+      "title": "Ikkaku's Bankai! The Power That Breaks Everything",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "119",
+      "title": "Zaraki Division's Secret Story! The Lucky Men",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "120",
+      "title": "Hitsugaya Scatters! The Broken Hyōrinmaru",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "121",
+      "title": "Clash! The Protector vs. The Bearer",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "122",
+      "title": "Visored! The Power of the Awakened",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "123",
+      "title": "Ichigo, Complete Hollowification!?",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "124",
+      "title": "Collision! Black Bankai and the White Bankai",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "125",
+      "title": "Urgent Report! Aizen's Terrifying Plan!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "126",
+      "title": "Uryū vs. Ryūken! Clash of the Parent-Child Quincys",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "127",
+      "title": "Urahara's Decision, Orihime's Thoughts",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "128",
+      "title": "The Nightmare Arrancar! Team Hitsugaya moves out",
+      "type": "Filler"
+    },
+    {
+      "number": "129",
+      "title": "The Swooping Descent of the Dark Emissary! The Propagation of Malice",
+      "type": "Filler"
+    },
+    {
+      "number": "130",
+      "title": "The Invisible Enemy! Hitsugaya's Merciless Decision",
+      "type": "Filler"
+    },
+    {
+      "number": "131",
+      "title": "Rangiku's Tears, the Sorrowful Parting of Brother and Sister",
+      "type": "Filler"
+    },
+    {
+      "number": "132",
+      "title": "Hitsugaya, Karin, and Soccer Ball",
+      "type": "Filler"
+    },
+    {
+      "number": "133",
+      "title": "Ikkaku: The Hot-Blooded Kendo Tale",
+      "type": "Filler"
+    },
+    {
+      "number": "134",
+      "title": "The Beautiful Patissier, Yumichika!",
+      "type": "Filler"
+    },
+    {
+      "number": "135",
+      "title": "Kon is Deceived! Rangiku on the Lookout...",
+      "type": "Filler"
+    },
+    {
+      "number": "136",
+      "title": "Civil War in Hueco Mundo! Ulquiorra's Death",
+      "type": "Filler"
+    },
+    {
+      "number": "137",
+      "title": "The Malicious Battle, Aizen's Trap",
+      "type": "Filler"
+    },
+    {
+      "number": "138",
+      "title": "Hueco Mundo moves again! Hitsugaya vs. Yammy",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "139",
+      "title": "Ichigo vs. Grimmjow, the 11-second battle!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "140",
+      "title": "Ulquiorra's Scheme, the Moment when the Sun Sets!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "141",
+      "title": "Goodbye..., Kurosaki!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "142",
+      "title": "Strict Order! The Forbidden Rescue of Orihime Inoue",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "143",
+      "title": "Grimmjow Revived",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "144",
+      "title": "Ishida and Chad, The Quickening of a New Power",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "145",
+      "title": "The Espada Gather! Aizen's Royal Assembly",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "146",
+      "title": "The Name's Nel! The Appearance of a Strange Arrancar",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "147",
+      "title": "Forest of Menos! Search for the Missing Rukia",
+      "type": "Filler"
+    },
+    {
+      "number": "148",
+      "title": "Ashido, The Soul Reaper Who Came from the Past",
+      "type": "Filler"
+    },
+    {
+      "number": "149",
+      "title": "Through the Crumbling Forest, a Million Menos",
+      "type": "Filler"
+    },
+    {
+      "number": "150",
+      "title": "Oath! Back Here Alive Again",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "151",
+      "title": "The Raging Storm! Encounter with the Dancing Arrancar",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "152",
+      "title": "Ichigo Strikes Back! This Is My Bankai",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "153",
+      "title": "The Devilish Research! Szayel Aporro's Plan",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "154",
+      "title": "Rukia and Kaien, the Sorrowful Reunion",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "155",
+      "title": "Rukia Retaliates! Release the Desperate Kidō",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "156",
+      "title": "Ishida & Pesche, the United Attack of Friendship",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "157",
+      "title": "Ishida's Trump Card, Seele Schneider",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "158",
+      "title": "Right Arm of the Giant, Left Arm of the Devil",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "159",
+      "title": "Yasutora Sado Dies! Orihime's Tears",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "160",
+      "title": "Testament, Your Heart is Right Here...",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "161",
+      "title": "The Cruel Arrancar, Ulquiorra's Provocation",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "162",
+      "title": "Szayel Aporro Laughs, The Net Trapping Renji is Complete",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "163",
+      "title": "Shinigami and Quincy, The Battle with Madness",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "164",
+      "title": "Ishida's Strategy, 20-Second Offense and Defense",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "165",
+      "title": "The Murderous Intent Boils! The Joyful Grimmjow",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "166",
+      "title": "Desperate Effort vs. Desperate Effort! Hollowfied Ichigo",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "167",
+      "title": "The Moment of Conclusion, The End of Grimmjow",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "168",
+      "title": "The New Captain Appears! His Name Is Shūsuke Amagai",
+      "type": "Filler"
+    },
+    {
+      "number": "169",
+      "title": "New Development, the Dangerous Transfer Student Appears!",
+      "type": "Filler"
+    },
+    {
+      "number": "170",
+      "title": "Desperate Struggle Under the Moonlit Night, the Mysterious Assassin and Zanpakutō",
+      "type": "Filler"
+    },
+    {
+      "number": "171",
+      "title": "Kenryū, the Profusion of Blooming Crimson Flowers",
+      "type": "Filler"
+    },
+    {
+      "number": "172",
+      "title": "Kifune Goes to War! The Violent Wind that Rages",
+      "type": "Filler"
+    },
+    {
+      "number": "173",
+      "title": "The Appearance of the Great Evil! The Darkness in the House of Kasumiōji",
+      "type": "Filler"
+    },
+    {
+      "number": "174",
+      "title": "Break the Mirror's Boundary! Ichigo's Captivity",
+      "type": "Filler"
+    },
+    {
+      "number": "175",
+      "title": "The Revenging Assassin, Ichigo is Targeted",
+      "type": "Filler"
+    },
+    {
+      "number": "176",
+      "title": "Mystery! The Sword-Consuming Assassin",
+      "type": "Filler"
+    },
+    {
+      "number": "177",
+      "title": "The Reversal of Rukia! The Rampaging Blade",
+      "type": "Filler"
+    },
+    {
+      "number": "178",
+      "title": "The Nightmare Which is Shown, Ichigo's Inside the Mirror",
+      "type": "Filler"
+    },
+    {
+      "number": "179",
+      "title": "Confrontation!? Amagai vs. Gotei 13",
+      "type": "Filler"
+    },
+    {
+      "number": "180",
+      "title": "The Princess's Decision, the Sorrowful Bride",
+      "type": "Filler"
+    },
+    {
+      "number": "181",
+      "title": "The 2nd Division Sorties! Ichigo is Surrounded",
+      "type": "Filler"
+    },
+    {
+      "number": "182",
+      "title": "Amagai's True Strength, the Released Zanpakuto！",
+      "type": "Filler"
+    },
+    {
+      "number": "183",
+      "title": "The Darkness Which Moves! Kifune's True Colors",
+      "type": "Filler"
+    },
+    {
+      "number": "184",
+      "title": "Kira and Kifune, Offense and Defense of the 3rd Division",
+      "type": "Filler"
+    },
+    {
+      "number": "185",
+      "title": "Ice and Flame! Fierce Fight of Amagai vs. Hitsugaya",
+      "type": "Filler"
+    },
+    {
+      "number": "186",
+      "title": "Sortie Orders! Suppress the House of Kasumiōji",
+      "type": "Filler"
+    },
+    {
+      "number": "187",
+      "title": "Ichigo Rages! The Assassin's Secret",
+      "type": "Filler"
+    },
+    {
+      "number": "188",
+      "title": "Duel! Amagai vs. Ichigo",
+      "type": "Filler"
+    },
+    {
+      "number": "189",
+      "title": "The Fallen Shinigami's Pride",
+      "type": "Filler"
+    },
+    {
+      "number": "190",
+      "title": "Hueco Mundo Chapter Restart!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "191",
+      "title": "The Frightening Banquet, Szayel Aporro Theater",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "192",
+      "title": "Nel's Secret, A Busty Beauty Joins the Battle!?",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "193",
+      "title": "Irresistible, Puppet Show of Terror",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "194",
+      "title": "Neliel's Past",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "195",
+      "title": "The Ultimate Union! Pesche's Seriousness",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "196",
+      "title": "Joining the Battle! The Strongest Soul Reaper Army Appears",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "197",
+      "title": "Byakuya's Bankai, The Quiet Anger",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "198",
+      "title": "The Two Scientists, Mayuri's Trap",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "199",
+      "title": "Holy Birth, The Resurrected Szayel Aporro",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "200",
+      "title": "The Hardest Body!? Cut Down Nnoitra",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "201",
+      "title": "Nnoitra Released! Multiplying Arms",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "202",
+      "title": "Fierce Fighting Conclusion! Who's the Strongest?",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "203",
+      "title": "Karakura Town Gathers! Aizen Versus the Soul Reapers",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "204",
+      "title": "Ichigo's Seppuku Persuasion Strategy ☆",
+      "type": "Filler"
+    },
+    {
+      "number": "205",
+      "title": "Thump! A Kemari Tournament Filled with Hollows",
+      "type": "Filler"
+    },
+    {
+      "number": "206",
+      "title": "The Past Chapter Begins! The Truth from 110 Years Ago",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "207",
+      "title": "12th Division's New Captain, Kisuke Urahara",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "208",
+      "title": "Aizen and the Genius Boy",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "209",
+      "title": "Muguruma 9th Division, Moves Out",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "210",
+      "title": "Hiyori Dies? The Beginning of Tragedy",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "211",
+      "title": "Betrayal! Aizen's Secret Maneuvers",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "212",
+      "title": "Rescue Hirako! Aizen vs. Urahara",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "213",
+      "title": "The Konso Cop Karakuraiser is Born",
+      "type": "Filler"
+    },
+    {
+      "number": "214",
+      "title": "Karakuraiser's Last Day",
+      "type": "Filler"
+    },
+    {
+      "number": "215",
+      "title": "Defend Karakura Town! Entire Appearance of the Shinigami",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "216",
+      "title": "Elite! The Four Shinigami",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "217",
+      "title": "Beautiful Little Devil Charlotte",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "218",
+      "title": "Kira, The Battle Within Despair",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "219",
+      "title": "Hisagi's Shikai! The Name is...",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "220",
+      "title": "Ikkaku Falls! The Shinigami's Crisis",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "221",
+      "title": "The Full Showdown! Soul Reapers vs. Espada",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "222",
+      "title": "The Most Evil Tag!? Suì-Fēng & Ōmaeda",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "223",
+      "title": "A Miraculous Body! Ggio Releases",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "224",
+      "title": "3 vs. 1 Battle! Rangiku's Crisis",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "225",
+      "title": "Vice-Captains Annihilated! The Terrifying Demonic Beast",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "226",
+      "title": "Fierce Fighting Concludes? Towards a New Battle!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "227",
+      "title": "Wonderful Error",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "228",
+      "title": "Summer! Sea! Swimsuit Festival!!",
+      "type": "Filler"
+    },
+    {
+      "number": "229",
+      "title": "Cry of the Soul? The Rug Shinigami is Born!",
+      "type": "Filler"
+    },
+    {
+      "number": "230",
+      "title": "A New Enemy! The Materialization of Zanpakutō",
+      "type": "Filler"
+    },
+    {
+      "number": "231",
+      "title": "Byakuya, Disappearing with the Cherry Blossoms",
+      "type": "Filler"
+    },
+    {
+      "number": "232",
+      "title": "Sode no Shirayuki vs. Rukia! Confused Heart",
+      "type": "Filler"
+    },
+    {
+      "number": "233",
+      "title": "Zangetsu Becomes an Enemy",
+      "type": "Filler"
+    },
+    {
+      "number": "234",
+      "title": "Renji Surprised?! The Two Zabimarus",
+      "type": "Filler"
+    },
+    {
+      "number": "235",
+      "title": "Clash! Hisagi vs. Kazeshini",
+      "type": "Filler"
+    },
+    {
+      "number": "236",
+      "title": "Release! The New Getsuga Tenshō",
+      "type": "Filler"
+    },
+    {
+      "number": "237",
+      "title": "Suì-Fēng, Surrounding the Zanpakutō",
+      "type": "Filler"
+    },
+    {
+      "number": "238",
+      "title": "Friendship? Hatred? Haineko & Tobiume",
+      "type": "Filler"
+    },
+    {
+      "number": "239",
+      "title": "The Awakening Hyōrinmaru! Hitsugaya's Fierce Fight",
+      "type": "Filler"
+    },
+    {
+      "number": "240",
+      "title": "Byakuya's Betrayal",
+      "type": "Filler"
+    },
+    {
+      "number": "241",
+      "title": "For the Sake of Pride! Byakuya vs. Renji",
+      "type": "Filler"
+    },
+    {
+      "number": "242",
+      "title": "Shinigami and Zanpakutō, Total Sortie",
+      "type": "Filler"
+    },
+    {
+      "number": "243",
+      "title": "One-to-One Fight! Ichigo vs. Senbonzakura",
+      "type": "Filler"
+    },
+    {
+      "number": "244",
+      "title": "The Long Awaited... Kenpachi Appears!",
+      "type": "Filler"
+    },
+    {
+      "number": "245",
+      "title": "Pursue Byakuya! The Confused Gotei Divisions",
+      "type": "Filler"
+    },
+    {
+      "number": "246",
+      "title": "Special Mission! Rescue Captain Commander Yamamoto!",
+      "type": "Filler"
+    },
+    {
+      "number": "247",
+      "title": "Deceived Shinigami! The World Collapse Crisis",
+      "type": "Filler"
+    },
+    {
+      "number": "248",
+      "title": "Dragon of Ice and Dragon of Flame! The Strongest Showdown!",
+      "type": "Filler"
+    },
+    {
+      "number": "249",
+      "title": "Senbonzakura's Bankai! Offense and Defense of the Living World",
+      "type": "Filler"
+    },
+    {
+      "number": "250",
+      "title": "That Man, for the Sake of the Kuchiki",
+      "type": "Filler"
+    },
+    {
+      "number": "251",
+      "title": "Dark History! The Worst Shinigami Is Born",
+      "type": "Filler"
+    },
+    {
+      "number": "252",
+      "title": "Byakuya, the Truth Behind His Betrayal",
+      "type": "Filler"
+    },
+    {
+      "number": "253",
+      "title": "Muramasa's True Identity Revealed",
+      "type": "Filler"
+    },
+    {
+      "number": "254",
+      "title": "Byakuya and Renji, the 6th Division Returns",
+      "type": "Filler"
+    },
+    {
+      "number": "255",
+      "title": "Final Chapter - Zanpakutō The Alternate Tale",
+      "type": "Filler"
+    },
+    {
+      "number": "256",
+      "title": "The Angered Byakuya! The Collapse of the Kuchiki House",
+      "type": "Filler"
+    },
+    {
+      "number": "257",
+      "title": "A New Enemy! The True Nature of the Sword Fiends",
+      "type": "Filler"
+    },
+    {
+      "number": "258",
+      "title": "Stray Snake, Tortured Monkey",
+      "type": "Filler"
+    },
+    {
+      "number": "259",
+      "title": "Terror! The Monster That Lurks Underground",
+      "type": "Filler"
+    },
+    {
+      "number": "260",
+      "title": "Conclusion!? Hisagi vs. Kazeshini",
+      "type": "Filler"
+    },
+    {
+      "number": "261",
+      "title": "The Person with the Unknown Ability! Orihime Is Targeted",
+      "type": "Filler"
+    },
+    {
+      "number": "262",
+      "title": "Haineko Cries! The Tragic Sword Fiend",
+      "type": "Filler"
+    },
+    {
+      "number": "263",
+      "title": "Imprisonment?! Senbonzakura & Zabimaru",
+      "type": "Filler"
+    },
+    {
+      "number": "264",
+      "title": "Battle of the Females? Katen Kyōkotsu vs. Nanao!",
+      "type": "Filler"
+    },
+    {
+      "number": "265",
+      "title": "Evolution?! The Menace of the Final Sword Fiend",
+      "type": "Filler"
+    },
+    {
+      "number": "266",
+      "title": "Ichigo vs. Ulquiorra, Resume",
+      "type": "Filler"
+    },
+    {
+      "number": "267",
+      "title": "Connected Hearts! The Left Fist of Certain Death",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "268",
+      "title": "Hatred and Jealousy, Orihime's Dilemma",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "269",
+      "title": "Ichigo and Uryū, Bonded Back to Back",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "270",
+      "title": "Beginning of Despair... Ichigo, the Unreachable Blade",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "271",
+      "title": "Ichigo Dies! Orihime, the Cry of Sorrow!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "272",
+      "title": "Ichigo vs. Ulquiorra, Conclusion!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "273",
+      "title": "Fury of the Shark! Harribel's Release",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "274",
+      "title": "Hitsugaya, the Desperate Hyōten Hyakkasō!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "275",
+      "title": "The Approaching Breath of Death, the King Who Rules Over Death!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "276",
+      "title": "One Hit Kill, Suì-Fēng, Bankai!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "277",
+      "title": "Climax! Kyōraku vs. Starrk!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "278",
+      "title": "The Nightmare Returns... Revival of the Espada",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "279",
+      "title": "Hirako and Aizen...the Reunion of Fate!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "280",
+      "title": "Hisagi and Tōsen, the Moment of Parting",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "281",
+      "title": "Crown of Lies, Barragan's Grudge",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "282",
+      "title": "Power of the Soul! Los Lobos, Attack!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "283",
+      "title": "Starrk, the Lone Battle",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "284",
+      "title": "Chain of Sacrifice, Harribel's Past",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "285",
+      "title": "The Hundred-Year Grudge! Hiyori's Revenge",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "286",
+      "title": "Ichigo's Return! Protect Karakura Town",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "287",
+      "title": "Side Story! Ichigo and the Magic Lamp",
+      "type": "Filler"
+    },
+    {
+      "number": "288",
+      "title": "The Final trump card! Ichigo, Towards the Decisive Battle",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "289",
+      "title": "Byakuya vs. Kenpachi?! The Melee Commences",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "290",
+      "title": "For the Sake of Justice?! The Man Who Deserted the Shinigami",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "291",
+      "title": "Desperate Struggle with Aizen! Hirako, Shikai!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "292",
+      "title": "All Out War! Aizen vs. Shinigami",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "293",
+      "title": "Hitsugaya, Enraged! Blade of Hatred!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "294",
+      "title": "Impossible to Attack? The Sealed Genryūsai!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "295",
+      "title": "It's All a Trap... Engineered Bonds!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "296",
+      "title": "The Shocking Truth...The Mysterious Power Within Ichigo!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "297",
+      "title": "The Extending Blade?! Ichigo vs. Gin!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "298",
+      "title": "Film! Festival! Shinigami Film Festival!",
+      "type": "Filler"
+    },
+    {
+      "number": "299",
+      "title": "Theatre Opening Commemoration! The Hell Verse: Prologue",
+      "type": "Filler"
+    },
+    {
+      "number": "300",
+      "title": "Urahara Appears! Stop Aizen!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "301",
+      "title": "Ichigo Loses His Fighting Spirit!? Gin's Expectation!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "302",
+      "title": "The Final Getsuga Tenshō!? Ichigo's Training!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "303",
+      "title": "Real World and Shinigami! The New Year Special!",
+      "type": "Filler"
+    },
+    {
+      "number": "304",
+      "title": "Another Side Story! This Time's Enemy Is a Monster!?",
+      "type": "Filler"
+    },
+    {
+      "number": "305",
+      "title": "Delusion Roars! Hisagi, Towards the Hot Springs Inn!",
+      "type": "Filler"
+    },
+    {
+      "number": "306",
+      "title": "For the Sake of Protecting! Ichigo vs. Tensa Zangetsu!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "307",
+      "title": "Emergency Situation! Aizen, New Evolution!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "308",
+      "title": "Goodbye...Rangiku",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "309",
+      "title": "Fierce Fighting Conclusion! Release, the Final Getsuga Tenshō!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "310",
+      "title": "Ichigo's Resolution! The Price of the Fierce Battle",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "311",
+      "title": "The Soul Detective: Karakuraiser Takes Off Again!",
+      "type": "Filler"
+    },
+    {
+      "number": "312",
+      "title": "Inauguration! The Brand New 2nd Division Captain!",
+      "type": "Filler"
+    },
+    {
+      "number": "313",
+      "title": "The Man Who Risks His Life in the 11th Division!",
+      "type": "Filler"
+    },
+    {
+      "number": "314",
+      "title": "Kon saw it! The Secret of a Beautiful Office Lady",
+      "type": "Filler"
+    },
+    {
+      "number": "315",
+      "title": "Yachiru's friend! The Shinigami of Justice Appears!",
+      "type": "Filler"
+    },
+    {
+      "number": "316",
+      "title": "Toshirō Hitsugaya's Holiday!",
+      "type": "Filler"
+    },
+    {
+      "number": "317",
+      "title": "Unusual Incident in Seireitei?! Gotei 13 Invading Army Arc!",
+      "type": "Filler"
+    },
+    {
+      "number": "318",
+      "title": "Renji vs. Rukia?! Battle With Comrades!",
+      "type": "Filler"
+    },
+    {
+      "number": "319",
+      "title": "Ichigo's Capture Net! Escape From Soul Society!",
+      "type": "Filler"
+    },
+    {
+      "number": "320",
+      "title": "Gotei 13, Gathering in the Real World!",
+      "type": "Filler"
+    },
+    {
+      "number": "321",
+      "title": "Showdown of Mutual Self, Ikkaku vs. Ikkaku!",
+      "type": "Filler"
+    },
+    {
+      "number": "322",
+      "title": "Clash! Rukia vs. Rukia!",
+      "type": "Filler"
+    },
+    {
+      "number": "323",
+      "title": "Protect Ichigo! Nozomi's Determination",
+      "type": "Filler"
+    },
+    {
+      "number": "324",
+      "title": "Recapture Seireitei! The Captains Move!",
+      "type": "Filler"
+    },
+    {
+      "number": "325",
+      "title": "For the Sake of the Believers! Byakuya vs. Hitsugaya!",
+      "type": "Filler"
+    },
+    {
+      "number": "326",
+      "title": "The Two Hinamori, Hitsugaya's Resolution",
+      "type": "Filler"
+    },
+    {
+      "number": "327",
+      "title": "Pride of the Kuchiki Family! Byakuya vs. Byakuya!",
+      "type": "Filler"
+    },
+    {
+      "number": "328",
+      "title": "Defeat Kageroza! Shinigami, All-Out War!",
+      "type": "Filler"
+    },
+    {
+      "number": "329",
+      "title": "The Forbidden Research...Nozomi's Hidden Secret!",
+      "type": "Filler"
+    },
+    {
+      "number": "330",
+      "title": "I Want to Live...! Nozomi's Zanpakutō",
+      "type": "Filler"
+    },
+    {
+      "number": "331",
+      "title": "For the Sake of Fighting! The Awakened Nozomi!",
+      "type": "Filler"
+    },
+    {
+      "number": "332",
+      "title": "The Most Evil Reigai, Appearing in the Real World!",
+      "type": "Filler"
+    },
+    {
+      "number": "333",
+      "title": "Destroy Nozomi!? Genryusai's Decision!",
+      "type": "Filler"
+    },
+    {
+      "number": "334",
+      "title": "The Depleting Reiatsu! Ichigo, Death Struggle of the Soul!",
+      "type": "Filler"
+    },
+    {
+      "number": "335",
+      "title": "Hiding in the Dangai? Another Ichigo?!",
+      "type": "Filler"
+    },
+    {
+      "number": "336",
+      "title": "Pursue Kageroza! Technological Development Department, Infiltration!",
+      "type": "Filler"
+    },
+    {
+      "number": "337",
+      "title": "The Developer of the Modified Souls",
+      "type": "Filler"
+    },
+    {
+      "number": "338",
+      "title": "Kon's Thoughts, Nozomi's Thoughts",
+      "type": "Filler"
+    },
+    {
+      "number": "339",
+      "title": "Protect Ichigo! The Bonds of Friends!",
+      "type": "Filler"
+    },
+    {
+      "number": "340",
+      "title": "Reigai vs. Original, The Fierce Fighting for Gambled Pride!",
+      "type": "Filler"
+    },
+    {
+      "number": "341",
+      "title": "Invading Army Arc, Final Conclusion!",
+      "type": "Filler"
+    },
+    {
+      "number": "342",
+      "title": "Thank You",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "343",
+      "title": "3rd Year High School Student! Dressed Up, and a New Chapter Begins!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "344",
+      "title": "A Dispute in School?! Ichigo and Uryū, Fight Together!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "345",
+      "title": "Uryū is Attacked, A Threat Draws Near the Friends!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "346",
+      "title": "The Man with the Fullbring Ability: Kugo Ginjō",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "347",
+      "title": "A Crisis Sneaking up on the Kurosaki Family?! Ichigo's Confusion!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "348",
+      "title": "Power of the Substitute Badge, Ichigo's 'Pride'!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "349",
+      "title": "Next Target, The Devil's Hand Aims at Orihime!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "350",
+      "title": "The Man Who Killed the Shinigami Substitute?! Tsukishima Makes His Move",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "351",
+      "title": "Fullbring, The Detested Power!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "352",
+      "title": "Tsukishima Attacks! The Training Has Been Thwarted",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "353",
+      "title": "Ichigo, Mastering the Fullbring!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "354",
+      "title": "Ichigo vs. Ginjō! To the Game's Space",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "355",
+      "title": "Shinigami at War! New Year in Seireitei Special!",
+      "type": "Filler"
+    },
+    {
+      "number": "356",
+      "title": "Friend or Foe?! Ginjō's True Intentions!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "357",
+      "title": "Tsukishima's Ability, the Danger is Drawing Near!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "358",
+      "title": "Clash!? Xcution attacks Ginjō",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "359",
+      "title": "The Sorrowful Battle! Ichigo vs. Sado & Orihime",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "360",
+      "title": "Ichigo vs Uryu?! Who is the Traitor?!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "361",
+      "title": "A New Appearance! The Gotei 13, Arrives!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "362",
+      "title": "Revival! Substitute Shinigami: Ichigo Kurosaki!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "363",
+      "title": "Fierce Fight! Shinigami vs. XCUTION!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "364",
+      "title": "Desperate Struggle!? Byakuya's Troubled Memories",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "365",
+      "title": "Ichigo vs. Ginjō! Secret of the Substitute Badge",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "366",
+      "title": "Changing History, Unchanging Heart",
+      "type": "Manga Canon"
+    }
+  ]
+}

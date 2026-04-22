@@ -1,0 +1,2506 @@
+{
+  "anime": "naruto-shippuden",
+  "total_episodes": 500,
+  "episodes": [
+    {
+      "number": "1",
+      "title": "Homecoming",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "2",
+      "title": "The Akatsuki Makes Its Move",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "3",
+      "title": "The Results of Training",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "4",
+      "title": "The Jinchuriki of the Sand",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "5",
+      "title": "The Kazekage Stands Tall",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "6",
+      "title": "Mission Cleared",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "7",
+      "title": "Run, Kankuro",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "8",
+      "title": "Team Kakashi, Deployed",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "9",
+      "title": "The Jinchuriki's Tears",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "10",
+      "title": "Sealing Jutsu: Nine Phantom Dragons",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "11",
+      "title": "The Medical Ninja's Student",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "12",
+      "title": "The Retired Granny's Determination",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "13",
+      "title": "A Meeting With Destiny",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "14",
+      "title": "Naruto's Growth",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "15",
+      "title": "The Secret Weapon is Called....",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "16",
+      "title": "The Secret of Jinchuriki",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "17",
+      "title": "The Death of Gaara!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "18",
+      "title": "Charge Tactic! Button Hook Entry!!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "19",
+      "title": "Traps Activate! Team Guy's Enemies",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "20",
+      "title": "Hiruko vs. Two Kunoichi!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "21",
+      "title": "Sasori's Real Face",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "22",
+      "title": "Chiyo's Secret Skills",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "23",
+      "title": "Father and Mother",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "24",
+      "title": "The Third Kazekage",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "25",
+      "title": "Three Minutes Between Life and Death",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "26",
+      "title": "Puppet Fight: 10 vs. 100!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "27",
+      "title": "Impossible Dream",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "28",
+      "title": "Beasts! Alive Again!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "29",
+      "title": "Kakashi Enlightened!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "30",
+      "title": "Aesthetics of an Instant",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "31",
+      "title": "The Legacy!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "32",
+      "title": "Return of the Kazekage",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "33",
+      "title": "The New Target",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "34",
+      "title": "Formation! New Team Kakashi!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "35",
+      "title": "An Unnecessary Addition",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "36",
+      "title": "The Fake Smile",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "37",
+      "title": "Untitled",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "38",
+      "title": "Simulation",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "39",
+      "title": "The Tenchi Bridge",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "40",
+      "title": "Nine-Tails Unleashed",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "41",
+      "title": "The Top-Secret Mission Begins",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "42",
+      "title": "Orochimaru vs. Jinchuriki",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "43",
+      "title": "Sakura's Tears",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "44",
+      "title": "The Secret of the Battle!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "45",
+      "title": "The Consequences of Betrayal",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "46",
+      "title": "The Unfinished Page",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "47",
+      "title": "Infiltration: The Den of the Snake!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "48",
+      "title": "Bonds",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "49",
+      "title": "Something Important...",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "50",
+      "title": "The Picture Book's Story",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "51",
+      "title": "Reunion",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "52",
+      "title": "The Power of the Uchiha",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "53",
+      "title": "Title",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "54",
+      "title": "Nightmare",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "55",
+      "title": "Wind",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "56",
+      "title": "Squirming",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "57",
+      "title": "Robbed of Sleep",
+      "type": "Filler"
+    },
+    {
+      "number": "58",
+      "title": "Loneliness",
+      "type": "Filler"
+    },
+    {
+      "number": "59",
+      "title": "A New Enemy",
+      "type": "Filler"
+    },
+    {
+      "number": "60",
+      "title": "Impermanence",
+      "type": "Filler"
+    },
+    {
+      "number": "61",
+      "title": "Contact",
+      "type": "Filler"
+    },
+    {
+      "number": "62",
+      "title": "Teammate",
+      "type": "Filler"
+    },
+    {
+      "number": "63",
+      "title": "The Two Kings",
+      "type": "Filler"
+    },
+    {
+      "number": "64",
+      "title": "The Jet-Black Signal Fire",
+      "type": "Filler"
+    },
+    {
+      "number": "65",
+      "title": "Lockdown of Darkness",
+      "type": "Filler"
+    },
+    {
+      "number": "66",
+      "title": "Revived Souls",
+      "type": "Filler"
+    },
+    {
+      "number": "67",
+      "title": "Everyone's Struggle to the Death",
+      "type": "Filler"
+    },
+    {
+      "number": "68",
+      "title": "Moment of Awakening",
+      "type": "Filler"
+    },
+    {
+      "number": "69",
+      "title": "Despair",
+      "type": "Filler"
+    },
+    {
+      "number": "70",
+      "title": "Resonance",
+      "type": "Filler"
+    },
+    {
+      "number": "71",
+      "title": "My Friend",
+      "type": "Filler"
+    },
+    {
+      "number": "72",
+      "title": "The Quietly Approaching Threat",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "73",
+      "title": "Akatsuki's Invasion",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "74",
+      "title": "Under the Starry Sky",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "75",
+      "title": "The Old Monk's Prayer",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "76",
+      "title": "The Next Step",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "77",
+      "title": "Climbing Silver",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "78",
+      "title": "The Judgment",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "79",
+      "title": "Unfulfilled Scream",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "80",
+      "title": "Last Words",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "81",
+      "title": "Sad News",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "82",
+      "title": "Team Ten",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "83",
+      "title": "Target: Locked On",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "84",
+      "title": "Kakuzu's Abilities",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "85",
+      "title": "Terrifying Secret",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "86",
+      "title": "Shikamaru's Genius",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "87",
+      "title": "When You Curse Someone, You Dig Your Own Grave",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "88",
+      "title": "Wind Style: Rasen Shuriken!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "89",
+      "title": "The Price of Power",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "90",
+      "title": "A Shinobi's Determination",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "91",
+      "title": "Orochimaru's Hideout Discovered",
+      "type": "Filler"
+    },
+    {
+      "number": "92",
+      "title": "Encounter",
+      "type": "Filler"
+    },
+    {
+      "number": "93",
+      "title": "Connecting Hearts",
+      "type": "Filler"
+    },
+    {
+      "number": "94",
+      "title": "A Night of Rain",
+      "type": "Filler"
+    },
+    {
+      "number": "95",
+      "title": "The Two Charms",
+      "type": "Filler"
+    },
+    {
+      "number": "96",
+      "title": "The Unseeing Enemy",
+      "type": "Filler"
+    },
+    {
+      "number": "97",
+      "title": "The Labyrinth of Distorted Reflection",
+      "type": "Filler"
+    },
+    {
+      "number": "98",
+      "title": "The Target Appears",
+      "type": "Filler"
+    },
+    {
+      "number": "99",
+      "title": "The Rampaging Tailed Beast",
+      "type": "Filler"
+    },
+    {
+      "number": "100",
+      "title": "Inside the Mist",
+      "type": "Filler"
+    },
+    {
+      "number": "101",
+      "title": "Everyone's Feelings",
+      "type": "Filler"
+    },
+    {
+      "number": "102",
+      "title": "Regroup!",
+      "type": "Filler"
+    },
+    {
+      "number": "103",
+      "title": "The Four-Corner Sealing Barrier",
+      "type": "Filler"
+    },
+    {
+      "number": "104",
+      "title": "Breaking the Crystal Style",
+      "type": "Filler"
+    },
+    {
+      "number": "105",
+      "title": "The Battle Over the Barrier",
+      "type": "Filler"
+    },
+    {
+      "number": "106",
+      "title": "Red Camellia",
+      "type": "Filler"
+    },
+    {
+      "number": "107",
+      "title": "Strange Bedfellows",
+      "type": "Filler"
+    },
+    {
+      "number": "108",
+      "title": "Guidepost of the Camellia",
+      "type": "Filler"
+    },
+    {
+      "number": "109",
+      "title": "Cursed Seal Counterattack",
+      "type": "Filler"
+    },
+    {
+      "number": "110",
+      "title": "Memory of Guilt",
+      "type": "Filler"
+    },
+    {
+      "number": "111",
+      "title": "Shattered Promise",
+      "type": "Filler"
+    },
+    {
+      "number": "112",
+      "title": "A Place to Return To",
+      "type": "Filler"
+    },
+    {
+      "number": "113",
+      "title": "The Serpent's Pupil",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "114",
+      "title": "Eye of a Hawk",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "115",
+      "title": "Zabuza's Blade",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "116",
+      "title": "Guardian of the Iron Wall",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "117",
+      "title": "Jugo of the Northern Hideout",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "118",
+      "title": "Formation!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "119",
+      "title": "Kakashi Chronicles: A Boy's Life on the Battlefield, Part 1",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "120",
+      "title": "Kakashi Chronicles: A Boy's Life on the Battlefield, Part 2",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "121",
+      "title": "Assemble",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "122",
+      "title": "The Hunt",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "123",
+      "title": "Clash!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "124",
+      "title": "Art",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "125",
+      "title": "Disappearance",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "126",
+      "title": "Twilight",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "127",
+      "title": "Tales of a Gutsy Ninja ~Jiraiya Ninja Scroll~ Part 1",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "128",
+      "title": "Tales of a Gutsy Ninja ~Jiraiya Ninja Scroll~ Part 2",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "129",
+      "title": "Infiltrate! The Village Hidden in the Rain",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "130",
+      "title": "The Man Who Became God",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "131",
+      "title": "Honored Sage Mode!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "132",
+      "title": "In Attendance, the Six Paths of Pain",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "133",
+      "title": "The Tale of Jiraiya the Gallant",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "134",
+      "title": "Banquet Invitation",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "135",
+      "title": "The Longest Moment...",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "136",
+      "title": "The Light & Dark of the Mangekyo Sharingan",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "137",
+      "title": "Amaterasu!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "138",
+      "title": "The End",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "139",
+      "title": "The Mystery of Tobi",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "140",
+      "title": "Fate",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "141",
+      "title": "Truth",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "142",
+      "title": "Battle of Unraikyo",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "143",
+      "title": "The Eight Tails Vs. Sasuke",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "144",
+      "title": "Wanderer",
+      "type": "Filler"
+    },
+    {
+      "number": "145",
+      "title": "Successor of the Forbidden Jutsu",
+      "type": "Filler"
+    },
+    {
+      "number": "146",
+      "title": "The Successor's Wish",
+      "type": "Filler"
+    },
+    {
+      "number": "147",
+      "title": "Rogue Ninja's Past",
+      "type": "Filler"
+    },
+    {
+      "number": "148",
+      "title": "Heir to Darkness",
+      "type": "Filler"
+    },
+    {
+      "number": "149",
+      "title": "Separation",
+      "type": "Filler"
+    },
+    {
+      "number": "150",
+      "title": "The Forbidden Jutsu Released",
+      "type": "Filler"
+    },
+    {
+      "number": "151",
+      "title": "Master and Student",
+      "type": "Filler"
+    },
+    {
+      "number": "152",
+      "title": "Somber News",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "153",
+      "title": "Following the Master's Shadow",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "154",
+      "title": "Decryption",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "155",
+      "title": "The First Challenge",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "156",
+      "title": "Surpassing the Master",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "157",
+      "title": "Assault On the Leaf Village!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "158",
+      "title": "Power to Believe",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "159",
+      "title": "Pain Vs. Kakashi",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "160",
+      "title": "Mystery of Pain",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "161",
+      "title": "Surname Is Sarutobi! Given Name, Konohamaru!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "162",
+      "title": "Pain to the World",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "163",
+      "title": "Explosion! Sage Mode",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "164",
+      "title": "Danger! Sage Mode Limit Reached",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "165",
+      "title": "Nine Tails, Captured!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "166",
+      "title": "Confessions",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "167",
+      "title": "Planetary Devastation",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "168",
+      "title": "Fourth Hokage",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "169",
+      "title": "The Two Students",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "170",
+      "title": "Big Adventure! The Quest for the Fourth Hokage's Legacy, Part 1",
+      "type": "Filler"
+    },
+    {
+      "number": "171",
+      "title": "Big Adventure! The Quest for the Fourth Hokage's Legacy, Part 2",
+      "type": "Filler"
+    },
+    {
+      "number": "172",
+      "title": "Meeting",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "173",
+      "title": "Origin of Pain",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "174",
+      "title": "Tale of Naruto Uzumaki",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "175",
+      "title": "Hero of the Hidden Leaf",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "176",
+      "title": "Rookie Instructor Iruka",
+      "type": "Filler"
+    },
+    {
+      "number": "177",
+      "title": "Iruka's Ordeal",
+      "type": "Filler"
+    },
+    {
+      "number": "178",
+      "title": "Iruka's Decision",
+      "type": "Filler"
+    },
+    {
+      "number": "179",
+      "title": "Kakashi Hatake, the Jonin in Charge",
+      "type": "Filler"
+    },
+    {
+      "number": "180",
+      "title": "Inari's Courage Put to the Test",
+      "type": "Filler"
+    },
+    {
+      "number": "181",
+      "title": "Naruto's School of Revenge",
+      "type": "Filler"
+    },
+    {
+      "number": "182",
+      "title": "Gaara's Bond",
+      "type": "Filler"
+    },
+    {
+      "number": "183",
+      "title": "Naruto: Outbreak",
+      "type": "Filler"
+    },
+    {
+      "number": "184",
+      "title": "Deploy! Team Tenten",
+      "type": "Filler"
+    },
+    {
+      "number": "185",
+      "title": "Animal District",
+      "type": "Filler"
+    },
+    {
+      "number": "186",
+      "title": "Ah, the Medicine of Youth",
+      "type": "Filler"
+    },
+    {
+      "number": "187",
+      "title": "Gutsy Master and Student: The Training",
+      "type": "Filler"
+    },
+    {
+      "number": "188",
+      "title": "Record of the Gutsy Ninja Master and Student",
+      "type": "Filler"
+    },
+    {
+      "number": "189",
+      "title": "Sasuke's Paw Encyclopedia",
+      "type": "Filler"
+    },
+    {
+      "number": "190",
+      "title": "Naruto and the Old Soldier",
+      "type": "Filler"
+    },
+    {
+      "number": "191",
+      "title": "Kakashi Love Song",
+      "type": "Filler"
+    },
+    {
+      "number": "192",
+      "title": "Neji Chronicles",
+      "type": "Filler"
+    },
+    {
+      "number": "193",
+      "title": "The Man Who Died Twice",
+      "type": "Filler"
+    },
+    {
+      "number": "194",
+      "title": "The Worst Three-Legged Race",
+      "type": "Filler"
+    },
+    {
+      "number": "195",
+      "title": "Team 10's Teamwork",
+      "type": "Filler"
+    },
+    {
+      "number": "196",
+      "title": "Drive Towards Darkness",
+      "type": "Filler"
+    },
+    {
+      "number": "197",
+      "title": "The Sixth Hokage Danzo",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "198",
+      "title": "Five Kage Summit's Eve",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "199",
+      "title": "Enter the Five Kage!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "200",
+      "title": "Naruto's Plea",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "201",
+      "title": "Painful Decision",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "202",
+      "title": "Racing Lightning",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "203",
+      "title": "Sasuke's Ninja Way",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "204",
+      "title": "Power of the Five Kage",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "205",
+      "title": "Declaration of War",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "206",
+      "title": "Sakura's Feelings",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "207",
+      "title": "The Tailed Beast vs. The Tailless Tailed Beast",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "208",
+      "title": "As One's Friend",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "209",
+      "title": "Danzo's Right Arm",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "210",
+      "title": "The Forbidden Visual Jutsu",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "211",
+      "title": "Danzo Shimura",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "212",
+      "title": "Sakura's Resolve",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "213",
+      "title": "Lost Bonds",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "214",
+      "title": "The Burden",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "215",
+      "title": "Two Fates",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "216",
+      "title": "High-Level Shinobi",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "217",
+      "title": "The Infiltrator",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "218",
+      "title": "The Five Great Nations Mobilize",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "219",
+      "title": "Kakashi Hatake, The Hokage",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "220",
+      "title": "Prophecy of the Great Lord Elder",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "221",
+      "title": "Storage",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "222",
+      "title": "The Five Kage's Decision",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "223",
+      "title": "The Young Man and the Sea",
+      "type": "Filler"
+    },
+    {
+      "number": "224",
+      "title": "The Ninja of Benisu",
+      "type": "Filler"
+    },
+    {
+      "number": "225",
+      "title": "The Cursed Ghost Ship",
+      "type": "Filler"
+    },
+    {
+      "number": "226",
+      "title": "Battleship Island",
+      "type": "Filler"
+    },
+    {
+      "number": "227",
+      "title": "The Forgotten Island",
+      "type": "Filler"
+    },
+    {
+      "number": "228",
+      "title": "Fight! Rock Lee!",
+      "type": "Filler"
+    },
+    {
+      "number": "229",
+      "title": "Eat or Die! Mushrooms from Hell",
+      "type": "Filler"
+    },
+    {
+      "number": "230",
+      "title": "Revenge of the Shadow Clones",
+      "type": "Filler"
+    },
+    {
+      "number": "231",
+      "title": "The Closed Route",
+      "type": "Filler"
+    },
+    {
+      "number": "232",
+      "title": "The Girls Get-Together",
+      "type": "Filler"
+    },
+    {
+      "number": "233",
+      "title": "Naruto's Imposter",
+      "type": "Filler"
+    },
+    {
+      "number": "234",
+      "title": "Naruto's Favorite Student",
+      "type": "Filler"
+    },
+    {
+      "number": "235",
+      "title": "The Kunoichi of Nadeshiko Village",
+      "type": "Filler"
+    },
+    {
+      "number": "236",
+      "title": "Friends You Can Count On",
+      "type": "Filler"
+    },
+    {
+      "number": "237",
+      "title": "Ah, My Hero Lady Tsunade!",
+      "type": "Filler"
+    },
+    {
+      "number": "238",
+      "title": "Sai's Day Off",
+      "type": "Filler"
+    },
+    {
+      "number": "239",
+      "title": "The Legendary Ino-Shika-Cho Trio",
+      "type": "Filler"
+    },
+    {
+      "number": "240",
+      "title": "Kiba's Determination",
+      "type": "Filler"
+    },
+    {
+      "number": "241",
+      "title": "Kakashi, My Eternal Rival!",
+      "type": "Filler"
+    },
+    {
+      "number": "242",
+      "title": "Naruto's Vow",
+      "type": "Filler"
+    },
+    {
+      "number": "243",
+      "title": "Land Ahoy! Is This the Island of Paradise?",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "244",
+      "title": "Killer Bee and Motoi",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "245",
+      "title": "The Next Challenge! Naruto vs. The Nine Tails!!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "246",
+      "title": "The Orange Spark",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "247",
+      "title": "Target: Nine Tails",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "248",
+      "title": "The Fourth Hokage's Death Match",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "249",
+      "title": "Thank You",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "250",
+      "title": "Battle in Paradise! the Odd Beast vs. the Monster!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "251",
+      "title": "The Man Named Kisame",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "252",
+      "title": "The Angelic Herald of Death",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "253",
+      "title": "The Bridge to Peace",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "254",
+      "title": "The Super Secret S-Rank Mission",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "255",
+      "title": "The Artist Returns",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "256",
+      "title": "Assemble! Allied Shinobi Forces!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "257",
+      "title": "Meeting",
+      "type": "Filler"
+    },
+    {
+      "number": "258",
+      "title": "Rivals",
+      "type": "Filler"
+    },
+    {
+      "number": "259",
+      "title": "Rift",
+      "type": "Filler"
+    },
+    {
+      "number": "260",
+      "title": "Parting",
+      "type": "Filler"
+    },
+    {
+      "number": "261",
+      "title": "For My Friend",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "262",
+      "title": "War Begins!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "263",
+      "title": "Sai and Shin",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "264",
+      "title": "Secrets of the Reanimation Jutsu",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "265",
+      "title": "An Old Nemesis Returns",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "266",
+      "title": "The First and Last Opponent",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "267",
+      "title": "The Brilliant Military Advisor of the Hidden Leaf",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "268",
+      "title": "Battleground!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "269",
+      "title": "Forbidden Words",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "270",
+      "title": "Golden Bonds",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "271",
+      "title": "Road to Sakura",
+      "type": "Filler"
+    },
+    {
+      "number": "272",
+      "title": "Mifune vs. Hanzo",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "273",
+      "title": "True Kindness",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "274",
+      "title": "The Complete Ino-Shika-Cho Formation!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "275",
+      "title": "A Message from the Heart",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "276",
+      "title": "Attack of the Gedo Statue",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "277",
+      "title": "Unison Sign",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "278",
+      "title": "Medic Ninja in Danger",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "279",
+      "title": "White Zetsu's Trap",
+      "type": "Filler"
+    },
+    {
+      "number": "280",
+      "title": "Aesthetics of an Artist",
+      "type": "Filler"
+    },
+    {
+      "number": "281",
+      "title": "The Allied Mom Force!",
+      "type": "Filler"
+    },
+    {
+      "number": "282",
+      "title": "The Secret Origin of the Ultimate Tag Team!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "283",
+      "title": "Two Suns",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "284",
+      "title": "Helmet Splitter: Jinin Akebino!",
+      "type": "Filler"
+    },
+    {
+      "number": "285",
+      "title": "User of the Scorch Style: Pakura of the Sand!",
+      "type": "Filler"
+    },
+    {
+      "number": "286",
+      "title": "Things You Can't Get Back",
+      "type": "Filler"
+    },
+    {
+      "number": "287",
+      "title": "One Worth Betting On",
+      "type": "Filler"
+    },
+    {
+      "number": "288",
+      "title": "Danger: Jinpachi and Kushimaru!",
+      "type": "Filler"
+    },
+    {
+      "number": "289",
+      "title": "The Lightning Blade: Ameyuri Ringo!",
+      "type": "Filler"
+    },
+    {
+      "number": "290",
+      "title": "Power: Episode 1",
+      "type": "Filler"
+    },
+    {
+      "number": "291",
+      "title": "Power: Episode 2",
+      "type": "Filler"
+    },
+    {
+      "number": "292",
+      "title": "Power: Episode 3",
+      "type": "Filler"
+    },
+    {
+      "number": "293",
+      "title": "Power: Episode 4",
+      "type": "Filler"
+    },
+    {
+      "number": "294",
+      "title": "Power: Episode 5",
+      "type": "Filler"
+    },
+    {
+      "number": "295",
+      "title": "Power: Episode Final",
+      "type": "Filler"
+    },
+    {
+      "number": "296",
+      "title": "Naruto Enters the Battle",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "297",
+      "title": "A Father's Hope, a Mother's Love",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "298",
+      "title": "Contact! Naruto vs. Itachi",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "299",
+      "title": "The Acknowledged One",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "300",
+      "title": "The Mizukage, the Giant Clam, and the Mirage",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "301",
+      "title": "Paradox",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "302",
+      "title": "Terror! the Steam Imp",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "303",
+      "title": "Ghosts from the Past",
+      "type": "Filler"
+    },
+    {
+      "number": "304",
+      "title": "The Underworld Transfer Jutsu",
+      "type": "Filler"
+    },
+    {
+      "number": "305",
+      "title": "The Vengeful",
+      "type": "Filler"
+    },
+    {
+      "number": "306",
+      "title": "The Heart's Eye",
+      "type": "Filler"
+    },
+    {
+      "number": "307",
+      "title": "Fade Into the Moonlight",
+      "type": "Filler"
+    },
+    {
+      "number": "308",
+      "title": "Crescent Moon Night",
+      "type": "Filler"
+    },
+    {
+      "number": "309",
+      "title": "The A-Rank Mission: Food Fight!",
+      "type": "Filler"
+    },
+    {
+      "number": "310",
+      "title": "The Fallen Castle",
+      "type": "Filler"
+    },
+    {
+      "number": "311",
+      "title": "Prologue of Road to Ninja",
+      "type": "Filler"
+    },
+    {
+      "number": "312",
+      "title": "The Old Master and the Dragon's Eye",
+      "type": "Filler"
+    },
+    {
+      "number": "313",
+      "title": "Rain Followed by Snow, with Some Lightning",
+      "type": "Filler"
+    },
+    {
+      "number": "314",
+      "title": "The Sad Sun Shower",
+      "type": "Filler"
+    },
+    {
+      "number": "315",
+      "title": "Lingering Snow",
+      "type": "Filler"
+    },
+    {
+      "number": "316",
+      "title": "The Reanimated Allied Forces",
+      "type": "Filler"
+    },
+    {
+      "number": "317",
+      "title": "Shino vs. Torune",
+      "type": "Filler"
+    },
+    {
+      "number": "318",
+      "title": "A Hole in the Heart: the Other Jinchuriki",
+      "type": "Filler"
+    },
+    {
+      "number": "319",
+      "title": "The Soul Living Inside the Puppet",
+      "type": "Filler"
+    },
+    {
+      "number": "320",
+      "title": "Run, Omoi!",
+      "type": "Filler"
+    },
+    {
+      "number": "321",
+      "title": "Reinforcements Arrive",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "322",
+      "title": "Madara Uchiha",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "323",
+      "title": "The Five Kage Assemble",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "324",
+      "title": "The Unbreakable Mask and the Shattered Bubble",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "325",
+      "title": "Jinchuriki vs. Jinchuriki!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "326",
+      "title": "Four Tails, the King of Sage Monkeys",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "327",
+      "title": "Nine Tails",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "328",
+      "title": "Kurama",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "329",
+      "title": "Two-Man Team",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "330",
+      "title": "Promise of Victory",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "331",
+      "title": "Eyes That See in the Dark",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "332",
+      "title": "The Will of Stone",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "333",
+      "title": "The Risks of the Reanimation Jutsu",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "334",
+      "title": "Sibling Tag Team",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "335",
+      "title": "To Each Their Own Leaf",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "336",
+      "title": "Kabuto Yakushi",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "337",
+      "title": "The Izanami Activated",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "338",
+      "title": "Izanagi and Izanami",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "339",
+      "title": "I Will Love You Always",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "340",
+      "title": "Reanimation Jutsu, Release!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "341",
+      "title": "Orochimaru's Return",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "342",
+      "title": "Secret of the Transportation Technique",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "343",
+      "title": "Who Are You?",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "344",
+      "title": "Obito and Madara",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "345",
+      "title": "I'm in Hell",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "346",
+      "title": "World of Dreams",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "347",
+      "title": "Creeping Shadow",
+      "type": "Filler"
+    },
+    {
+      "number": "348",
+      "title": "The New Akatsuki",
+      "type": "Filler"
+    },
+    {
+      "number": "349",
+      "title": "Kakashi: Shadow of the ANBU Black Ops – A Mask That Hides the Heart",
+      "type": "Filler"
+    },
+    {
+      "number": "350",
+      "title": "Kakashi: Shadow of the ANBU Black Ops – Minato's Death",
+      "type": "Filler"
+    },
+    {
+      "number": "351",
+      "title": "Kakashi: Shadow of the ANBU Black Ops – Hashirama's Cells",
+      "type": "Filler"
+    },
+    {
+      "number": "352",
+      "title": "Kakashi: Shadow of the ANBU Black Ops – The Rogue Ninja Orochimaru",
+      "type": "Filler"
+    },
+    {
+      "number": "353",
+      "title": "Kakashi: Shadow of the ANBU Black Ops – Orochimaru's Test Subjects",
+      "type": "Filler"
+    },
+    {
+      "number": "354",
+      "title": "Kakashi: Shadow of the ANBU Black Ops – Their Own Paths",
+      "type": "Filler"
+    },
+    {
+      "number": "355",
+      "title": "Kakashi: Shadow of the ANBU Black Ops – The Targeted Sharingan",
+      "type": "Filler"
+    },
+    {
+      "number": "356",
+      "title": "Kakashi: Shadow of the ANBU Black Ops – A Shinobi of the Leaf",
+      "type": "Filler"
+    },
+    {
+      "number": "357",
+      "title": "Kakashi: Shadow of the ANBU Black Ops – An Uchiha ANBU",
+      "type": "Filler"
+    },
+    {
+      "number": "358",
+      "title": "Kakashi: Shadow of the ANBU Black Ops – Coup D'État",
+      "type": "Filler"
+    },
+    {
+      "number": "359",
+      "title": "Kakashi: Shadow of the ANBU Black Ops – The Night of the Tragedy",
+      "type": "Filler"
+    },
+    {
+      "number": "360",
+      "title": "Kakashi: Shadow of the ANBU Black Ops – Jonin Leader",
+      "type": "Filler"
+    },
+    {
+      "number": "361",
+      "title": "Kakashi: Shadow of the ANBU Black Ops – Squad Seven",
+      "type": "Filler"
+    },
+    {
+      "number": "362",
+      "title": "Kakashi's Resolve",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "363",
+      "title": "The Allied Shinobi Forces Jutsu",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "364",
+      "title": "The Ties That Bind",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "365",
+      "title": "Those Who Dance in the Shadows",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "366",
+      "title": "The All-Knowing",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "367",
+      "title": "Hashirama and Madara",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "368",
+      "title": "Era of Warring States",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "369",
+      "title": "My True Dream",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "370",
+      "title": "Sasuke's Answer",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "371",
+      "title": "Hole",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "372",
+      "title": "Something to Fill the Hole",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "373",
+      "title": "Team 7, Assemble!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "374",
+      "title": "The New Three-Way Deadlock",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "375",
+      "title": "Kakashi vs. Obito",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "376",
+      "title": "The Directive to Take the Nine Tails",
+      "type": "Filler"
+    },
+    {
+      "number": "377",
+      "title": "Naruto vs. Mecha Naruto",
+      "type": "Filler"
+    },
+    {
+      "number": "378",
+      "title": "The Ten Tails' Jinchuriki",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "379",
+      "title": "An Opening",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "380",
+      "title": "The Day Naruto Was Born",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "381",
+      "title": "The Divine Tree",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "382",
+      "title": "A Shinobi's Dream",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "383",
+      "title": "Pursuing Hope",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "384",
+      "title": "A Heart Filled With Comrades",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "385",
+      "title": "Obito Uchiha",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "386",
+      "title": "I'm Always Watching",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "387",
+      "title": "The Promise That Was Kept",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "388",
+      "title": "My First Friend",
+      "type": "Filler"
+    },
+    {
+      "number": "389",
+      "title": "The Adored Elder Sister",
+      "type": "Filler"
+    },
+    {
+      "number": "390",
+      "title": "Hanabi's Decision",
+      "type": "Filler"
+    },
+    {
+      "number": "391",
+      "title": "Madara Uchiha Arises",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "392",
+      "title": "The Hidden Heart",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "393",
+      "title": "A True Ending",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "394",
+      "title": "The New Chunin Exams",
+      "type": "Filler"
+    },
+    {
+      "number": "395",
+      "title": "The Chunin Exams Begin!",
+      "type": "Filler"
+    },
+    {
+      "number": "396",
+      "title": "The Three Questions",
+      "type": "Filler"
+    },
+    {
+      "number": "397",
+      "title": "One Worthy As A Leader",
+      "type": "Filler"
+    },
+    {
+      "number": "398",
+      "title": "The Night Before the Second Exam",
+      "type": "Filler"
+    },
+    {
+      "number": "399",
+      "title": "Demon Desert Survival",
+      "type": "Filler"
+    },
+    {
+      "number": "400",
+      "title": "As a Taijutsu User",
+      "type": "Filler"
+    },
+    {
+      "number": "401",
+      "title": "The Ultimate",
+      "type": "Filler"
+    },
+    {
+      "number": "402",
+      "title": "Escape vs. Pursuit",
+      "type": "Filler"
+    },
+    {
+      "number": "403",
+      "title": "Unwavering Gutsiness",
+      "type": "Filler"
+    },
+    {
+      "number": "404",
+      "title": "Tenten's Troubles",
+      "type": "Filler"
+    },
+    {
+      "number": "405",
+      "title": "The Imprisoned Pair",
+      "type": "Filler"
+    },
+    {
+      "number": "406",
+      "title": "The Place Where I Belong",
+      "type": "Filler"
+    },
+    {
+      "number": "407",
+      "title": "The Yamanaka Clan: Secret Ninjutsu",
+      "type": "Filler"
+    },
+    {
+      "number": "408",
+      "title": "The Cursed Puppet",
+      "type": "Filler"
+    },
+    {
+      "number": "409",
+      "title": "Their Backs",
+      "type": "Filler"
+    },
+    {
+      "number": "410",
+      "title": "The Hidden Plot Set Into Motion",
+      "type": "Filler"
+    },
+    {
+      "number": "411",
+      "title": "The Targeted Tailed Beast",
+      "type": "Filler"
+    },
+    {
+      "number": "412",
+      "title": "Neji’s Judgement",
+      "type": "Filler"
+    },
+    {
+      "number": "413",
+      "title": "Hopes Entrusted to the Future",
+      "type": "Filler"
+    },
+    {
+      "number": "414",
+      "title": "On the Brink of Death",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "415",
+      "title": "The Two Mangekyo",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "416",
+      "title": "The Formation of Team Minato",
+      "type": "Filler"
+    },
+    {
+      "number": "417",
+      "title": "You’ll Be My Backup",
+      "type": "Filler"
+    },
+    {
+      "number": "418",
+      "title": "The Blue Beast vs Six Paths Madara",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "419",
+      "title": "Papa's Youth",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "420",
+      "title": "The Eight Inner Gates Formation",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "421",
+      "title": "The Sage of the Six Paths",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "422",
+      "title": "The One Who Will Inherit",
+      "type": "Filler"
+    },
+    {
+      "number": "423",
+      "title": "Naruto's Rival",
+      "type": "Filler"
+    },
+    {
+      "number": "424",
+      "title": "To Rise Up",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "425",
+      "title": "The Infinite Dream",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "426",
+      "title": "The Infinite Tsukuyomi",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "427",
+      "title": "To the Dream World",
+      "type": "Filler"
+    },
+    {
+      "number": "428",
+      "title": "Where Tenten Belongs",
+      "type": "Filler"
+    },
+    {
+      "number": "429",
+      "title": "Killer Bee Rappuden, Part 1",
+      "type": "Filler"
+    },
+    {
+      "number": "430",
+      "title": "Killer Bee Rappuden, Part 2",
+      "type": "Filler"
+    },
+    {
+      "number": "431",
+      "title": "To See That Smile, Just One More Time",
+      "type": "Filler"
+    },
+    {
+      "number": "432",
+      "title": "The Loser Ninja",
+      "type": "Filler"
+    },
+    {
+      "number": "433",
+      "title": "The Search Mission",
+      "type": "Filler"
+    },
+    {
+      "number": "434",
+      "title": "Team Jiraiya",
+      "type": "Filler"
+    },
+    {
+      "number": "435",
+      "title": "Order of Priority",
+      "type": "Filler"
+    },
+    {
+      "number": "436",
+      "title": "The Masked Man",
+      "type": "Filler"
+    },
+    {
+      "number": "437",
+      "title": "The Sealed Power",
+      "type": "Filler"
+    },
+    {
+      "number": "438",
+      "title": "The Rules or a Comrade",
+      "type": "Filler"
+    },
+    {
+      "number": "439",
+      "title": "The Child of Prophecy",
+      "type": "Filler"
+    },
+    {
+      "number": "440",
+      "title": "The Caged Bird",
+      "type": "Filler"
+    },
+    {
+      "number": "441",
+      "title": "Returning Home",
+      "type": "Filler"
+    },
+    {
+      "number": "442",
+      "title": "The Mutual Path",
+      "type": "Filler"
+    },
+    {
+      "number": "443",
+      "title": "The Difference in Power",
+      "type": "Filler"
+    },
+    {
+      "number": "444",
+      "title": "Leaving the Village",
+      "type": "Filler"
+    },
+    {
+      "number": "445",
+      "title": "Pursuers",
+      "type": "Filler"
+    },
+    {
+      "number": "446",
+      "title": "Collision",
+      "type": "Filler"
+    },
+    {
+      "number": "447",
+      "title": "Another Moon",
+      "type": "Filler"
+    },
+    {
+      "number": "448",
+      "title": "Comrade",
+      "type": "Filler"
+    },
+    {
+      "number": "449",
+      "title": "The Shinobi Unite",
+      "type": "Filler"
+    },
+    {
+      "number": "450",
+      "title": "Rival",
+      "type": "Filler"
+    },
+    {
+      "number": "451",
+      "title": "Itachi's Story - Light and Darkness: Birth and Death",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "452",
+      "title": "Itachi's Story - Light and Darkness: The Genius",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "453",
+      "title": "Itachi's Story - Light and Darkness: The Pain of Living",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "454",
+      "title": "Itachi's Story - Light and Darkness: Shisui's Request",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "455",
+      "title": "Itachi's Story - Light and Darkness: Moonlit Night",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "456",
+      "title": "Itachi's Story - Light and Darkness: The Darkness of the Akatsuki",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "457",
+      "title": "Itachi's Story - Light and Darkness: Partner",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "458",
+      "title": "Itachi's Story - Light and Darkness: Truth",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "459",
+      "title": "She of the Beginning",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "460",
+      "title": "Kaguya Otsutsuki",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "461",
+      "title": "Hagoromo and Hamura",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "462",
+      "title": "A Fabricated Past",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "463",
+      "title": "The No. 1 Most Unpredictable Ninja",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "464",
+      "title": "Ninshū: The Ninja Creed",
+      "type": "Filler"
+    },
+    {
+      "number": "465",
+      "title": "Ashura and Indra",
+      "type": "Filler"
+    },
+    {
+      "number": "466",
+      "title": "The Tumultuous Journey",
+      "type": "Filler"
+    },
+    {
+      "number": "467",
+      "title": "Ashura's Decision",
+      "type": "Filler"
+    },
+    {
+      "number": "468",
+      "title": "The Successor",
+      "type": "Filler"
+    },
+    {
+      "number": "469",
+      "title": "A Special Mission",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "470",
+      "title": "Connecting Thoughts",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "471",
+      "title": "The Two of Them...Always",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "472",
+      "title": "You Better...",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "473",
+      "title": "The Sharingan Revived",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "474",
+      "title": "Congratulations",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "475",
+      "title": "The Final Valley",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "476",
+      "title": "The Final Battle",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "477",
+      "title": "Naruto and Sasuke",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "478",
+      "title": "The Unison Sign",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "479",
+      "title": "Naruto Uzumaki!!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "480",
+      "title": "Naruto and Hinata",
+      "type": "Filler"
+    },
+    {
+      "number": "481",
+      "title": "Sasuke and Sakura",
+      "type": "Filler"
+    },
+    {
+      "number": "482",
+      "title": "Gaara and Shikamaru",
+      "type": "Filler"
+    },
+    {
+      "number": "483",
+      "title": "Jiraiya and Kakashi",
+      "type": "Filler"
+    },
+    {
+      "number": "484",
+      "title": "Sasuke’s Story: Sunrise, Part 1: The Exploding Human",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "485",
+      "title": "Sasuke’s Story: Sunrise, Part 2: Coliseum",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "486",
+      "title": "Sasuke’s Story: Sunrise, Part 3: Fuushin",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "487",
+      "title": "Sasuke’s Story: Sunrise, Part 4: The Ketsuryugan",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "488",
+      "title": "Sasuke’s Story: Sunrise, Part 5: The Last One",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "489",
+      "title": "Shikamaru’s Story, A Cloud Drifting in the Silent Dark, Part 1: The State of Affairs",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "490",
+      "title": "Shikamaru’s Story, A Cloud Drifting in the Silent Dark, Part 2: Dark Clouds",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "491",
+      "title": "Shikamaru’s Story, A Cloud Drifting in the Silent Dark, Part 3: Recklessness",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "492",
+      "title": "Shikamaru’s Story, A Cloud Drifting in the Silent Dark, Part 4: Cloud of Suspicion",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "493",
+      "title": "Shikamaru’s Story, A Cloud Drifting in the Silent Dark, Part 5: Dawn",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "494",
+      "title": "Hidden Leaf Story, The Perfect Day for a Wedding, Part 1: Naruto’s Wedding",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "495",
+      "title": "Hidden Leaf Story, The Perfect Day for a Wedding, Part 2: A Full-Powered Wedding Gift",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "496",
+      "title": "Hidden Leaf Story, The Perfect Day for a Wedding, Part 3: Steam and Food Pills",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "497",
+      "title": "Hidden Leaf Story, The Perfect Day for a Wedding, Part 4: The Kazekage’s Wedding Gift",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "498",
+      "title": "Hidden Leaf Story, The Perfect Day for a Wedding, Part 5: The Last Mission",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "499",
+      "title": "Hidden Leaf Story, The Perfect Day for a Wedding, Part 6: The Outcome of the Secret Mission",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "500",
+      "title": "Hidden Leaf Story, The Perfect Day for a Wedding, Part 7: The Message",
+      "type": "Manga Canon"
+    }
+  ]
+}

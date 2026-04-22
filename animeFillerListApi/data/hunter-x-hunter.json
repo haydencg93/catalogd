@@ -1,0 +1,746 @@
+{
+  "anime": "hunter-x-hunter",
+  "total_episodes": 148,
+  "episodes": [
+    {
+      "number": "1",
+      "title": "Departure × And × Friends",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "2",
+      "title": "Test × Of × Tests",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "3",
+      "title": "Rivals × For × Survival",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "4",
+      "title": "Hope × And × Ambition",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "5",
+      "title": "Hisoka × Is So × Sneaky",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "6",
+      "title": "An × Unexpected × Task",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "7",
+      "title": "Showdown × On The × Airship",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "8",
+      "title": "Decision × By × Majority?",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "9",
+      "title": "Beware × Of × Prisoners",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "10",
+      "title": "Trick × To The × Trick",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "11",
+      "title": "Trouble × With The × Gamble",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "12",
+      "title": "Last × Test Of × Resolve!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "13",
+      "title": "Letter × From × Gon",
+      "type": "Filler"
+    },
+    {
+      "number": "14",
+      "title": "Hit × The × Target",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "15",
+      "title": "Explosion × Of × Deception",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "16",
+      "title": "Defeat × And × Disgrace",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "17",
+      "title": "Trap × In The × Hole",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "18",
+      "title": "Big × Time × Interview",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "19",
+      "title": "Can't Win × And × Can't Lose",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "20",
+      "title": "Baffling × Turn Of × Events",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "21",
+      "title": "Some × Brother × Trouble",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "22",
+      "title": "A × Dangerous × Watchdog",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "23",
+      "title": "The × Guard's × Duty",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "24",
+      "title": "The × Zoldyck × Family",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "25",
+      "title": "Can't See × If × You're Blind",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "26",
+      "title": "Then × And × After",
+      "type": "Filler"
+    },
+    {
+      "number": "27",
+      "title": "Arrival × At × The Arena",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "28",
+      "title": "Nen × And × Nen",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "29",
+      "title": "Awakening × And × Potential",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "30",
+      "title": "Fierce × And × Ferocious",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "31",
+      "title": "Destiny × And × Tenacity",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "32",
+      "title": "A × Surprising × Win",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "33",
+      "title": "An × Empty × Threat",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "34",
+      "title": "Power × To × Avenge",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "35",
+      "title": "The × True × Pass",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "36",
+      "title": "A Big Debt × And × A Small Kick",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "37",
+      "title": "Ging × And × Gon",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "38",
+      "title": "Reply × From × Dad",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "39",
+      "title": "Wish × And × Promise",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "40",
+      "title": "Nen × Users × Unite?",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "41",
+      "title": "Gathering × Of × Heroes",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "42",
+      "title": "Defend × And × Attack",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "43",
+      "title": "A × Shocking × Tragedy",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "44",
+      "title": "Buildup × To A × Fierce Battle",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "45",
+      "title": "Restraint × And × Vow",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "46",
+      "title": "Chasing × And × Waiting",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "47",
+      "title": "Condition × And × Condition",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "48",
+      "title": "Very × Sharp × Eye",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "49",
+      "title": "Pursuit × And × Analysis",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "50",
+      "title": "Ally × And × Sword",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "51",
+      "title": "A × Brutal × Battlefield",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "52",
+      "title": "Assault × And × Impact",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "53",
+      "title": "Fake × And × Psyche",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "54",
+      "title": "Fortunes × Aren't × Right?",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "55",
+      "title": "Allies × And × Lies",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "56",
+      "title": "Beloved × And × Beleaguered",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "57",
+      "title": "Initiative × And × Law",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "58",
+      "title": "Signal × To × Retreat",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "59",
+      "title": "Bid × And × Haste",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "60",
+      "title": "End × And × Beginning",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "61",
+      "title": "Invitation × And × Friend",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "62",
+      "title": "Reality? × And × Raw",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "63",
+      "title": "A × Hard × Master?",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "64",
+      "title": "Strengthen × And × Threaten",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "65",
+      "title": "Evil Fist × And × Rock-Paper-Scissors",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "66",
+      "title": "Strategy × And × Scheme",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "67",
+      "title": "15 × 15",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "68",
+      "title": "Pirates × And × Guesses",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "69",
+      "title": "A × Heated × Showdown",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "70",
+      "title": "Guts × And × Courage",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "71",
+      "title": "Bargain × And × Deal",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "72",
+      "title": "Chase × And × Chance",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "73",
+      "title": "Insanity × And × Sanity",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "74",
+      "title": "Victor × And × Loser",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "75",
+      "title": "Ging's Friends × And × True Friends",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "76",
+      "title": "Reunion × And × Understanding",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "77",
+      "title": "Unease × And × Sighting",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "78",
+      "title": "Very × Rapid × Reproduction",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "79",
+      "title": "No × Good × NGL",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "80",
+      "title": "Evil × And × Terrible",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "81",
+      "title": "The × Fight × Begins",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "82",
+      "title": "Kite × And × Slots",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "83",
+      "title": "Inspiration × To × Evolve",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "84",
+      "title": "A × Fated × Awakening",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "85",
+      "title": "Light × And × Shadow",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "86",
+      "title": "Promise × And × Reunion",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "87",
+      "title": "Duel × And × Escape",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "88",
+      "title": "Rock-Paper-Scissors × And × Weakness",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "89",
+      "title": "Compassion × And × Strength",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "90",
+      "title": "Slow × And × Cursed",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "91",
+      "title": "The Strong × And × The Weak",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "92",
+      "title": "One Wish × And × Two Promises",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "93",
+      "title": "Date × With × Palm",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "94",
+      "title": "Friend × And × Journey",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "95",
+      "title": "Grudge × And × Dread",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "96",
+      "title": "A × Lawless × Home",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "97",
+      "title": "Carnage × And × Devastation",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "98",
+      "title": "Infiltration × And × Selection",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "99",
+      "title": "Combination × And × Evolution",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "100",
+      "title": "Tracking × And × Pursuit",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "101",
+      "title": "Ikalgo × And × Lightning",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "102",
+      "title": "Power × And × Games",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "103",
+      "title": "Check × And × Mate",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "104",
+      "title": "Doubt × And × Hesitation",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "105",
+      "title": "Resolve × And × Awakening",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "106",
+      "title": "Knov × And × Morel",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "107",
+      "title": "Return × And × Retire",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "108",
+      "title": "Gungi × Of × Komugi",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "109",
+      "title": "Taking Stock × And × Taking Action",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "110",
+      "title": "Confusion × And × Expectation",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "111",
+      "title": "Charge × And × Invade",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "112",
+      "title": "Monster × And × Monster",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "113",
+      "title": "An × Indebted × Insect",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "114",
+      "title": "Divide × And × Conquer",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "115",
+      "title": "Duty × And × Question",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "116",
+      "title": "Revenge × And × Recovery",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "117",
+      "title": "Insult × And × Payback",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "118",
+      "title": "A × False × Rage",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "119",
+      "title": "Strong × Or × Weak",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "120",
+      "title": "Fake × And × Real",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "121",
+      "title": "Defeat × And × Dignity",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "122",
+      "title": "Pose × And × Name",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "123",
+      "title": "Centipede × And × Memory",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "124",
+      "title": "Breakdown × And × Awakening",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "125",
+      "title": "Great Power × And × Ultimate Power",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "126",
+      "title": "Zero × And × Rose",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "127",
+      "title": "Hostility × And × Determination",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "128",
+      "title": "Unparalleled Joy × And × Unconditional Love",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "129",
+      "title": "Formidable Enemy × And × Clear Objective",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "130",
+      "title": "Magic × To × Destroy",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "131",
+      "title": "Anger × And × Light",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "132",
+      "title": "Flash × And × Start",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "133",
+      "title": "Deadline × To × Live",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "134",
+      "title": "The Word × Is × You",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "135",
+      "title": "This Day × And × This Moment",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "136",
+      "title": "Homecoming × And × Real Name",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "137",
+      "title": "Debate × Among × Zodiacs",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "138",
+      "title": "Request × And × Wish",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "139",
+      "title": "Alluka × And × Something",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "140",
+      "title": "Join Battle × And × Open Battle",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "141",
+      "title": "Magician × And × Butler",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "142",
+      "title": "Needle × And × Debt",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "143",
+      "title": "Sin × And × Claw",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "144",
+      "title": "Approval × And × Coalition",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "145",
+      "title": "Defeat × And × Reunion",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "146",
+      "title": "Chairman × And × Release",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "147",
+      "title": "Salvation × And × Future",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "148",
+      "title": "Past × And × Future",
+      "type": "Manga Canon"
+    }
+  ]
+}

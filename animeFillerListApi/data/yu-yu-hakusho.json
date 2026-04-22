@@ -1,0 +1,576 @@
+{
+  "anime": "yuyu-hakusho",
+  "total_episodes": 114,
+  "episodes": [
+    {
+      "number": "1",
+      "title": "Surprised to be Dead",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "2",
+      "title": "Koenma Appears",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "3",
+      "title": "Kuwabara: A Promise Between Men",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "4",
+      "title": "Requirements for Lovers",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "5",
+      "title": "Yusuke's Back",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "6",
+      "title": "Three Monsters",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "7",
+      "title": "Gouki and Kurama",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "8",
+      "title": "The Three Eyes of Hiei",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "9",
+      "title": "The Search Begins",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "10",
+      "title": "Kuwabara's Spirit Sword",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "11",
+      "title": "Hard Fights for Yusuke",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "12",
+      "title": "Rando Rises, Kuwabara Falls",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "13",
+      "title": "Yusuke vs. Rando: 99 Attacks",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "14",
+      "title": "The Beasts of Maze Castle",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "15",
+      "title": "Genbu, the Stone Beast",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "16",
+      "title": "Byakko, the White Tiger",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "17",
+      "title": "Byakko's Lair",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "18",
+      "title": "Seiryu, the Blue Dragon",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "19",
+      "title": "Suzaku, Leader of the Beasts",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "20",
+      "title": "Seven Ways to Die",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "21",
+      "title": "Yusuke's Sacrifice",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "22",
+      "title": "Lamenting Beauty",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "23",
+      "title": "The Toguro Brothers Gang",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "24",
+      "title": "The Deadly Triad",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "25",
+      "title": "Kuwabara's Fight of Love",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "26",
+      "title": "Toguro Returns",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "27",
+      "title": "The Dark Tournament Begins",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "28",
+      "title": "First Fight",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "29",
+      "title": "Flowers of Blood",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "30",
+      "title": "Dragon of the Darkness Flame",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "31",
+      "title": "Stumbling Warrior",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "32",
+      "title": "Knife Edge Death-Match",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "33",
+      "title": "A Day in Waiting",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "34",
+      "title": "Percentage of Victory",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "35",
+      "title": "Glimpse Beneath the Mask",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "36",
+      "title": "Ambition Destroyed: A Trial of Light",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "37",
+      "title": "Master of Disguise",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "38",
+      "title": "Kurama's Stand",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "39",
+      "title": "Crushing Revenge",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "40",
+      "title": "Jin, the Wind Master",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "41",
+      "title": "Reverse Decisions",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "42",
+      "title": "A Master of Love and Death",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "43",
+      "title": "The Masked Fighter Revealed",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "44",
+      "title": "Yusuke's Final Test",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "45",
+      "title": "Hiei Battles On",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "46",
+      "title": "Many Faces, Many Forms",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "47",
+      "title": "Legendary Bandit: Yoko Kurama",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "48",
+      "title": "The Cape of No Return",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "49",
+      "title": "Genkai's Strength",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "50",
+      "title": "Suzuka's Challenge",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "51",
+      "title": "Arch-Rivals",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "52",
+      "title": "The Death of Genkai",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "53",
+      "title": "Overcoming Grief",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "54",
+      "title": "The Beginning of the End",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "55",
+      "title": "The Beast Within the Dark",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "56",
+      "title": "Yoko's Magic",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "57",
+      "title": "Beneath Bui's Armor",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "58",
+      "title": "Wielder of the Dragon",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "59",
+      "title": "The Shadow of Elder Toguro",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "60",
+      "title": "Sakyo's Proposal",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "61",
+      "title": "Yusuke vs. Toguro",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "62",
+      "title": "Toguro's Full Power",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "63",
+      "title": "Yusuke's Despair",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "64",
+      "title": "Toguro's Desire",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "65",
+      "title": "Out With a Bang",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "66",
+      "title": "Toguro's Wish",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "67",
+      "title": "Return to Living World",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "68",
+      "title": "Setting the Trap",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "69",
+      "title": "The Power of Taboo",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "70",
+      "title": "Genkai's Ruse",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "71",
+      "title": "The Tunnel",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "72",
+      "title": "The Reader",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "73",
+      "title": "The Doctor's Disease",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "74",
+      "title": "Sleep, Doctor, Sleep",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "75",
+      "title": "Caught in the Rain",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "76",
+      "title": "Kuwabara: Awakening",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "77",
+      "title": "Sensui's Fall",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "78",
+      "title": "Divide and Conquer",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "79",
+      "title": "The Human Race",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "80",
+      "title": "Moving Target",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "81",
+      "title": "Let the Games Begin",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "82",
+      "title": "If You Could Play Forever",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "83",
+      "title": "Game Over",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "84",
+      "title": "Kurama's Anger, Gourmet's Guest",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "85",
+      "title": "Spirit Detective Showdown",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "86",
+      "title": "The Difference Maker",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "87",
+      "title": "Power Between the Teeth",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "88",
+      "title": "The True Face of Sensui",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "89",
+      "title": "Death of a Spirit Detective",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "90",
+      "title": "Attempting Revenge",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "91",
+      "title": "Waking the Lost",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "92",
+      "title": "The Proof",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "93",
+      "title": "Sensui's End",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "94",
+      "title": "Topside",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "95",
+      "title": "Yusuke's Destiny",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "96",
+      "title": "Three Strangers, Three Kings",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "97",
+      "title": "Departing Living World",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "98",
+      "title": "Return to Demon World",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "99",
+      "title": "Haunted by the Past",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "100",
+      "title": "The Secret of the Jagan",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "101",
+      "title": "Reunion of the Bandits",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "102",
+      "title": "Torn Between Identities",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "103",
+      "title": "Inheritance",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "104",
+      "title": "Every Demon for Himself",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "105",
+      "title": "The Preliminaries",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "106",
+      "title": "The Battle of Father and Son",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "107",
+      "title": "The Demon World Tournament Begins",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "108",
+      "title": "Farewell, Kurama",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "109",
+      "title": "Love and War",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "110",
+      "title": "A Reason to Fight",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "111",
+      "title": "Closure",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "112",
+      "title": "To the Future",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "113",
+      "title": "TWO SHOTS",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "114",
+      "title": "All or Nothing",
+      "type": "Manga Canon"
+    }
+  ]
+}
