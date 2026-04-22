@@ -21,15 +21,18 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
  * Main function to scrape data and update both local files and Supabase
  */
 async function saveAnimeData(originalName, requestId = null) {
-    const slug = slugify(originalName);
-    console.log(`--- Processing: ${slug} ---`);
+    // 1. Keep the 'originalName' for the scraper (so it can try raw dashes)
+    // 2. Create the 'fileSlug' strictly for the .json filename
+    const fileSlug = slugify(originalName); 
+    
+    console.log(`--- Processing: ${originalName} ---`);
 
-    const fillerResult = await getFillerData(slug);
+    // Pass the originalName to the scraper
+    const fillerResult = await getFillerData(originalName);
 
     if (fillerResult.error) {
-        console.error(`Scrape Failed for ${slug}: ${fillerResult.error}`);
+        console.error(`Scrape Failed for ${originalName}: ${fillerResult.error}`);
         
-        // If this came from a Supabase request, update the row with the error
         if (requestId) {
             await supabase
                 .from('filler_list_mgnt')
@@ -45,22 +48,21 @@ async function saveAnimeData(originalName, requestId = null) {
         fs.mkdirSync(dir, { recursive: true });
     }
 
-    // Save the JSON file
-    const filePath = path.join(dir, `${slug}.json`);
+    // Save using the fileSlug so your frontend can still find it
+    const filePath = path.join(dir, `${fileSlug}.json`);
     fs.writeFileSync(filePath, JSON.stringify(fillerResult, null, 2));
     console.log(`File Saved: ${filePath}`);
 
-    // Update Supabase to mark as existing
-    // Using an 'upsert' here ensures that even manual runs update the management table
+    // Update Supabase using the fileSlug as the unique name
     await supabase
         .from('filler_list_mgnt')
         .upsert({ 
-            name: slug, 
+            name: fileSlug, // Use slug for consistent DB storage
             filler_exists: true, 
             notes: 'Successfully scraped' 
         }, { onConflict: 'name' });
 
-    console.log(`Database Updated: ${slug}`);
+    console.log(`Database Updated: ${fileSlug}`);
 }
 
 /**
