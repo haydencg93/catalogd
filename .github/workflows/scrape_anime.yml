@@ -10,12 +10,14 @@ on:
   push:
     branches: [ main ]
   schedule:
-    - cron: '5 2 * * *'
+    - cron: '10 2 * * *'
+
+permissions:
+  contents: write
 
 jobs:
   build_and_scrape:
     runs-on: ubuntu-latest
-    # --- ADDED THIS SECTION ---
     defaults:
       run:
         working-directory: ./animeFillerListApi
