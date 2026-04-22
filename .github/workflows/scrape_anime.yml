@@ -1,23 +1,24 @@
 name: Anime Filler Scraper Worker
 
 on:
-  # Allows you to manually run this from the Actions tab
   workflow_dispatch:
     inputs:
       anime_name:
         description: 'Anime name to scrape (Leave blank to check Supabase queue)'
         required: false
         default: ''
-  # Runs automatically when you push to the main branch
   push:
     branches: [ main ]
-  # Optional: Runs every day at midnight to check for requests
   schedule:
     - cron: '5 2 * * *'
 
 jobs:
   build_and_scrape:
     runs-on: ubuntu-latest
+    # --- ADDED THIS SECTION ---
+    defaults:
+      run:
+        working-directory: ./animeFillerListApi
 
     steps:
       - name: Checkout Repository
@@ -33,13 +34,13 @@ jobs:
 
       - name: Run Scraper Worker
         env:
-          # These grab the "Vault" secrets we set up in GitHub Settings
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        # Passes the manual input if it exists, otherwise script runs queue logic
         run: node index.js "${{ github.event.inputs.anime_name }}"
 
       - name: Commit and Push New JSON Data
+        # --- ADDED THIS TO ESCAPE THE SUBFOLDER FOR GIT ---
+        working-directory: .
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
