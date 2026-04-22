@@ -1,0 +1,1106 @@
+{
+  "anime": "naruto",
+  "total_episodes": 220,
+  "episodes": [
+    {
+      "number": "1",
+      "title": "Enter: Naruto Uzumaki!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "2",
+      "title": "My Name is Konohamaru!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "3",
+      "title": "Sasuke and Sakura: Friends or Foes?",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "4",
+      "title": "Pass or Fail: Survival Test",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "5",
+      "title": "You Failed! Kakashi's Final Decision",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "6",
+      "title": "A Dangerous Mission! Journey to the Land of Waves!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "7",
+      "title": "The Assassin of the Mist!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "8",
+      "title": "The Oath of Pain",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "9",
+      "title": "Kakashi: Sharingan Warrior",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "10",
+      "title": "The Forest of Chakra",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "11",
+      "title": "The Land Where a Hero Once Lived",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "12",
+      "title": "Battle on the Bridge! Zabuza Returns!!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "13",
+      "title": "Haku's Secret Jutsu: Crystal Ice Mirrors",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "14",
+      "title": "The Number One Hyperactive, Knucklehead Ninja Joins the Fight!!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "15",
+      "title": "Zero Visibility: The Sharingan Shatters",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "16",
+      "title": "The Broken Seal",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "17",
+      "title": "White Past: Hidden Ambition",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "18",
+      "title": "The Weapons Known as Shinobi",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "19",
+      "title": "The Demon in the Snow",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "20",
+      "title": "A New Chapter Begins: The Chunin Exam!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "21",
+      "title": "Identify Yourself: Powerful New Rivals",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "22",
+      "title": "Chunin Challenge: Rock Lee vs. Sasuke!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "23",
+      "title": "Genin Takedown! All Nine Rookies Face Off!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "24",
+      "title": "Start Your Engines: The Chunin Exam Begins!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "25",
+      "title": "The Tenth Question: All or Nothing!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "26",
+      "title": "Special Report: Live from the Forest of Death!",
+      "type": "Filler"
+    },
+    {
+      "number": "27",
+      "title": "The Chunin Exam Stage 2: The Forest of Death",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "28",
+      "title": "Eat or be Eaten: Panic in the Forest",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "29",
+      "title": "Naruto's Counterattack: Never Give In!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "30",
+      "title": "The Sharingan Revived: Dragon-Flame Jutsu!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "31",
+      "title": "Bushy Brow's Pledge: Undying Love and Protection!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "32",
+      "title": "Sakura Blossoms!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "33",
+      "title": "Battle Formation: Ino-Shika-Cho!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "34",
+      "title": "Akamaru Trembles: Gaara's Cruel Strength!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "35",
+      "title": "The Scroll's Secret: No Peeking Allowed",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "36",
+      "title": "Clone vs. Clone: Mine are Better than Yours!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "37",
+      "title": "Surviving the Cut! The Rookie Nine Together Again!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "38",
+      "title": "Narrowing the Field: Sudden Death Elimination!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "39",
+      "title": "Bushy Brow's Jealousy: Lions Barrage Unleashed!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "40",
+      "title": "Kakashi and Orochimaru: Face-to-Face!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "41",
+      "title": "Kunoichi Rumble: The Rivals Get Serious!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "42",
+      "title": "The Ultimate Battle: Cha!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "43",
+      "title": "Killer Kunoichi and a Shaky Shikamaru",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "44",
+      "title": "Akamaru Unleashed! Who's Top Dog Now?",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "45",
+      "title": "Surprise Attack! Naruto's Secret Weapon!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "46",
+      "title": "Byakugan Battle: Hinata Grows Bold!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "47",
+      "title": "A Failure Stands Tall!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "48",
+      "title": "Gaara vs. Rock Lee: The Power of Youth Explodes!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "49",
+      "title": "Lee's Hidden Strength: Forbidden Secret Jutsu!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "50",
+      "title": "The Fifth Gate: A Splendid Ninja is Born",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "51",
+      "title": "A Shadow in Darkness: Danger Approaches Sasuke",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "52",
+      "title": "Ebisu Returns: Naruto's Toughest Training Yet!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "53",
+      "title": "Long Time No See: Jiraiya Returns!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "54",
+      "title": "The Summoning Jutsu: Wisdom of the Toad Sage!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "55",
+      "title": "A Feeling of Yearning, A Flower Full of Hope",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "56",
+      "title": "Live or Die: Risk it All to Win it All!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "57",
+      "title": "He Flies! He Jumps! He Lurks! Chief Toad Appears!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "58",
+      "title": "Hospital Besieged: The Evil Hand Revealed!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "59",
+      "title": "The Final Rounds: Rush to the Battle Arena!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "60",
+      "title": "Byakugan vs. Shadow Clone",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "61",
+      "title": "Ultimate Defense: Zero Blind Spot!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "62",
+      "title": "A Failure's True Power",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "63",
+      "title": "Hit it or Quit it: The Final Rounds Get Complicated!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "64",
+      "title": "Zero Motivation: The Guy with Cloud Envy!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "65",
+      "title": "Dancing Leaf, Squirming Sand",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "66",
+      "title": "Bushy Brow's Jutsu: Sasuke Style!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "67",
+      "title": "Late for the Show, But Ready to Go! The Ultimate Secret Technique is Born!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "68",
+      "title": "Zero Hour! The Destruction of the Hidden Leaf Village Begins!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "69",
+      "title": "Village in Distress: A New A-Ranked Mission!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "70",
+      "title": "A Shirker's Call to Action: A Layabout No More!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "71",
+      "title": "An Unrivaled Match: Hokage Battle Royale!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "72",
+      "title": "A Mistake from the Past: A Face Revealed!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "73",
+      "title": "Forbidden Secret Technique: Reaper Death Seal!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "74",
+      "title": "Astonishing Truth! Gaara's Identity Emerges!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "75",
+      "title": "Sasuke's Decision: Pushed to the Edge!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "76",
+      "title": "Assassin of the Moonlit Night",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "77",
+      "title": "Light vs. Dark: The Two Faces of Gaara",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "78",
+      "title": "Naruto's Ninja Handbook",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "79",
+      "title": "Beyond the Limit of Darkness and Light",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "80",
+      "title": "The Third Hokage, Forever...",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "81",
+      "title": "Return of the Morning Mist",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "82",
+      "title": "Eye to Eye: Sharingan vs. Sharingan!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "83",
+      "title": "Jiraiya: Naruto's Potential Disaster!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "84",
+      "title": "Roar, Chidori! Brother vs. Brother!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "85",
+      "title": "Hate Among the Uchihas: The Last of the Clan!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "86",
+      "title": "A New Training Begins: I Will Be Strong!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "87",
+      "title": "Keep on Training: Pop Goes the Water Balloon!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "88",
+      "title": "Focal Point: The Mark of the Leaf",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "89",
+      "title": "An Impossible Choice: The Pain Within Tsunade's Heart",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "90",
+      "title": "Unforgivable! A Total Lack of Respect!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "91",
+      "title": "Inheritence! The Necklace of Death!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "92",
+      "title": "A Dubious Offer! Tsunade's Choice!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "93",
+      "title": "Breakdown! The Deal is Off!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "94",
+      "title": "Attack! Fury of the Rasengan!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "95",
+      "title": "The Fifth Hokage! A Life on the Line!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "96",
+      "title": "Deadlock! Sannin Showdown!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "97",
+      "title": "Kidnapped! Naruto's Hot Spring Adventure!",
+      "type": "Filler"
+    },
+    {
+      "number": "98",
+      "title": "Tsunade's Warning: Ninja No More!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "99",
+      "title": "The Will of Fire Still Burns!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "100",
+      "title": "Sensei and Student: The Bond of the Shinobi",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "101",
+      "title": "Gotta See! Gotta Know! Kakashi-Sensei's True Face!",
+      "type": "Filler"
+    },
+    {
+      "number": "102",
+      "title": "Mission: Help an Old Friend in the Land of Tea",
+      "type": "Filler"
+    },
+    {
+      "number": "103",
+      "title": "The Race is on! Trouble on the High Seas!",
+      "type": "Filler"
+    },
+    {
+      "number": "104",
+      "title": "Run Idate Run! Nagi Island Awaits!",
+      "type": "Filler"
+    },
+    {
+      "number": "105",
+      "title": "A Fierce Battle of Rolling Thunder!",
+      "type": "Filler"
+    },
+    {
+      "number": "106",
+      "title": "The Last Leg: A Final Act of Desperation",
+      "type": "Filler"
+    },
+    {
+      "number": "107",
+      "title": "The Battle Begins: Naruto vs. Sasuke",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "108",
+      "title": "Bitter Rivals and Broken Bonds",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "109",
+      "title": "An Invitation from the Sound",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "110",
+      "title": "Formation! The Sasuke Retrieval Squad",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "111",
+      "title": "Sound vs. Leaf",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "112",
+      "title": "Squad Mutiny: Everything Falls Apart!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "113",
+      "title": "Full Throttle Power! Choji, Ablaze!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "114",
+      "title": "Good-bye Old Friend...! I'll Always Believe in You!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "115",
+      "title": "Your Opponent Is Me!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "116",
+      "title": "360 Degrees of Vision: The Byakugan's Blind Spot",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "117",
+      "title": "Losing is Not an Option!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "118",
+      "title": "The Vessel Arrives Too Late",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "119",
+      "title": "Miscalculation: A New Enemy Appears!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "120",
+      "title": "Roar and Howl! The Ultimate Tag Team",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "121",
+      "title": "To Each His Own Battle",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "122",
+      "title": "Fakeout: Shikamaru's Comeback!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "123",
+      "title": "The Leaf's Handsome Devil!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "124",
+      "title": "The Beast Within",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "125",
+      "title": "The Sand Shinobi: Allies of the Leaf",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "126",
+      "title": "Showdown: Gaara vs. Kimimaro!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "127",
+      "title": "Vengeful Strike! The Bracken Dance",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "128",
+      "title": "A Cry on Deaf Ears",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "129",
+      "title": "Brothers: Distance Among the Uchiha",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "130",
+      "title": "Father and Son, the Broken Crest",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "131",
+      "title": "The Secrets of the Mangekyo Sharingan!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "132",
+      "title": "For a Friend",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "133",
+      "title": "A Plea From a Friend",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "134",
+      "title": "The End of Tears",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "135",
+      "title": "The Promise That Could Not Be Kept",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "136",
+      "title": "Deep Cover!? A Super S-Ranked Mission!",
+      "type": "Filler"
+    },
+    {
+      "number": "137",
+      "title": "A Town of Outlaws, the Shadow of the Fuma Clan",
+      "type": "Filler"
+    },
+    {
+      "number": "138",
+      "title": "Pure Betrayal, and a Fleeting Plea!",
+      "type": "Filler"
+    },
+    {
+      "number": "139",
+      "title": "Pure Terror! The House of Orochimaru",
+      "type": "Filler"
+    },
+    {
+      "number": "140",
+      "title": "Two Heartbeats: Kabuto's Trap",
+      "type": "Filler"
+    },
+    {
+      "number": "141",
+      "title": "Sakura's Determination",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "142",
+      "title": "The Three Villains from the Maximum Security Prison",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "143",
+      "title": "Tonton! I'm Counting on You!",
+      "type": "Filler"
+    },
+    {
+      "number": "144",
+      "title": "A New Squad! Two People and a Dog?!",
+      "type": "Filler"
+    },
+    {
+      "number": "145",
+      "title": "A New Formation: Ino-Shika-Cho!",
+      "type": "Filler"
+    },
+    {
+      "number": "146",
+      "title": "Orochimaru's Shadow",
+      "type": "Filler"
+    },
+    {
+      "number": "147",
+      "title": "A Clash of Fate: You Can't Bring Me Down",
+      "type": "Filler"
+    },
+    {
+      "number": "148",
+      "title": "Search for the Rare Bikochu Beetle",
+      "type": "Filler"
+    },
+    {
+      "number": "149",
+      "title": "What's the Difference? Don't All Insects Look Alike?",
+      "type": "Filler"
+    },
+    {
+      "number": "150",
+      "title": "A Battle of Bugs: The Deceivers and the Deceived",
+      "type": "Filler"
+    },
+    {
+      "number": "151",
+      "title": "Blaze Away Byakugan: This Is My Ninja Way",
+      "type": "Filler"
+    },
+    {
+      "number": "152",
+      "title": "Funeral March for the Living",
+      "type": "Filler"
+    },
+    {
+      "number": "153",
+      "title": "A Lesson Learned: The Iron Fist of Love",
+      "type": "Filler"
+    },
+    {
+      "number": "154",
+      "title": "The Enemy of the Byakugan",
+      "type": "Filler"
+    },
+    {
+      "number": "155",
+      "title": "The Dark Creeping Clouds",
+      "type": "Filler"
+    },
+    {
+      "number": "156",
+      "title": "Raiga's Counterattack",
+      "type": "Filler"
+    },
+    {
+      "number": "157",
+      "title": "Run! The Curry of Life",
+      "type": "Filler"
+    },
+    {
+      "number": "158",
+      "title": "Follow My Lead! The Great Survival Challenge",
+      "type": "Filler"
+    },
+    {
+      "number": "159",
+      "title": "Bounty Hunter from the Wilderness",
+      "type": "Filler"
+    },
+    {
+      "number": "160",
+      "title": "Hunt or Be Hunted?! Showdown at the O.K. Temple!",
+      "type": "Filler"
+    },
+    {
+      "number": "161",
+      "title": "The Appearance of Strange Visitors",
+      "type": "Filler"
+    },
+    {
+      "number": "162",
+      "title": "The Cursed Warrior",
+      "type": "Filler"
+    },
+    {
+      "number": "163",
+      "title": "The Tactician's Intent",
+      "type": "Filler"
+    },
+    {
+      "number": "164",
+      "title": "Too Late for Help",
+      "type": "Filler"
+    },
+    {
+      "number": "165",
+      "title": "The Death of Naruto",
+      "type": "Filler"
+    },
+    {
+      "number": "166",
+      "title": "When Time Stands Still",
+      "type": "Filler"
+    },
+    {
+      "number": "167",
+      "title": "When Egrets Flap Their Wings",
+      "type": "Filler"
+    },
+    {
+      "number": "168",
+      "title": "Mix It, Stretch It, Boil It Up! Burn, Copper Pot, Burn!",
+      "type": "Filler"
+    },
+    {
+      "number": "169",
+      "title": "Remembrance: The Lost Page",
+      "type": "Filler"
+    },
+    {
+      "number": "170",
+      "title": "The Closed Door",
+      "type": "Filler"
+    },
+    {
+      "number": "171",
+      "title": "Infiltration: The Set-Up!",
+      "type": "Filler"
+    },
+    {
+      "number": "172",
+      "title": "Despair: A Fractured Heart",
+      "type": "Filler"
+    },
+    {
+      "number": "173",
+      "title": "The Battle at Sea: The Power Unleashed!",
+      "type": "Filler"
+    },
+    {
+      "number": "174",
+      "title": "Impossible! Celebrity Ninja Art - Money Style Jutsu!",
+      "type": "Filler"
+    },
+    {
+      "number": "175",
+      "title": "The Treasure Hunt is On!",
+      "type": "Filler"
+    },
+    {
+      "number": "176",
+      "title": "Run, Dodge, Zigzag! Chase or Be Chased!",
+      "type": "Filler"
+    },
+    {
+      "number": "177",
+      "title": "Please, Mr. Postman!",
+      "type": "Filler"
+    },
+    {
+      "number": "178",
+      "title": "Encounter! The Boy with a Star's Name",
+      "type": "Filler"
+    },
+    {
+      "number": "179",
+      "title": "The Remembered Lullaby",
+      "type": "Filler"
+    },
+    {
+      "number": "180",
+      "title": "Hidden Jutsu: The Price of The Ninja Art: Kujaku",
+      "type": "Filler"
+    },
+    {
+      "number": "181",
+      "title": "Hoshikage, The Buried Truth",
+      "type": "Filler"
+    },
+    {
+      "number": "182",
+      "title": "Reunion, The Remaining time",
+      "type": "Filler"
+    },
+    {
+      "number": "183",
+      "title": "The Star's Radiance",
+      "type": "Filler"
+    },
+    {
+      "number": "184",
+      "title": "Kiba's Long Day!",
+      "type": "Filler"
+    },
+    {
+      "number": "185",
+      "title": "A Legend from the Hidden Leaf: The Onbaa!",
+      "type": "Filler"
+    },
+    {
+      "number": "186",
+      "title": "Laughing Shino",
+      "type": "Filler"
+    },
+    {
+      "number": "187",
+      "title": "Open for Business! The Leaf Moving Service",
+      "type": "Filler"
+    },
+    {
+      "number": "188",
+      "title": "Mystery of the Targeted Merchants",
+      "type": "Filler"
+    },
+    {
+      "number": "189",
+      "title": "A Limitless Supply of Ninja Tools",
+      "type": "Filler"
+    },
+    {
+      "number": "190",
+      "title": "The Byakugan Sees the Blind Spot",
+      "type": "Filler"
+    },
+    {
+      "number": "191",
+      "title": "Forecast: Death! Cloudy with Chance of Sun",
+      "type": "Filler"
+    },
+    {
+      "number": "192",
+      "title": "Ino Screams! Chubby Paradise!",
+      "type": "Filler"
+    },
+    {
+      "number": "193",
+      "title": "Viva Dojo Challenge! Youth Is All About Passion!",
+      "type": "Filler"
+    },
+    {
+      "number": "194",
+      "title": "The Mysterious Curse of the Haunted Castle",
+      "type": "Filler"
+    },
+    {
+      "number": "195",
+      "title": "The Third Super-Beast!",
+      "type": "Filler"
+    },
+    {
+      "number": "196",
+      "title": "Hot-Blooded Confrontation: Student vs. Sensei",
+      "type": "Filler"
+    },
+    {
+      "number": "197",
+      "title": "Crisis! The Hidden Leaf 11 Gather!",
+      "type": "Filler"
+    },
+    {
+      "number": "198",
+      "title": "The ANBU Gives Up? Naruto's Recollection",
+      "type": "Filler"
+    },
+    {
+      "number": "199",
+      "title": "The Missed Target",
+      "type": "Filler"
+    },
+    {
+      "number": "200",
+      "title": "The Powerful Helper",
+      "type": "Filler"
+    },
+    {
+      "number": "201",
+      "title": "Multiple Traps! Countdown to Destruction",
+      "type": "Filler"
+    },
+    {
+      "number": "202",
+      "title": "The Top 5 Ninja Battles",
+      "type": "Filler"
+    },
+    {
+      "number": "203",
+      "title": "Kurenai's Decision, Squad 8 Left Behind",
+      "type": "Filler"
+    },
+    {
+      "number": "204",
+      "title": "Yakumo's Sealed Ability",
+      "type": "Filler"
+    },
+    {
+      "number": "205",
+      "title": "Kurenai's Top-Secret Mission: The Promise With the Third Hokage",
+      "type": "Filler"
+    },
+    {
+      "number": "206",
+      "title": "Genjutsu or Reality?",
+      "type": "Filler"
+    },
+    {
+      "number": "207",
+      "title": "The Supposed Sealed Ability",
+      "type": "Filler"
+    },
+    {
+      "number": "208",
+      "title": "The Weight of the Prized Artifact!",
+      "type": "Filler"
+    },
+    {
+      "number": "209",
+      "title": "The Enemy: Ninja Dropouts",
+      "type": "Filler"
+    },
+    {
+      "number": "210",
+      "title": "The Bewildering Forest",
+      "type": "Filler"
+    },
+    {
+      "number": "211",
+      "title": "Memory of Flames",
+      "type": "Filler"
+    },
+    {
+      "number": "212",
+      "title": "To Each His Own Path",
+      "type": "Filler"
+    },
+    {
+      "number": "213",
+      "title": "Vanished Memories",
+      "type": "Filler"
+    },
+    {
+      "number": "214",
+      "title": "Bringing Back Reality",
+      "type": "Filler"
+    },
+    {
+      "number": "215",
+      "title": "A Past to Be Erased",
+      "type": "Filler"
+    },
+    {
+      "number": "216",
+      "title": "The Targeted Shukaku",
+      "type": "Filler"
+    },
+    {
+      "number": "217",
+      "title": "Sand Alliance with the Leaf Shinobi",
+      "type": "Filler"
+    },
+    {
+      "number": "218",
+      "title": "The Counterattack!",
+      "type": "Filler"
+    },
+    {
+      "number": "219",
+      "title": "The Ultimate Weapon Reborn",
+      "type": "Filler"
+    },
+    {
+      "number": "220",
+      "title": "Departure",
+      "type": "Mixed Canon/Filler"
+    }
+  ]
+}

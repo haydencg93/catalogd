@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="stylingDetails.css">
     <link rel="icon" type="image/x-icon" href="catalogdFavicon.png" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="animeFillerListApi/utils.js"></script>
 </head>
 <body>
     <div id="backdrop-overlay"></div>
@@ -24,30 +25,35 @@
             <button id="login-btn" class="secondary-btn">Sign In</button>
         </div>
     </header>
+
     <main class="details-container">
-        <div class="details-container">
-            <div id="left-col">
-                <div id="poster-area"></div>
-                
-                <div id="journal-history" class="history-section">
-                    <h4>Your Logs</h4>
-                    <div id="history-list">
-                        </div>
+        <!-- Column 1: Poster and History -->
+        <div id="left-col">
+            <div id="poster-area"></div>
+            
+            <div id="journal-history" class="history-section">
+                <h4>Your Logs</h4>
+                <div id="history-list">
+                    <!-- Logs injected via JS -->
                 </div>
             </div>
-            
-            <div class="info-pane">
-                </div>
         </div>
+        
+        <!-- Column 2: Info and Interaction -->
         <div class="info-pane">
             <h1 id="media-title"></h1>
+            
             <div id="watch-providers" class="providers-section">
                 <h4>Where to Watch</h4>
                 <div id="providers-list" class="provider-icons">
-                    </div>
+                    <!-- Providers injected via JS -->
+                </div>
             </div>
+
             <div id="media-meta" class="meta"></div>
             <p id="media-overview"></p>
+
+            <!-- TV Episode Tracker -->
             <div id="tv-tracker" class="rating-section" style="display: none;">
                 <h3>Episode Tracker</h3>
                 <div id="progress-container"> 
@@ -58,38 +64,93 @@
                 </div>
                 <div class="tracker-controls">
                     <select id="season-selector"></select>
-                    <button id="mark-season-btn" class="secondary-btn">Mark Season as Watched</button>
-                    <button id="clear-season-btn" class="danger-btn">Clear Season</button> 
+                    <div class="tracker-btns">
+                        <button id="mark-season-btn" class="secondary-btn">Mark Season as Watched</button>
+                        <button id="clear-season-btn" class="danger-btn">Clear Season</button> 
+                    </div>
                 </div>
                 <div id="episode-list" class="episode-grid">
-                    </div>
+                    <!-- Episodes injected via JS -->
+                </div>
             </div>
+
+            <!-- Main Actions -->
             <div class="rating-section">
                 <h3>Log & Rate</h3>
-                <div class="main-actions" style="margin: 20px 0; display: flex; gap: 15px;">
+                <div class="main-actions">
                     <button id="go-to-log" class="primary-btn">Log or Review</button>
-                    <button id="status-btn" class="secondary-btn">Currently Watching/Reading</button>
+                    <button id="status-btn" class="secondary-btn">Mark as...</button>
                     <button id="watchlist-btn" class="secondary-btn">Add to Watchlist</button>
                     <button id="add-to-list-btn" class="secondary-btn">Add to List</button>
-
-                    <div id="list-modal" class="modal-overlay" style="display: none;">
-                        <div class="auth-card">
-                            <button class="close-btn" id="close-list-modal">×</button>
-                            <h3>Add to List</h3>
-                            <div id="user-lists-selection"></div>
-                        </div>
-                    </div>
-                </div>
-                </body>
                 </div>
             </div>
+            <div id="filler-status-container" style="margin-bottom: 15px; display: none;">
+                <div id="filler-info" class="meta" style="color: #ff9800; font-weight: bold;"></div>
+                <div id="filler-action-area" style="margin-top: 10px;"></div>
+            </div>
         </div>
+        <!-- Cast Section -->
         <div id="cast-section" class="rating-section">
             <h3>Cast & Crew</h3>
             <div id="cast-list" class="cast-grid">
-                </div>
+                <!-- Cast injected via JS -->
+            </div>
         </div>
     </main>
+
+    <!-- Modals -->
+    <div id="status-modal" class="modal-overlay">
+        <div class="auth-card status-card">
+            <button class="close-btn" id="close-status-modal">×</button>
+            <h3>Update Status</h3>
+            <div class="status-options-grid">
+                <button class="status-option" data-status="active">
+                    <span class="status-icon">▶</span>
+                    <span class="status-label-text">Currently Watching</span>
+                </button>
+                <button class="status-option" data-status="paused">
+                    <span class="status-icon">⏸</span>
+                    <span class="status-label-text">Paused</span>
+                </button>
+                <button class="status-option" data-status="dropped">
+                    <span class="status-icon">✖</span>
+                    <span class="status-label-text">Dropped</span>
+                </button>
+                <button class="status-option danger-btn" data-status="none" style="margin-top: 10px; justify-content: center;">
+                    Clear Status
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="list-modal" class="modal-overlay">
+        <div class="auth-card">
+            <button class="close-btn" id="close-list-modal">×</button>
+            <h3>Add to List</h3>
+            <div id="user-lists-selection"></div>
+        </div>
+    </div>
+
+    <div id="filler-modal" class="modal-overlay">
+        <div class="auth-card filler-card">
+            <button class="close-btn" id="close-filler-modal">×</button>
+            <h2 id="filler-modal-title">Filler List</h2>
+            <div class="filler-table-container">
+                <table class="filler-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Title</th>
+                            <th>Type</th>
+                        </tr>
+                    </thead>
+                    <tbody id="filler-table-body">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <script src="scriptingDetails.js"></script>
 </body>
 </html>

@@ -546,3 +546,126 @@
     gap: 10px;
     padding: 8px 0;
 }
+
+/* --- Updated Status Modal Styling --- */
+
+/* The card container needs a fixed width and centered text */
+.status-card {
+    width: 360px !important; /* Fixed width to keep it consistent */
+    padding: 30px !important;
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Centers the title and grid */
+}
+
+/* The grid should fill the card and stack buttons vertically */
+.status-options-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 25px;
+    width: 100%; /* Ensures the grid takes the full width of the card padding */
+}
+
+/* Each button needs to be a full-width block */
+.status-option {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start; /* Keeps icons and text aligned to the left */
+    gap: 15px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid #2c3440;
+    color: #fff;
+    padding: 14px 20px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 100%; /* CRITICAL: This fixes the staggered widths seen in your screenshot */
+    box-sizing: border-box;
+}
+
+/* Hover effects for a premium feel */
+.status-option:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: #456;
+    transform: translateX(5px); /* Subtle slide effect */
+}
+
+/* Icon alignment and colors */
+.status-icon {
+    font-size: 1.1rem;
+    width: 24px; /* Fixed width for icons so text stays aligned */
+    text-align: center;
+}
+
+.status-option[data-status="active"] .status-icon { color: var(--accent); }
+.status-option[data-status="paused"] .status-icon { color: #ffcc00; }
+.status-option[data-status="dropped"] .status-icon { color: #ff4d4d; }
+
+/* Status-specific hover borders */
+.status-option[data-status="active"]:hover { border-color: var(--accent); }
+.status-option[data-status="paused"]:hover { border-color: #ffcc00; }
+.status-option[data-status="dropped"]:hover { border-color: #ff4d4d; }
+
+/* Clear Status button (Danger style) */
+.status-option.danger-btn {
+    margin-top: 10px;
+    justify-content: center; /* Centers the text for the clear button */
+    background: rgba(255, 77, 77, 0.05);
+    border-color: rgba(255, 77, 77, 0.2);
+    color: #ff4d4d;
+}
+
+.status-option.danger-btn:hover {
+    background: #ff4d4d;
+    color: #fff;
+    transform: none; /* No slide for the clear button */
+}
+
+.status-label-text {
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.filler-card {
+    max-width: 800px !important;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.filler-table-container {
+    margin-top: 20px;
+}
+
+.filler-table {
+    width: 100%;
+    border-collapse: collapse;
+    color: #eee;
+}
+
+.filler-table th, .filler-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #333;
+}
+
+/* Status Colors */
+.type-canon { color: #4caf50; font-weight: bold; } /* Green */
+.type-filler { color: #f44336; font-weight: bold; } /* Red */
+.type-mixed { color: #ffeb3b; font-weight: bold; } /* Yellow */
+.type-manga-canon { color: #4caf50; font-weight: bold; } /* Also Green */
+
+#filler-action-area button {
+    display: inline-block;
+    cursor: pointer;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+    transition: transform 0.2s, background 0.2s;
+}
+
+#filler-action-area button:hover {
+    transform: scale(1.05);
+    filter: brightness(1.1);
+}
