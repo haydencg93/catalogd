@@ -4,8 +4,8 @@ function slugify(name) {
         // Step 1: Normalize special characters (ū -> u, ō -> o, etc.)
         .normalize('NFD') 
         .replace(/[\u0300-\u036f]/g, '') 
-        // Step 2: Remove "the" and "of" as per your rules
-        .replace(/\b(the|of)\b/g, '')
+        // Step 2: Remove "the", "of", "on"
+        .replace(/\b(the|of|on)\b/g, '')
         // Step 3: Remove remaining special characters and format dashes
         .replace(/[^a-z0-9 ]/g, '')
         .trim()
