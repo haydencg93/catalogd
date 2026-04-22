@@ -1,0 +1,71 @@
+{
+  "anime": "hellsing",
+  "total_episodes": 13,
+  "episodes": [
+    {
+      "number": "1",
+      "title": "The Undead",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "2",
+      "title": "Club M",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "3",
+      "title": "Sword Dancer",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "4",
+      "title": "Innocent as a Human",
+      "type": "Filler"
+    },
+    {
+      "number": "5",
+      "title": "Brotherhood",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "6",
+      "title": "Dead Zone",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "7",
+      "title": "Duel",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "8",
+      "title": "Kill House",
+      "type": "Filler"
+    },
+    {
+      "number": "9",
+      "title": "Red Rose Vertigo",
+      "type": "Filler"
+    },
+    {
+      "number": "10",
+      "title": "Master of Monster",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "11",
+      "title": "Transcend Force",
+      "type": "Filler"
+    },
+    {
+      "number": "12",
+      "title": "Total Destruction",
+      "type": "Filler"
+    },
+    {
+      "number": "13",
+      "title": "Hellfire",
+      "type": "Filler"
+    }
+  ]
+}

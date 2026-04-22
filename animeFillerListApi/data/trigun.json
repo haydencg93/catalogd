@@ -1,0 +1,136 @@
+{
+  "anime": "trigun",
+  "total_episodes": 26,
+  "episodes": [
+    {
+      "number": "1",
+      "title": "The $60,000,000,000 Man",
+      "type": "Filler"
+    },
+    {
+      "number": "2",
+      "title": "Truth of Mistake",
+      "type": "Filler"
+    },
+    {
+      "number": "3",
+      "title": "Peace Maker",
+      "type": "Filler"
+    },
+    {
+      "number": "4",
+      "title": "Love & Peace",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "5",
+      "title": "Hard Puncher",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "6",
+      "title": "Lost July",
+      "type": "Filler"
+    },
+    {
+      "number": "7",
+      "title": "B. D. N.",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "8",
+      "title": "And Between the Wasteland and Sky",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "9",
+      "title": "Murder Machine",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "10",
+      "title": "Quick Draw",
+      "type": "Filler"
+    },
+    {
+      "number": "11",
+      "title": "Escape from Pain",
+      "type": "Filler"
+    },
+    {
+      "number": "12",
+      "title": "Diablo",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "13",
+      "title": "Vash the Stampede",
+      "type": "Filler"
+    },
+    {
+      "number": "14",
+      "title": "Little Arcadia",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "15",
+      "title": "Demon's Eye",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "16",
+      "title": "Fifth Moon",
+      "type": "Filler"
+    },
+    {
+      "number": "17",
+      "title": "Rem Saverem",
+      "type": "Filler"
+    },
+    {
+      "number": "18",
+      "title": "Goodbye for Now",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "19",
+      "title": "Hang Fire",
+      "type": "Filler"
+    },
+    {
+      "number": "20",
+      "title": "Flying Ship",
+      "type": "Filler"
+    },
+    {
+      "number": "21",
+      "title": "Out of Time",
+      "type": "Filler"
+    },
+    {
+      "number": "22",
+      "title": "Alternative",
+      "type": "Filler"
+    },
+    {
+      "number": "23",
+      "title": "Paradise",
+      "type": "Filler"
+    },
+    {
+      "number": "24",
+      "title": "Sin",
+      "type": "Filler"
+    },
+    {
+      "number": "25",
+      "title": "Live Through",
+      "type": "Filler"
+    },
+    {
+      "number": "26",
+      "title": "Under the Sky so Blue",
+      "type": "Filler"
+    }
+  ]
+}

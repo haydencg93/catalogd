@@ -1,0 +1,66 @@
+{
+  "anime": "chainsaw-man",
+  "total_episodes": 12,
+  "episodes": [
+    {
+      "number": "1",
+      "title": "Dog & Chainsaw",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "2",
+      "title": "Arrival in Tokyo",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "3",
+      "title": "Meowy's Whereabouts",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "4",
+      "title": "Rescue",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "5",
+      "title": "Gun Devil",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "6",
+      "title": "Kill Denji",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "7",
+      "title": "Taste of a Kiss",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "8",
+      "title": "Gunfire",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "9",
+      "title": "From Kyoto",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "10",
+      "title": "Bruised & Battered",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "11",
+      "title": "Mission Start",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "12",
+      "title": "Katana vs. Chainsaw",
+      "type": "Manga Canon"
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "anime": "record-ragnarok",
+  "total_episodes": 12,
+  "episodes": [
+    {
+      "number": "1",
+      "title": "Ragnarok",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "2",
+      "title": "Worthy Opponent",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "3",
+      "title": "Killer Move",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "4",
+      "title": "Joy",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "5",
+      "title": "FILE No.00000000001",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "6",
+      "title": "Great Emulation",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "7",
+      "title": "Expelled from Paradise",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "8",
+      "title": "Grace Abounding",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "9",
+      "title": "Tyrant of the Ocean",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "10",
+      "title": "Greatest Loser",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "11",
+      "title": "The Swallow Gazes into the Abyss",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "12",
+      "title": "And Ragnarok Goes On",
+      "type": "Manga Canon"
+    }
+  ]
+}

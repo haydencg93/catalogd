@@ -1,0 +1,71 @@
+{
+  "anime": "god-high-school",
+  "total_episodes": 13,
+  "episodes": [
+    {
+      "number": "1",
+      "title": "set up/stand up",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "2",
+      "title": "renewal/soul",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "3",
+      "title": "wisdom/kingdom",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "4",
+      "title": "marriage/bonds",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "5",
+      "title": "ronde/hound",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "6",
+      "title": "fear/SIX",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "7",
+      "title": "anima/force",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "8",
+      "title": "close/friend",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "9",
+      "title": "curse/cornered",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "10",
+      "title": "oath/meaning",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "11",
+      "title": "lay/key",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "12",
+      "title": "FOX/GOD",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "13",
+      "title": "GOD/GOD",
+      "type": "Manga Canon"
+    }
+  ]
+}
