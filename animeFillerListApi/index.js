@@ -21,13 +21,9 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
  * Main function to scrape data and update both local files and Supabase
  */
 async function saveAnimeData(originalName, requestId = null) {
-    // 1. Keep the 'originalName' for the scraper (so it can try raw dashes)
-    // 2. Create the 'fileSlug' strictly for the .json filename
-    const fileSlug = slugify(originalName); 
-    
     console.log(`--- Processing: ${originalName} ---`);
 
-    // Pass the originalName to the scraper
+    // 1. Pass the raw name to the scraper (it handles the retry logic internally)
     const fillerResult = await getFillerData(originalName);
 
     if (fillerResult.error) {
@@ -42,27 +38,32 @@ async function saveAnimeData(originalName, requestId = null) {
         return;
     }
 
+    // 2. EXTRACT THE SUCCESSFUL SLUG
+    // This is the slug that actually worked on animefillerlist.com (e.g., "jujutsu-kaisen")
+    const successSlug = fillerResult.anime;
+
     // Success: Ensure data directory exists
     const dir = './data';
     if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
     }
 
-    // Save using the fileSlug so your frontend can still find it
-    const filePath = path.join(dir, `${fileSlug}.json`);
+    // 3. Save the JSON file using the SUCCESSFUL slug
+    // This ensures your frontend fetch(`.../${successSlug}.json`) will work!
+    const filePath = path.join(dir, `${successSlug}.json`);
     fs.writeFileSync(filePath, JSON.stringify(fillerResult, null, 2));
     console.log(`File Saved: ${filePath}`);
 
-    // Update Supabase using the fileSlug as the unique name
+    // 4. Update Supabase using the successful slug
     await supabase
         .from('filler_list_mgnt')
         .upsert({ 
-            name: fileSlug, // Use slug for consistent DB storage
+            name: successSlug, 
             filler_exists: true, 
             notes: 'Successfully scraped' 
         }, { onConflict: 'name' });
 
-    console.log(`Database Updated: ${fileSlug}`);
+    console.log(`Database Updated: ${successSlug}`);
 }
 
 /**
