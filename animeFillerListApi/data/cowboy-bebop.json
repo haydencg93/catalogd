@@ -1,0 +1,141 @@
+{
+  "anime": "cowboy-bebop",
+  "total_episodes": 27,
+  "episodes": [
+    {
+      "number": "1",
+      "title": "Asteroid Blues",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "2",
+      "title": "Stray Dog Strut",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "3",
+      "title": "Honky Tonk Women",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "4",
+      "title": "Gateway Shuffle",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "5",
+      "title": "Ballad of Fallen Angels",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "6",
+      "title": "Sympathy for the Devil",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "7",
+      "title": "Heavy Metal Queen",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "8",
+      "title": "Waltz for Venus",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "9",
+      "title": "Jamming with Edward",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "10",
+      "title": "Ganymede Elegy",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "11",
+      "title": "Toys in the Attic",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "12",
+      "title": "Jupiter Jazz (part 1)",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "13",
+      "title": "Jupiter Jazz (part 2)",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "14",
+      "title": "Bohemian Rhapsody",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "15",
+      "title": "My Funny Valentine",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "16",
+      "title": "Black Dog Serenade",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "17",
+      "title": "Mushroom Samba",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "18",
+      "title": "Speak Like a Child",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "19",
+      "title": "Wild Horses",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "20",
+      "title": "Pierrot Le Fou",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "21",
+      "title": "Boogie Woogie Feng Shui",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "22",
+      "title": "Cowboy Funk",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "23",
+      "title": "Brain Scratch",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "24",
+      "title": "Hard Luck Woman",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "25",
+      "title": "The Real Folk Blues, Part One",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "26",
+      "title": "The Real Folk Blues, Part Two",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "27",
+      "title": "The Movie",
+      "type": "Anime Canon"
+    }
+  ]
+}
