@@ -31,14 +31,61 @@ async function initProfile() {
             return;
         }
 
-        // 3. Fetch Profile Data
         const { data: profile, error: profileError } = await supabaseClient
             .from('profiles')
             .select('*')
             .eq('id', profileUserId)
             .single();
 
-        // --- DEBUG SECTION: COPY THIS ---
+        // Fetch all statuses for the user whose profile we are viewing
+        // 1. Define the containers
+        const activeSection = document.getElementById('active-tracking-section');
+        const activeGrid = document.getElementById('active-grid');
+        const holdGrid = document.getElementById('on-hold-grid');
+
+        // 2. Clear initial states
+        if (activeGrid) activeGrid.innerHTML = '';
+        if (holdGrid) holdGrid.innerHTML = '';
+
+        // 3. Privacy Check: Only fetch and show statuses if the logged-in user is the owner
+        if (isOwner) {
+            const { data: allStatuses, error: statusError } = await supabaseClient
+                .from('media_status')
+                .select('*')
+                .eq('user_id', profileUserId);
+
+            if (statusError) console.error("Status Fetch Error:", statusError);
+
+            if (allStatuses && allStatuses.length > 0) {
+                const activeItems = allStatuses.filter(s => s.status === 'active');
+                const pausedDroppedItems = allStatuses.filter(s => s.status === 'paused' || s.status === 'dropped');
+
+                // Render Active Section (Home Tab)
+                if (activeItems.length > 0) {
+                    activeSection.style.display = 'block';
+                    renderStatusItems(activeItems, 'active-grid'); 
+                } else {
+                    activeSection.style.display = 'none';
+                }
+
+                // Render On-Hold Section (On-Hold Tab)
+                if (pausedDroppedItems.length > 0) {
+                    renderStatusItems(pausedDroppedItems, 'on-hold-grid');
+                } else {
+                    holdGrid.innerHTML = `<p class="meta">No paused or dropped items to show.</p>`;
+                }
+            } else {
+                // Owner has no statuses
+                activeSection.style.display = 'none';
+                holdGrid.innerHTML = `<p class="meta">No paused or dropped items to show.</p>`;
+            }
+        } else {
+            // NOT THE OWNER: Hide sections and show privacy messages
+            console.log("Privacy: Statuses are hidden for non-owners.");
+            activeSection.style.display = 'none';
+            holdGrid.innerHTML = `<p class="meta" style="grid-column: 1/-1; text-align: center;">Status tracking is private.</p>`;
+        }
+
         console.log("1. Targeting User ID:", profileUserId);
         console.log("2. Am I the owner?", isOwner);
         if (profileError) console.error("3. Supabase Error:", profileError);
@@ -127,13 +174,6 @@ async function initProfile() {
             allUserLogs = logs; 
             document.getElementById('stat-count').textContent = logs.length;
             filterRecent('all'); 
-        }
-
-        // 6. Active Tracking
-        const { data: activeStatuses } = await supabaseClient.from('media_status').select('*').eq('user_id', profileUserId).eq('status', 'active');
-        if (activeStatuses?.length > 0) {
-            document.getElementById('active-tracking-section').style.display = 'block';
-            renderActiveItems(activeStatuses);
         }
 
         // 7. Watchlist/Follower Counts
@@ -238,43 +278,58 @@ function setupSettingsUI() {
     };
 }
 
-async function renderActiveItems(items) {
-    const grid = document.getElementById('active-grid');
+async function renderStatusItems(items, gridId) {
+    const grid = document.getElementById(gridId);
     const config = await fetch('config.json').then(r => r.json());
     
     const displayPromises = items.map(async (item) => {
         let title, image, progressText = "";
-        if (item.media_type === 'book') {
-            const res = await fetch(`https://openlibrary.org${item.media_id}.json`).then(r => r.json());
-            title = res.title;
-            image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : 'placeholder.png';
-            if(item.current_page) progressText = `Pg ${item.current_page}`;
-        } else {
-            const res = await fetch(`https://api.themoviedb.org/3/${item.media_type}/${item.media_id}`, {
-                headers: { Authorization: `Bearer ${config.tmdb_token}` } 
-            }).then(r => r.json());
-            title = res.title || res.name;
-            image = res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : 'placeholder.png';
+        try {
+            if (item.media_type === 'book') {
+                const res = await fetch(`https://openlibrary.org${item.media_id}.json`).then(r => r.json());
+                title = res.title;
+                image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : 'placeholder.png';
+                
+                // Fallback text if page progress isn't in the status record
+                progressText = item.current_page ? `Pg ${item.current_page}` : item.status.charAt(0).toUpperCase() + item.status.slice(1);
+            } else {
+                const res = await fetch(`https://api.themoviedb.org/3/${item.media_type}/${item.media_id}`, {
+                    headers: { Authorization: `Bearer ${config.tmdb_token}` } 
+                }).then(r => r.json());
+                title = res.title || res.name;
+                image = res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : 'placeholder.png';
+            }
+        } catch (e) {
+            title = "Unknown Item";
+            image = 'placeholder.png';
         }
         return { ...item, title, image, progressText };
     });
 
     const fullItems = await Promise.all(displayPromises);
-    grid.innerHTML = fullItems.map(item => `
-        <div class="media-card" onclick="window.location.href='details.html?id=${item.media_id}&type=${item.media_type}'">
-            <div class="poster-wrapper">
-                <img src="${item.image}" alt="${item.title}">
-                <div class="active-badge">ACTIVE</div>
-            </div>
-            <div class="media-info">
-                <div class="title">${item.title}</div>
-                <div class="meta">
-                    <span class="badge badge-${item.media_type}">${item.media_type}</span>
-                    <span style="color: var(--accent);">${item.progressText}</span>
+    
+    grid.innerHTML = fullItems.map(item => {
+        // Color coding for badges
+        const statusLabel = item.status.toUpperCase();
+        const statusColor = item.status === 'paused' ? '#ffcc00' : (item.status === 'dropped' ? '#ff4d4d' : 'var(--accent)');
+        const textColor = item.status === 'paused' ? '#000' : '#000'; // Keep black for readability on colors
+
+        return `
+            <div class="media-card" onclick="window.location.href='details.html?id=${item.media_id}&type=${item.media_type}'">
+                <div class="poster-wrapper">
+                    <img src="${item.image}" alt="${item.title}">
+                    <div class="active-badge" style="background: ${statusColor}; color: ${textColor};">${statusLabel}</div>
+                </div>
+                <div class="media-info">
+                    <div class="title">${item.title}</div>
+                    <div class="meta">
+                        <span class="badge badge-${item.media_type}">${item.media_type}</span>
+                        <span style="color: ${statusColor === 'var(--accent)' ? 'var(--accent)' : statusColor};">${item.progressText}</span>
+                    </div>
                 </div>
             </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 window.filterRecent = (type) => {
@@ -491,5 +546,18 @@ async function openSocialModal(type) {
         body.innerHTML = `<p class="meta" style="color:red;">Error: ${err.message}</p>`;
     }
 }
+
+window.switchTab = (tabName) => {
+    // Update Buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent.toLowerCase().includes(tabName.replace('-', ' ')));
+    });
+
+    // Update Content Visibility
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    document.getElementById(`tab-${tabName}`).classList.add('active');
+};
 
 initProfile();

@@ -406,3 +406,45 @@ input {
 }
 
 .icon-heart { color: #ff4d4d; } /* Red for likes */
+
+.profile-tabs {
+    display: flex;
+    gap: 30px;
+    border-bottom: 1px solid #2c3440;
+    margin-bottom: 30px;
+}
+
+.tab-btn {
+    background: none;
+    border: none;
+    color: #9ab;
+    padding: 10px 0;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 1.1rem;
+    position: relative;
+}
+
+.tab-btn.active {
+    color: #fff;
+}
+
+.tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: var(--accent);
+}
+
+/* Hide content by default */
+.tab-content {
+    display: none;
+}
+
+/* Show active content */
+.tab-content.active {
+    display: block;
+}

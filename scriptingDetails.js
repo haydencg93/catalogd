@@ -604,11 +604,51 @@ async function clearSeasonProgress() {
 
 async function fetchWatchProviders(config) {
     if (type === 'book') return; 
-    const res = await fetch(`https://api.themoviedb.org/3/${type}/${id}/watch/providers`, { headers: { Authorization: `Bearer ${config.tmdb_token}` } }).then(r => r.json());
+    const res = await fetch(`https://api.themoviedb.org/3/${type}/${id}/watch/providers`, { 
+        headers: { Authorization: `Bearer ${config.tmdb_token}` } 
+    }).then(r => r.json());
+    
     const results = res.results?.US || {};
     const stream = results.flatrate || [];
+    const buy = results.buy || [];
     const container = document.getElementById('providers-list');
-    container.innerHTML = stream.length ? stream.map(p => `<img src="https://image.tmdb.org/t/p/original${p.logo_path}" title="${p.provider_name}" class="provider-logo">`).join('') : "<p class='meta'>Not streaming.</p>";
+    
+    if (!stream.length && !buy.length) {
+        container.innerHTML = "<p class='meta'>Not available to stream or buy.</p>";
+        return;
+    }
+
+    let html = '';
+
+    // Streaming Group
+    if (stream.length) {
+        html += `
+            <div class="provider-group">
+                <span class="provider-type-label">Stream</span>
+                <div class="provider-icons">
+                    ${stream.map(p => `
+                        <img src="https://image.tmdb.org/t/p/original${p.logo_path}" 
+                             title="${p.provider_name}" class="provider-logo">
+                    `).join('')}
+                </div>
+            </div>`;
+    }
+
+    // Buy/Rent Group
+    if (buy.length) {
+        html += `
+            <div class="provider-group">
+                <span class="provider-type-label">Buy / Rent</span>
+                <div class="provider-icons">
+                    ${buy.map(p => `
+                        <img src="https://image.tmdb.org/t/p/original${p.logo_path}" 
+                             title="${p.provider_name}" class="provider-logo">
+                    `).join('')}
+                </div>
+            </div>`;
+    }
+
+    container.innerHTML = html;
 }
 
 async function setupWatchlist(mediaId, mediaType) {

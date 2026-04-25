@@ -32,56 +32,79 @@
             <p id="display-bio" style="font-size: 1.1rem; line-height: 1.6; color: #ccd6e0; margin-bottom: 10px;"></p>
             <a id="display-website" href="#" target="_blank" style="color: var(--accent); text-decoration: none; font-size: 0.9rem;"></a>
         </div>
+        <div class="profile-tabs">
+            <button class="tab-btn active" onclick="switchTab('home')">Home</button>
+            <button class="tab-btn" onclick="switchTab('library')">Library</button>
+            <button class="tab-btn" onclick="switchTab('on-hold')">On Hold / Dropped</button>
+        </div>
 
-        <div class="stats-bar">
-            <div class="stat-card">
-                <span id="stat-count" class="stat-value">0</span>
-                <span class="stat-label">Total Logs</span>
+        <div id="tab-library" class="tab-content">
+            <div class="section-header">
+                <h2>Library</h2>
             </div>
-            <div class="stat-card" id="following-stat-btn" style="cursor: pointer;">
-                <span id="following-count" class="stat-value">0</span>
-                <span class="stat-label">Following</span>
-            </div>
-            <div class="stat-card" id="followers-stat-btn" style="cursor: pointer;">
-                <span id="followers-count" class="stat-value">0</span>
-                <span class="stat-label">Followers</span>
-            </div>
-            <div class="stat-card" onclick="window.location.href='watchlist.html' + (profileUserId ? '?id=' + profileUserId : '')" style="cursor: pointer; border-color: var(--accent);">
-                <span id="watchlist-count" class="stat-value">0</span>
-                <span class="stat-label">Watchlist →</span>
+            <div class="grid" id="library-grid">
+                <p class="meta">Full library view coming soon...</p>
             </div>
         </div>
 
-        <section id="favorites-section" style="margin-bottom: 50px;">
-            <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="margin: 0;">Favorites</h2>
-                <div class="filter-nav" style="margin: 0;">
-                    <button class="filter-btn active" onclick="filterFavs('all')">All</button>
-                    <button class="filter-btn" onclick="filterFavs('movie')">Movies</button>
-                    <button class="filter-btn" onclick="filterFavs('tv')">TV</button>
-                    <button class="filter-btn" onclick="filterFavs('book')">Books</button>
+        <div id="tab-on-hold" class="tab-content">
+            <div class="section-header">
+                <h2>Paused & Dropped</h2>
+            </div>
+            <div class="grid" id="on-hold-grid"></div>
+        </div>
+
+        <div id="tab-home" class="tab-content active">
+            <div class="stats-bar">
+                <div class="stat-card">
+                    <span id="stat-count" class="stat-value">0</span>
+                    <span class="stat-label">Total Logs</span>
+                </div>
+                <div class="stat-card" id="following-stat-btn" style="cursor: pointer;">
+                    <span id="following-count" class="stat-value">0</span>
+                    <span class="stat-label">Following</span>
+                </div>
+                <div class="stat-card" id="followers-stat-btn" style="cursor: pointer;">
+                    <span id="followers-count" class="stat-value">0</span>
+                    <span class="stat-label">Followers</span>
+                </div>
+                <div class="stat-card" onclick="window.location.href='watchlist.html' + (profileUserId ? '?id=' + profileUserId : '')" style="cursor: pointer; border-color: var(--accent);">
+                    <span id="watchlist-count" class="stat-value">0</span>
+                    <span class="stat-label">Watchlist →</span>
                 </div>
             </div>
-            <div class="grid" id="favorites-grid"></div>
-        </section>
 
-        <section id="active-tracking-section" style="margin-bottom: 50px; display: none;">
-            <div class="section-header">
-                <h2 style="margin: 0;">Currently Watching/Reading</h2>
-            </div>
-            <div class="grid" id="active-grid"></div>
-        </section>
+            <section id="favorites-section" style="margin-bottom: 50px;">
+                <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin: 0;">Favorites</h2>
+                    <div class="filter-nav" style="margin: 0;">
+                        <button class="filter-btn active" onclick="filterFavs('all')">All</button>
+                        <button class="filter-btn" onclick="filterFavs('movie')">Movies</button>
+                        <button class="filter-btn" onclick="filterFavs('tv')">TV</button>
+                        <button class="filter-btn" onclick="filterFavs('book')">Books</button>
+                    </div>
+                </div>
+                <div class="grid" id="favorites-grid"></div>
+            </section>
 
-        <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h2 style="margin: 0;">Recent Activity</h2>
-            <div class="filter-nav" style="margin: 0;">
-                <button class="filter-btn active" onclick="filterRecent('all')">All</button>
-                <button class="filter-btn" onclick="filterRecent('movie')">Movies</button>
-                <button class="filter-btn" onclick="filterRecent('tv')">TV</button>
-                <button class="filter-btn" onclick="filterRecent('book')">Books</button>
+            <section id="active-tracking-section" style="margin-bottom: 50px; display: none;">
+                <div class="section-header">
+                    <h2 style="margin: 0;">Currently Watching/Reading</h2>
+                </div>
+                <div class="grid" id="active-grid"></div>
+            </section>
+
+            <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">Recent Activity</h2>
+                <div class="filter-nav" style="margin: 0;">
+                    <button class="filter-btn active" onclick="filterRecent('all')">All</button>
+                    <button class="filter-btn" onclick="filterRecent('movie')">Movies</button>
+                    <button class="filter-btn" onclick="filterRecent('tv')">TV</button>
+                    <button class="filter-btn" onclick="filterRecent('book')">Books</button>
+                </div>
             </div>
+            <div class="grid" id="recent-grid"></div>
         </div>
-        <div class="grid" id="recent-grid"></div>
 
         <div id="social-modal" class="modal">
             <div class="modal-content social-modal-content">
