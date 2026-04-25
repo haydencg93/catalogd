@@ -100,11 +100,21 @@ async function fetchExistingLogData() {
 
         // Fill Scope (Limited for edits to prevent breaking relational data)
         const scope = document.getElementById('log-scope');
+        
         if (log.episode_number) {
             scope.value = 'episode';
-            // Trigger the dropdown setups manually if needed
+            // Manually trigger visibility of dropdowns
+            document.getElementById('dropdown-group').style.display = 'flex';
+            document.getElementById('episode-select').style.display = 'block';
+            
+            // Set values (Note: This assumes the lists are already loaded)
+            document.getElementById('season-select').value = log.season_number;
+            await loadEpisodeList(); // Wait for episodes to load
+            document.getElementById('episode-select').value = log.episode_number;
         } else if (log.season_number) {
             scope.value = 'season';
+            document.getElementById('dropdown-group').style.display = 'flex';
+            document.getElementById('season-select').value = log.season_number;
         }
 
         // Change Button Text
@@ -218,10 +228,10 @@ async function saveLog() {
 
     try {
         if (type === 'book') {
-            // --- BOOK LOGIC ---
+            // --- CORRECTED BOOK LOGIC ---
             if (scopeValue === 'chapter') {
                 const chapterNum = parseInt(document.getElementById('book-chapter').value);
-                const { error } = await supabaseClient.from('media_logs').insert({
+                const payload = {
                     user_id: user.id,
                     media_id: id,
                     media_type: 'book',
@@ -230,7 +240,14 @@ async function saveLog() {
                     watched_on: watchedDate,
                     rating: rating,
                     is_liked: isLiked
-                });
+                };
+
+                // NEW: Check for logId to update existing chapter entry
+                if (logId) {
+                    payload.id = logId;
+                }
+
+                const { error } = await supabaseClient.from('media_logs').upsert(payload);
                 if (error) throw error;
             } else {
                 // Handle "Entire Book" or "Progress"
@@ -259,12 +276,21 @@ async function saveLog() {
                     is_rewatch: isRewatch
                 };
 
-                if (activeLog) finalData.id = activeLog.id;
+                // Ensure we use the logId from the URL for updates, 
+                // otherwise fallback to the active log ID if finishing a draft
+                if (logId) {
+                    finalData.id = logId;
+                } else if (activeLog) {
+                    finalData.id = activeLog.id;
+                }
+
                 const { error } = await supabaseClient.from('media_logs').upsert(finalData);
                 if (error) throw error;
             }
         } else {
             // --- MOVIE & TV LOGIC ---
+            let scopeValue = document.getElementById('log-scope').value; 
+            
             const payload = {
                 user_id: user.id,
                 media_id: id,
@@ -277,47 +303,49 @@ async function saveLog() {
                 runtime: currentMediaRuntime 
             };
 
-            // Handle TV-specific depth
+            // Capture TV-specific details
             if (type === 'tv') {
-                if (scopeValue === 'season') {
-                    payload.season_number = parseInt(document.getElementById('season-select').value);
-                } else if (scopeValue === 'episode') {
-                    payload.season_number = parseInt(document.getElementById('season-select').value);
-                    payload.episode_number = parseInt(document.getElementById('episode-select').value);
+                const seasonSelect = document.getElementById('season-select');
+                const episodeSelect = document.getElementById('episode-select');
+
+                // FIX: If we are editing, force the scope based on the presence of select values
+                if (logId) {
+                    if (episodeSelect && episodeSelect.value) scopeValue = 'episode';
+                    else if (seasonSelect && seasonSelect.value) scopeValue = 'season';
+                }
+
+                if (scopeValue === 'season' || scopeValue === 'episode') {
+                    if (seasonSelect && seasonSelect.value) {
+                        payload.season_number = parseInt(seasonSelect.value);
+                    }
+                }
+                
+                if (scopeValue === 'episode') {
+                    if (episodeSelect && episodeSelect.value) {
+                        payload.episode_number = parseInt(episodeSelect.value);
+                    }
                 }
             }
 
             if (logId) {
-                payload.id = logId; // ADD the ID so Supabase performs an UPDATE instead of INSERT
+                payload.id = logId; 
             }
 
             try {
+                // Use upsert to handle the update correctly using the ID
                 const { error } = await supabaseClient
                     .from('media_logs')
-                    .upsert(payload); // Upsert handles both new and existing IDs
+                    .upsert(payload); 
 
                 if (error) throw error;
+                
                 alert(logId ? "Entry updated!" : "Log saved successfully!");
                 window.location.href = `details.html?id=${id}&type=${type}`;
             } catch (err) {
                 alert("Error: " + err.message);
             }
         }
-
-        // 3. Cleanup Watchlist
-        await supabaseClient
-            .from('user_watchlist')
-            .delete()
-            .eq('user_id', user.id)
-            .eq('media_id', String(id))
-            .eq('media_type', type);
-
-        alert("Log saved successfully!");
-        
-        // REDIRECT CHANGE: Back to details page instead of diary
-        window.location.href = `details.html?id=${id}&type=${type}`;
-
-    } catch (err) {
+        } catch (err) {
         console.error("Save Error:", err);
         alert("Error saving log: " + err.message);
     }

@@ -520,30 +520,85 @@ async function setupTVTracker(config, seriesId) {
     clearBtn.onclick = () => clearSeasonProgress();
 }
 
+// Add a global variable to track log visibility
+let allLogsData = [];
 async function fetchMediaHistory() {
     const historyList = document.getElementById('history-list');
+    const showMoreBtn = document.getElementById('show-more-logs');
     const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) { historyList.innerHTML = "<p class='meta'>Sign in to see history.</p>"; return; }
 
-    const { data: logs } = await supabaseClient.from('media_logs').select('*')
-        .eq('user_id', user.id).eq('media_id', id).order('watched_on', { ascending: false });
+    if (!user) { 
+        if (historyList) historyList.innerHTML = "<p class='meta'>Sign in to see history.</p>"; 
+        return; 
+    }
 
-    if (!logs || logs.length === 0) { historyList.innerHTML = "<p class='meta'>No logs yet.</p>"; return; }
+    const { data: logs } = await supabaseClient.from('media_logs')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('media_id', id)
+        .order('created_at', { ascending: false });
 
-    historyList.innerHTML = logs.map(log => {
+    if (!logs || logs.length === 0) { 
+        if (historyList) historyList.innerHTML = "<p class='meta'>No logs yet.</p>"; 
+        if (showMoreBtn) showMoreBtn.style.display = 'none';
+        return; 
+    }
+
+    allLogsData = logs; 
+
+    // 1. Initial render of top 3
+    renderLogs(allLogsData.slice(0, 3));
+
+    // 2. Setup the "Show More" button logic
+    if (showMoreBtn) {
+        if (allLogsData.length > 3) {
+            showMoreBtn.style.display = 'block';
+            showMoreBtn.textContent = `Show More (+${allLogsData.length - 3})`;
+            
+            // This is the click handler that was likely missing or resetting
+            showMoreBtn.onclick = (e) => {
+                e.preventDefault();
+                renderLogs(allLogsData); // Render the full list
+                showMoreBtn.style.display = 'none'; // Hide the button once expanded
+            };
+        } else {
+            showMoreBtn.style.display = 'none';
+        }
+    }
+}
+
+function renderLogs(logsToRender) {
+    const historyList = document.getElementById('history-list');
+    
+    historyList.innerHTML = logsToRender.map(log => {
         let label = type.charAt(0).toUpperCase() + type.slice(1);
-        if (type === 'tv') label = log.episode_number ? `S${log.season_number} E${log.episode_number}` : (log.season_number ? `Season ${log.season_number}` : `Series`);
+        if (type === 'tv') {
+            label = log.episode_number ? `S${log.season_number} E${log.episode_number}` : 
+                   (log.season_number ? `Season ${log.season_number}` : `Series`);
+        }
+        
         const stars = '★'.repeat(Math.floor(log.rating)) + (log.rating % 1 !== 0 ? '½' : '');
+        const logDateTime = new Date(log.created_at).toLocaleString([], { 
+            year: 'numeric', month: 'numeric', day: 'numeric', 
+            hour: '2-digit', minute: '2-digit' 
+        });
+
+        const reviewPreview = log.notes ? `<div class="history-notes">"${log.notes}"</div>` : '';
+
         return `
             <div class="history-item" id="log-${log.id}">
                 <div class="history-header">
                     <span class="history-label">${label}${log.is_liked ? ' ❤️' : ''}</span>
-                    <div style="display: flex; gap: 8px;">
+                    <div style="display: flex; gap: 12px; align-items: center;">
                         <span class="history-stars">${stars}</span>
-                        <span onclick="deleteLog('${log.id}')" style="cursor:pointer; color:#ff4d4d;">🗑️</span>
+                        <span onclick="window.location.href='log.html?id=${id}&type=${type}&logId=${log.id}'" 
+                              style="cursor:pointer; font-size: 0.8rem;" title="Edit Log">✏️</span>
+                        <span onclick="deleteLog('${log.id}')" 
+                              style="cursor:pointer; color:#ff4d4d; font-size: 0.8rem;" title="Delete Log">🗑️</span>
                     </div>
                 </div>
-                <div class="history-date">${log.watched_on}</div>
+                <div class="history-date">${logDateTime}</div>
+                ${reviewPreview}
             </div>
         `;
     }).join('');

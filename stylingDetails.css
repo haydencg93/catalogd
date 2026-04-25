@@ -669,3 +669,46 @@
     transform: scale(1.05);
     filter: brightness(1.1);
 }
+
+.history-notes {
+    font-size: 0.85rem;
+    color: #9ab;
+    font-style: italic;
+    margin: 8px 0 0;
+    line-height: 1.4;
+    /* Preview constraints */
+    display: -webkit-box;
+    -webkit-line-clamp: 3; /* Limits to 3 lines */
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+#show-more-logs {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid #2c3440;
+    color: #9ab;
+    padding: 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+#show-more-logs:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--accent);
+}
+
+.history-item {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    cursor: default; /* Ensures the mouse doesn't turn into a hand/pointer */
+}
+
+.history-item:last-child { border: none; }
+
+/* Keep the pointer ONLY for the delete trash can */
+.history-item span[onclick] {
+    cursor: pointer;
+}
