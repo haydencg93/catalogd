@@ -17,7 +17,18 @@
         </div>
         
         <section class="search-section" style="flex-grow: 1; margin: 0 40px;">
-            <input type="text" id="search-input" placeholder="Search for movies, shows, books, cast members, ..." style="margin: 0; max-width: 400px;">
+            <div class="search-bar-wrapper" style="margin: 0; max-width: 500px;">
+                <select id="search-filter">
+                    <option value="all">All</option>
+                    <option value="movie">Movies</option>
+                    <option value="tv">TV Shows</option>
+                    <option value="book">Books</option>
+                    <option value="user">Users</option>
+                    <option value="person">Cast Members</option>
+                    <option value="author">Authors</option>
+                </select>
+                <input type="text" id="search-input" placeholder="Search for movies, shows, books, cast members, ...">
+            </div>
         </section>
 
         <div class="nav-actions">

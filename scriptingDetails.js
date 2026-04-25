@@ -480,12 +480,15 @@ function displayBookLinks(title, authorName) {
 
 async function setupHeader() {
     const searchInput = document.getElementById('search-input');
+    const searchFilter = document.getElementById('search-filter');
     const loginBtn = document.getElementById('login-btn');
     const profileBtn = document.getElementById('profile-btn');
 
     searchInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter' && searchInput.value.trim() !== "") {
-            window.location.href = `index.html?search=${encodeURIComponent(searchInput.value)}`;
+            const filterVal = searchFilter ? searchFilter.value : 'all';
+            // Send both the search text AND the filter choice to index.html
+            window.location.href = `index.html?search=${encodeURIComponent(searchInput.value)}&filter=${filterVal}`;
         }
     });
 

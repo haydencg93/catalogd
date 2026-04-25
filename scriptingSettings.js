@@ -27,8 +27,13 @@ async function initSettings() {
     if (profile) {
         document.getElementById('edit-bio').value = profile.bio || '';
         document.getElementById('edit-website').value = profile.website_url || '';
+        
+        // NEW: Load Privacy Preferences (Default to true if null)
+        document.getElementById('toggle-active-status').checked = profile.show_active_status !== false; 
+        document.getElementById('toggle-paused-status').checked = profile.show_paused_dropped_status !== false;
+
         currentFavs = profile.favorites || { movie: [], tv: [], book: [], all: [] };
-        renderFavManager(); // Function to show current favs in settings
+        renderFavManager(); 
     }
 
     // Prefill current data
@@ -184,6 +189,7 @@ favSearchInput.oninput = async () => {
 };
 
 // Update Profile
+// Update Profile
 async function saveAllProfileData() {
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) return alert("Session lost. Please log in again.");
@@ -195,6 +201,10 @@ async function saveAllProfileData() {
     const bannerValue = document.getElementById('edit-banner').value;
     const bioValue = document.getElementById('edit-bio').value;
     const websiteValue = document.getElementById('edit-website').value;
+    
+    // NEW: Get Privacy values
+    const showActive = document.getElementById('toggle-active-status').checked;
+    const showPaused = document.getElementById('toggle-paused-status').checked;
 
     // 2. Update Auth Metadata (Keep this for session consistency)
     const { error: authError } = await supabaseClient.auth.updateUser({
@@ -206,17 +216,19 @@ async function saveAllProfileData() {
         }
     });
 
-    // 3. FIX: Update Profiles Table with ALL fields including Avatar and Banner
+    // 3. Update Profiles Table
     const { error: profileError } = await supabaseClient
         .from('profiles')
         .update({
-            display_name: nameValue,  // Added this
-            username: usernameValue,  // Added this
-            avatar_url: avatarValue,  // FIX: This sends it to the DB table
-            banner_url: bannerValue,  // FIX: This sends it to the DB table
+            display_name: nameValue,  
+            username: usernameValue,  
+            avatar_url: avatarValue,  
+            banner_url: bannerValue,  
             bio: bioValue,
             website_url: websiteValue,
-            favorites: currentFavs 
+            favorites: currentFavs,
+            show_active_status: showActive,          // NEW
+            show_paused_dropped_status: showPaused   // NEW
         })
         .eq('id', user.id);
 
@@ -224,14 +236,15 @@ async function saveAllProfileData() {
         alert("Error: " + (authError?.message || profileError?.message));
     } else {
         alert("Changes saved successfully!");
-        // Optional: Refresh the page to show updated data
         window.location.reload();
     }
 }
 
 // Attach the function to BOTH buttons inside initSettings
+// Attach the function to ALL buttons
 document.getElementById('save-profile-btn').onclick = saveAllProfileData;
 document.getElementById('save-favs-btn').onclick = saveAllProfileData;
+document.getElementById('save-privacy-btn').onclick = saveAllProfileData; // NEW
 
 function addFavorite(item) {
     if (currentFavs[item.type].length >= 5) {

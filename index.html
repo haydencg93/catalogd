@@ -18,7 +18,18 @@
 
     <main>
         <section class="search-section">
-            <input type="text" id="search-input" placeholder="Preparing library..." disabled>
+            <div class="search-bar-wrapper">
+                <select id="search-filter">
+                    <option value="all">All</option>
+                    <option value="movie">Movies</option>
+                    <option value="tv">TV Shows</option>
+                    <option value="book">Books</option>
+                    <option value="user">Users</option>
+                    <option value="person">Cast Members</option>
+                    <option value="author">Authors</option>
+                </select>
+                <input type="text" id="search-input" placeholder="Preparing library..." disabled>
+            </div>
             <div id="loader">Loading configuration...</div>
         </section>
         <div class="filter-nav">
@@ -26,6 +37,8 @@
             <button id="btn-tv" class="filter-btn" onclick="switchTab('tv')">TV Shows</button>
             <button id="btn-book" class="filter-btn" onclick="switchTab('book')">Books</button>
         </div>
+
+        <h2 id="section-title" class="section-title">Trending Movies</h2>
 
         <div class="grid" id="results-grid"></div>
     </main>

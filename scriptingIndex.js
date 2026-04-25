@@ -39,8 +39,22 @@ async function loadConfig() {
             if (e.key === 'Enter') unifiedSearch(searchInput.value);
         });
 
+        const searchFilter = document.getElementById('search-filter');
+        searchFilter.addEventListener('change', () => {
+            // If they change the filter while text is in the box, automatically research!
+            if (searchInput.value.trim() !== "") {
+                unifiedSearch(searchInput.value);
+            }
+        });
+
         const urlParams = new URLSearchParams(window.location.search);
         const searchQuery = urlParams.get('search');
+        const filterQuery = urlParams.get('filter'); // NEW: Grab the filter from the URL
+
+        // If a filter was passed from the details page, apply it to the dropdown!
+        if (filterQuery) {
+            document.getElementById('search-filter').value = filterQuery;
+        }
 
         if (searchQuery) {
             searchInput.value = searchQuery;
@@ -127,6 +141,15 @@ function toggleAuthMode() {
 }
 
 async function fetchTrending(type = 'movie') {
+    // NEW: Update the section title text based on the tab
+    const sectionTitle = document.getElementById('section-title');
+    if (sectionTitle) {
+        let typeLabel = 'Movies';
+        if (type === 'tv') typeLabel = 'TV Shows';
+        if (type === 'book') typeLabel = 'Books';
+        sectionTitle.textContent = `Trending ${typeLabel}`;
+    }
+
     resultsGrid.innerHTML = '';
     loader.style.display = 'block';
     loader.textContent = `Fetching trending ${type}s...`;
@@ -177,13 +200,22 @@ window.switchTab = function(type) {
 };
 
 async function unifiedSearch(query) {
+    const filterNav = document.querySelector('.filter-nav');
+    const filterValue = document.getElementById('search-filter').value;
+    const sectionTitle = document.getElementById('section-title'); // Grab the title element
+
     if (!query || query.trim() === "") {
         const url = new URL(window.location);
         url.searchParams.delete('search');
         window.history.pushState({}, '', url);
-        fetchTrending(currentTab); 
+        
+        filterNav.style.display = 'flex'; 
+        fetchTrending(currentTab); // fetchTrending will automatically reset the title to "Trending"
         return;
     }
+
+    filterNav.style.display = 'none'; 
+    if (sectionTitle) sectionTitle.textContent = `Search Results for "${query}"`; // Update title for search
 
     loader.style.display = 'block';
     loader.textContent = "Exploring the archives...";
@@ -195,21 +227,56 @@ async function unifiedSearch(query) {
     };
 
     try {
-        const [tmdbRes, bookData, authorData, { data: users }] = await Promise.all([
-            fetch(`https://api.themoviedb.org/3/search/multi?query=${encodeURIComponent(query)}`, options).then(res => res.json()),
-            fetchBooks(query),
-            fetchAuthors(query),
-            supabaseClient
-                .from('profiles')
-                .select('id, username, display_name, avatar_url')
-                .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
-                .limit(5)
-        ]);
+        let tmdbRes = { results: [] };
+        let bookData = [];
+        let authorData = [];
+        let users = [];
+
+        const fetchPromises = [];
+
+        // 1. TMDB Data (Movies, TV, People)
+        if (['all', 'movie', 'tv', 'person'].includes(filterValue)) {
+            let endpoint = 'search/multi';
+            if (filterValue === 'movie') endpoint = 'search/movie';
+            if (filterValue === 'tv') endpoint = 'search/tv';
+            if (filterValue === 'person') endpoint = 'search/person';
+            
+            fetchPromises.push(
+                fetch(`https://api.themoviedb.org/3/${endpoint}?query=${encodeURIComponent(query)}`, options)
+                    .then(r => r.json())
+                    .then(d => tmdbRes = d)
+            );
+        }
+
+        // 2. OpenLibrary Data (Books)
+        if (['all', 'book'].includes(filterValue)) {
+            fetchPromises.push(fetchBooks(query).then(d => bookData = d));
+        }
+
+        // 3. OpenLibrary Data (Authors)
+        if (['all', 'author'].includes(filterValue)) {
+            fetchPromises.push(fetchAuthors(query).then(d => authorData = d));
+        }
+
+        // 4. Supabase Data (Users)
+        if (['all', 'user'].includes(filterValue)) {
+            fetchPromises.push(
+                supabaseClient
+                    .from('profiles')
+                    .select('id, username, display_name, avatar_url')
+                    .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
+                    .limit(10)
+                    .then(res => users = res.data || [])
+            );
+        }
+
+        // Run all required fetches simultaneously
+        await Promise.all(fetchPromises);
 
         const seenNames = new Set();
         
-        // 1. Process Users
-        const mappedUsers = (users || []).map(u => ({
+        // Process Users
+        const mappedUsers = users.map(u => ({
             title: u.display_name || u.username,
             year: `@${u.username}`,
             image: u.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.display_name || u.username)}&background=1b2228&color=9ab&size=512&font-size=0.33`,
@@ -217,7 +284,7 @@ async function unifiedSearch(query) {
             id: u.id
         }));
 
-        // 2. Process Authors
+        // Process Authors
         const processedAuthors = authorData.filter(author => {
             const nameKey = author.title.toLowerCase();
             if (seenNames.has(nameKey)) return false;
@@ -225,10 +292,10 @@ async function unifiedSearch(query) {
             return true;
         });
 
-        // 3. Process TMDB
+        // Process TMDB
         const tmdbResults = (tmdbRes.results || [])
             .map(item => {
-                if (item.media_type === 'person') {
+                if (item.media_type === 'person' || filterValue === 'person') {
                     const nameKey = item.name.toLowerCase();
                     if (seenNames.has(nameKey)) return null; 
                     seenNames.add(nameKey);
@@ -236,42 +303,43 @@ async function unifiedSearch(query) {
                         title: item.name,
                         year: item.known_for_department || 'Person',
                         image: item.profile_path 
-                            ? `https://image.tmdb.org/p/w500${item.profile_path}` 
+                            ? `https://image.tmdb.org/t/p/w500${item.profile_path}` 
                             : `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=1b2228&color=9ab&size=512`,
                         type: 'person',
                         id: item.id
                     };
                 } else if (item.poster_path || item.backdrop_path) {
+                    // TMDB multi-search returns media_type, specific endpoints (like search/movie) don't always, so we fallback to the filterValue
                     return {
                         title: item.title || item.name,
                         year: (item.release_date || item.first_air_date || '').split('-')[0],
                         image: `https://image.tmdb.org/t/p/w500${item.poster_path || item.backdrop_path}`,
-                        type: item.media_type,
+                        type: item.media_type || filterValue, 
                         id: item.id
                     };
                 }
                 return null;
             }).filter(Boolean);
 
-        // 4. Combine and Sort by Relevancy Boost
+        // Combine and Sort
         let combined = [...mappedUsers, ...processedAuthors, ...tmdbResults, ...bookData];
         
+        // Force filter just to be safe (in case an API returned something weird)
+        if (filterValue !== 'all') {
+            combined = combined.filter(item => item.type === filterValue);
+        }
+
         const q = query.toLowerCase().trim();
         combined.sort((a, b) => {
             const aTitle = a.title.toLowerCase();
             const bTitle = b.title.toLowerCase();
-
-            // Boost 1: Exact matches to the top
             if (aTitle === q && bTitle !== q) return -1;
             if (bTitle === q && aTitle !== q) return 1;
-
-            // Boost 2: Starts with query
             const aStarts = aTitle.startsWith(q);
             const bStarts = bTitle.startsWith(q);
             if (aStarts && !bStarts) return -1;
             if (bStarts && !aStarts) return 1;
-
-            return 0; // Keep relative order
+            return 0; 
         });
         
         if (combined.length === 0) {

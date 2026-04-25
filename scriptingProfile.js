@@ -48,7 +48,14 @@ async function initProfile() {
         if (holdGrid) holdGrid.innerHTML = '';
 
         // 3. Privacy Check: Only fetch and show statuses if the logged-in user is the owner
-        if (isOwner) {
+        const canViewActive = isOwner || (profile.show_active_status !== false);
+        const canViewOnHold = isOwner || (profile.show_paused_dropped_status !== false);
+
+        // Clear initial states
+        if (activeGrid) activeGrid.innerHTML = '';
+        if (holdGrid) holdGrid.innerHTML = '';
+
+        if (canViewActive || canViewOnHold) {
             const { data: allStatuses, error: statusError } = await supabaseClient
                 .from('media_status')
                 .select('*')
@@ -57,31 +64,35 @@ async function initProfile() {
             if (statusError) console.error("Status Fetch Error:", statusError);
 
             if (allStatuses && allStatuses.length > 0) {
+                // Filter items into their respective buckets
                 const activeItems = allStatuses.filter(s => s.status === 'active');
                 const pausedDroppedItems = allStatuses.filter(s => s.status === 'paused' || s.status === 'dropped');
 
-                // Render Active Section (Home Tab)
-                if (activeItems.length > 0) {
+                // --- Render Active Section (Home Tab) ---
+                if (canViewActive && activeItems.length > 0) {
                     activeSection.style.display = 'block';
                     renderStatusItems(activeItems, 'active-grid'); 
                 } else {
                     activeSection.style.display = 'none';
                 }
 
-                // Render On-Hold Section (On-Hold Tab)
-                if (pausedDroppedItems.length > 0) {
-                    renderStatusItems(pausedDroppedItems, 'on-hold-grid');
+                // --- Render On-Hold Section (On-Hold Tab) ---
+                if (canViewOnHold) {
+                    if (pausedDroppedItems.length > 0) {
+                        renderStatusItems(pausedDroppedItems, 'on-hold-grid');
+                    } else {
+                        holdGrid.innerHTML = `<p class="meta">No paused or dropped items to show.</p>`;
+                    }
                 } else {
-                    holdGrid.innerHTML = `<p class="meta">No paused or dropped items to show.</p>`;
+                    holdGrid.innerHTML = `<p class="meta" style="grid-column: 1/-1; text-align: center;">This section is private.</p>`;
                 }
             } else {
-                // Owner has no statuses
+                // User has zero statuses
                 activeSection.style.display = 'none';
                 holdGrid.innerHTML = `<p class="meta">No paused or dropped items to show.</p>`;
             }
         } else {
-            // NOT THE OWNER: Hide sections and show privacy messages
-            console.log("Privacy: Statuses are hidden for non-owners.");
+            // The viewer is NOT the owner, AND both privacy settings are turned OFF
             activeSection.style.display = 'none';
             holdGrid.innerHTML = `<p class="meta" style="grid-column: 1/-1; text-align: center;">Status tracking is private.</p>`;
         }
