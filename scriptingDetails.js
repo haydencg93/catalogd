@@ -19,6 +19,13 @@ async function initDetails() {
             const editionsRes = await fetch(`https://openlibrary.org${id}/editions.json`).then(r => r.json());
             const authorData = res.authors || [];
 
+            let firstAuthorName = '';
+            if (res.authors && res.authors.length > 0) {
+                const authorKey = res.authors[0].author.key;
+                const authorData = await fetch(`https://openlibrary.org${authorKey}.json`).then(r => r.json());
+                firstAuthorName = authorData.name;
+            }
+
             let foundIsbn = null;
             if (editionsRes.entries) {
                 for (const edition of editionsRes.entries) {
@@ -36,10 +43,10 @@ async function initDetails() {
                 overview: res.description?.value || res.description || "No description.",
                 poster_path: res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-L.jpg` : null,
                 meta: `Published: ${res.first_publish_date || 'Unknown'}`,
-                isbn: foundIsbn,
-                authors: authorData
+                authors: res.authors || [],
+                authorName: firstAuthorName // Store the resolved name here
             };
-
+            
             let pageCount = null;
             if (editionsRes.entries) {
                 for (const edition of editionsRes.entries) {
@@ -74,7 +81,10 @@ async function initDetails() {
         if (type === 'tv') setupTVTracker(config, id);
         
         if (type === 'book') {
-            displayBookLinks(data.isbn);
+            // Get the first author's name if available
+            const firstAuthor = data.authors && data.authors.length > 0 ? data.authors[0].name : '';
+            
+            displayBookLinks(data.title, data.authorName); 
             setupBookTracker(data.pages);
             fetchBookAuthors(data.authors);
         } else {
@@ -417,39 +427,51 @@ async function fetchBookProgress(totalPages) {
     updateUnifiedProgress(currentPage, totalPages, "pages read");
 }
 
-function displayBookLinks(isbn) {
+function displayBookLinks(title, authorName) {
     const providerSection = document.getElementById('watch-providers');
     const list = document.getElementById('providers-list');
     providerSection.querySelector('h4').textContent = "Get this Book";
 
-    if (!isbn) {
-        list.innerHTML = "<p class='meta'>No ISBN available.</p>";
-        return;
-    }
+    // If authorName is missing, just search by title
+    const searchTerms = authorName ? `${title} ${authorName}` : title;
+    const query = encodeURIComponent(searchTerms);
 
     const logos = {
         worldcat: "https://search.worldcat.org/favicons/android-chrome-192x192.png",
         bwb: "https://www.betterworldbooks.com/images/logos/favicon.ico",
-        amazon: "https://www.amazon.com/favicon.ico"
+        amazon: "https://www.amazon.com/favicon.ico",
+        thriftbooks: "https://static.thriftbooks.com/images/favicon.ico",
+        chirp: "https://www.chirpbooks.com/favicon.ico"
     };
 
     list.innerHTML = `
         <div class="provider-group">
             <span class="provider-type-label">Check nearby libraries</span>
             <div class="book-link-list">
-                <a href="https://www.worldcat.org/isbn/${isbn}" target="_blank" class="book-external-link">
+                <a href="https://search.worldcat.org/search?q=${query}" target="_blank" class="book-external-link">
                     <img src="${logos.worldcat}"> <span>WorldCat</span>
                 </a>
             </div>
         </div>
         <div class="provider-group">
-            <span class="provider-type-label">Buy this book</span>
+            <span class="provider-type-label">Buy Used or New</span>
             <div class="book-link-list">
-                <a href="https://www.betterworldbooks.com/search/results?q=${isbn}" target="_blank" class="book-external-link">
+                <a href="https://www.thriftbooks.com/browse/?b.search=${query}" target="_blank" class="book-external-link">
+                    <img src="${logos.thriftbooks}"> <span>ThriftBooks</span>
+                </a>
+                <a href="https://www.betterworldbooks.com/search/results?q=${query}" target="_blank" class="book-external-link">
                     <img src="${logos.bwb}"> <span>Better World Books</span>
                 </a>
-                <a href="https://www.amazon.com/s?k=${isbn}" target="_blank" class="book-external-link">
+                <a href="https://www.amazon.com/s?k=${query}" target="_blank" class="book-external-link">
                     <img src="${logos.amazon}"> <span>Amazon</span>
+                </a>
+            </div>
+        </div>
+        <div class="provider-group">
+            <span class="provider-type-label">Audiobooks</span>
+            <div class="book-link-list">
+                <a href="https://www.chirpbooks.com/search?q=${query}" target="_blank" class="book-external-link">
+                    <img src="${logos.chirp}"> <span>Chirp</span>
                 </a>
             </div>
         </div>
