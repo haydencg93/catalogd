@@ -750,14 +750,71 @@ async function setupListManager(mediaId, mediaType) {
     const modal = document.getElementById('list-modal');
     const close = document.getElementById('close-list-modal');
     const container = document.getElementById('user-lists-selection');
+    
     const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) { btn.style.display = 'none'; return; }
+    if (!user) { 
+        btn.style.display = 'none'; 
+        return; 
+    }
+
     btn.onclick = async () => {
         modal.style.display = 'flex';
-        const { data: lists } = await supabaseClient.from('media_lists').select('id, name');
-        container.innerHTML = lists.map(l => `<div class="list-select-item"><span>${l.name}</span><button onclick="toggleListItem('${l.id}', '${mediaId}', '${mediaType}')" class="primary-btn">Add</button></div>`).join('');
+        container.innerHTML = '<p class="meta">Loading your lists...</p>';
+
+        // STEP 1: Fetch lists the user owns
+        const { data: owned } = await supabaseClient
+            .from('media_lists')
+            .select('id, name')
+            .eq('user_id', user.id);
+
+        // STEP 2: Fetch lists where the user is a collaborator
+        const { data: collabEntries } = await supabaseClient
+            .from('list_collaborators')
+            .select('list_id, media_lists(id, name)')
+            .eq('user_id', user.id);
+
+        const collaborative = collabEntries?.map(e => e.media_lists).filter(Boolean) || [];
+
+        // STEP 3: Merge and de-duplicate
+        const listMap = new Map();
+        [...(owned || []), ...collaborative].forEach(l => listMap.set(l.id, l));
+        const finalLists = Array.from(listMap.values());
+
+        if (finalLists.length === 0) {
+            container.innerHTML = '<p class="meta">No editable lists found.</p>';
+            return;
+        }
+
+        // STEP 4: Check which lists already contain this item
+        const listIds = finalLists.map(l => l.id);
+        const { data: currentItems } = await supabaseClient
+            .from('list_items')
+            .select('list_id')
+            .in('list_id', listIds)
+            .eq('media_id', String(mediaId));
+            
+        // Create a Set of list IDs that already have the item for quick lookup
+        const addedListIds = new Set(currentItems?.map(item => item.list_id) || []);
+
+        // STEP 5: Render the buttons dynamically
+        container.innerHTML = finalLists.map(l => {
+            const isAdded = addedListIds.has(l.id);
+            const btnClass = isAdded ? 'danger-btn' : 'primary-btn';
+            const btnText = isAdded ? 'Remove' : 'Add';
+            
+            return `
+                <div class="list-select-item">
+                    <span>${l.name}</span>
+                    <button onclick="toggleListItem('${l.id}', '${mediaId}', '${mediaType}', this)" class="${btnClass}">${btnText}</button>
+                </div>
+            `;
+        }).join('');
     };
+
     close.onclick = () => modal.style.display = 'none';
+    
+    // Close on backdrop click
+    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
 }
 
 window.deleteLog = async (logId) => {
@@ -849,5 +906,47 @@ function openFillerModal(data) {
         </div>
     `;
 }
+
+window.toggleListItem = async (listId, mediaId, mediaType, btnElement) => {
+    // Determine if we are adding or removing based on the button's current text
+    const isAdding = btnElement.textContent === 'Add';
+    btnElement.textContent = '...'; // Show a loading state
+
+    if (isAdding) {
+        // ADD to list
+        const { error } = await supabaseClient
+            .from('list_items')
+            .insert({ 
+                list_id: listId, 
+                media_id: String(mediaId), 
+                media_type: mediaType 
+            });
+        
+        if (!error) {
+            btnElement.textContent = 'Remove';
+            btnElement.className = 'danger-btn'; // Changes it to the red style
+        } else {
+            console.error("Error adding to list:", error);
+            alert("Failed to add to list.");
+            btnElement.textContent = 'Add';
+        }
+    } else {
+        // REMOVE from list
+        const { error } = await supabaseClient
+            .from('list_items')
+            .delete()
+            .eq('list_id', listId)
+            .eq('media_id', String(mediaId));
+        
+        if (!error) {
+            btnElement.textContent = 'Add';
+            btnElement.className = 'primary-btn'; // Changes it back to the green/default style
+        } else {
+            console.error("Error removing from list:", error);
+            alert("Failed to remove from list.");
+            btnElement.textContent = 'Remove';
+        }
+    }
+};
 
 initDetails();

@@ -66,6 +66,7 @@ async function initDiary() {
         // 4. Update the "Profile" back button to stay in context
         const backToProfileBtn = document.querySelector('button[onclick*="profile.html"]');
         if (backToProfileBtn) {
+            backToProfileBtn.removeAttribute('onclick'); // Removes the hardcoded HTML link
             backToProfileBtn.onclick = () => {
                 window.location.href = `profile.html?id=${diaryOwnerId}`;
             };

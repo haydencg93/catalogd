@@ -9,45 +9,60 @@ let sortableInstance = null;
 let isOwner = false;
 
 async function initListDetails() {
+    // 1. Initialize Supabase and Config
     const response = await fetch('config.json');
     const config = await response.json();
     supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
     tmdbToken = config.tmdb_token;
 
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    const currentUserId = session?.user?.id;
-
-    // 1. Fetch List Info AND Collaborators
-    const { data: list } = await supabaseClient
-        .from('media_lists')
-        .select('*, list_collaborators(user_id)')
-        .eq('id', listId)
-        .single();
-
-    if (!list) {
-        console.error("List not found");
+    if (!listId) {
         window.location.href = 'index.html';
         return;
     }
 
-    const isActualOwner = (list.user_id === currentUserId);
-    const isCollaborator = list.list_collaborators?.some(c => c.user_id === currentUserId);
-    
-    // isOwner represents anyone with EDIT permissions
-    isOwner = isActualOwner || isCollaborator; 
-    isRanked = list.is_ranked;
+    // 2. Fetch Current User
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    const currentUserId = user?.id;
 
-    // 2. Dynamic Back Button
-    const backBtn = document.getElementById('back-to-lists-btn');
-    if (backBtn) {
-        backBtn.onclick = () => {
-            window.location.href = `lists.html?id=${list.user_id}`;
-        };
+    // 3. Fetch List Details
+    const { data: fetchedList, error: listError } = await supabaseClient
+        .from('media_lists')
+        .select('*')
+        .eq('id', listId)
+        .single();
+
+    if (listError || !fetchedList) {
+        alert("List not found or private.");
+        window.location.href = 'index.html';
+        return;
     }
 
-    // 3. UI Permissions & Ranked Toggle Setup
+    const list = fetchedList; 
+    isRanked = list.is_ranked;
+
+    // 4. Determine Permissions (Owner vs Collaborator vs Visitor)
+    const isActualOwner = currentUserId === list.user_id;
+    isOwner = isActualOwner; 
+
+    if (!isActualOwner && currentUserId) {
+        const { data: collab } = await supabaseClient
+            .from('list_collaborators')
+            .select('id')
+            .eq('list_id', listId)
+            .eq('user_id', currentUserId)
+            .maybeSingle();
+        
+        if (collab) {
+            isOwner = true; 
+        }
+    }
+
+    // 5. UI Permissions & Ranked Toggle Setup
+    const rankedToggleWrapper = document.querySelector('.ranked-toggle-wrapper');
     const rankedToggle = document.getElementById('ranked-toggle');
     const manageBtn = document.getElementById('manage-order-btn');
+    const visSelect = document.getElementById('visibility-select');
+    const collabBtn = document.getElementById('open-collab-modal-btn');
 
     if (!isOwner) {
         // Visitor mode: Hide editing UI
@@ -59,58 +74,106 @@ async function initListDetails() {
             return;
         }
     } else {
-        // Editor mode (Owner or Collaborator)
+        // EDITOR MODE (Owner OR Collaborator)
+        manageBtn.style.display = isRanked ? 'inline-block' : 'none';
+
+        // --- Ranked Toggle Logic (Now available to Collaborators too!) ---
         if (rankedToggle) {
             rankedToggle.checked = isRanked;
-            manageBtn.style.display = isRanked ? 'inline-block' : 'none';
+            if (rankedToggleWrapper) rankedToggleWrapper.style.display = 'flex';
             
             rankedToggle.onchange = async () => {
                 const isNowRanked = rankedToggle.checked;
-                const { error } = await supabaseClient
-                    .from('media_lists')
-                    .update({ is_ranked: isNowRanked })
-                    .eq('id', listId);
+                rankedToggle.disabled = true; 
                 
-                if (!error) {
-                    // Initialize ranks for existing items to match current order if turning ON
-                    if (isNowRanked) {
-                        for (let i = 0; i < currentItems.length; i++) {
-                            await supabaseClient.from('list_items')
-                                .update({ rank: i + 1 })
-                                .eq('id', currentItems[i].id);
-                        }
+                try {
+                    const { error: listUpdateErr } = await supabaseClient
+                        .from('media_lists')
+                        .update({ is_ranked: isNowRanked })
+                        .eq('id', listId);
+                    
+                    if (listUpdateErr) throw listUpdateErr;
+
+                    // Give items an initial rank if turning ON
+                    if (isNowRanked && currentItems.length > 0) {
+                        const updates = currentItems.map((item, index) => {
+                            return supabaseClient
+                                .from('list_items')
+                                .update({ rank: index + 1 })
+                                .eq('id', item.id);
+                        });
+                        await Promise.all(updates); 
                     }
-                    location.reload();
-                } else {
-                    alert("Error updating rank setting: " + error.message);
+
+                    isRanked = isNowRanked;
+                    manageBtn.style.display = isRanked ? 'inline-block' : 'none';
+                    await fetchListItems(); 
+                    
+                } catch (err) {
+                    alert("Error updating rank setting: " + err.message);
+                    rankedToggle.checked = !isNowRanked; 
+                } finally {
+                    rankedToggle.disabled = false;
                 }
             };
         }
 
-        // Privacy Toggle - Only for the Actual Owner
-        const visSelect = document.getElementById('visibility-select');
-        if (visSelect) {
-            if (isActualOwner) {
+        // --- Split Owner vs Collaborator Logic ---
+        if (isActualOwner) {
+            // OWNER ONLY: Change privacy and invite others
+            if (visSelect) {
                 visSelect.value = String(list.is_public);
+                visSelect.style.display = 'inline-block';
                 visSelect.onchange = async () => {
                     await supabaseClient
                         .from('media_lists')
                         .update({ is_public: visSelect.value === 'true' })
                         .eq('id', listId);
-                    alert("Visibility updated!");
                 };
-            } else {
-                visSelect.style.display = 'none';
             }
-        }
-
-        // Collaborator management - Only for the Actual Owner
-        if (isActualOwner) {
             setupCollabModal();
-            document.getElementById('open-collab-modal-btn').style.display = 'inline-block';
+            collabBtn.style.display = 'inline-block';
+            
+        } else {
+            // COLLABORATOR ONLY: Hide privacy, change Collab button to "Leave List"
+            if (visSelect) visSelect.style.display = 'none';
+            
+            collabBtn.textContent = "Leave List";
+            collabBtn.className = "danger-btn"; // Make it red
+            collabBtn.style.display = 'inline-block';
+            
+            collabBtn.onclick = async () => {
+                if(confirm("Are you sure you want to remove yourself from this list?")) {
+                    const { error } = await supabaseClient
+                        .from('list_collaborators')
+                        .delete()
+                        .eq('list_id', listId)
+                        .eq('user_id', currentUserId);
+                        
+                    // UPDATE THIS LINE BELOW:
+                    if(!error) window.location.href = 'lists.html'; 
+                    else alert("Error leaving list: " + error.message);
+                }
+            };
         }
     }
 
+    const contextId = params.get('context'); 
+    const backToListsBtn = document.getElementById('back-to-lists-btn');
+
+    if (backToListsBtn) {
+        backToListsBtn.onclick = () => {
+            if (contextId) {
+                // Go back to the specific user's lists we came from
+                window.location.href = `lists.html?id=${contextId}`;
+            } else {
+                // Fallback: Go to the list owner's page
+                window.location.href = `lists.html?id=${list.user_id}`;
+            }
+        };
+    }
+
+    // 6. Final UI Rendering
     document.getElementById('list-name').textContent = list.name;
     document.getElementById('list-desc').textContent = list.description || "Collection";
     

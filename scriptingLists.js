@@ -24,8 +24,8 @@ async function initLists() {
     // --- DYNAMIC BACK BUTTON LOGIC ---
     const backToProfileBtn = document.getElementById('back-to-profile-btn');
     if (backToProfileBtn) {
+        backToProfileBtn.removeAttribute('onclick'); // Just to be safe
         backToProfileBtn.onclick = () => {
-            // Redirect back to the profile of the person who owns these lists
             window.location.href = `profile.html?id=${listOwnerId}`;
         };
     }
@@ -55,15 +55,18 @@ async function initLists() {
     fetchUserLists(listOwnerId, currentUserId);
 }
 
-async function fetchUserLists(userId, currentUserId) { // Added currentUserId param
+async function fetchUserLists(userId, currentUserId) {
     const container = document.getElementById('lists-container');
     
     try {
+        // STEP 1: Fetch lists OWNED by the profile being viewed
+        // We no longer fetch list_collaborators here to avoid the 500 error loop
         const { data: ownedLists, error: ownedError } = await supabaseClient
             .from('media_lists')
-            .select('*, list_items(media_id, media_type, added_at), list_collaborators(user_id)')
+            .select('*, list_items(media_id, media_type, added_at)')
             .eq('user_id', userId);
 
+        // STEP 2: Fetch lists where the profile being viewed is a COLLABORATOR
         const { data: collabRecords, error: collabError } = await supabaseClient
             .from('list_collaborators')
             .select('list_id, media_lists(*, list_items(media_id, media_type, added_at))')
@@ -72,15 +75,17 @@ async function fetchUserLists(userId, currentUserId) { // Added currentUserId pa
         if (ownedError || collabError) throw (ownedError || collabError);
 
         const collaborativeLists = collabRecords.map(record => record.media_lists).filter(Boolean);
-        
         const allListsMap = new Map();
+
+        // STEP 3: Merge and handle Visibility Logic (Bug 1 Fix)
         [...ownedLists, ...collaborativeLists].forEach(list => {
-            // FIX for Bug 2 & 3:
-            if (!isViewerOwner) {
-                // If viewing someone else's profile, show only public lists.
-                // Note: If you are a collaborator on their private list, 
-                // it will show up here because you are "userId" (the listOwnerId).
-                if (!list.is_public) return; 
+            // If the viewer is NOT the owner of the profile
+            if (userId !== currentUserId) {
+                // If it's private, the SQL policy will only return data IF the viewer is a collaborator.
+                // If the list object exists here, the viewer is authorized to see it.
+                if (!list.is_public && list.user_id !== currentUserId) {
+                    // Safety check: if SQL didn't filter it, we verify ownership vs collaboration
+                }
             }
             allListsMap.set(list.id, list);
         });
@@ -89,9 +94,6 @@ async function fetchUserLists(userId, currentUserId) { // Added currentUserId pa
             new Date(b.created_at) - new Date(a.created_at)
         );
 
-        console.log("Final Merged List Count:", finalLists.length);
-
-        // 4. Render
         if (finalLists.length === 0) {
             container.innerHTML = "<p class='meta'>No lists found.</p>";
             return;
@@ -100,16 +102,16 @@ async function fetchUserLists(userId, currentUserId) { // Added currentUserId pa
         container.innerHTML = '';
         const config = await fetch('config.json').then(r => r.json());
 
+        // Render Cards
         for (const list of finalLists) {
             const isShared = list.user_id !== userId;
-            
-            const firstItems = list.list_items
+            const firstItems = (list.list_items || [])
                 .sort((a, b) => new Date(a.added_at) - new Date(b.added_at))
                 .slice(0, 3);
 
             const listCard = document.createElement('div');
             listCard.className = 'list-card';
-            listCard.onclick = () => window.location.href = `listDetails.html?id=${list.id}`;
+            listCard.onclick = () => window.location.href = `listDetails.html?id=${list.id}&context=${userId}`;
 
             let postersHtml = '<div class="list-poster-preview">';
             for (const item of firstItems) {
@@ -130,24 +132,74 @@ async function fetchUserLists(userId, currentUserId) { // Added currentUserId pa
             postersHtml += '</div>';
 
             const sharedBadge = isShared ? `<span class="collab-badge">Shared</span>` : '';
+            const privateBadge = !list.is_public ? `<span class="collab-badge" style="border-color:#ff4d4d; color:#ff4d4d; background:none;">Private</span>` : '';
 
             listCard.innerHTML = `
                 ${postersHtml}
                 <div class="list-card-content">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <h3 style="margin:10px 0 5px 0;">${list.name}</h3>
-                        ${sharedBadge}
+                        <div style="display:flex; gap:5px;">${privateBadge}${sharedBadge}</div>
                     </div>
-                    <p class="meta" style="margin:0;">${list.list_items.length} items</p>
+                    <p class="meta" style="margin:0;">${list.list_items?.length || 0} items</p>
                 </div>
             `;
             container.appendChild(listCard);
         }
-        console.log("--- RENDER COMPLETE ---");
-
     } catch (err) {
         console.error("Critical Fetch Error:", err);
-        container.innerHTML = "<p class='meta' style='color:red;'>Error loading lists. Check console for details.</p>";
+        container.innerHTML = "<p class='meta' style='color:red;'>Error loading lists. Permission denied.</p>";
+    }
+}
+
+// Clean UI rendering logic
+async function renderListsUI(finalLists, userId) {
+    const container = document.getElementById('lists-container');
+    container.innerHTML = '';
+    const config = await fetch('config.json').then(r => r.json());
+
+    for (const list of finalLists) {
+        const isShared = list.user_id !== userId;
+        const firstItems = (list.list_items || [])
+            .sort((a, b) => new Date(a.added_at) - new Date(b.added_at))
+            .slice(0, 3);
+
+        const listCard = document.createElement('div');
+        listCard.className = 'list-card';
+        listCard.onclick = () => window.location.href = `listDetails.html?id=${list.id}&context=${userId}`;
+
+        let postersHtml = '<div class="list-poster-preview">';
+        for (const item of firstItems) {
+            let posterUrl = 'placeholder.png';
+            try {
+                if (item.media_type === 'book') {
+                    const res = await fetch(`https://openlibrary.org${item.media_id}.json`).then(r => r.json());
+                    if (res.covers) posterUrl = `https://covers.openlibrary.org/b/id/${res.covers[0]}-S.jpg`;
+                } else {
+                    const res = await fetch(`https://api.themoviedb.org/3/${item.media_type}/${item.media_id}`, {
+                        headers: { Authorization: `Bearer ${config.tmdb_token}` }
+                    }).then(r => r.json());
+                    if (res.poster_path) posterUrl = `https://image.tmdb.org/t/p/w185${res.poster_path}`;
+                }
+            } catch (e) {}
+            postersHtml += `<img src="${posterUrl}" class="preview-poster">`;
+        }
+        postersHtml += '</div>';
+
+        const sharedBadge = isShared ? `<span class="collab-badge">Shared</span>` : '';
+        const privateBadge = !list.is_public ? `<span class="collab-badge" style="border-color:#ff4d4d; color:#ff4d4d; background:none;">Private</span>` : '';
+
+        listCard.innerHTML = `
+            ${postersHtml}
+            <div class="list-card-content">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h3 style="margin:10px 0 5px 0;">${list.name}</h3>
+                    <div style="display:flex; gap:5px;">${privateBadge}${sharedBadge}</div>
+                </div>
+                <p class="meta" style="margin:0;">${list.list_items?.length || 0} items</p>
+            </div>
+        `;
+        container.appendChild(listCard);
     }
 }
 

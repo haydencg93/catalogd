@@ -43,6 +43,7 @@ async function initWatchlist() {
 
     // Dynamic Back Button
     if (backBtn) {
+        backBtn.removeAttribute('onclick'); // Removes the hardcoded HTML link
         backBtn.onclick = () => {
             window.location.href = `profile.html?id=${watchlistOwnerId}`;
         };
