@@ -261,3 +261,116 @@ td {
 }
 
 .review-indicator { cursor: pointer; font-size: 1.2rem; }
+
+/* --- MOBILE RESPONSIVENESS (< 768px) --- */
+@media (max-width: 768px) {
+    /* 1. Stack Header & Controls */
+    .diary-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .diary-controls {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    #diary-search, #rating-filter {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* 2. Wrap Filter Tabs */
+    .filter-nav {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .filter-btn {
+        flex: 1 1 30%;
+        text-align: center;
+        padding: 10px;
+        font-size: 0.9rem;
+    }
+
+    /* 3. Wrap Stats Section into a 2x3 Grid */
+    .diary-stats {
+        flex-wrap: wrap;
+        justify-content: space-around;
+        padding: 15px;
+        gap: 15px;
+    }
+    
+    .stat-item {
+        flex: 1 1 40%;
+        text-align: center;
+    }
+
+    /* 4. MAGIC: Convert HTML Table to Mobile Cards */
+    .table-wrapper {
+        background: transparent;
+        border: none;
+    }
+
+    #diary-table thead {
+        display: none; /* Hide standard column headers */
+    }
+
+    #diary-table, #diary-table tbody, #diary-table tr, #diary-table td {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    #diary-table tr {
+        display: grid;
+        grid-template-columns: 70px 1fr auto;
+        grid-template-rows: auto auto auto auto;
+        grid-template-areas:
+            "poster name name"
+            "poster date year"
+            "poster rating review"
+            "poster action action";
+        gap: 5px 12px;
+        padding: 15px;
+        background: var(--card);
+        border: 1px solid #2c3440;
+        border-radius: 12px;
+        margin-bottom: 15px;
+    }
+
+    #diary-table td {
+        padding: 0;
+        border: none;
+        align-self: center;
+    }
+
+    /* Map exact table columns to our new visual Grid layout */
+    #diary-table td:nth-child(1) { grid-area: date; font-size: 0.85rem; }
+    #diary-table td:nth-child(2) { grid-area: poster; align-self: start; }
+    #diary-table td:nth-child(3) { grid-area: name; font-size: 1.1rem; padding-bottom: 4px; }
+    #diary-table td:nth-child(4) { grid-area: year; text-align: right; font-size: 0.85rem; }
+    #diary-table td:nth-child(5) { grid-area: rating; }
+    #diary-table td:nth-child(6) { grid-area: review; text-align: right; }
+    #diary-table td:nth-child(7) { 
+        grid-area: action; 
+        border-top: 1px solid #2c3440; 
+        margin-top: 8px; 
+        padding-top: 12px; 
+    }
+
+    .diary-poster {
+        width: 100%;
+        height: auto;
+        border-radius: 6px;
+    }
+
+    /* 5. Review Modal Sizing Fix */
+    .modal-content {
+        width: 90%;
+        margin: 30% auto;
+        padding: 20px;
+    }
+}
