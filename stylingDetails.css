@@ -760,3 +760,48 @@
 .history-item span[onclick] {
     cursor: pointer;
 }
+
+/* --- DETAILS PAGE MOBILE RESPONSIVENESS (< 768px) --- */
+@media (max-width: 768px) {
+    .details-container {
+        flex-direction: column; /* Stacks the poster above the info */
+        align-items: center;
+        text-align: center;
+        padding: 0 15px;
+    }
+
+    #poster-area {
+        width: 65%; /* Keeps the poster a reasonable size */
+        max-width: 250px;
+        margin: 0 auto 20px;
+    }
+
+    /* Wrap the Meta Tags (Year, Genre, Runtime) */
+    .meta {
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    /* Center Provider and Cast lists */
+    #providers-list, #cast-list {
+        justify-content: center;
+    }
+
+    /* Stack Action Buttons */
+    .action-buttons {
+        flex-direction: column;
+        width: 100%;
+        gap: 15px;
+    }
+
+    .action-buttons button {
+        width: 100%;
+    }
+
+    /* Modal adjustments */
+    .auth-card.filler-card {
+        width: 95%;
+        padding: 20px 10px;
+    }
+}

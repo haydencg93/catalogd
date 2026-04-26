@@ -108,3 +108,43 @@ body {
     background: rgba(255, 255, 255, 0.1);
     color: #fff;
 }
+
+/* --- WATCHLIST MOBILE RESPONSIVENESS (< 768px) --- */
+@media (max-width: 768px) {
+    .profile-container {
+        padding: 0 20px;
+    }
+
+    .profile-container h1 {
+        text-align: center;
+        font-size: 2.2rem;
+    }
+
+    /* Target the header wrapper directly */
+    .profile-container > div:nth-of-type(1) {
+        flex-direction: column;
+        text-align: center;
+        gap: 15px;
+    }
+
+    #watchlist-subtitle {
+        text-align: center;
+        border-bottom: none;
+        padding-bottom: 0;
+        margin-bottom: 10px;
+    }
+
+    .filter-nav {
+        flex-wrap: wrap;
+        justify-content: center;
+        width: 100%;
+        border-bottom: 1px solid #2c3440;
+        padding-bottom: 20px;
+        margin-bottom: 20px;
+    }
+
+    .filter-btn {
+        flex: 1 1 40%;
+        margin: 0;
+    }
+}

@@ -129,3 +129,28 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
         flex-direction: column;
     }
 }
+
+/* --- SETTINGS MOBILE RESPONSIVENESS (< 768px) --- */
+@media (max-width: 768px) {
+    .settings-container {
+        padding: 0 15px;
+    }
+    
+    .settings-card {
+        padding: 20px 15px;
+    }
+
+    .export-date-container {
+        flex-direction: column; /* Stacks the Start Date and End Date */
+        gap: 15px;
+    }
+
+    .danger-zone {
+        text-align: center;
+    }
+    
+    .danger-zone button {
+        width: 100%;
+        margin-bottom: 15px;
+    }
+}

@@ -46,3 +46,24 @@ input[type="text"] { margin: 0; flex-grow: 1; }
     text-transform: uppercase;
     font-weight: bold;
 }
+
+/* --- LISTS PAGE MOBILE RESPONSIVENESS (< 768px) --- */
+@media (max-width: 768px) {
+    .create-list-section {
+        padding: 20px 15px;
+    }
+
+    .input-group {
+        flex-direction: column; /* Stack input and create button */
+        width: 100%;
+    }
+
+    .input-group button {
+        width: 100% !important;
+    }
+
+    .list-grid {
+        grid-template-columns: 1fr; /* 1 list card per row */
+        gap: 15px;
+    }
+}
