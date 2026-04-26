@@ -303,6 +303,11 @@ async function renderStatusItems(items, gridId) {
                 
                 // Fallback text if page progress isn't in the status record
                 progressText = item.current_page ? `Pg ${item.current_page}` : item.status.charAt(0).toUpperCase() + item.status.slice(1);
+            } else if (item.media_type === 'youtube') {
+                const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${item.media_id}`).then(r => r.json());
+                title = res.title || 'YouTube Video';
+                image = res.thumbnail_url || 'placeholder.png';
+                progressText = item.status.charAt(0).toUpperCase() + item.status.slice(1);
             } else {
                 const res = await fetch(`https://api.themoviedb.org/3/${item.media_type}/${item.media_id}`, {
                     headers: { Authorization: `Bearer ${config.tmdb_token}` } 
@@ -344,7 +349,6 @@ async function renderStatusItems(items, gridId) {
 }
 
 window.filterRecent = (type) => {
-    // FIX: Scope the selector to ONLY look at buttons in the Recent Activity header
     const activitySection = document.getElementById('recent-grid').previousElementSibling;
     const buttons = activitySection.querySelectorAll('.filter-btn');
     
@@ -352,17 +356,14 @@ window.filterRecent = (type) => {
         btn.classList.remove('active');
         const btnText = btn.textContent.toLowerCase();
         
-        // Match specific types
         if (type === 'all' && btnText === 'all') btn.classList.add('active');
         else if (type === 'movie' && btnText === 'movies') btn.classList.add('active');
         else if (type === 'tv' && btnText === 'tv') btn.classList.add('active');
         else if (type === 'book' && btnText === 'books') btn.classList.add('active');
+        else if (type === 'youtube' && btnText === 'youtube') btn.classList.add('active');
     });
 
-    const filtered = type === 'all' 
-        ? allUserLogs 
-        : allUserLogs.filter(l => l.media_type === type);
-    
+    const filtered = type === 'all' ? allUserLogs : allUserLogs.filter(l => l.media_type === type);
     renderRecent(filtered);
 };
 
@@ -386,6 +387,10 @@ async function renderRecent(logs) {
                     const res = await fetch(`https://openlibrary.org${log.media_id}.json`).then(r => r.json());
                     title = res.title;
                     image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : '';
+                } else if (log.media_type === 'youtube') {
+                    const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${log.media_id}`).then(r => r.json());
+                    title = res.title || 'YouTube Video';
+                    image = res.thumbnail_url || '';
                 } else {
                     const res = await fetch(`https://api.themoviedb.org/3/${log.media_type}/${log.media_id}`, {
                         headers: { Authorization: `Bearer ${config.tmdb_token}` } 
@@ -437,17 +442,14 @@ async function renderRecent(logs) {
 }
 
 function updateTopAll() {
-    // Take index [0] from each specific category
-    const topMovie = currentFavs.movie[0];
-    const topTv = currentFavs.tv[0];
-    const topBook = currentFavs.book[0];
-    
-    // Replace the 'all' array with these three (if they exist)
-    currentFavs.all = [topMovie, topTv, topBook].filter(Boolean);
+    const topMovie = currentFavs.movie?.[0];
+    const topTv = currentFavs.tv?.[0];
+    const topBook = currentFavs.book?.[0];
+    const topYoutube = currentFavs.youtube?.[0];
+    currentFavs.all = [topMovie, topTv, topBook, topYoutube].filter(Boolean);
 }
 
 window.filterFavs = (type) => {
-    // 1. Update Button UI
     const favSection = document.getElementById('favorites-section');
     const buttons = favSection.querySelectorAll('.filter-btn');
     
@@ -458,12 +460,12 @@ window.filterFavs = (type) => {
         else if (type === 'movie' && btnText === 'movies') btn.classList.add('active');
         else if (type === 'tv' && btnText === 'tv') btn.classList.add('active');
         else if (type === 'book' && btnText === 'books') btn.classList.add('active');
+        else if (type === 'youtube' && btnText === 'youtube') btn.classList.add('active');
     });
 
-    // 2. Clear and Render Grid
     const grid = document.getElementById('favorites-grid');
     grid.innerHTML = '';
-    const favorites = window.userFavorites || { movie: [], tv: [], book: [], all: [] };
+    const favorites = window.userFavorites || { movie: [], tv: [], book: [], youtube: [], all: [] };
     const list = favorites[type] || [];
 
     if (list.length === 0) {
@@ -482,9 +484,7 @@ window.filterFavs = (type) => {
             </div>
             <div class="media-info">
                 <div class="title">${item.title}</div>
-                <div class="meta">
-                    <span class="badge badge-${item.type}">${item.type}</span>
-                </div>
+                <div class="meta"><span class="badge badge-${item.type}">${item.type}</span></div>
             </div>`;
         grid.appendChild(card);
     });

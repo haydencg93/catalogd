@@ -1,6 +1,6 @@
 let supabaseClient = null;
 let tmdbToken = null;
-let currentFavs = { movie: [], tv: [], book: [], all: [] };
+let currentFavs = { movie: [], tv: [], book: [], youtube: [], all: [] };
 
 async function initSettings() {
     const response = await fetch('config.json');
@@ -32,7 +32,7 @@ async function initSettings() {
         document.getElementById('toggle-active-status').checked = profile.show_active_status !== false; 
         document.getElementById('toggle-paused-status').checked = profile.show_paused_dropped_status !== false;
 
-        currentFavs = profile.favorites || { movie: [], tv: [], book: [], all: [] };
+        currentFavs = profile.favorites || { movie: [], tv: [], book: [], youtube: [], all: [] };
         renderFavManager(); 
     }
 
@@ -189,7 +189,6 @@ favSearchInput.oninput = async () => {
 };
 
 // Update Profile
-// Update Profile
 async function saveAllProfileData() {
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) return alert("Session lost. Please log in again.");
@@ -247,6 +246,10 @@ document.getElementById('save-favs-btn').onclick = saveAllProfileData;
 document.getElementById('save-privacy-btn').onclick = saveAllProfileData; // NEW
 
 function addFavorite(item) {
+    if (!currentFavs[item.type]) {
+        currentFavs[item.type] = [];
+    }
+
     if (currentFavs[item.type].length >= 5) {
         return alert("You can only have 5 favorites per category!");
     }
@@ -257,12 +260,12 @@ function addFavorite(item) {
 }
 
 function updateTopAll() {
-    // Take #1 from each category and put into 'all'
-    const topMovie = currentFavs.movie[0];
-    const topTv = currentFavs.tv[0];
-    const topBook = currentFavs.book[0];
+    const topMovie = currentFavs.movie?.[0];
+    const topTv = currentFavs.tv?.[0];
+    const topBook = currentFavs.book?.[0];
+    const topYoutube = currentFavs.youtube?.[0]; // NEW
     
-    currentFavs.all = [topMovie, topTv, topBook].filter(Boolean);
+    currentFavs.all = [topMovie, topTv, topBook, topYoutube].filter(Boolean);
 }
 
 async function startLetterboxdExport(userId, rangeType, startDate, endDate) {
@@ -824,6 +827,37 @@ function setupFavoritesSearch() {
             return;
         }
 
+        // --- NEW YOUTUBE URL DETECTION ---
+        const ytRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+        const ytMatch = query.match(ytRegex);
+
+        if (ytMatch && ytMatch[1]) {
+            const ytId = ytMatch[1];
+            fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${ytId}`).then(r => r.json()).then(res => {
+                if (!res.error) {
+                    favSearchResults.innerHTML = '';
+                    favSearchResults.style.display = 'block';
+                    
+                    const div = document.createElement('div');
+                    div.className = 'search-item-dropdown';
+                    div.style.cssText = `display: flex; align-items: center; gap: 12px; padding: 10px; cursor: pointer; border-bottom: 1px solid #2c3440;`;
+                    div.innerHTML = `
+                        <img src="${res.thumbnail_url}" style="width: 40px; height: 60px; object-fit: cover; border-radius: 4px;">
+                        <div style="flex: 1;">
+                            <strong style="font-size: 1rem;">${res.title}</strong>
+                            <div style="font-size: 0.75rem; color: #9ab;">YOUTUBE</div>
+                        </div>
+                    `;
+                    div.onclick = () => {
+                        addFavorite({ id: ytId, title: res.title, type: 'youtube', image: res.thumbnail_url });
+                        favSearchResults.innerHTML = ''; favSearchInput.value = '';
+                    };
+                    favSearchResults.appendChild(div);
+                }
+            });
+            return; // Stop here so it doesn't try to search TMDB for a URL
+        }
+
         timeout = setTimeout(async () => {
             const options = { headers: { Authorization: `Bearer ${tmdbToken}` } };
 
@@ -916,14 +950,18 @@ function renderFavManager() {
     const container = document.getElementById('favorites-manager');
     container.innerHTML = ''; // Clear existing
 
-    const categories = ['movie', 'tv', 'book'];
+    const categories = ['movie', 'tv', 'book', 'youtube'];
     
     categories.forEach(cat => {
         const section = document.createElement('div');
         section.className = 'fav-category-admin';
         section.style.marginBottom = '20px';
         
-        const label = cat.charAt(0).toUpperCase() + cat.slice(1) + 's';
+        let label = "";
+        if (cat === 'youtube') label = "YouTube Videos";
+        else if (cat === 'tv') label = "TV Shows";
+        else label = cat.charAt(0).toUpperCase() + cat.slice(1) + 's';
+        
         section.innerHTML = `<h4 style="color: #9ab; margin-bottom: 10px;">Top 5 ${label}</h4>`;
         
         const list = currentFavs[cat] || [];
