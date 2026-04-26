@@ -352,6 +352,36 @@ async function setupSearch() {
             return;
         }
 
+        const ytRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+        const ytMatch = query.match(ytRegex);
+
+        if (ytMatch && ytMatch[1]) {
+            const ytId = ytMatch[1];
+            try {
+                const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${ytId}`).then(r => r.json());
+                
+                if (!res.error) {
+                    resultsDiv.innerHTML = '';
+                    resultsDiv.style.display = 'block';
+                    
+                    const div = document.createElement('div');
+                    div.className = 'search-result-item';
+                    div.innerHTML = `
+                        <img src="${res.thumbnail_url}" onerror="this.src='placeholder.png'">
+                        <div>
+                            <strong>${res.title}</strong>
+                            <div class="meta">YOUTUBE</div>
+                        </div>
+                    `;
+                    div.onclick = () => addItem(ytId, 'youtube');
+                    resultsDiv.appendChild(div);
+                    return; // Stop here so we don't fetch TMDB/OpenLibrary
+                }
+            } catch (err) {
+                console.error("YouTube fetch error:", err);
+            }
+        }
+
         const tmdbRes = await fetch(`https://api.themoviedb.org/3/search/multi?query=${encodeURIComponent(query)}`, {
             headers: { Authorization: `Bearer ${tmdbToken}` }
         }).then(r => r.json());
@@ -418,8 +448,13 @@ async function addItem(mediaId, mediaType) {
 
 async function fetchMediaDetails(id, type) {
     try {
-        if (type === 'book') {
-            const res = await fetch(`https://openlibrary.org${id}.json`).then(r => r.json());
+        if (type === 'youtube') {
+            const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${id}`).then(r => r.json());
+            return {
+                title: res.title || 'YouTube Video',
+                poster: res.thumbnail_url || 'https://via.placeholder.com/92x138?text=No+Thumb'
+            };
+        } else if (type === 'book') {            const res = await fetch(`https://openlibrary.org${id}.json`).then(r => r.json());
             return {
                 title: res.title,
                 poster: res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : 'placeholder.png'

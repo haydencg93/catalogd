@@ -116,6 +116,7 @@ function updateStatsDisplay() {
     const avgRating = totalLogs > 0 ? (totalRatingSum / totalLogs).toFixed(1) : "0.0";
     const totalMovies = filteredLogs.filter(l => l.media_type === 'movie').length;
     const totalBooks = filteredLogs.filter(l => l.media_type === 'book').length;
+    const totalYoutube = filteredLogs.filter(l => l.media_type === 'youtube').length; // NEW
     const uniqueSeries = new Set(filteredLogs.filter(l => l.media_type === 'tv').map(l => l.media_id)).size;
     const totalSeasons = filteredLogs.filter(l => l.media_type === 'tv' && l.season_number && !l.episode_number).length;
     const directEpisodes = filteredLogs.filter(l => l.episode_number).length;
@@ -130,8 +131,10 @@ function updateStatsDisplay() {
     document.getElementById('total-logs').textContent = totalLogs;
     document.getElementById('avg-rating').textContent = avgRating;
     document.getElementById('total-movies').textContent = totalMovies;
-    document.getElementById('total-books').textContent = totalBooks;
     document.getElementById('total-series').textContent = uniqueSeries;
+    document.getElementById('total-books').textContent = totalBooks;
+    const ytStat = document.getElementById('total-youtube');
+    if (ytStat) ytStat.textContent = totalYoutube;
     document.getElementById('total-seasons').textContent = totalSeasons;
     document.getElementById('total-episodes').textContent = totalEpisodes;
     const timeElement = document.getElementById('total-time');
@@ -232,7 +235,12 @@ async function fetchAndFormatRow(log, token) {
         let title, year, image, displayTitle;
         
         // 1. Fetch Basic Media Info
-        if (log.media_type === 'book') {
+        if (log.media_type === 'youtube') {
+            const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${log.media_id}`).then(r => r.json());
+            title = res.title || 'Unknown Video';
+            year = 'YouTube'; 
+            image = res.thumbnail_url || 'https://via.placeholder.com/92x138?text=No+Thumb';
+        } else if (log.media_type === 'book') {
             const res = await fetch(`https://openlibrary.org${log.media_id}.json`).then(r => r.json());
             title = res.title;
             year = res.first_publish_date || 'N/A';

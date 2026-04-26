@@ -19,6 +19,8 @@ async function initLog() {
     const scope = document.getElementById('log-scope');
     const bookGroup = document.getElementById('book-input-group');
 
+    const youtubeGroup = document.getElementById('youtube-input-group');
+
     if (type === 'book') {
         const res = await fetch(`https://openlibrary.org${id}.json`).then(r => r.json());
         document.getElementById('media-title').textContent = res.title;
@@ -41,6 +43,15 @@ async function initLog() {
             document.getElementById('book-chapter').style.display = isChapter ? 'block' : 'none';
             document.getElementById('book-page').style.display = isProgress ? 'block' : 'none';
         };
+        
+        currentMediaRuntime = 0;
+    } else if (type === 'youtube') {
+        // --- NEW YOUTUBE LOGIC ---
+        const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${id}`).then(r => r.json());
+        document.getElementById('media-title').textContent = res.title || 'YouTube Video';
+        
+        if (youtubeGroup) youtubeGroup.style.display = 'block';
+        scope.innerHTML = `<option value="entire">Entire Video</option>`;
         
         currentMediaRuntime = 0;
     } else {
@@ -101,7 +112,10 @@ async function fetchExistingLogData() {
         // Fill Scope (Limited for edits to prevent breaking relational data)
         const scope = document.getElementById('log-scope');
         
-        if (log.episode_number) {
+        if (log.media_type === 'youtube') {
+            const ytInput = document.getElementById('youtube-duration');
+            if (ytInput) ytInput.value = log.runtime || '';
+        } else if (log.episode_number) {
             scope.value = 'episode';
             // Manually trigger visibility of dropdowns
             document.getElementById('dropdown-group').style.display = 'flex';
@@ -291,6 +305,11 @@ async function saveLog() {
             // --- MOVIE & TV LOGIC ---
             let scopeValue = document.getElementById('log-scope').value; 
             
+            if (type === 'youtube') {
+                const ytDuration = document.getElementById('youtube-duration').value;
+                currentMediaRuntime = parseInt(ytDuration) || 0;
+            }
+
             const payload = {
                 user_id: user.id,
                 media_id: id,

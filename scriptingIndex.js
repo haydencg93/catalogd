@@ -196,13 +196,21 @@ window.switchTab = function(type) {
     document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
     document.getElementById(`btn-${type}`).classList.add('active');
     searchInput.value = '';
-    fetchTrending(type);
+    
+    if (type === 'youtube') {
+        searchInput.placeholder = "Paste a YouTube link here...";
+        document.getElementById('section-title').textContent = "Add a YouTube Video";
+        resultsGrid.innerHTML = '<p class="meta" style="grid-column: 1/-1; text-align: center;">Paste a valid YouTube URL in the search bar above to log it!</p>';
+    } else {
+        searchInput.placeholder = "Search for movies, shows, books, authors, ...";
+        fetchTrending(type);
+    }
 };
 
 async function unifiedSearch(query) {
     const filterNav = document.querySelector('.filter-nav');
     const filterValue = document.getElementById('search-filter').value;
-    const sectionTitle = document.getElementById('section-title'); // Grab the title element
+    const sectionTitle = document.getElementById('section-title');
 
     if (!query || query.trim() === "") {
         const url = new URL(window.location);
@@ -210,9 +218,26 @@ async function unifiedSearch(query) {
         window.history.pushState({}, '', url);
         
         filterNav.style.display = 'flex'; 
-        fetchTrending(currentTab); // fetchTrending will automatically reset the title to "Trending"
+        if (currentTab !== 'youtube') fetchTrending(currentTab); 
         return;
     }
+
+    const ytRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+    const ytMatch = query.match(ytRegex);
+
+    if (ytMatch || currentTab === 'youtube') {
+        if (ytMatch && ytMatch[1]) {
+            // We found a valid 11-character video ID! Redirect immediately.
+            window.location.href = `details.html?id=${ytMatch[1]}&type=youtube`;
+        } else {
+            loader.textContent = "Please enter a valid YouTube URL.";
+            loader.style.display = 'block';
+        }
+        return; 
+    }
+
+    filterNav.style.display = 'none'; 
+    if (sectionTitle) sectionTitle.textContent = `Search Results for "${query}"`;
 
     filterNav.style.display = 'none'; 
     if (sectionTitle) sectionTitle.textContent = `Search Results for "${query}"`; // Update title for search

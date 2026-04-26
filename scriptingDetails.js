@@ -14,7 +14,27 @@ async function initDetails() {
         };
 
         let data;
-        if (type === 'book') {
+        
+        // --- 1. YOUTUBE FETCH ---
+        if (type === 'youtube') {
+            const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${id}`).then(r => r.json());
+            
+            if (res.error) {
+                alert("Error loading video data.");
+                window.location.href = 'index.html';
+                return;
+            }
+
+            data = {
+                title: res.title,
+                overview: `A video by ${res.author_name}.\n\n(Note: Durations and descriptions are not provided by this API. Please input your watch time manually when logging!)`,
+                poster_path: res.thumbnail_url,
+                meta: 'YouTube Video',
+                author_name: res.author_name
+            };
+        } 
+        // --- 2. BOOK FETCH ---
+        else if (type === 'book') {
             const res = await fetch(`https://openlibrary.org${id}.json`).then(r => r.json());
             const editionsRes = await fetch(`https://openlibrary.org${id}/editions.json`).then(r => r.json());
             const authorData = res.authors || [];
@@ -22,8 +42,8 @@ async function initDetails() {
             let firstAuthorName = '';
             if (res.authors && res.authors.length > 0) {
                 const authorKey = res.authors[0].author.key;
-                const authorData = await fetch(`https://openlibrary.org${authorKey}.json`).then(r => r.json());
-                firstAuthorName = authorData.name;
+                const authorDataFetch = await fetch(`https://openlibrary.org${authorKey}.json`).then(r => r.json());
+                firstAuthorName = authorDataFetch.name;
             }
 
             let foundIsbn = null;
@@ -44,7 +64,7 @@ async function initDetails() {
                 poster_path: res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-L.jpg` : null,
                 meta: `Published: ${res.first_publish_date || 'Unknown'}`,
                 authors: res.authors || [],
-                authorName: firstAuthorName // Store the resolved name here
+                authorName: firstAuthorName
             };
             
             let pageCount = null;
@@ -55,7 +75,9 @@ async function initDetails() {
                 }
             }
             data.pages = pageCount;
-        } else {
+        } 
+        // --- 3. MOVIE & TV FETCH ---
+        else {
             const res = await fetch(`https://api.themoviedb.org/3/${type}/${id}`, tmdbOptions).then(r => r.json());
             data = {
                 title: res.title || res.name,
@@ -69,8 +91,54 @@ async function initDetails() {
         document.getElementById('media-title').textContent = data.title;
         document.getElementById('media-overview').textContent = data.overview;
         document.getElementById('media-meta').textContent = data.meta;
-        document.getElementById('poster-area').innerHTML = `<img src="${data.poster_path}" alt="poster">`;
-        if (data.backdrop) document.getElementById('backdrop-overlay').style.backgroundImage = `url(${data.backdrop})`;
+        
+        // --- YOUTUBE POSTER, PROVIDERS, & CAST RENDERING ---
+        if (type === 'youtube') {
+            // 1. Render the iframe
+            document.getElementById('poster-area').innerHTML = `
+                <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.6);">
+                    <iframe src="https://www.youtube.com/embed/${id}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" frameborder="0" allowfullscreen></iframe>
+                </div>
+            `;
+            
+            // 2. Set YouTube as the Watch Provider
+            const providerSection = document.getElementById('watch-providers');
+            if (providerSection) {
+                providerSection.style.display = 'block';
+                providerSection.querySelector('h4').textContent = "Watch on YouTube";
+                document.getElementById('providers-list').innerHTML = `
+                    <div class="provider-group">
+                        <div class="provider-icons">
+                            <a href="https://www.youtube.com/watch?v=${id}" target="_blank" style="text-decoration: none; display: inline-block;">
+                                <img src="https://www.youtube.com/s/desktop/40cd5ddc/img/favicon_144x144.png" class="provider-logo" style="width: 60px; object-fit: contain; background: transparent; border: none; transition: transform 0.2s;" title="Open in YouTube">
+                            </a>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // 3. Set the Channel Name as the Cast Member
+            const castSection = document.getElementById('cast-section');
+            if (castSection) {
+                castSection.style.display = 'block';
+                castSection.querySelector('h3').textContent = "Channel";
+                const channelAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.author_name || 'Y T')}&background=1b2228&color=ff0000&size=185`;
+                
+                document.getElementById('cast-list').innerHTML = `
+                    <div class="cast-card">
+                        <img src="${channelAvatar}" alt="${data.author_name || 'Channel'}">
+                        <div class="cast-info">
+                            <span class="cast-name">${data.author_name || 'Unknown Channel'}</span>
+                            <span class="cast-role">Creator</span>
+                        </div>
+                    </div>
+                `;
+            }
+        } else {
+            // Standard poster logic for movies/tv/books
+            document.getElementById('poster-area').innerHTML = `<img src="${data.poster_path}" alt="poster">`;
+            if (data.backdrop) document.getElementById('backdrop-overlay').style.backgroundImage = `url(${data.backdrop})`;
+        }
 
         document.getElementById('go-to-log').onclick = () => {
             window.location.href = `log.html?id=${id}&type=${type}`;
@@ -81,13 +149,12 @@ async function initDetails() {
         if (type === 'tv') setupTVTracker(config, id);
         
         if (type === 'book') {
-            // Get the first author's name if available
             const firstAuthor = data.authors && data.authors.length > 0 ? data.authors[0].name : '';
-            
             displayBookLinks(data.title, data.authorName); 
             setupBookTracker(data.pages);
             fetchBookAuthors(data.authors);
-        } else {
+        } else if (type !== 'youtube') {
+            // This ensures TMDB provider/credit fetches skip YouTube videos!
             fetchWatchProviders(config);
             fetchCredits(config, id, type);
         }
@@ -100,7 +167,7 @@ async function initDetails() {
             isAnime = keywords.some(k => k.name.toLowerCase() === 'anime');
         }
 
-        // 2. If it is an Anime, handle the Filler Logic
+        // If it is an Anime, handle the Filler Logic
         if (isAnime) {
             const slug = slugify(data.title);
             const fillerContainer = document.getElementById('filler-status-container');
@@ -110,38 +177,6 @@ async function initDetails() {
             fillerContainer.style.display = 'block';
 
             try {
-                // Try to fetch the local JSON file (adjust path to your GitHub structure)
-                const fillerFile = await fetch(`animeFillerListApi/data/${slug}.json`);
-                
-                if (fillerFile.ok) {
-                    const fillerData = await fillerFile.json();
-                    if (fillerData.error) {
-                        fillerInfo.textContent = "Filler status unavailable for this title.";
-                    } else {
-                        fillerInfo.textContent = `Anime Filler Data Available (${fillerData.total_episodes} eps)`;
-                        // Optional: You could call a function here to render the actual list
-                    }
-                } else {
-                    // File doesn't exist - Check if already requested in Supabase
-                    fillerInfo.textContent = "Filler list data not found.";
-                    checkIfAlreadyRequested(slug, data.title, fillerAction);
-                }
-            } catch (e) {
-                console.error("Filler fetch error:", e);
-            }
-        }
-
-        // 2. If it is an Anime, handle the Filler Logic
-        if (isAnime) {
-            const slug = slugify(data.title);
-            const fillerContainer = document.getElementById('filler-status-container');
-            const fillerInfo = document.getElementById('filler-info');
-            const fillerAction = document.getElementById('filler-action-area');
-            
-            fillerContainer.style.display = 'block';
-
-            try {
-                // Fetch the local JSON file
                 const fillerFile = await fetch(`animeFillerListApi/data/${slug}.json`);
                 
                 if (fillerFile.ok) {
@@ -149,19 +184,16 @@ async function initDetails() {
                     
                     if (fillerData.error) {
                         fillerInfo.textContent = "Filler status unavailable for this title.";
-                        fillerAction.innerHTML = ""; // Clear button area if error exists
+                        fillerAction.innerHTML = ""; 
                     } else {
-                        // Success: Show the "View Filler Episodes" button
-                        fillerInfo.textContent = ""; // Clear the status text
+                        fillerInfo.textContent = ""; 
                         fillerAction.innerHTML = `
                             <button id="view-filler-btn" class="primary-btn" style="background: #ff9800; width: auto; padding: 10px 20px;">
                                 View Filler Episodes
                             </button>`;
-                        
                         document.getElementById('view-filler-btn').onclick = () => openFillerModal(fillerData);
                     }
                 } else {
-                    // File doesn't exist - Check Supabase queue
                     fillerInfo.textContent = "Filler list data not found.";
                     checkIfAlreadyRequested(slug, data.title, fillerAction);
                 }
@@ -175,7 +207,9 @@ async function initDetails() {
         setupWatchlist(id, type);
         setupListManager(id, type);
         setupStatusManager(id, type);
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+        console.error(err); 
+    }
 }
 
 async function setupStatusManager(mediaId, mediaType) {
@@ -282,9 +316,10 @@ async function setupStatusManager(mediaId, mediaType) {
 }
 
 async function fetchCredits(config, mediaId, mediaType) {
+    if (mediaType === 'book' || mediaType === 'youtube') return;
     const castList = document.getElementById('cast-list');
     const url = `https://api.themoviedb.org/3/${mediaType}/${mediaId}/credits`;
-    
+
     try {
         const res = await fetch(url, {
             headers: { Authorization: `Bearer ${config.tmdb_token}` }
