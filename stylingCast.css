@@ -160,3 +160,31 @@
     color: #9ab;
     text-transform: uppercase;
 }
+
+/* --- CAST PAGE MOBILE RESPONSIVENESS (< 768px) --- */
+@media (max-width: 768px) {
+    #person-header {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 20px;
+    }
+
+    .person-img {
+        width: 220px; /* Scale down slightly */
+    }
+
+    #person-name {
+        font-size: 2.5rem;
+    }
+
+    .film-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .film-year {
+        font-size: 0.9rem;
+    }
+}

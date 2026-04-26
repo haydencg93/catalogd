@@ -307,3 +307,55 @@ input {
     color: #fff;
     font-weight: bold;
 }
+
+/* --- GLOBAL MOBILE RESPONSIVENESS (< 768px) --- */
+@media (max-width: 768px) {
+    /* Stack Header & Navigation */
+    header {
+        flex-direction: column;
+        gap: 15px;
+        padding-bottom: 15px;
+    }
+    
+    .nav-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 10px;
+        width: 100%;
+    }
+
+    /* Fix the Unified Search Bar */
+    .search-bar-wrapper {
+        flex-direction: column;
+        border-radius: 16px;
+    }
+
+    .search-bar-wrapper select {
+        border-right: none;
+        border-bottom: 1px solid #2c3440;
+        text-align: center;
+        background-position: calc(50% + 40px) center; /* Centers the arrow */
+    }
+
+    .search-bar-wrapper input {
+        padding: 15px !important;
+        text-align: center;
+    }
+
+    /* Wrap Filter Buttons (Movies, TV, Books, YouTube) */
+    .filter-nav {
+        flex-wrap: wrap;
+    }
+    
+    .filter-btn {
+        flex: 1 1 40%;
+    }
+
+    /* Scale Modals */
+    .auth-card {
+        width: 90%;
+        padding: 25px 20px;
+        box-sizing: border-box;
+    }
+}

@@ -147,3 +147,25 @@
     transition: width 0.5s ease-out;
     box-shadow: 0 0 10px rgba(0, 224, 84, 0.3);
 }
+
+/* --- LOG PAGE MOBILE RESPONSIVENESS (< 768px) --- */
+@media (max-width: 768px) {
+    .log-card {
+        padding: 25px 20px;
+    }
+
+    .star {
+        font-size: 2.3rem; /* Shrink stars to prevent horizontal wrapping */
+        padding: 0 2px;
+    }
+
+    .media-actions {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .action-btn-icon, .status-toggles button {
+        width: 100%;
+        justify-content: center;
+    }
+}

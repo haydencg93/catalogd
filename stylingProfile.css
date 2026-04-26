@@ -448,3 +448,37 @@ input {
 .tab-content.active {
     display: block;
 }
+
+/* --- PROFILE PAGE MOBILE RESPONSIVENESS (< 768px) --- */
+@media (max-width: 768px) {
+    .profile-header {
+        flex-direction: column;
+        text-align: center;
+        align-items: center;
+        gap: 15px;
+        margin-top: -50px; /* Adjust avatar overlap */
+    }
+
+    .profile-stats {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 15px;
+    }
+
+    .profile-tabs {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 10px;
+    }
+
+    .tab-btn {
+        flex: 1 1 40%;
+        margin: 0;
+    }
+
+    /* Ensure Watchlist/List titles don't overflow */
+    .profile-container h1 {
+        font-size: 2.2rem;
+        text-align: center;
+    }
+}
