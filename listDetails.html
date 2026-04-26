@@ -34,7 +34,7 @@
                     <div class="modal-content social-modal-content">
                         <div class="modal-header">
                             <h2>Collaborators</h2>
-                            <span class="close-modal" id="close-collab-modal">&times;</span>
+                            <button class="close-btn" id="close-collab-modal">×</button>
                         </div>
                         
                         <div class="search-container" style="background: rgba(255,255,255,0.03); margin-bottom: 20px;">
@@ -52,17 +52,48 @@
                 </div>
                 
                 <div class="list-controls">
-                    <label class="ranked-toggle-wrapper">
-                        <input type="checkbox" id="ranked-toggle">
-                        <span>Ranked List</span>
-                    </label>
+                    <button id="edit-list-btn" class="secondary-btn" style="display:none;">Edit List</button>
+                    
                     <button id="manage-order-btn" class="secondary-btn" style="display:none;">Reorder Items</button>
                     <button id="save-order-btn" class="primary-btn" style="display:none;">Save Order</button>
-                    <select id="visibility-select" class="secondary-btn" style="padding: 5px 10px; height: auto; font-size: 0.8rem;">
+                </div>
+            </div>
+        </div>
+
+        <div id="edit-list-modal" class="modal">
+            <div class="modal-content social-modal-content" style="max-width: 450px;">
+                <div class="modal-header">
+                    <h2>Edit List</h2>
+                    <button class="close-btn" id="close-edit-list-modal">×</button>
+                </div>
+                
+                <div class="input-group">
+                    <label style="color:#9ab; font-size:0.9rem; display:block; margin-bottom:5px;">List Name</label>
+                    <input type="text" id="edit-list-name" style="width: 100%; box-sizing: border-box;">
+                </div>
+                
+                <div class="input-group" style="margin-top: 15px;">
+                    <label style="color:#9ab; font-size:0.9rem; display:block; margin-bottom:5px;">Description</label>
+                    <textarea id="edit-list-desc" placeholder="What is this list about?" style="width: 100%; box-sizing: border-box; background: #14181c; border: 1px solid #2c3440; border-radius: 8px; color: white; padding: 12px; font-family: inherit; resize: vertical; min-height: 80px;"></textarea>
+                </div>
+                
+                <div class="input-group" style="margin-top: 15px;">
+                    <label style="color:#9ab; font-size:0.9rem; display:block; margin-bottom:5px;">Privacy</label>
+                    <select id="edit-visibility-select" style="width: 100%; background: #14181c; border: 1px solid #2c3440; border-radius: 8px; color: white; padding: 12px;">
                         <option value="true">Public</option>
                         <option value="false">Private</option>
                     </select>
                 </div>
+                
+                <div class="input-group" style="display: flex; align-items: center; gap: 10px; margin-top: 20px; background: rgba(255,255,255,0.03); padding: 15px; border-radius: 8px;">
+                    <input type="checkbox" id="edit-ranked-toggle" style="width: 18px; height: 18px; accent-color: var(--accent); margin: 0; cursor: pointer;">
+                    <div>
+                        <label for="edit-ranked-toggle" style="margin: 0; cursor: pointer; font-weight: bold; color: white;">Ranked List</label>
+                        <div style="font-size: 0.8rem; color: #9ab; margin-top: 3px;">Display numbers on posters and allow manual sorting.</div>
+                    </div>
+                </div>
+                
+                <button id="save-list-edits-btn" class="primary-btn" style="margin-top: 25px;">Save Changes</button>
             </div>
         </div>
 

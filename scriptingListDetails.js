@@ -58,11 +58,14 @@ async function initListDetails() {
     }
 
     // 5. UI Permissions & Ranked Toggle Setup
-    const rankedToggleWrapper = document.querySelector('.ranked-toggle-wrapper');
-    const rankedToggle = document.getElementById('ranked-toggle');
+    // 5. UI Permissions & Edit Setup
     const manageBtn = document.getElementById('manage-order-btn');
-    const visSelect = document.getElementById('visibility-select');
+    const editListBtn = document.getElementById('edit-list-btn');
     const collabBtn = document.getElementById('open-collab-modal-btn');
+    
+    // Modal Elements
+    const editModal = document.getElementById('edit-list-modal');
+    const closeEditModal = document.getElementById('close-edit-list-modal');
 
     if (!isOwner) {
         // Visitor mode: Hide editing UI
@@ -77,25 +80,56 @@ async function initListDetails() {
         // EDITOR MODE (Owner OR Collaborator)
         manageBtn.style.display = isRanked ? 'inline-block' : 'none';
 
-        // --- Ranked Toggle Logic (Now available to Collaborators too!) ---
-        if (rankedToggle) {
-            rankedToggle.checked = isRanked;
-            if (rankedToggleWrapper) rankedToggleWrapper.style.display = 'flex';
-            
-            rankedToggle.onchange = async () => {
-                const isNowRanked = rankedToggle.checked;
-                rankedToggle.disabled = true; 
-                
+        // --- Split Owner vs Collaborator Logic ---
+        if (isActualOwner) {
+            // OWNER ONLY: Can edit the list details and invite collaborators
+            editListBtn.style.display = 'inline-block';
+            setupCollabModal();
+            collabBtn.style.display = 'inline-block';
+
+            // --- Edit Modal Logic ---
+            editListBtn.onclick = () => {
+                // Populate the modal with current data
+                document.getElementById('edit-list-name').value = list.name;
+                document.getElementById('edit-list-desc').value = list.description || "";
+                document.getElementById('edit-visibility-select').value = String(list.is_public);
+                document.getElementById('edit-ranked-toggle').checked = isRanked;
+                editModal.style.display = 'block';
+            };
+
+            closeEditModal.onclick = () => editModal.style.display = 'none';
+            window.addEventListener('click', (e) => {
+                if (e.target === editModal) editModal.style.display = 'none';
+            });
+
+            document.getElementById('save-list-edits-btn').onclick = async () => {
+                const newName = document.getElementById('edit-list-name').value.trim();
+                const newDesc = document.getElementById('edit-list-desc').value.trim();
+                const isNowPublic = document.getElementById('edit-visibility-select').value === 'true';
+                const isNowRanked = document.getElementById('edit-ranked-toggle').checked;
+
+                if (!newName) return alert("List name cannot be empty.");
+
+                const btn = document.getElementById('save-list-edits-btn');
+                btn.textContent = "Saving...";
+                btn.disabled = true;
+
                 try {
+                    // 1. Update Core List Settings
                     const { error: listUpdateErr } = await supabaseClient
                         .from('media_lists')
-                        .update({ is_ranked: isNowRanked })
+                        .update({ 
+                            name: newName,
+                            description: newDesc,
+                            is_public: isNowPublic,
+                            is_ranked: isNowRanked 
+                        })
                         .eq('id', listId);
                     
                     if (listUpdateErr) throw listUpdateErr;
 
-                    // Give items an initial rank if turning ON
-                    if (isNowRanked && currentItems.length > 0) {
+                    // 2. If Ranked was just turned ON, assign initial ranks to existing items
+                    if (isNowRanked && !isRanked && currentItems.length > 0) {
                         const updates = currentItems.map((item, index) => {
                             return supabaseClient
                                 .from('list_items')
@@ -105,39 +139,29 @@ async function initListDetails() {
                         await Promise.all(updates); 
                     }
 
+                    // 3. Update Local Variables & UI smoothly
+                    list.name = newName;
+                    list.description = newDesc;
+                    list.is_public = isNowPublic;
                     isRanked = isNowRanked;
+
+                    document.getElementById('list-name').textContent = list.name;
+                    document.getElementById('list-desc').textContent = list.description || "Collection";
                     manageBtn.style.display = isRanked ? 'inline-block' : 'none';
-                    await fetchListItems(); 
+
+                    editModal.style.display = 'none';
+                    await fetchListItems(); // Re-render the cards (adds/removes numbers)
                     
                 } catch (err) {
-                    alert("Error updating rank setting: " + err.message);
-                    rankedToggle.checked = !isNowRanked; 
+                    alert("Error updating list: " + err.message);
                 } finally {
-                    rankedToggle.disabled = false;
+                    btn.textContent = "Save Changes";
+                    btn.disabled = false;
                 }
             };
-        }
-
-        // --- Split Owner vs Collaborator Logic ---
-        if (isActualOwner) {
-            // OWNER ONLY: Change privacy and invite others
-            if (visSelect) {
-                visSelect.value = String(list.is_public);
-                visSelect.style.display = 'inline-block';
-                visSelect.onchange = async () => {
-                    await supabaseClient
-                        .from('media_lists')
-                        .update({ is_public: visSelect.value === 'true' })
-                        .eq('id', listId);
-                };
-            }
-            setupCollabModal();
-            collabBtn.style.display = 'inline-block';
             
         } else {
-            // COLLABORATOR ONLY: Hide privacy, change Collab button to "Leave List"
-            if (visSelect) visSelect.style.display = 'none';
-            
+            // COLLABORATOR ONLY: Change Collab button to "Leave List"
             collabBtn.textContent = "Leave List";
             collabBtn.className = "danger-btn"; // Make it red
             collabBtn.style.display = 'inline-block';
@@ -150,7 +174,6 @@ async function initListDetails() {
                         .eq('list_id', listId)
                         .eq('user_id', currentUserId);
                         
-                    // UPDATE THIS LINE BELOW:
                     if(!error) window.location.href = 'lists.html'; 
                     else alert("Error leaving list: " + error.message);
                 }
