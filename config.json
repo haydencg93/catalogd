@@ -2,5 +2,6 @@
   "tmdb_key": "2e5fe96d22bbcf1f38b497b44add06a2",
   "tmdb_token": "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIyZTVmZTk2ZDIyYmJjZjFmMzhiNDk3YjQ0YWRkMDZhMiIsIm5iZiI6MTc3Mjc0NzE1Ni4xODMsInN1YiI6IjY5YTlmOTk0MGI0ODJlNzA1YWRjYTg5ZSIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.PTddqCXcOV-tKfynuq96Exx-GZuLGbbjxUbPkRzwAwc",
   "supabase_url": "https://hgkonnveazfdqnwlfncp.supabase.co",
-  "supabase_key": "sb_publishable_nZMHCX63xJGxm0ehfZdGhQ_bDdh97Q-"
+  "supabase_key": "sb_publishable_nZMHCX63xJGxm0ehfZdGhQ_bDdh97Q-",
+  "lastfm_key": "09c90557377d13f32ac255a4c921197c"
 }

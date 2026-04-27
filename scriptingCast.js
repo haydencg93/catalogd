@@ -1,6 +1,7 @@
 const params = new URLSearchParams(window.location.search);
 const personId = params.get('personId');
-const authorId = params.get('authorId'); 
+const authorId = params.get('authorId');
+const artistName = params.get('artist');
 let supabaseClient = null;
 
 async function initCastPage() {
@@ -15,6 +16,8 @@ async function initCastPage() {
             await initAuthorPage(authorId);
         } else if (personId) {
             await initPersonPage(personId, config.tmdb_token);
+        } else if (artistName) {
+            await initArtistPage(artistName, config.lastfm_key);
         } else {
             document.getElementById('person-name').textContent = "No person selected.";
         }
@@ -229,6 +232,108 @@ async function initPersonPage(id, token) {
             </div>
         `;
     }).join('');
+}
+
+// --- NEW: LAST.FM ARTIST PAGE LOGIC ---
+async function initArtistPage(name, apiKey) {
+    try {
+        // 1. Fetch Artist Bio & Top Albums
+        const infoRes = await fetch(`https://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist=${encodeURIComponent(name)}&api_key=${apiKey}&format=json`).then(r => r.json());
+        const albumsRes = await fetch(`https://ws.audioscrobbler.com/2.0/?method=artist.gettopalbums&artist=${encodeURIComponent(name)}&api_key=${apiKey}&format=json&limit=50`).then(r => r.json());
+
+        const artist = infoRes.artist;
+        const albums = albumsRes.topalbums?.album || [];
+
+        // 2. Set Header Info
+        document.getElementById('person-name').textContent = artist.name;
+        
+        let rawSummary = artist.bio?.summary || "No biography available.";
+        document.getElementById('person-biography').textContent = rawSummary.split('<a href')[0].trim();
+
+        const filmographyHeader = document.querySelector('#filmography h3');
+        if (filmographyHeader) filmographyHeader.textContent = "Discography";
+
+        // 3. Workaround: Use Top Album Cover as Profile Picture
+        let photoUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(artist.name)}&background=1b2228&color=9ab&size=512`;
+        if (albums.length > 0 && albums[0].image && albums[0].image.length > 3 && albums[0].image[3]['#text']) {
+            photoUrl = albums[0].image[3]['#text'];
+        }
+        document.getElementById('person-image-container').innerHTML = `<img src="${photoUrl}" alt="${artist.name}" class="person-img">`;
+
+        // 4. Best Known Works (Top 4 Albums)
+        const knownFor = albums.slice(0, 4);
+        if (knownFor.length > 0) {
+            const knownForHtml = `
+                <div class="known-for-section">
+                    <h3>Top Albums</h3>
+                    <div class="known-for-grid">
+                        ${knownFor.map(item => {
+                            let img = 'https://via.placeholder.com/500x750?text=No+Cover';
+                            if (item.image && item.image.length > 3 && item.image[3]['#text']) img = item.image[3]['#text'];
+                            const compositeId = encodeURIComponent(`${artist.name}|||${item.name}`);
+                            return `
+                            <div class="media-card" onclick="window.location.href='details.html?id=${compositeId}&type=album'">
+                                <div class="poster-wrapper">
+                                    <img src="${img}" alt="${item.name}">
+                                </div>
+                                <div class="media-info">
+                                    <div class="title" style="font-size: 0.9rem; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                        ${item.name}
+                                    </div>
+                                    <div class="meta" style="font-size: 0.8rem; color: #9ab;">
+                                        ${item.playcount ? `${parseInt(item.playcount).toLocaleString()} plays` : 'Album'}
+                                    </div>
+                                </div>
+                            </div>`
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+            document.getElementById('person-bio-area').insertAdjacentHTML('beforeend', knownForHtml);
+        }
+
+        // 5. Full Discography List
+        const list = document.getElementById('film-list');
+        list.innerHTML = '';
+        
+        // A cool custom SVG placeholder that looks like a vinyl record
+        const albumPlaceholder = `data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI2MCIgdmlld0JveD0iMCAwIDQwIDYwIj48cmVjdCB3aWR0aD0iNDAiIGhlaWdodD0iNjAiIGZpbGw9IiMxYjIyMjgiLz48Y2lyY2xlIGN4PSIyMCIgY3k9IjMwIiByPSIxMiIgc3Ryb2tlPSIjOWFiIiBzdHJva2Utd2lkdGg9IjIiIGZpbGw9Im5vbmUiLz48Y2lyY2xlIGN4PSIyMCIgY3k9IjMwIiByPSI0IiBmaWxsPSIjOWFiIi8+PC9zdmc+`;
+
+        albums.forEach(item => {
+            let img = albumPlaceholder;
+            // Grab the medium sized image for the list rows
+            if (item.image && item.image.length > 1 && item.image[1]['#text']) img = item.image[1]['#text']; 
+            
+            const compositeId = encodeURIComponent(`${artist.name}|||${item.name}`);
+            const plays = item.playcount ? formatPlays(item.playcount) : '---';
+            
+            const row = document.createElement('div');
+            row.className = 'film-row';
+            row.onclick = () => window.location.href = `details.html?id=${compositeId}&type=album`;
+            
+            row.innerHTML = `
+                <span class="film-year" style="font-size: 0.85rem; min-width: 75px;">${plays}</span>
+                <img src="${img}" class="mini-poster" alt="album" onerror="this.src='${albumPlaceholder}'">
+                <div class="film-info">
+                    <span class="film-title"><strong>${item.name}</strong></span>
+                    <span class="film-role">Album</span>
+                </div>
+            `;
+            list.appendChild(row);
+        });
+
+    } catch (err) {
+        console.error("Error loading Last.fm Artist:", err);
+        document.getElementById('person-name').textContent = "Artist Not Found";
+    }
+}
+
+// Helper to format playcounts cleanly (e.g. 1.2M plays)
+function formatPlays(numStr) {
+    const num = parseInt(numStr);
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toString();
 }
 
 async function setupHeader() {

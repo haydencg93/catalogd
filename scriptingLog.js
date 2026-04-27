@@ -7,6 +7,7 @@ let isLiked = false;
 let isRewatch = false;
 let currentRating = 0;
 const logId = params.get('logId');
+let albumTracks = [];
 
 async function initLog() {
     const config = await fetch('config.json').then(r => r.json());
@@ -18,8 +19,8 @@ async function initLog() {
 
     const scope = document.getElementById('log-scope');
     const bookGroup = document.getElementById('book-input-group');
-
     const youtubeGroup = document.getElementById('youtube-input-group');
+    const trackGroup = document.getElementById('track-input-group');
 
     if (type === 'book') {
         const res = await fetch(`https://openlibrary.org${id}.json`).then(r => r.json());
@@ -54,6 +55,21 @@ async function initLog() {
         scope.innerHTML = `<option value="entire">Entire Video</option>`;
         
         currentMediaRuntime = 0;
+    } else if (type === 'album') {
+        // --- NEW ALBUM LOGIC ---
+        const decodedId = decodeURIComponent(id);
+        const [artistName, albumName] = decodedId.split('|||');
+        const res = await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artistName)}&album=${encodeURIComponent(albumName)}&api_key=${config.lastfm_key}&format=json`).then(r => r.json());
+        
+        document.getElementById('media-title').textContent = res.album.name;
+        albumTracks = res.album.tracks?.track || [];
+        
+        scope.innerHTML = `
+            <option value="entire">Entire Album</option>
+            <option value="track">Specific Track</option>
+        `;
+        
+        setupAlbumDropdowns();
     } else {
         // Existing Movie/TV Logic
         const res = await fetch(`https://api.themoviedb.org/3/${type}/${id}`, {
@@ -79,6 +95,14 @@ async function initLog() {
 
     if (logId) {
         fetchExistingLogData();
+    }
+
+    // --- NEW: DYNAMIC REWATCH BUTTON TEXT ---
+    const rewatchBtn = document.getElementById('rewatch-btn');
+    if (rewatchBtn) {
+        if (type === 'book') rewatchBtn.textContent = "Mark as Reread";
+        else if (type === 'album') rewatchBtn.textContent = "Mark as Relisten";
+        else rewatchBtn.textContent = "Mark as Rewatch";
     }
 
     setupStars();
@@ -115,6 +139,11 @@ async function fetchExistingLogData() {
         if (log.media_type === 'youtube') {
             const ytInput = document.getElementById('youtube-duration');
             if (ytInput) ytInput.value = log.runtime || '';
+        } else if (log.media_type === 'album' && log.episode_number) {
+            scope.value = 'track';
+            document.getElementById('track-input-group').style.display = 'block';
+            document.getElementById('track-select').value = log.episode_number;
+            currentMediaRuntime = log.runtime || 0;
         } else if (log.episode_number) {
             scope.value = 'episode';
             // Manually trigger visibility of dropdowns
@@ -344,6 +373,15 @@ async function saveLog() {
                         payload.episode_number = parseInt(episodeSelect.value);
                     }
                 }
+            } else if (type === 'album') {
+                const trackSelect = document.getElementById('track-select');
+                if (logId && trackSelect && document.getElementById('track-input-group').style.display !== 'none') {
+                    scopeValue = 'track';
+                }
+                
+                if (scopeValue === 'track') {
+                    payload.episode_number = parseInt(trackSelect.value); // Re-use episode_number to store track index
+                }
             }
 
             if (logId) {
@@ -368,6 +406,48 @@ async function saveLog() {
         console.error("Save Error:", err);
         alert("Error saving log: " + err.message);
     }
+}
+
+function setupAlbumDropdowns() {
+    const scope = document.getElementById('log-scope');
+    const trackGroup = document.getElementById('track-input-group');
+    const trackSelect = document.getElementById('track-select');
+
+    // Populate track dropdown
+    trackSelect.innerHTML = albumTracks.map((track, index) => {
+        const duration = parseInt(track.duration) || 0;
+        const mins = Math.floor(duration / 60);
+        const secs = (duration % 60).toString().padStart(2, '0');
+        return `<option value="${index + 1}">${index + 1}. ${track.name} (${mins}:${secs})</option>`;
+    }).join('');
+
+    const updateTotalRuntime = () => {
+        const totalSecs = albumTracks.reduce((sum, track) => sum + (parseInt(track.duration) || 0), 0);
+        currentMediaRuntime = Math.floor(totalSecs / 60);
+    };
+
+    const updateTrackRuntime = () => {
+        const selectedTrackIndex = parseInt(trackSelect.value) - 1;
+        const trackDuration = parseInt(albumTracks[selectedTrackIndex]?.duration) || 0;
+        currentMediaRuntime = Math.floor(trackDuration / 60);
+    };
+
+    // Initialize runtime for entire album
+    updateTotalRuntime();
+
+    scope.onchange = () => {
+        if (scope.value === 'track') {
+            trackGroup.style.display = 'block';
+            updateTrackRuntime();
+        } else {
+            trackGroup.style.display = 'none';
+            updateTotalRuntime();
+        }
+    };
+
+    trackSelect.onchange = () => {
+        if (scope.value === 'track') updateTrackRuntime();
+    };
 }
 
 initLog();

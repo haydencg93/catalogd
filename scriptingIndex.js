@@ -17,6 +17,7 @@ const signupFields = document.getElementById('signup-fields');
 
 // 2. Global Variables
 let TMDB_TOKEN = '';
+let LASTFM_KEY = '';
 let supabaseClient = null; 
 let isSignUpMode = false;
 let currentTab = 'movie';
@@ -29,6 +30,7 @@ async function loadConfig() {
         const config = await response.json();
         
         TMDB_TOKEN = config.tmdb_token;
+        LASTFM_KEY = config.lastfm_key;
         supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
         
         await checkUserStatus(); 
@@ -147,6 +149,7 @@ async function fetchTrending(type = 'movie') {
         let typeLabel = 'Movies';
         if (type === 'tv') typeLabel = 'TV Shows';
         if (type === 'book') typeLabel = 'Books';
+        if (type === 'album') typeLabel = 'Music Albums'; // <--- ADDED THIS LINE
         sectionTitle.textContent = `Trending ${typeLabel}`;
     }
 
@@ -167,6 +170,26 @@ async function fetchTrending(type = 'movie') {
                 id: work.key
             }));
             renderResults(books, true);
+        } else if (type === 'album') {
+            // --- NEW: LAST.FM TRENDING LOGIC ---
+            const res = await fetch(`https://ws.audioscrobbler.com/2.0/?method=tag.gettopalbums&tag=pop&api_key=${LASTFM_KEY}&format=json&limit=15`);
+            const data = await res.json();
+            const albums = (data.albums.album || []).map(a => {
+                let img = 'https://via.placeholder.com/500x750?text=No+Image';
+                if (a.image && a.image.length > 3 && a.image[3]['#text']) {
+                    img = a.image[3]['#text'];
+                }
+                const compositeId = encodeURIComponent(`${a.artist.name}|||${a.name}`);
+                return {
+                    title: a.name,
+                    year: '', // <--- FIXED: Removed the word "Trending"
+                    author: a.artist ? a.artist.name : null,
+                    image: img,
+                    type: 'album',
+                    id: compositeId
+                };
+            });
+            renderResults(albums, true);
         } else {
             const url = `https://api.themoviedb.org/3/trending/${type}/day`;
             const options = {
@@ -201,6 +224,9 @@ window.switchTab = function(type) {
         searchInput.placeholder = "Paste a YouTube link here...";
         document.getElementById('section-title').textContent = "Add a YouTube Video";
         resultsGrid.innerHTML = '<p class="meta" style="grid-column: 1/-1; text-align: center;">Paste a valid YouTube URL in the search bar above to log it!</p>';
+    } else if (type === 'album') {
+        searchInput.placeholder = "Search for albums or artists...";
+        fetchTrending(type);
     } else {
         searchInput.placeholder = "Search for movies, shows, books, authors, ...";
         fetchTrending(type);
@@ -256,7 +282,7 @@ async function unifiedSearch(query) {
         let bookData = [];
         let authorData = [];
         let users = [];
-
+        let lastfmAlbums = [];
         const fetchPromises = [];
 
         // 1. TMDB Data (Movies, TV, People)
@@ -292,6 +318,32 @@ async function unifiedSearch(query) {
                     .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
                     .limit(10)
                     .then(res => users = res.data || [])
+            );
+        }
+
+        if (['all', 'album'].includes(filterValue)) {
+            fetchPromises.push(
+                fetch(`https://ws.audioscrobbler.com/2.0/?method=album.search&album=${encodeURIComponent(query)}&api_key=${LASTFM_KEY}&format=json`)
+                .then(r => r.json())
+                .then(res => {
+                    if (res.results && res.results.albummatches && res.results.albummatches.album) {
+                        lastfmAlbums = res.results.albummatches.album.map(a => {
+                            let img = 'https://via.placeholder.com/500x750?text=No+Image';
+                            if (a.image && a.image.length > 3 && a.image[3]['#text']) {
+                                img = a.image[3]['#text'];
+                            }
+                            const compositeId = encodeURIComponent(`${a.artist}|||${a.name}`);
+                            return {
+                                id: compositeId,
+                                title: a.name,
+                                type: 'album',
+                                image: img,
+                                author: a.artist
+                            };
+                        });
+                    }
+                })
+                .catch(err => console.error("Last.fm search error:", err))
             );
         }
 
@@ -347,7 +399,7 @@ async function unifiedSearch(query) {
             }).filter(Boolean);
 
         // Combine and Sort
-        let combined = [...mappedUsers, ...processedAuthors, ...tmdbResults, ...bookData];
+        let combined = [...mappedUsers, ...processedAuthors, ...tmdbResults, ...bookData, ...lastfmAlbums];
         
         // Force filter just to be safe (in case an API returned something weird)
         if (filterValue !== 'all') {

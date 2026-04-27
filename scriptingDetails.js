@@ -2,6 +2,7 @@ const params = new URLSearchParams(window.location.search);
 const id = params.get('id');
 const type = params.get('type');
 let supabaseClient = null;
+let globalData = null;
 
 async function initDetails() {
     try {
@@ -33,6 +34,41 @@ async function initDetails() {
                 author_name: res.author_name
             };
         } 
+        else if (type === 'album') {
+            // We split the composite ID we created on the index page back into Artist and Album
+            const decodedId = decodeURIComponent(id);
+            const [artistName, albumName] = decodedId.split('|||');
+            
+            const res = await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artistName)}&album=${encodeURIComponent(albumName)}&api_key=${config.lastfm_key}&format=json`).then(r => r.json());
+            
+            if (res.error) {
+                alert("Error loading album data.");
+                window.location.href = 'index.html';
+                return;
+            }
+
+            const albumData = res.album;
+            let img = 'https://via.placeholder.com/500x750?text=No+Cover';
+            if (albumData.image && albumData.image.length > 3 && albumData.image[3]['#text']) {
+                img = albumData.image[3]['#text'];
+            }
+
+            // Extract tags for the meta string
+            const tags = albumData.tags?.tag?.map(t => t.name).join(', ') || 'Music';
+            
+            // Last.fm's summary includes messy HTML links, so we split it to only grab the clean text
+            let rawSummary = albumData.wiki?.summary || "No description available.";
+            const cleanSummary = rawSummary.split('<a href')[0].trim();
+
+            data = {
+                title: albumData.name,
+                overview: cleanSummary,
+                poster_path: img,
+                meta: `${albumData.artist} • ${tags}`,
+                tracks: albumData.tracks?.track || [],
+                artistName: albumData.artist // <--- ADD THIS LINE
+            };
+        }
         // --- 2. BOOK FETCH ---
         else if (type === 'book') {
             const res = await fetch(`https://openlibrary.org${id}.json`).then(r => r.json());
@@ -88,6 +124,8 @@ async function initDetails() {
             };
         }
 
+        globalData = data;
+
         document.getElementById('media-title').textContent = data.title;
         document.getElementById('media-overview').textContent = data.overview;
         document.getElementById('media-meta').textContent = data.meta;
@@ -134,7 +172,79 @@ async function initDetails() {
                     </div>
                 `;
             }
-        } else {
+        } 
+        // --- NEW: ALBUM POSTER & TRACKLIST RENDERING ---
+        else if (type === 'album') {
+            // Render the standard poster
+            document.getElementById('poster-area').innerHTML = `<img src="${data.poster_path}" alt="poster">`;
+            
+            // Hide watch providers
+            const providerSection = document.getElementById('watch-providers');
+            if (providerSection) providerSection.style.display = 'none';
+
+            // 1. Move Tracklist to the Tracker Section!
+            const trackerSection = document.getElementById('tv-tracker');
+            const episodeList = document.getElementById('episode-list');
+            
+            if (trackerSection && data.tracks.length > 0) {
+                trackerSection.style.display = 'block';
+                trackerSection.querySelector('h3').textContent = "Tracklist";
+                
+                // Hide TV specific progress bars and controls
+                const progressContainer = document.getElementById('progress-container');
+                const controls = document.querySelector('.tracker-controls');
+                if (progressContainer) progressContainer.style.display = 'none';
+                if (controls) controls.style.display = 'none';
+
+                const trackHtml = data.tracks.map((track, index) => {
+                    let durationStr = "--:--";
+                    if (track.duration && parseInt(track.duration) > 0) {
+                        const mins = Math.floor(track.duration / 60);
+                        const secs = (track.duration % 60).toString().padStart(2, '0');
+                        durationStr = `${mins}:${secs}`;
+                    }
+                    return `
+                    <div style="display: flex; justify-content: space-between; padding: 12px 15px; border-bottom: 1px solid #2c3440; align-items: center; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
+                        <div style="display: flex; gap: 15px; align-items: center;">
+                            <span style="color: #9ab; font-size: 0.9rem; width: 20px; text-align: right;">${index + 1}</span>
+                            <span style="font-weight: bold;">${track.name}</span>
+                        </div>
+                        <span style="color: #9ab; font-size: 0.85rem;">${durationStr}</span>
+                    </div>`;
+                }).join('');
+                
+                // Drop the tracklist into the episode grid but force it to span full width
+                episodeList.style.display = 'block'; 
+                episodeList.innerHTML = `
+                    <div style="background: #14181c; border-radius: 12px; border: 1px solid #2c3440; overflow: hidden; margin-top: 10px; grid-column: 1 / -1;">
+                        ${trackHtml}
+                    </div>
+                `;
+            }
+
+            // 2. Setup Cast Section for the Artist!
+            const castSection = document.getElementById('cast-section');
+            const castList = document.getElementById('cast-list');
+            
+            if (castSection && data.artistName) {
+                castSection.style.display = 'block';
+                castSection.querySelector('h3').textContent = "Artist";
+                
+                // Generate a profile picture for the artist
+                const artistAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.artistName)}&background=1b2228&color=9ab&size=512`;
+                
+                castList.innerHTML = `
+                    <div class="cast-card" onclick="window.location.href='cast.html?artist=${encodeURIComponent(data.artistName)}'" style="cursor: pointer;">
+                        <img src="${artistAvatar}" alt="${data.artistName}">
+                        <div class="cast-info">
+                            <span class="cast-name">${data.artistName}</span>
+                            <span class="cast-role">Musician</span>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        else {
             // Standard poster logic for movies/tv/books
             document.getElementById('poster-area').innerHTML = `<img src="${data.poster_path}" alt="poster">`;
             if (data.backdrop) document.getElementById('backdrop-overlay').style.backgroundImage = `url(${data.backdrop})`;
@@ -153,8 +263,8 @@ async function initDetails() {
             displayBookLinks(data.title, data.authorName); 
             setupBookTracker(data.pages);
             fetchBookAuthors(data.authors);
-        } else if (type !== 'youtube') {
-            // This ensures TMDB provider/credit fetches skip YouTube videos!
+        } else if (type !== 'youtube' && type !== 'album') {
+            // This ensures TMDB provider/credit fetches skip YouTube videos AND Albums!
             fetchWatchProviders(config);
             fetchCredits(config, id, type);
         }
@@ -613,7 +723,31 @@ function renderLogs(logsToRender) {
         if (type === 'tv') {
             label = log.episode_number ? `S${log.season_number} E${log.episode_number}` : 
                    (log.season_number ? `Season ${log.season_number}` : `Series`);
+        } else if (type === 'album') {
+            if (log.episode_number && globalData && globalData.tracks && globalData.tracks[log.episode_number - 1]) {
+                label = globalData.tracks[log.episode_number - 1].name; // Grabs the exact song name!
+            } else {
+                label = 'Entire Album';
+            }
         }
+
+        // --- BADGE LOGIC ---
+        let rewatchText = 'Rewatch';
+        if (type === 'book') rewatchText = 'Reread';
+        else if (type === 'album') rewatchText = 'Relisten';
+        
+        const heartBadge = log.is_liked ? `<span title="Liked" style="display: flex; align-items: center;">❤️</span>` : '';
+        const rewatchBadge = log.is_rewatch ? 
+            `<span title="${rewatchText}" style="font-size: 0.85rem; display: flex; align-items: center;">🔁</span>` 
+            : '';
+            
+        // Create a dedicated row for the badges that only shows up if the user liked or rewatched it
+        const badgeRow = (log.is_liked || log.is_rewatch) ? 
+            `<div style="display: flex; gap: 10px; margin-top: 6px; margin-bottom: 2px;">
+                ${heartBadge}
+                ${rewatchBadge}
+            </div>` : '';
+        // --- END BADGE LOGIC ---
         
         const stars = '★'.repeat(Math.floor(log.rating)) + (log.rating % 1 !== 0 ? '½' : '');
         const logDateTime = new Date(log.created_at).toLocaleString([], { 
@@ -626,7 +760,7 @@ function renderLogs(logsToRender) {
         return `
             <div class="history-item" id="log-${log.id}">
                 <div class="history-header">
-                    <span class="history-label">${label}${log.is_liked ? ' ❤️' : ''}</span>
+                    <span class="history-label" style="margin: 0; padding-right: 15px;">${label}</span>
                     <div style="display: flex; gap: 12px; align-items: center;">
                         <span class="history-stars">${stars}</span>
                         <span onclick="window.location.href='log.html?id=${id}&type=${type}&logId=${log.id}'" 
@@ -635,6 +769,7 @@ function renderLogs(logsToRender) {
                               style="cursor:pointer; color:#ff4d4d; font-size: 0.8rem;" title="Delete Log">🗑️</span>
                     </div>
                 </div>
+                ${badgeRow}
                 <div class="history-date">${logDateTime}</div>
                 ${reviewPreview}
             </div>
