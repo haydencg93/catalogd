@@ -6,6 +6,8 @@
     --movie-tag: #ff9000;
     --tv-tag: #00b0f0;
     --book-tag: #be55ff;
+    --album-tag: #eb3486;
+    --youtube-tag: #ff0000;
 }
 
 body {
@@ -152,6 +154,8 @@ input {
 .badge-movie { background: var(--movie-tag); color: #000; }
 .badge-tv { background: var(--tv-tag); color: #fff; }
 .badge-book { background: var(--book-tag); color: #fff; }
+.badge-album { background: var(--album-tag); color: #fff; }
+.badge-youtube { background: var(--youtube-tag); color: #fff; }
 
 /* Modal Styles */
 .modal-overlay {

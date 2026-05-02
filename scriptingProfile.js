@@ -143,7 +143,9 @@ async function initProfile() {
 
             // Render Avatar
             if (profile.avatar_url && profile.avatar_url.trim() !== "") {
-                avatarContainer.innerHTML = `<img src="${profile.avatar_url}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`;
+                avatarContainer.innerHTML = `<img src="${profile.avatar_url}" 
+                    style="width:100%; height:100%; object-fit:cover; border-radius:50%;"
+                    onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=${profile.username}&background=1b2228&color=9ab';">`;
                 avatarContainer.style.background = "transparent";
             } else {
                 const name = profile.display_name || profile.username || "U";
@@ -299,25 +301,36 @@ async function renderStatusItems(items, gridId) {
             if (item.media_type === 'book') {
                 const res = await fetch(`https://openlibrary.org${item.media_id}.json`).then(r => r.json());
                 title = res.title;
-                image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : 'placeholder.png';
-                
-                // Fallback text if page progress isn't in the status record
+                image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : '';
                 progressText = item.current_page ? `Pg ${item.current_page}` : item.status.charAt(0).toUpperCase() + item.status.slice(1);
             } else if (item.media_type === 'youtube') {
                 const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${item.media_id}`).then(r => r.json());
                 title = res.title || 'YouTube Video';
-                image = res.thumbnail_url || 'placeholder.png';
+                image = res.thumbnail_url || '';
                 progressText = item.status.charAt(0).toUpperCase() + item.status.slice(1);
+            } else if (item.media_type === 'album') {
+                const decodedId = decodeURIComponent(item.media_id);
+                const [artist, albumName] = decodedId.split('|||');
+                title = albumName;
+                
+                // NEW: Fetch from Last.fm dynamically!
+                try {
+                    const res = await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(albumName)}&api_key=${config.lastfm_key}&format=json`).then(r => r.json());
+                    image = res.album?.image?.[3]['#text'] || `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`;
+                } catch (e) {
+                    image = `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`; 
+                }
+                progressText = artist;
             } else {
                 const res = await fetch(`https://api.themoviedb.org/3/${item.media_type}/${item.media_id}`, {
                     headers: { Authorization: `Bearer ${config.tmdb_token}` } 
                 }).then(r => r.json());
                 title = res.title || res.name;
-                image = res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : 'placeholder.png';
+                image = res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : '';
             }
         } catch (e) {
             title = "Unknown Item";
-            image = 'placeholder.png';
+            image = '';
         }
         return { ...item, title, image, progressText };
     });
@@ -325,15 +338,16 @@ async function renderStatusItems(items, gridId) {
     const fullItems = await Promise.all(displayPromises);
     
     grid.innerHTML = fullItems.map(item => {
-        // Color coding for badges
         const statusLabel = item.status.toUpperCase();
         const statusColor = item.status === 'paused' ? '#ffcc00' : (item.status === 'dropped' ? '#ff4d4d' : 'var(--accent)');
-        const textColor = item.status === 'paused' ? '#000' : '#000'; // Keep black for readability on colors
+        const textColor = '#000';
 
         return `
             <div class="media-card" onclick="window.location.href='details.html?id=${item.media_id}&type=${item.media_type}'">
                 <div class="poster-wrapper">
-                    <img src="${item.image}" alt="${item.title}">
+                    <img src="${item.image || 'https://placehold.co/500x750/1b2228/9ab?text=No+Image'}" 
+                         alt="${item.title}"
+                         onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
                     <div class="active-badge" style="background: ${statusColor}; color: ${textColor};">${statusLabel}</div>
                 </div>
                 <div class="media-info">
@@ -360,6 +374,7 @@ window.filterRecent = (type) => {
         else if (type === 'movie' && btnText === 'movies') btn.classList.add('active');
         else if (type === 'tv' && btnText === 'tv') btn.classList.add('active');
         else if (type === 'book' && btnText === 'books') btn.classList.add('active');
+        else if (type === 'album' && btnText === 'music') btn.classList.add('active'); // Added
         else if (type === 'youtube' && btnText === 'youtube') btn.classList.add('active');
     });
 
@@ -391,6 +406,18 @@ async function renderRecent(logs) {
                     const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${log.media_id}`).then(r => r.json());
                     title = res.title || 'YouTube Video';
                     image = res.thumbnail_url || '';
+                } else if (log.media_type === 'album') {
+                    const decodedId = decodeURIComponent(log.media_id);
+                    const [artist, albumName] = decodedId.split('|||');
+                    title = albumName;
+                    
+                    // NEW: Fetch from Last.fm dynamically!
+                    try {
+                        const res = await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(albumName)}&api_key=${config.lastfm_key}&format=json`).then(r => r.json());
+                        image = res.album?.image?.[3]['#text'] || `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`;
+                    } catch (e) {
+                        image = `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`;
+                    }
                 } else {
                     const res = await fetch(`https://api.themoviedb.org/3/${log.media_type}/${log.media_id}`, {
                         headers: { Authorization: `Bearer ${config.tmdb_token}` } 
@@ -424,7 +451,9 @@ async function renderRecent(logs) {
                         ${likeBadge}
                         ${reviewBadge}
                     </div>
-                    <img src="${log.image || 'placeholder.png'}" alt="${log.title}">
+                    <img src="${log.image || 'https://placehold.co/500x750/1b2228/9ab?text=No+Image'}" 
+                         alt="${log.title}"
+                         onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
                 </div>
                 <div class="media-info">
                     <div class="title" style="font-weight:bold; margin-bottom:5px;">${log.title}</div>
@@ -460,16 +489,20 @@ window.filterFavs = (type) => {
         else if (type === 'movie' && btnText === 'movies') btn.classList.add('active');
         else if (type === 'tv' && btnText === 'tv') btn.classList.add('active');
         else if (type === 'book' && btnText === 'books') btn.classList.add('active');
+        else if (type === 'album' && btnText === 'music') btn.classList.add('active'); // Added
         else if (type === 'youtube' && btnText === 'youtube') btn.classList.add('active');
     });
 
     const grid = document.getElementById('favorites-grid');
     grid.innerHTML = '';
-    const favorites = window.userFavorites || { movie: [], tv: [], book: [], youtube: [], all: [] };
+    
+    // Ensure your favorites object supports 'album' key
+    const favorites = window.userFavorites || { movie: [], tv: [], book: [], youtube: [], album: [], all: [] };
     const list = favorites[type] || [];
 
     if (list.length === 0) {
-        grid.innerHTML = `<p class="meta">No ${type} favorites added yet.</p>`;
+        const displayType = type === 'album' ? 'music' : type;
+        grid.innerHTML = `<p class="meta">No ${displayType} favorites added yet.</p>`;
         return;
     }
 
@@ -480,7 +513,10 @@ window.filterFavs = (type) => {
         
         card.innerHTML = `
             <div class="poster-wrapper">
-                <img src="${item.image}" alt="${item.title}" onerror="this.src='https://via.placeholder.com/500x750?text=No+Image';">
+                <img src="${item.image}" 
+                alt="${item.title}" 
+                loading="lazy" 
+                onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
             </div>
             <div class="media-info">
                 <div class="title">${item.title}</div>

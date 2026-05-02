@@ -1,6 +1,7 @@
 let supabaseClient = null;
 let tmdbToken = null;
-let currentFavs = { movie: [], tv: [], book: [], youtube: [], all: [] };
+let lastfmKey = null;
+let currentFavs = { movie: [], tv: [], book: [], album: [], youtube: [], all: [] };
 
 async function initSettings() {
     const response = await fetch('config.json');
@@ -13,6 +14,7 @@ async function initSettings() {
             }
         });
     tmdbToken = config.tmdb_token;
+    lastfmKey = config.lastfm_key;
 
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) { window.location.href = 'index.html'; return; }
@@ -28,11 +30,11 @@ async function initSettings() {
         document.getElementById('edit-bio').value = profile.bio || '';
         document.getElementById('edit-website').value = profile.website_url || '';
         
-        // NEW: Load Privacy Preferences (Default to true if null)
         document.getElementById('toggle-active-status').checked = profile.show_active_status !== false; 
         document.getElementById('toggle-paused-status').checked = profile.show_paused_dropped_status !== false;
 
-        currentFavs = profile.favorites || { movie: [], tv: [], book: [], youtube: [], all: [] };
+        // Ensure album is in the fallback object
+        currentFavs = profile.favorites || { movie: [], tv: [], book: [], youtube: [], album: [], all: [] };
         renderFavManager(); 
     }
 
@@ -226,8 +228,8 @@ async function saveAllProfileData() {
             bio: bioValue,
             website_url: websiteValue,
             favorites: currentFavs,
-            show_active_status: showActive,          // NEW
-            show_paused_dropped_status: showPaused   // NEW
+            show_active_status: showActive,
+            show_paused_dropped_status: showPaused
         })
         .eq('id', user.id);
 
@@ -263,9 +265,10 @@ function updateTopAll() {
     const topMovie = currentFavs.movie?.[0];
     const topTv = currentFavs.tv?.[0];
     const topBook = currentFavs.book?.[0];
-    const topYoutube = currentFavs.youtube?.[0]; // NEW
+    const topAlbum = currentFavs.album?.[0];
+    const topYoutube = currentFavs.youtube?.[0];
     
-    currentFavs.all = [topMovie, topTv, topBook, topYoutube].filter(Boolean);
+    currentFavs.all = [topMovie, topTv, topBook, topAlbum, topYoutube].filter(Boolean);
 }
 
 async function startLetterboxdExport(userId, rangeType, startDate, endDate) {
@@ -863,10 +866,11 @@ function setupFavoritesSearch() {
 
             try {
                 // Fetch everything in parallel
-                const [movieRes, tvRes, bookRes] = await Promise.all([
+                const [movieRes, tvRes, bookRes, albumRes] = await Promise.all([
                     fetch(`https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(query)}`, options).then(r => r.json()),
                     fetch(`https://api.themoviedb.org/3/search/tv?query=${encodeURIComponent(query)}`, options).then(r => r.json()),
-                    fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=5`).then(r => r.json())
+                    fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=5`).then(r => r.json()),
+                    fetch(`https://ws.audioscrobbler.com/2.0/?method=album.search&album=${encodeURIComponent(query)}&api_key=${lastfmKey}&format=json`).then(r => r.json()).catch(() => null)
                 ]);
 
                 // Clear UI once before rendering new results
@@ -938,8 +942,23 @@ function setupFavoritesSearch() {
                     }));
                 });
 
-            } catch (error) {
-                console.error("Search error:", error);
+                // --- ALBUMS ---
+                if (albumRes?.results?.albummatches?.album) {
+                    for (const a of albumRes.results.albummatches.album.slice(0, 5)) {
+                        const compositeId = encodeURIComponent(`${a.artist}|||${a.name}`);
+                        if (seenIds.has(compositeId)) continue;
+                        seenIds.add(compositeId);
+
+                        const img = a.image && a.image[2]['#text'] ? a.image[2]['#text'] : `https://placehold.co/92x138/1b2228/eb3486?text=Music`;
+                        
+                        favSearchResults.appendChild(createSearchRow(a.name, "", 'album', img, a.artist, () => {
+                            addFavorite({ id: compositeId, title: a.name, type: 'album', image: img.replace('92x138', '500x500') });
+                            favSearchResults.innerHTML = ''; favSearchInput.value = '';
+                        }));
+                    }
+                }
+
+            } catch (error) {                console.error("Search error:", error);
             }
         }, 300); // 300ms delay protects against "double typing" bugs
     };
@@ -950,7 +969,8 @@ function renderFavManager() {
     const container = document.getElementById('favorites-manager');
     container.innerHTML = ''; // Clear existing
 
-    const categories = ['movie', 'tv', 'book', 'youtube'];
+    // Reordered: 'album' before 'youtube'
+    const categories = ['movie', 'tv', 'book', 'album', 'youtube']; 
     
     categories.forEach(cat => {
         const section = document.createElement('div');
@@ -960,6 +980,7 @@ function renderFavManager() {
         let label = "";
         if (cat === 'youtube') label = "YouTube Videos";
         else if (cat === 'tv') label = "TV Shows";
+        else if (cat === 'album') label = "Music Albums"; 
         else label = cat.charAt(0).toUpperCase() + cat.slice(1) + 's';
         
         section.innerHTML = `<h4 style="color: #9ab; margin-bottom: 10px;">Top 5 ${label}</h4>`;

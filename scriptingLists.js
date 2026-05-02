@@ -1,10 +1,12 @@
 let supabaseClient = null;
 let listOwnerId = null;
 let isViewerOwner = false;
+let lastfmKey = null;
 
 async function initLists() {
     const response = await fetch('config.json');
     const config = await response.json();
+    lastfmKey = config.lastfm_key;
     supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
 
     const params = new URLSearchParams(window.location.search);
@@ -115,11 +117,19 @@ async function fetchUserLists(userId, currentUserId) {
 
             let postersHtml = '<div class="list-poster-preview">';
             for (const item of firstItems) {
-                let posterUrl = 'placeholder.png';
+                let posterUrl = 'https://placehold.co/500x750/1b2228/9ab?text=No+Image';
                 try {
                     if (item.media_type === 'book') {
                         const res = await fetch(`https://openlibrary.org${item.media_id}.json`).then(r => r.json());
                         if (res.covers) posterUrl = `https://covers.openlibrary.org/b/id/${res.covers[0]}-S.jpg`;
+                    } else if (item.media_type === 'youtube') {
+                        const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${item.media_id}`).then(r => r.json());
+                        if (res.thumbnail_url) posterUrl = res.thumbnail_url;
+                    } else if (item.media_type === 'album') {
+                        const decodedId = decodeURIComponent(item.media_id);
+                        const [artist, albumName] = decodedId.split('|||');
+                        const res = await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(albumName)}&api_key=${lastfmKey}&format=json`).then(r => r.json());
+                        if (res.album?.image?.[3]['#text']) posterUrl = res.album.image[3]['#text'];
                     } else {
                         const res = await fetch(`https://api.themoviedb.org/3/${item.media_type}/${item.media_id}`, {
                             headers: { Authorization: `Bearer ${config.tmdb_token}` }
@@ -127,7 +137,7 @@ async function fetchUserLists(userId, currentUserId) {
                         if (res.poster_path) posterUrl = `https://image.tmdb.org/t/p/w185${res.poster_path}`;
                     }
                 } catch (e) { console.warn("Poster fetch failed", e); }
-                postersHtml += `<img src="${posterUrl}" class="preview-poster">`;
+                postersHtml += `<img src="${posterUrl}" class="preview-poster" onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">`;
             }
             postersHtml += '</div>';
 

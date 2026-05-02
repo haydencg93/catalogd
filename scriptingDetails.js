@@ -35,7 +35,6 @@ async function initDetails() {
             };
         } 
         else if (type === 'album') {
-            // We split the composite ID we created on the index page back into Artist and Album
             const decodedId = decodeURIComponent(id);
             const [artistName, albumName] = decodedId.split('|||');
             
@@ -48,25 +47,28 @@ async function initDetails() {
             }
 
             const albumData = res.album;
+            
+            // 1. Determine the image first
             let img = 'https://via.placeholder.com/500x750?text=No+Cover';
             if (albumData.image && albumData.image.length > 3 && albumData.image[3]['#text']) {
                 img = albumData.image[3]['#text'];
             }
 
-            // Extract tags for the meta string
-            const tags = albumData.tags?.tag?.map(t => t.name).join(', ') || 'Music';
-            
-            // Last.fm's summary includes messy HTML links, so we split it to only grab the clean text
+            // 2. Process the summary text BEFORE creating the data object
             let rawSummary = albumData.wiki?.summary || "No description available.";
             const cleanSummary = rawSummary.split('<a href')[0].trim();
 
+            // 3. Extract tags
+            const tags = albumData.tags?.tag?.map(t => t.name).join(', ') || 'Music';
+
+            // 4. Now initialize the data object
             data = {
                 title: albumData.name,
-                overview: cleanSummary,
+                overview: cleanSummary, // Now it is initialized and safe to use
                 poster_path: img,
                 meta: `${albumData.artist} • ${tags}`,
                 tracks: albumData.tracks?.track || [],
-                artistName: albumData.artist // <--- ADD THIS LINE
+                artistName: albumData.artist
             };
         }
         // --- 2. BOOK FETCH ---
@@ -397,6 +399,7 @@ async function setupStatusManager(mediaId, mediaType) {
                         media_id: String(mediaId),
                         media_type: mediaType,
                         status: selectedStatus,
+                        image_url: globalData.poster_path,
                         updated_at: new Date().toISOString()
                     }, { onConflict: 'user_id,media_id,media_type' });
 
@@ -905,14 +908,22 @@ async function setupWatchlist(mediaId, mediaType) {
     const btn = document.getElementById('watchlist-btn');
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) { btn.style.display = 'none'; return; }
+
     const { data: exists } = await supabaseClient.from('user_watchlist').select('id').eq('user_id', user.id).eq('media_id', String(mediaId)).maybeSingle();
+    
     if (exists) { btn.classList.add('active'); btn.textContent = 'On Watchlist'; }
+
     btn.onclick = async () => {
         if (btn.classList.contains('active')) {
             await supabaseClient.from('user_watchlist').delete().eq('user_id', user.id).eq('media_id', String(mediaId));
             btn.classList.remove('active'); btn.textContent = 'Add to Watchlist';
         } else {
-            await supabaseClient.from('user_watchlist').insert({ user_id: user.id, media_id: String(mediaId), media_type: mediaType });
+            await supabaseClient.from('user_watchlist').insert({ 
+                user_id: user.id, 
+                media_id: String(mediaId), 
+                media_type: mediaType,
+                image_url: globalData.poster_path
+            });
             btn.classList.add('active'); btn.textContent = 'On Watchlist';
         }
     };

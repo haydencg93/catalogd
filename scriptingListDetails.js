@@ -7,6 +7,7 @@ let isManaging = false;
 let currentItems = [];
 let sortableInstance = null;
 let isOwner = false;
+let lastfmKey = "";
 
 async function initListDetails() {
     // 1. Initialize Supabase and Config
@@ -14,6 +15,7 @@ async function initListDetails() {
     const config = await response.json();
     supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
     tmdbToken = config.tmdb_token;
+    lastfmKey = config.lastfm_key;
 
     if (!listId) {
         window.location.href = 'index.html';
@@ -256,9 +258,14 @@ async function renderList() {
         card.innerHTML = `
             ${rankBadge}
             ${removeBtn}
-            <img src="${details.poster}" alt="${details.title}" onerror="this.src='placeholder.png'">
+            <div class="poster-wrapper">
+                <img src="${details.poster}" alt="${details.title}" onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
+            </div>
             <div class="media-info">
-                <div class="title">${details.title}</div>
+                <div class="title" style="font-weight:bold; font-size: 0.9rem; margin-bottom: 5px;">${details.title}</div>
+                <div class="meta">
+                    <span class="badge badge-${item.media_type}">${item.media_type}</span>
+                </div>
             </div>
         `;
         
@@ -387,11 +394,17 @@ async function setupSearch() {
         }).then(r => r.json());
 
         const bookRes = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=3`).then(r => r.json());
-        renderSearchResults(tmdbRes.results, bookRes.docs);
+        
+        let albumRes = { results: { albummatches: { album: [] } } };
+        try {
+            albumRes = await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.search&album=${encodeURIComponent(query)}&api_key=${lastfmKey}&format=json`).then(r => r.json());
+        } catch (e) { console.error("Last.fm search failed", e); }
+
+        renderSearchResults(tmdbRes.results, bookRes.docs, albumRes);
     });
 }
 
-function renderSearchResults(tmdb, books) {
+function renderSearchResults(tmdb, books, albums) {
     const resultsDiv = document.getElementById('search-results');
     resultsDiv.innerHTML = '';
     resultsDiv.style.display = 'block';
@@ -423,6 +436,22 @@ function renderSearchResults(tmdb, books) {
         div.onclick = () => addItem(book.key, 'book');
         resultsDiv.appendChild(div);
     });
+
+    albums?.results?.albummatches?.album?.slice(0, 3).forEach(a => {
+        const div = document.createElement('div');
+        div.className = 'search-result-item';
+        let img = a.image && a.image[2]['#text'] ? a.image[2]['#text'] : 'https://placehold.co/92x138/1b2228/eb3486?text=Music';
+        div.innerHTML = `
+            <img src="${img}" onerror="this.src='https://placehold.co/92x138/1b2228/eb3486?text=Music'">
+            <div>
+                <strong>${a.name}</strong>
+                <div class="meta">ALBUM • ${a.artist}</div>
+            </div>
+        `;
+        const compositeId = encodeURIComponent(`${a.artist}|||${a.name}`);
+        div.onclick = () => addItem(compositeId, 'album');
+        resultsDiv.appendChild(div);
+    });
 }
 
 async function addItem(mediaId, mediaType) {
@@ -452,12 +481,21 @@ async function fetchMediaDetails(id, type) {
             const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${id}`).then(r => r.json());
             return {
                 title: res.title || 'YouTube Video',
-                poster: res.thumbnail_url || 'https://via.placeholder.com/92x138?text=No+Thumb'
+                poster: res.thumbnail_url || 'https://placehold.co/500x750/1b2228/ff0000?text=YouTube'
             };
-        } else if (type === 'book') {            const res = await fetch(`https://openlibrary.org${id}.json`).then(r => r.json());
+        } else if (type === 'book') {            
+            const res = await fetch(`https://openlibrary.org${id}.json`).then(r => r.json());
             return {
                 title: res.title,
-                poster: res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : 'placeholder.png'
+                poster: res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : 'https://placehold.co/500x750/1b2228/9ab?text=No+Cover'
+            };
+        } else if (type === 'album') { // NEW: Add Album Fetching
+            const decodedId = decodeURIComponent(id);
+            const [artist, albumName] = decodedId.split('|||');
+            const res = await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(albumName)}&api_key=${lastfmKey}&format=json`).then(r => r.json());
+            return {
+                title: res.album?.name || albumName,
+                poster: res.album?.image?.[3]['#text'] || `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`
             };
         } else {
             const res = await fetch(`https://api.themoviedb.org/3/${type}/${id}`, {
@@ -465,11 +503,11 @@ async function fetchMediaDetails(id, type) {
             }).then(r => r.json());
             return {
                 title: res.title || res.name,
-                poster: res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : 'placeholder.png'
+                poster: res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : 'https://placehold.co/500x750/1b2228/9ab?text=No+Image'
             };
         }
     } catch (e) {
-        return { title: 'Unknown', poster: 'placeholder.png' };
+        return { title: 'Unknown', poster: 'https://placehold.co/500x750/1b2228/9ab?text=Error' };
     }
 }
 
