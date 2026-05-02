@@ -336,9 +336,14 @@ async function setupStatusManager(mediaId, mediaType) {
         return;
     }
 
+    // NEW: Dynamically set the active label based on all media types
+    let activeLabelText = 'Currently Watching'; // Default for movies/tv/youtube
+    if (mediaType === 'book') activeLabelText = 'Currently Reading';
+    else if (mediaType === 'album') activeLabelText = 'Currently Listening';
+
     // Map labels for the UI
     const labels = {
-        active: mediaType === 'book' ? 'Currently Reading' : 'Currently Watching',
+        active: activeLabelText,
         paused: 'Paused',
         dropped: 'Dropped',
         none: 'Mark as...'
@@ -360,11 +365,11 @@ async function setupStatusManager(mediaId, mediaType) {
     }
 
     // Update Modal labels dynamically for books vs movies
-    const activeLabelText = modal.querySelector('[data-status="active"] .status-label-text');
-    if (activeLabelText) activeLabelText.textContent = labels.active;
+    const activeLabelElement = modal.querySelector('[data-status="active"] .status-label-text');
+    if (activeLabelElement) activeLabelElement.textContent = labels.active;
 
     // 2. Open/Close Modal
-    statusBtn.onclick = () => modal.style.display = 'flex';
+    statusBtn.onclick = () => modal.style.display = 'flex'
     closeBtn.onclick = () => modal.style.display = 'none';
     
     // Close on backdrop click

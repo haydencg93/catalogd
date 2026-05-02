@@ -4,6 +4,9 @@ let tmdbToken = null;
 let lastfmKey = null;
 let watchlistOwnerId = null;
 let isViewerOwner = false;
+let currentWatchlistPage = 1;
+const WATCHLIST_PAGE_SIZE = 50;
+let currentWatchlistFilter = 'all';
 
 async function initWatchlist() {
     const response = await fetch('config.json');
@@ -137,7 +140,6 @@ async function renderWatchlist(items, token, typeLabel) {
         
         // Remove loading spinner and render cards
         grid.innerHTML = '';
-        subtitle.textContent = `${fullItems.length} ${typeLabel === 'all' ? 'items' : typeLabel + 's'} saved.`;
 
         fullItems.forEach(item => {
             const card = document.createElement('div');
@@ -162,6 +164,76 @@ async function renderWatchlist(items, token, typeLabel) {
     } catch (err) {
         console.error("Watchlist render error:", err);
         grid.innerHTML = "<p class='meta'>Error loading items. Please try again.</p>";
+    }
+}
+
+window.filterWatchlist = (type) => {
+    currentWatchlistFilter = type;
+    currentWatchlistPage = 1; // Reset to page 1 whenever a filter changes
+
+    const filterNav = document.querySelector('.filter-nav');
+    const buttons = filterNav.querySelectorAll('.filter-btn');
+    
+    buttons.forEach(btn => {
+        btn.classList.remove('active');
+        const btnText = btn.textContent.toLowerCase();
+        
+        if (type === 'all' && btnText === 'all') btn.classList.add('active');
+        else if (type === 'movie' && btnText === 'movies') btn.classList.add('active');
+        else if (type === 'tv' && btnText === 'tv') btn.classList.add('active');
+        else if (type === 'book' && btnText === 'books') btn.classList.add('active');
+        else if (type === 'album' && btnText === 'music') btn.classList.add('active');
+        else if (type === 'youtube' && btnText === 'youtube') btn.classList.add('active');
+    });
+
+    renderWatchlistPage(); // Triggers the paginated render
+};
+
+window.changeWatchlistPage = (direction) => {
+    currentWatchlistPage += direction;
+    renderWatchlistPage();
+    // Smooth scroll back to the top
+    document.querySelector('h1').scrollIntoView({ behavior: 'smooth' });
+};
+
+async function renderWatchlistPage() {
+    // 1. Filter the master list
+    const filtered = currentWatchlistFilter === 'all' 
+        ? allWatchlistItems 
+        : allWatchlistItems.filter(i => i.media_type === currentWatchlistFilter);
+        
+    // 2. Calculate Pagination
+    const totalItems = filtered.length;
+    const totalPages = Math.ceil(totalItems / WATCHLIST_PAGE_SIZE) || 1;
+    
+    if (currentWatchlistPage < 1) currentWatchlistPage = 1;
+    if (currentWatchlistPage > totalPages) currentWatchlistPage = totalPages;
+
+    const startIndex = (currentWatchlistPage - 1) * WATCHLIST_PAGE_SIZE;
+    const endIndex = startIndex + WATCHLIST_PAGE_SIZE;
+    
+    // 3. Slice out just the 50 items we need for this page
+    const itemsToRender = filtered.slice(startIndex, endIndex);
+
+    // 4. Update the subtitle with the TRUE TOTAL (Not just the 50 on the page)
+    const subtitle = document.getElementById('watchlist-subtitle');
+    subtitle.textContent = `${totalItems} ${currentWatchlistFilter === 'all' ? 'items' : currentWatchlistFilter + 's'} saved.`;
+
+    // 5. Pass the small chunk to your existing render engine
+    await renderWatchlist(itemsToRender, tmdbToken, currentWatchlistFilter);
+
+    // 6. Update the UI Pagination Buttons
+    const paginationContainer = document.getElementById('watchlist-pagination');
+    if (!paginationContainer) return;
+
+    if (totalItems > WATCHLIST_PAGE_SIZE) {
+        paginationContainer.innerHTML = `
+            <button class="secondary-btn" onclick="changeWatchlistPage(-1)" ${currentWatchlistPage === 1 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>Previous</button>
+            <span class="meta" style="margin: 0 15px; font-weight: bold;">Page ${currentWatchlistPage} of ${totalPages}</span>
+            <button class="secondary-btn" onclick="changeWatchlistPage(1)" ${currentWatchlistPage === totalPages ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>Next</button>
+        `;
+    } else {
+        paginationContainer.innerHTML = ''; // Hide if 50 items or fewer
     }
 }
 

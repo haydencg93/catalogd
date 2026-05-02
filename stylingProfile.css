@@ -453,6 +453,20 @@ input {
     display: block;
 }
 
+/* --- Library Pagination Button Styling --- */
+#library-pagination .secondary-btn {
+    transition: all 0.3s ease;
+}
+
+/* Hover effect ONLY for active, clickable buttons */
+#library-pagination .secondary-btn:not([disabled]):hover {
+    background-color: rgba(0, 224, 84, 0.1); /* Subtle tint of your green accent */
+    color: var(--accent);                    /* Turn text green */
+    border-color: var(--accent);             /* Turn border green */
+    transform: translateY(-2px);             /* Slight lift effect */
+    box-shadow: 0 4px 10px rgba(0, 224, 84, 0.15); /* Soft green glow */
+}
+
 /* --- PROFILE PAGE MOBILE RESPONSIVENESS (< 768px) --- */
 @media (max-width: 768px) {
     .profile-header {

@@ -39,12 +39,20 @@
         </div>
 
         <div id="tab-library" class="tab-content">
-            <div class="section-header">
-                <h2>Library</h2>
+            <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">Library</h2>
+                <div class="filter-nav" style="margin: 0;">
+                    <button class="filter-btn active" onclick="filterLibrary('all')">All</button>
+                    <button class="filter-btn" onclick="filterLibrary('movie')">Movies</button>
+                    <button class="filter-btn" onclick="filterLibrary('tv')">TV</button>
+                    <button class="filter-btn" onclick="filterLibrary('book')">Books</button>
+                    <button class="filter-btn" onclick="filterLibrary('album')">Music</button>
+                    <button class="filter-btn" onclick="filterLibrary('youtube')">YouTube</button>
+                </div>
             </div>
-            <div class="grid" id="library-grid">
-                <p class="meta">Full library view coming soon...</p>
-            </div>
+            <div class="grid" id="library-grid"></div>
+            
+            <div id="library-pagination" style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 40px; margin-bottom: 20px;"></div>
         </div>
 
         <div id="tab-on-hold" class="tab-content">
@@ -91,7 +99,7 @@
 
             <section id="active-tracking-section" style="margin-bottom: 50px; display: none;">
                 <div class="section-header">
-                    <h2 style="margin: 0;">Currently Watching/Reading</h2>
+                    <h2 style="margin: 0;">Currently Watching/Reading/Listening</h2> 
                 </div>
                 <div class="grid" id="active-grid"></div>
             </section>

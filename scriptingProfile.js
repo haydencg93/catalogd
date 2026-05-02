@@ -1,5 +1,9 @@
 let supabaseClient = null;
 let allUserLogs = [];
+let allLibraryItems = [];
+let currentLibraryPage = 1;
+const LIBRARY_PAGE_SIZE = 50;
+let currentLibraryFilter = 'all';
 let isOwner = false;
 let profileUserId = null;
 
@@ -38,7 +42,7 @@ async function initProfile() {
             .single();
 
         // Fetch all statuses for the user whose profile we are viewing
-        // 1. Define the containers
+// 1. Define the containers
         const activeSection = document.getElementById('active-tracking-section');
         const activeGrid = document.getElementById('active-grid');
         const holdGrid = document.getElementById('on-hold-grid');
@@ -47,36 +51,37 @@ async function initProfile() {
         if (activeGrid) activeGrid.innerHTML = '';
         if (holdGrid) holdGrid.innerHTML = '';
 
-        // 3. Privacy Check: Only fetch and show statuses if the logged-in user is the owner
+        // 3. Privacy Checks
         const canViewActive = isOwner || (profile.show_active_status !== false);
         const canViewOnHold = isOwner || (profile.show_paused_dropped_status !== false);
 
-        // Clear initial states
-        if (activeGrid) activeGrid.innerHTML = '';
-        if (holdGrid) holdGrid.innerHTML = '';
+        // 4. Fetch all statuses
+        const { data: allStatuses, error: statusError } = await supabaseClient
+            .from('media_status')
+            .select('*')
+            .eq('user_id', profileUserId);
 
+        if (statusError) console.error("Status Fetch Error:", statusError);
+
+        // 5. Render Active/Hold if allowed
         if (canViewActive || canViewOnHold) {
-            const { data: allStatuses, error: statusError } = await supabaseClient
-                .from('media_status')
-                .select('*')
-                .eq('user_id', profileUserId);
-
-            if (statusError) console.error("Status Fetch Error:", statusError);
-
             if (allStatuses && allStatuses.length > 0) {
-                // Filter items into their respective buckets
                 const activeItems = allStatuses.filter(s => s.status === 'active');
                 const pausedDroppedItems = allStatuses.filter(s => s.status === 'paused' || s.status === 'dropped');
 
-                // --- Render Active Section (Home Tab) ---
-                if (canViewActive && activeItems.length > 0) {
-                    activeSection.style.display = 'block';
-                    renderStatusItems(activeItems, 'active-grid'); 
+                // Handle Active Items
+                if (canViewActive) {
+                    if (activeItems.length > 0) {
+                        activeSection.style.display = 'block';
+                        renderStatusItems(activeItems, 'active-grid'); 
+                    } else {
+                        activeSection.style.display = 'none';
+                    }
                 } else {
                     activeSection.style.display = 'none';
                 }
 
-                // --- Render On-Hold Section (On-Hold Tab) ---
+                // Handle Paused/Dropped Items
                 if (canViewOnHold) {
                     if (pausedDroppedItems.length > 0) {
                         renderStatusItems(pausedDroppedItems, 'on-hold-grid');
@@ -87,12 +92,12 @@ async function initProfile() {
                     holdGrid.innerHTML = `<p class="meta" style="grid-column: 1/-1; text-align: center;">This section is private.</p>`;
                 }
             } else {
-                // User has zero statuses
+                // No statuses exist at all
                 activeSection.style.display = 'none';
-                holdGrid.innerHTML = `<p class="meta">No paused or dropped items to show.</p>`;
+                if (canViewOnHold) holdGrid.innerHTML = `<p class="meta">No paused or dropped items to show.</p>`;
             }
         } else {
-            // The viewer is NOT the owner, AND both privacy settings are turned OFF
+            // Completely private
             activeSection.style.display = 'none';
             holdGrid.innerHTML = `<p class="meta" style="grid-column: 1/-1; text-align: center;">Status tracking is private.</p>`;
         }
@@ -188,6 +193,58 @@ async function initProfile() {
             document.getElementById('stat-count').textContent = logs.length;
             filterRecent('all'); 
         }
+
+        // --- NEW: PROCESS MASTER LIBRARY ---
+        let libraryMap = new Map();
+        let droppedKeys = new Set();
+
+        // Pass 1: Process Statuses
+        if (allStatuses) {
+            allStatuses.forEach(s => {
+                const key = `${s.media_type}_${s.media_id}`;
+                if (s.status === 'dropped') {
+                    droppedKeys.add(key); // Mark as dropped
+                } else {
+                    libraryMap.set(key, {
+                        media_id: s.media_id,
+                        media_type: s.media_type,
+                        image_url: s.image_url,
+                        first_added: s.created_at || s.updated_at
+                    });
+                }
+            });
+        }
+
+        // Pass 2: Process Logs (Merge & Deduplicate)
+        if (allUserLogs) {
+            allUserLogs.forEach(l => {
+                const key = `${l.media_type}_${l.media_id}`;
+                // Only add if it hasn't been dropped
+                if (!droppedKeys.has(key)) {
+                    if (libraryMap.has(key)) {
+                        // If it exists, track the earliest date it was added
+                        const existing = libraryMap.get(key);
+                        if (new Date(l.created_at) < new Date(existing.first_added)) {
+                            existing.first_added = l.created_at;
+                        }
+                        // Prioritize image_url from log if missing
+                        if (!existing.image_url && l.image_url) existing.image_url = l.image_url;
+                    } else {
+                        // New item from logs
+                        libraryMap.set(key, {
+                            media_id: l.media_id,
+                            media_type: l.media_type,
+                            image_url: l.image_url,
+                            first_added: l.created_at
+                        });
+                    }
+                }
+            });
+        }
+
+        // Sort descending (Newest first) by the earliest date they interacted with it
+        allLibraryItems = Array.from(libraryMap.values()).sort((a, b) => new Date(b.first_added) - new Date(a.first_added));
+        filterLibrary('all'); // Initial render
 
         // 7. Watchlist/Follower Counts
         const { count: watchlistCount } = await supabaseClient.from('user_watchlist').select('*', { count: 'exact', head: true }).eq('user_id', profileUserId);
@@ -606,5 +663,146 @@ window.switchTab = (tabName) => {
     });
     document.getElementById(`tab-${tabName}`).classList.add('active');
 };
+
+window.filterLibrary = (type) => {
+    currentLibraryFilter = type;
+    currentLibraryPage = 1; // Reset to page 1 whenever a filter changes
+
+    const librarySection = document.getElementById('tab-library');
+    const buttons = librarySection.querySelectorAll('.filter-btn');
+    
+    buttons.forEach(btn => {
+        btn.classList.remove('active');
+        const btnText = btn.textContent.toLowerCase();
+        
+        if (type === 'all' && btnText === 'all') btn.classList.add('active');
+        else if (type === 'movie' && btnText === 'movies') btn.classList.add('active');
+        else if (type === 'tv' && btnText === 'tv') btn.classList.add('active');
+        else if (type === 'book' && btnText === 'books') btn.classList.add('active');
+        else if (type === 'album' && btnText === 'music') btn.classList.add('active');
+        else if (type === 'youtube' && btnText === 'youtube') btn.classList.add('active');
+    });
+
+    renderLibraryPage(); // Triggers the paginated render
+};
+
+async function renderLibrary(items) {
+    const grid = document.getElementById('library-grid');
+    grid.innerHTML = '<p class="meta">Loading library...</p>';
+
+    if (!items || items.length === 0) {
+        grid.innerHTML = "<p class='meta'>Library is empty.</p>";
+        return;
+    }
+
+    const config = await fetch('config.json').then(r => r.json());
+
+    try {
+        const mediaPromises = items.map(async (item) => {
+            let title, image;
+            try {
+                if (item.media_type === 'book') {
+                    const res = await fetch(`https://openlibrary.org${item.media_id}.json`).then(r => r.json());
+                    title = res.title;
+                    image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : '';
+                } else if (item.media_type === 'youtube') {
+                    const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${item.media_id}`).then(r => r.json());
+                    title = res.title || 'YouTube Video';
+                    image = res.thumbnail_url || '';
+                } else if (item.media_type === 'album') {
+                    const decodedId = decodeURIComponent(item.media_id);
+                    const [artist, albumName] = decodedId.split('|||');
+                    title = albumName;
+                    
+                    try {
+                        const res = await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(albumName)}&api_key=${config.lastfm_key}&format=json`).then(r => r.json());
+                        image = res.album?.image?.[3]['#text'] || `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`;
+                    } catch (e) {
+                        image = `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`;
+                    }
+                } else {
+                    const res = await fetch(`https://api.themoviedb.org/3/${item.media_type}/${item.media_id}`, {
+                        headers: { Authorization: `Bearer ${config.tmdb_token}` } 
+                    }).then(r => r.json());
+                    title = res.title || res.name;
+                    image = res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : '';
+                }
+                return { ...item, title, image };
+            } catch (innerError) {
+                return { ...item, title: "Unknown", image: "" };
+            }
+        });
+
+        const fullItems = await Promise.all(mediaPromises);
+        grid.innerHTML = ''; 
+
+        fullItems.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'media-card';
+            card.onclick = () => window.location.href = `details.html?id=${item.media_id}&type=${item.media_type}`;
+
+            card.innerHTML = `
+                <div class="poster-wrapper">
+                    <img src="${item.image || 'https://placehold.co/500x750/1b2228/9ab?text=No+Image'}" 
+                         alt="${item.title}"
+                         onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
+                </div>
+                <div class="media-info">
+                    <div class="title" style="font-weight:bold; margin-bottom:5px;">${item.title}</div>
+                    <div class="meta">
+                        <span class="badge badge-${item.media_type}">${item.media_type}</span>
+                    </div>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    } catch (err) {
+        grid.innerHTML = "<p class='meta'>Error loading library.</p>";
+    }
+}
+
+window.changeLibraryPage = (direction) => {
+    currentLibraryPage += direction;
+    renderLibraryPage();
+    // Smooth scroll back to the top of the library tab when changing pages
+    document.getElementById('tab-library').scrollIntoView({ behavior: 'smooth' });
+};
+
+async function renderLibraryPage() {
+    // 1. Filter the master list
+    const filtered = currentLibraryFilter === 'all' 
+        ? allLibraryItems 
+        : allLibraryItems.filter(l => l.media_type === currentLibraryFilter);
+        
+    // 2. Calculate Pagination
+    const totalItems = filtered.length;
+    const totalPages = Math.ceil(totalItems / LIBRARY_PAGE_SIZE) || 1;
+    
+    if (currentLibraryPage < 1) currentLibraryPage = 1;
+    if (currentLibraryPage > totalPages) currentLibraryPage = totalPages;
+
+    const startIndex = (currentLibraryPage - 1) * LIBRARY_PAGE_SIZE;
+    const endIndex = startIndex + LIBRARY_PAGE_SIZE;
+    
+    // 3. Slice out just the 50 items we need for this page
+    const itemsToRender = filtered.slice(startIndex, endIndex);
+
+    // 4. Pass the small chunk to your existing render engine
+    await renderLibrary(itemsToRender);
+
+    // 5. Update the UI Pagination Buttons
+    const paginationContainer = document.getElementById('library-pagination');
+    if (!paginationContainer) return;
+
+    if (totalItems > LIBRARY_PAGE_SIZE) {
+        paginationContainer.innerHTML = `
+            <button class="secondary-btn" onclick="changeLibraryPage(-1)" ${currentLibraryPage === 1 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>Previous</button>
+            <span class="meta" style="margin: 0 15px; font-weight: bold;">Page ${currentLibraryPage} of ${totalPages}</span>
+            <button class="secondary-btn" onclick="changeLibraryPage(1)" ${currentLibraryPage === totalPages ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>Next</button>
+        `;
+    } else {
+        paginationContainer.innerHTML = ''; // Hide if 50 items or fewer
+    }
+}
 
 initProfile();
