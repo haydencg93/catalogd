@@ -6,7 +6,7 @@ Get Done Today = ~
 ### In Progress
 ### To Fix
 - Export doesn't export whether they liked it or not
-- Library section on Profile
+- Import from last.FM
 
 <!-- ----------------------------------------------------------------------- -->
 <!-- Future Additions -->
