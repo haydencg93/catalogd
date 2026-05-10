@@ -286,7 +286,7 @@ async function startLetterboxdExport(userId, rangeType, startDate, endDate) {
     const listsFolder = zip.folder("lists"); 
 
     // Initialize CSV strings at the top to avoid ReferenceErrors
-    let diaryCsv = "tmdbID,Title,Year,Rating,WatchedDate,Rewatch,Tags,Review\n";
+    let diaryCsv = "tmdbID,Title,Year,Rating,WatchedDate,Rewatch,Tags,Review,Like\n";
     let watchlistCsv = "tmdbID,Title,Year,Date\n";
 
     // --- PART 1: DIARY EXPORT (Filtered by Date) ---
@@ -298,11 +298,12 @@ async function startLetterboxdExport(userId, rangeType, startDate, endDate) {
 
     if (rangeType === 'range') {
         if (startDate && startDate !== "") {
-            // Now filtering by the date the entry was created in the database
-            diaryQuery = diaryQuery.gte('created_at', startDate); 
+            // Append start of day time to ensure we catch everything on that date
+            diaryQuery = diaryQuery.gte('created_at', `${startDate}T00:00:00.000Z`); 
         }
         if (endDate && endDate !== "") {
-            diaryQuery = diaryQuery.lte('created_at', endDate);
+            // Append end of day time so it doesn't cut off at midnight!
+            diaryQuery = diaryQuery.lte('created_at', `${endDate}T23:59:59.999Z`);
         }
     }
 
@@ -342,39 +343,35 @@ async function startLetterboxdExport(userId, rangeType, startDate, endDate) {
         progressBar.style.width = `${(processedCount / grandTotal) * 100}%`;
 
         try {
+            // Fetch the details using your existing media_id
             const details = await fetch(`https://api.themoviedb.org/3/movie/${log.media_id}`, {
                 headers: { Authorization: `Bearer ${tmdbToken}` }
             }).then(r => r.json());
 
-            const targetTitle = details.title;
+            const targetTitle = details.title || "Unknown Title";
             const targetYear = (details.release_date || "").split('-')[0];
 
-            const searchRes = await fetch(`https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(targetTitle)}&year=${targetYear}`, {
-                headers: { Authorization: `Bearer ${tmdbToken}` }
-            }).then(r => r.json());
-
-            const verified = searchRes.results.find(m => 
-                m.title.toLowerCase() === targetTitle.toLowerCase() && 
-                (m.release_date || "").startsWith(targetYear)
-            );
-
-            if (verified) {
-                console.log(`🎬 Diary Item - ID: ${verified.id} | Name: ${verified.title} | Year: ${targetYear}`);
-                addExportLog(verified.title, `Verified (${log.watched_on})`, "success");
-                
-                const row = [
-                    verified.id,
-                    `"${verified.title.replace(/"/g, '""')}"`,
-                    targetYear,
-                    log.rating || "",
-                    log.watched_on || log.created_at.split('T')[0],
-                    log.is_rewatch ? 'Yes' : 'No',
-                    'Catalogd',
-                    `"${(log.notes || "").replace(/"/g, '""').replace(/\n/g, ' ')}"`
-                ];
-                diaryCsv += row.join(",") + "\n";
-            }
-        } catch (e) { console.error(e); }
+            console.log(`🎬 Diary Item - ID: ${details.id} | Name: ${targetTitle} | Year: ${targetYear}`);
+            addExportLog(targetTitle, `Exported (${log.watched_on})`, "success");
+            
+            // Push directly to the CSV (including the new Like column!)
+            const row = [
+                details.id,
+                `"${targetTitle.replace(/"/g, '""')}"`,
+                targetYear,
+                log.rating || "",
+                log.watched_on || log.created_at.split('T')[0],
+                log.is_rewatch ? 'Yes' : 'No',
+                'Catalogd',
+                `"${(log.notes || "").replace(/"/g, '""').replace(/\n/g, ' ')}"`,
+                log.is_liked ? 'Yes' : '' 
+            ];
+            diaryCsv += row.join(",") + "\n";
+            
+        } catch (e) { 
+            console.error("Failed to export diary item:", e); 
+            addExportLog("Unknown Error", "Failed to fetch from TMDB", "error");
+        }
         await new Promise(r => setTimeout(r, 50));
     }
 
