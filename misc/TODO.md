@@ -5,7 +5,7 @@ Get Done Today = ~
 ## BUGS:
 ### In Progress
 ### To Do/Fix
-- Export doesn't export whether they liked it or not
+- counting of hours is wrong for tv shows when logging series/season
 - Import from last.FM
 - Add tags functionality
 
