@@ -1,0 +1,16 @@
+{
+  "anime": "Gachiakuta",
+  "total_episodes": 2,
+  "episodes": [
+    {
+      "number": "1",
+      "title": "The Sphere",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "2",
+      "title": "The Inhabited",
+      "type": "Manga Canon"
+    }
+  ]
+}
