@@ -8,6 +8,7 @@ let isRewatch = false;
 let currentRating = 0;
 const logId = params.get('logId');
 let albumTracks = [];
+let currentTags = [];
 
 async function initLog() {
     const config = await fetch('config.json').then(r => r.json());
@@ -97,7 +98,6 @@ async function initLog() {
         fetchExistingLogData();
     }
 
-    // --- NEW: DYNAMIC REWATCH BUTTON TEXT ---
     const rewatchBtn = document.getElementById('rewatch-btn');
     if (rewatchBtn) {
         if (type === 'book') rewatchBtn.textContent = "Mark as Reread";
@@ -105,7 +105,26 @@ async function initLog() {
         else rewatchBtn.textContent = "Mark as Rewatch";
     }
 
+    // Only run this check if we are creating a brand new log
+    if (!logId) {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (user) {
+            const { data: previousLog } = await supabaseClient
+                .from('media_logs')
+                .select('id')
+                .eq('user_id', user.id)
+                .eq('media_id', id)
+                .limit(1);
+
+            if (previousLog && previousLog.length > 0) {
+                isRewatch = true;
+                if (rewatchBtn) rewatchBtn.classList.add('active');
+            }
+        }
+    }
+
     setupStars();
+    setupTagsInput();
     setupActionButtons();
     document.getElementById('save-log-btn').onclick = saveLog;
 }
@@ -123,9 +142,12 @@ async function fetchExistingLogData() {
         updateStarUI();
         document.getElementById('rating-display').textContent = `${currentRating.toFixed(1)} / 5.0`;
 
-        // Fill Notes & Date
+        // Fill Notes, Date, & Tags
         document.getElementById('user-notes').value = log.notes || '';
         document.getElementById('watched-date').value = log.watched_on;
+        
+        currentTags = log.tags || [];
+        renderTags();
 
         // Fill Toggles
         isLiked = log.is_liked;
@@ -242,6 +264,41 @@ function updateStarUI() {
     });
 }
 
+function setupTagsInput() {
+    const tagInput = document.getElementById('log-tags-input');
+    
+    tagInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+
+            // This trims whitespace, makes it lowercase, and replaces spaces with hyphens
+            const newTag = tagInput.value.trim().toLowerCase().replace(/\s+/g, '-');
+            
+            if (newTag && !currentTags.includes(newTag)) {
+                currentTags.push(newTag);
+                tagInput.value = '';
+                renderTags();
+            } else if (currentTags.includes(newTag)) {
+                tagInput.value = ''; 
+            }
+        }
+    });
+}
+
+function renderTags() {
+    const container = document.getElementById('tags-display-container');
+    container.innerHTML = currentTags.map((tag, index) => `
+        <span class="tag-pill">
+            ${tag} <span class="tag-remove" onclick="removeTag(${index})">×</span>
+        </span>
+    `).join('');
+}
+
+window.removeTag = function(index) {
+    currentTags.splice(index, 1);
+    renderTags();
+};
+
 function setupActionButtons() {
     const likeBtn = document.getElementById('like-btn');
     const watchlistBtn = document.getElementById('watchlist-btn');
@@ -259,19 +316,18 @@ function setupActionButtons() {
 }
 
 async function saveLog() {
-    // 1. Check Authentication
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) return alert("Please sign in.");
 
-    // 2. Capture Form Data
     const scopeValue = document.getElementById('log-scope').value;
     const userNotes = document.getElementById('user-notes').value;
     const watchedDate = document.getElementById('watched-date').value;
     const rating = currentRating;
+    
+    const parsedTags = currentTags;
 
     try {
         if (type === 'book') {
-            // --- CORRECTED BOOK LOGIC ---
             if (scopeValue === 'chapter') {
                 const chapterNum = parseInt(document.getElementById('book-chapter').value);
                 const payload = {
@@ -280,12 +336,12 @@ async function saveLog() {
                     media_type: 'book',
                     chapter_number: chapterNum || null,
                     notes: userNotes,
+                    tags: parsedTags,
                     watched_on: watchedDate,
                     rating: rating,
                     is_liked: isLiked
                 };
 
-                // NEW: Check for logId to update existing chapter entry
                 if (logId) {
                     payload.id = logId;
                 }
@@ -293,7 +349,6 @@ async function saveLog() {
                 const { error } = await supabaseClient.from('media_logs').upsert(payload);
                 if (error) throw error;
             } else {
-                // Handle "Entire Book" or "Progress"
                 const olRes = await fetch(`https://openlibrary.org${id}.json`).then(r => r.json());
                 const totalPages = olRes.number_of_pages || 0;
 
@@ -311,6 +366,7 @@ async function saveLog() {
                     media_type: 'book',
                     rating: rating,
                     notes: userNotes,
+                    tags: parsedTags,
                     watched_on: watchedDate,
                     is_finished: true, 
                     current_page: totalPages,
@@ -319,8 +375,6 @@ async function saveLog() {
                     is_rewatch: isRewatch
                 };
 
-                // Ensure we use the logId from the URL for updates, 
-                // otherwise fallback to the active log ID if finishing a draft
                 if (logId) {
                     finalData.id = logId;
                 } else if (activeLog) {
@@ -331,8 +385,7 @@ async function saveLog() {
                 if (error) throw error;
             }
         } else {
-            // --- MOVIE & TV LOGIC ---
-            let scopeValue = document.getElementById('log-scope').value; 
+            let currentScopeValue = document.getElementById('log-scope').value; 
             
             if (type === 'youtube') {
                 const ytDuration = document.getElementById('youtube-duration').value;
@@ -345,30 +398,29 @@ async function saveLog() {
                 media_type: type,
                 rating: rating,
                 notes: userNotes,
+                tags: parsedTags,
                 watched_on: watchedDate,
                 is_liked: isLiked,
                 is_rewatch: isRewatch,
                 runtime: currentMediaRuntime 
             };
 
-            // Capture TV-specific details
             if (type === 'tv') {
                 const seasonSelect = document.getElementById('season-select');
                 const episodeSelect = document.getElementById('episode-select');
 
-                // FIX: If we are editing, force the scope based on the presence of select values
                 if (logId) {
-                    if (episodeSelect && episodeSelect.value) scopeValue = 'episode';
-                    else if (seasonSelect && seasonSelect.value) scopeValue = 'season';
+                    if (episodeSelect && episodeSelect.value) currentScopeValue = 'episode';
+                    else if (seasonSelect && seasonSelect.value) currentScopeValue = 'season';
                 }
 
-                if (scopeValue === 'season' || scopeValue === 'episode') {
+                if (currentScopeValue === 'season' || currentScopeValue === 'episode') {
                     if (seasonSelect && seasonSelect.value) {
                         payload.season_number = parseInt(seasonSelect.value);
                     }
                 }
                 
-                if (scopeValue === 'episode') {
+                if (currentScopeValue === 'episode') {
                     if (episodeSelect && episodeSelect.value) {
                         payload.episode_number = parseInt(episodeSelect.value);
                     }
@@ -376,11 +428,11 @@ async function saveLog() {
             } else if (type === 'album') {
                 const trackSelect = document.getElementById('track-select');
                 if (logId && trackSelect && document.getElementById('track-input-group').style.display !== 'none') {
-                    scopeValue = 'track';
+                    currentScopeValue = 'track';
                 }
                 
-                if (scopeValue === 'track') {
-                    payload.episode_number = parseInt(trackSelect.value); // Re-use episode_number to store track index
+                if (currentScopeValue === 'track') {
+                    payload.episode_number = parseInt(trackSelect.value);
                 }
             }
 
@@ -389,7 +441,6 @@ async function saveLog() {
             }
 
             try {
-                // Use upsert to handle the update correctly using the ID
                 const { error } = await supabaseClient
                     .from('media_logs')
                     .upsert(payload); 
@@ -402,7 +453,7 @@ async function saveLog() {
                 alert("Error: " + err.message);
             }
         }
-        } catch (err) {
+    } catch (err) {
         console.error("Save Error:", err);
         alert("Error saving log: " + err.message);
     }

@@ -192,9 +192,13 @@ async function initProfile() {
             allUserLogs = logs; 
             document.getElementById('stat-count').textContent = logs.length;
             filterRecent('all'); 
+
+            if (isOwner) {
+                document.getElementById('tags-tab-btn').style.display = 'block';
+                renderProfileTags();
+            }
         }
 
-        // --- NEW: PROCESS MASTER LIBRARY ---
         let libraryMap = new Map();
         let droppedKeys = new Set();
 
@@ -219,14 +223,26 @@ async function initProfile() {
         if (allUserLogs) {
             allUserLogs.forEach(l => {
                 const key = `${l.media_type}_${l.media_id}`;
+                // Determine the most relevant date for this log
+                const logDate = new Date(l.watched_on || l.created_at);
+
                 // Only add if it hasn't been dropped
                 if (!droppedKeys.has(key)) {
                     if (libraryMap.has(key)) {
-                        // If it exists, track the earliest date it was added
                         const existing = libraryMap.get(key);
+                        
+                        // Keep track of the earliest date added for sorting purposes
                         if (new Date(l.created_at) < new Date(existing.first_added)) {
                             existing.first_added = l.created_at;
                         }
+                        
+                        // Keep track of the LATEST rating and like status for the display
+                        if (!existing.latest_log_date || logDate > existing.latest_log_date) {
+                            existing.latest_log_date = logDate;
+                            existing.rating = l.rating;
+                            existing.is_liked = l.is_liked;
+                        }
+
                         // Prioritize image_url from log if missing
                         if (!existing.image_url && l.image_url) existing.image_url = l.image_url;
                     } else {
@@ -235,7 +251,10 @@ async function initProfile() {
                             media_id: l.media_id,
                             media_type: l.media_type,
                             image_url: l.image_url,
-                            first_added: l.created_at
+                            first_added: l.created_at,
+                            latest_log_date: logDate,
+                            rating: l.rating,
+                            is_liked: l.is_liked
                         });
                     }
                 }
@@ -439,6 +458,144 @@ window.filterRecent = (type) => {
     renderRecent(filtered);
 };
 
+function renderProfileTags() {
+    const container = document.getElementById('tags-grid');
+    
+    if (!allUserLogs || allUserLogs.length === 0) {
+        container.innerHTML = '<p class="meta">No tags found. Start logging to build your collection!</p>';
+        return;
+    }
+
+    const tagCounts = {};
+    
+    allUserLogs.forEach(log => {
+        if (log.tags && Array.isArray(log.tags)) {
+            log.tags.forEach(tag => {
+                tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+            });
+        }
+    });
+
+    const uniqueTags = Object.keys(tagCounts).sort((a, b) => tagCounts[b] - tagCounts[a]);
+
+    if (uniqueTags.length === 0) {
+        container.innerHTML = '<p class="meta">No tags found. Start logging to build your collection!</p>';
+        return;
+    }
+
+    container.innerHTML = uniqueTags.map(tag => `
+        <div class="profile-tag-pill clickable" onclick="openTagDetails('${tag}')">
+            <span class="tag-name">${tag}</span>
+            <span class="tag-count">${tagCounts[tag]}</span>
+        </div>
+    `).join('');
+}
+
+window.openTagDetails = async (tag) => {
+    const modal = document.getElementById('tag-details-modal');
+    const body = document.getElementById('tag-details-modal-body');
+    const title = document.getElementById('tag-details-modal-title');
+    const closeBtn = document.getElementById('close-tag-modal');
+
+    title.textContent = `Logs tagged with "${tag}"`;
+    body.innerHTML = '<p class="meta">Loading logs...</p>';
+    modal.style.display = 'block';
+
+    closeBtn.onclick = () => modal.style.display = 'none';
+    
+    modal.onclick = (event) => {
+        if (event.target === modal) modal.style.display = 'none';
+    };
+
+    // Helper to safely parse dates and prevent timezone shifting
+    const getSafeDate = (log) => {
+        let dateVal = log.watched_on || log.created_at;
+        // If it's a strict YYYY-MM-DD string, append noon to lock the day
+        if (dateVal && dateVal.length === 10) {
+            dateVal += "T12:00:00"; 
+        }
+        return new Date(dateVal);
+    };
+
+    // 1. Filter and SORT using the safe dates
+    const taggedLogs = allUserLogs.filter(log => log.tags && log.tags.includes(tag));
+    const sortedLogs = taggedLogs.sort((a, b) => getSafeDate(b) - getSafeDate(a));
+
+    const config = await fetch('config.json').then(r => r.json());
+
+    try {
+        // 2. Fetch the metadata (titles and images) for each log
+        const fullLogs = await Promise.all(sortedLogs.map(async (log) => {
+            let title, image;
+            try {
+                if (log.media_type === 'book') {
+                    const res = await fetch(`https://openlibrary.org${log.media_id}.json`).then(r => r.json());
+                    title = res.title;
+                    image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : '';
+                } else if (log.media_type === 'youtube') {
+                    const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${log.media_id}`).then(r => r.json());
+                    title = res.title || 'YouTube Video';
+                    image = res.thumbnail_url || '';
+                } else if (log.media_type === 'album') {
+                    const decodedId = decodeURIComponent(log.media_id);
+                    const [artist, albumName] = decodedId.split('|||');
+                    title = albumName;
+                    try {
+                        const res = await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(albumName)}&api_key=${config.lastfm_key}&format=json`).then(r => r.json());
+                        image = res.album?.image?.[3]['#text'] || `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`;
+                    } catch (e) {
+                        image = `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`;
+                    }
+                } else {
+                    const res = await fetch(`https://api.themoviedb.org/3/${log.media_type}/${log.media_id}`, {
+                        headers: { Authorization: `Bearer ${config.tmdb_token}` } 
+                    }).then(r => r.json());
+                    title = res.title || res.name;
+                    image = res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : '';
+                }
+                return { ...log, title, image };
+            } catch (innerError) {
+                return { ...log, title: "Unknown", image: "" };
+            }
+        }));
+
+        // 3. Build the UI rows
+        body.innerHTML = '';
+        fullLogs.forEach(log => {
+            const stars = '★'.repeat(Math.floor(log.rating || 0)) + ((log.rating % 1 !== 0) ? '½' : '');
+            
+            // Use the same safe date helper for the display text
+            const safeDate = getSafeDate(log);
+            const dateStr = safeDate.toLocaleDateString(undefined, {
+                year: 'numeric', month: 'short', day: 'numeric'
+            });
+            
+            const reviewIcon = log.notes ? `<span title="Reviewed" style="margin-right:8px;">📝</span>` : '';
+            const likeIcon = log.is_liked ? `<span title="Liked" style="color:#ff4d4d; margin-right:8px;">❤️</span>` : '';
+            
+            const row = document.createElement('div');
+            row.className = 'tag-log-row';
+            row.onclick = () => window.location.href = `details.html?id=${log.media_id}&type=${log.media_type}`;
+            
+            row.innerHTML = `
+                <img src="${log.image || 'https://placehold.co/50x75/1b2228/9ab?text=No+Img'}" class="tag-log-poster">
+                <div class="tag-log-info">
+                    <div class="tag-log-title">${log.title} <span class="badge badge-${log.media_type}">${log.media_type}</span></div>
+                    <div class="tag-log-meta">
+                        <span style="color: var(--accent); margin-right: 10px;">${stars}</span>
+                        <span style="color: #9ab; margin-right: 10px;">${dateStr}</span>
+                        ${likeIcon}
+                        ${reviewIcon}
+                    </div>
+                </div>
+            `;
+            body.appendChild(row);
+        });
+    } catch (err) {
+        body.innerHTML = `<p class="meta" style="color:red;">Error loading details.</p>`;
+    }
+};
+
 async function renderRecent(logs) {
     const grid = document.getElementById('recent-grid');
     grid.innerHTML = '<p class="meta">Loading activity...</p>';
@@ -496,17 +653,24 @@ async function renderRecent(logs) {
             card.className = 'media-card';
             card.onclick = () => window.location.href = `details.html?id=${log.media_id}&type=${log.media_type}`;
 
-            const stars = '★'.repeat(log.rating || 0);
+            const stars = '★'.repeat(Math.floor(log.rating || 0)) + ((log.rating % 1 !== 0) ? '½' : '');
             
+            // Determine hover text for rewatch icon based on media type
+            let rewatchText = 'Rewatch';
+            if (log.media_type === 'book') rewatchText = 'Reread';
+            else if (log.media_type === 'album') rewatchText = 'Relisten';
+
             // Create the HTML for badges only if data exists
-            const reviewBadge = log.notes ? `<div class="card-icon-badge">📝</div>` : '';
-            const likeBadge = log.is_liked ? `<div class="card-icon-badge icon-heart">❤️</div>` : '';
+            const reviewBadge = log.notes ? `<div class="card-icon-badge" title="Reviewed">📝</div>` : '';
+            const likeBadge = log.is_liked ? `<div class="card-icon-badge icon-heart" title="Liked">❤️</div>` : '';
+            const rewatchBadge = log.is_rewatch ? `<div class="card-icon-badge" title="${rewatchText}" style="font-size: 0.8rem;">🔁</div>` : '';
 
             card.innerHTML = `
                 <div class="poster-wrapper">
                     <div class="badge-container">
                         ${likeBadge}
                         ${reviewBadge}
+                        ${rewatchBadge}
                     </div>
                     <img src="${log.image || 'https://placehold.co/500x750/1b2228/9ab?text=No+Image'}" 
                          alt="${log.title}"
@@ -741,8 +905,21 @@ async function renderLibrary(items) {
             card.className = 'media-card';
             card.onclick = () => window.location.href = `details.html?id=${item.media_id}&type=${item.media_type}`;
 
+            // Build the star string (handling half stars)
+            let starsHtml = '';
+            if (item.rating > 0) {
+                const starString = '★'.repeat(Math.floor(item.rating)) + ((item.rating % 1 !== 0) ? '½' : '');
+                starsHtml = `<span style="color: var(--accent); margin-left: 8px;">${starString}</span>`;
+            }
+            
+            // Move the like icon to the poster overlay (matching Recent Activity)
+            const likeBadge = item.is_liked ? `<div class="card-icon-badge icon-heart">❤️</div>` : '';
+
             card.innerHTML = `
                 <div class="poster-wrapper">
+                    <div class="badge-container">
+                        ${likeBadge}
+                    </div>
                     <img src="${item.image || 'https://placehold.co/500x750/1b2228/9ab?text=No+Image'}" 
                          alt="${item.title}"
                          onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
@@ -751,6 +928,7 @@ async function renderLibrary(items) {
                     <div class="title" style="font-weight:bold; margin-bottom:5px;">${item.title}</div>
                     <div class="meta">
                         <span class="badge badge-${item.media_type}">${item.media_type}</span>
+                        ${starsHtml}
                     </div>
                 </div>
             `;

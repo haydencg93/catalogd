@@ -467,6 +467,99 @@ input {
     box-shadow: 0 4px 10px rgba(0, 224, 84, 0.15); /* Soft green glow */
 }
 
+/* --- Profile Tags Section --- */
+.tags-cloud-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    padding: 10px 0;
+}
+
+.profile-tag-pill {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid #2c3440;
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.2s ease;
+}
+
+.profile-tag-pill:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--accent);
+    transform: translateY(-2px);
+}
+
+.tag-name {
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.tag-count {
+    background: var(--accent);
+    color: #14181c;
+    font-size: 0.75rem;
+    font-weight: 900;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+/* Add pointer cursor to clickable tag pills */
+.profile-tag-pill.clickable {
+    cursor: pointer;
+}
+
+/* Styles for the rows inside the Tag Details Modal */
+.tag-log-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 12px;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    transition: background 0.2s;
+}
+
+.tag-log-row:last-child {
+    border-bottom: none;
+}
+
+.tag-log-row:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+}
+
+.tag-log-poster {
+    width: 45px;
+    height: 68px;
+    border-radius: 4px;
+    object-fit: cover;
+}
+
+.tag-log-info {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.tag-log-title {
+    font-weight: bold;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tag-log-meta {
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+}
+
 /* --- PROFILE PAGE MOBILE RESPONSIVENESS (< 768px) --- */
 @media (max-width: 768px) {
     .profile-header {

@@ -761,6 +761,29 @@
     cursor: pointer;
 }
 
+.log-tags-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.log-tag-pill {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid #2c3440;
+    color: #9ab;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    transition: background 0.2s, color 0.2s;
+}
+
+.log-tag-pill:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
 /* --- DETAILS PAGE MOBILE RESPONSIVENESS (< 768px) --- */
 @media (max-width: 768px) {
     .details-container {

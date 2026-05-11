@@ -733,13 +733,12 @@ function renderLogs(logsToRender) {
                    (log.season_number ? `Season ${log.season_number}` : `Series`);
         } else if (type === 'album') {
             if (log.episode_number && globalData && globalData.tracks && globalData.tracks[log.episode_number - 1]) {
-                label = globalData.tracks[log.episode_number - 1].name; // Grabs the exact song name!
+                label = globalData.tracks[log.episode_number - 1].name;
             } else {
                 label = 'Entire Album';
             }
         }
 
-        // --- BADGE LOGIC ---
         let rewatchText = 'Rewatch';
         if (type === 'book') rewatchText = 'Reread';
         else if (type === 'album') rewatchText = 'Relisten';
@@ -749,13 +748,11 @@ function renderLogs(logsToRender) {
             `<span title="${rewatchText}" style="font-size: 0.85rem; display: flex; align-items: center;">🔁</span>` 
             : '';
             
-        // Create a dedicated row for the badges that only shows up if the user liked or rewatched it
         const badgeRow = (log.is_liked || log.is_rewatch) ? 
             `<div style="display: flex; gap: 10px; margin-top: 6px; margin-bottom: 2px;">
                 ${heartBadge}
                 ${rewatchBadge}
             </div>` : '';
-        // --- END BADGE LOGIC ---
         
         const stars = '★'.repeat(Math.floor(log.rating)) + (log.rating % 1 !== 0 ? '½' : '');
         const logDateTime = new Date(log.created_at).toLocaleString([], { 
@@ -764,6 +761,11 @@ function renderLogs(logsToRender) {
         });
 
         const reviewPreview = log.notes ? `<div class="history-notes">"${log.notes}"</div>` : '';
+        
+        const tagsHtml = (log.tags && log.tags.length > 0) ? 
+            `<div class="log-tags-container">
+                ${log.tags.map(tag => `<span class="log-tag-pill">${tag}</span>`).join('')}
+            </div>` : '';
 
         return `
             <div class="history-item" id="log-${log.id}">
@@ -780,6 +782,7 @@ function renderLogs(logsToRender) {
                 ${badgeRow}
                 <div class="history-date">${logDateTime}</div>
                 ${reviewPreview}
+                ${tagsHtml}
             </div>
         `;
     }).join('');

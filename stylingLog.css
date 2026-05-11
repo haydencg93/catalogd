@@ -14,7 +14,7 @@
 .input-group { margin-bottom: 25px; }
 .input-group label { display: block; color: #9ab; margin-bottom: 10px; }
 
-#log-scope, #season-select, #episode-select, #watched-date {
+#log-scope, #season-select, #episode-select, #watched-date, #log-tags-input {
     width: 100%;
     background: #14181c;
     color: white;
@@ -22,6 +22,40 @@
     padding: 12px;
     border-radius: 8px;
     margin-bottom: 10px;
+    box-sizing: border-box;
+}
+
+.tags-pill-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 50px;
+    margin-bottom: 0.1px;
+}
+
+.tag-pill {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid #2c3440;
+    color: #fff;
+    padding: 4px 10px;
+    border-radius: 16px;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.tag-remove {
+    cursor: pointer;
+    color: #ff4d4d;
+    font-weight: bold;
+    font-size: 1rem;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.tag-remove:hover {
+    color: #fff;
 }
 
 .star-input { margin: 20px 0; text-align: center; }

@@ -36,6 +36,7 @@
             <button class="tab-btn active" onclick="switchTab('home')">Home</button>
             <button class="tab-btn" onclick="switchTab('library')">Library</button>
             <button class="tab-btn" onclick="switchTab('on-hold')">On Hold / Dropped</button>
+            <button id="tags-tab-btn" class="tab-btn" onclick="switchTab('tags')" style="display: none;">Tags</button>
         </div>
 
         <div id="tab-library" class="tab-content">
@@ -118,6 +119,14 @@
             <div class="grid" id="recent-grid"></div>
         </div>
 
+        <div id="tab-tags" class="tab-content">
+            <div class="section-header">
+                <h2>My Tags</h2>
+            </div>
+            <p class="meta" style="margin-top: -15px; margin-bottom: 25px;">Only you can see these tags.</p>
+            <div id="tags-grid" class="tags-cloud-container"></div>
+        </div>
+
         <div id="social-modal" class="modal">
             <div class="modal-content social-modal-content">
                 <div class="modal-header">
@@ -126,6 +135,17 @@
                 </div>
                 <div id="social-modal-body" class="social-list-container">
                     </div>
+            </div>
+        </div>
+
+        <div id="tag-details-modal" class="modal">
+            <div class="modal-content social-modal-content" style="max-width: 600px; width: 95%;">
+                <div class="modal-header">
+                    <h2 id="tag-details-modal-title">Tag: </h2>
+                    <span class="close-modal" id="close-tag-modal">&times;</span>
+                </div>
+                <div id="tag-details-modal-body" class="social-list-container">
+                </div>
             </div>
         </div>
     </main>
