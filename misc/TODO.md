@@ -13,7 +13,6 @@ Get Done Today = ~
 <!-- Future Additions -->
 ## Future Additions:
 - Build ML model for similar to (look at pdf for how and mlDb.md for kaggle db)
+- Custom posters
 - like a review
 - Characters
-- Music
-- YouTube
