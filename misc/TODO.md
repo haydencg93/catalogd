@@ -7,7 +7,7 @@ Get Done Today = ~
 ### To Do/Fix
 - counting of hours is wrong for tv shows when logging series/season
 - Import from last.FM
-- Add tags functionality
+- implement functionality for import/export for tags and anything else rhat is missing
 
 <!-- ----------------------------------------------------------------------- -->
 <!-- Future Additions -->
