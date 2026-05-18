@@ -354,7 +354,13 @@ async function startLetterboxdExport(userId, rangeType, startDate, endDate) {
             console.log(`🎬 Diary Item - ID: ${details.id} | Name: ${targetTitle} | Year: ${targetYear}`);
             addExportLog(targetTitle, `Exported (${log.watched_on})`, "success");
             
-            // Push directly to the CSV (including the new Like column!)
+            // Build the tags string (keeping 'Catalogd' so you know where it came from)
+            let formattedTags = "Catalogd";
+            if (log.tags && Array.isArray(log.tags) && log.tags.length > 0) {
+                formattedTags += `, ${log.tags.join(', ')}`;
+            }
+
+            // Push directly to the CSV
             const row = [
                 details.id,
                 `"${targetTitle.replace(/"/g, '""')}"`,
@@ -362,7 +368,7 @@ async function startLetterboxdExport(userId, rangeType, startDate, endDate) {
                 log.rating || "",
                 log.watched_on || log.created_at.split('T')[0],
                 log.is_rewatch ? 'Yes' : 'No',
-                'Catalogd',
+                `"${formattedTags}"`,
                 `"${(log.notes || "").replace(/"/g, '""').replace(/\n/g, ' ')}"`,
                 log.is_liked ? 'Yes' : '' 
             ];
