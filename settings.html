@@ -170,10 +170,60 @@
                 <button onclick="handleAdvancedImport('reviews')" class="secondary-btn" style="margin-top: 10px;">Update Reviews</button>
             </div>
 
-            <div class="import-block">
+            <div class="import-block" style="margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #2c3440;">
                 <label>Import Custom List (listname.csv)</label>
                 <input type="file" id="import-list-input" accept=".csv" style="margin-top: 5px;">
                 <button onclick="handleAdvancedImport('list')" class="secondary-btn" style="margin-top: 10px;">Sync List</button>
+            </div>
+
+            <div class="import-block" style="margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #2c3440;">
+                <label>Last.fm Username</label>
+                <input type="text" id="lastfm-username-input" placeholder="Enter Last.fm Username" style="margin-top: 5px; margin-bottom: 10px;">
+                
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <div class="input-group" style="flex: 1;">
+                        <label>Sync Type</label>
+                        <select id="lastfm-sync-type">
+                            <option value="top">Top Albums (All Time)</option>
+                            <option value="recent">Recently Played</option>
+                        </select>
+                    </div>
+                    <div class="input-group" style="flex: 1;">
+                        <label>Amount to Fetch</label>
+                        <select id="lastfm-sync-limit">
+                            <option value="5">5</option>
+                            <option value="10">10</option>
+                            <option value="15">15</option>
+                            <option value="20">20</option>
+                            <option value="25">25</option>
+                            <option value="30">30</option>
+                            <option value="35">35</option>
+                            <option value="40">40</option>
+                            <option value="45">45</option>
+                            <option value="50">50</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <button id="start-lastfm-sync-btn" class="secondary-btn">Sync Last.fm</button>
+            </div>
+
+            <div id="bulk-log-modal" class="modal-overlay" style="display:none;">
+                <div class="auth-card" style="max-width: 600px; width: 90%; max-height: 80vh; display: flex; flex-direction: column;">
+                    <h2 style="margin-top: 0;">Rate Your Imports</h2>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <p class="meta" style="margin: 0;">Select, rate, and like your imports.</p>
+                        <button id="bulk-toggle-all-btn" class="secondary-btn" style="padding: 5px 10px; font-size: 0.8rem;">Deselect All</button>
+                    </div>
+                    
+                    <div id="bulk-log-list" style="overflow-y: auto; flex-grow: 1; margin-bottom: 20px; padding-right: 10px;">
+                        </div>
+
+                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                        <button id="cancel-bulk-log" class="secondary-btn">Cancel</button>
+                        <button id="save-bulk-logs-btn" class="primary-btn">Save Selected to Diary</button>
+                    </div>
+                </div>
             </div>
 
             <div id="import-status" style="display:none; margin-top: 15px;">

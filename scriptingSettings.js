@@ -29,7 +29,7 @@ async function initSettings() {
     if (profile) {
         document.getElementById('edit-bio').value = profile.bio || '';
         document.getElementById('edit-website').value = profile.website_url || '';
-        
+        document.getElementById('lastfm-username-input').value = profile.lastfm_username || '';
         document.getElementById('toggle-active-status').checked = profile.show_active_status !== false; 
         document.getElementById('toggle-paused-status').checked = profile.show_paused_dropped_status !== false;
 
@@ -203,7 +203,6 @@ async function saveAllProfileData() {
     const bioValue = document.getElementById('edit-bio').value;
     const websiteValue = document.getElementById('edit-website').value;
     
-    // NEW: Get Privacy values
     const showActive = document.getElementById('toggle-active-status').checked;
     const showPaused = document.getElementById('toggle-paused-status').checked;
 
@@ -557,6 +556,278 @@ async function startImport(data, userId) {
     alert(`Finished!\nNew: ${successCount}\nOverwritten: ${overwriteCount}\nSkipped: ${skipCount}\nFailed: ${failCount}`);
 }
 
+document.getElementById('start-lastfm-sync-btn').onclick = async () => {
+    const username = document.getElementById('lastfm-username-input').value.trim();
+    const syncType = document.getElementById('lastfm-sync-type').value;
+    const limit = document.getElementById('lastfm-sync-limit').value;
+    
+    if (!username) return alert("Please enter a Last.fm username.");
+
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) return alert("Session lost. Please log in again.");
+
+    await supabaseClient.from('profiles').update({ lastfm_username: username }).eq('id', user.id);
+
+    const statusDiv = document.getElementById('import-status');
+    const progressBar = document.getElementById('import-progress-bar');
+    const progressText = document.getElementById('import-text');
+    const logList = document.getElementById('import-log-list');
+    
+    statusDiv.style.display = 'block';
+    document.getElementById('import-log-container').style.display = 'block';
+    logList.innerHTML = '';
+    progressBar.style.width = '10%';
+    progressText.textContent = `Fetching data from Last.fm for @${username}...`;
+
+    try {
+        let url = '';
+        if (syncType === 'top') {
+            url = `https://ws.audioscrobbler.com/2.0/?method=user.gettopalbums&user=${encodeURIComponent(username)}&api_key=${lastfmKey}&format=json&limit=${limit}`;
+        } else {
+            url = `https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=${encodeURIComponent(username)}&api_key=${lastfmKey}&format=json&limit=${limit}`;
+        }
+
+        const res = await fetch(url).then(r => r.json());
+        if (res.error) throw new Error(res.message);
+
+        let itemsToProcess = [];
+
+        // 1. Parse based on type
+        if (syncType === 'top' && res.topalbums && res.topalbums.album) {
+            itemsToProcess = res.topalbums.album.map(a => ({
+                artist: a.artist.name,
+                name: a.name, // Album Name
+                image: a.image?.[3]?.['#text'] || '',
+                isTrack: false
+            }));
+        } else if (syncType === 'recent' && res.recenttracks && res.recenttracks.track) {
+            // Map directly to individual tracks!
+            const rawTracks = res.recenttracks.track.slice(0, parseInt(limit));
+            
+            rawTracks.forEach(t => {
+                const albumName = t.album['#text'];
+                const artistName = t.artist['#text'];
+                const trackName = t.name;
+                
+                // Catalogd requires an album to group the track under. 
+                // If Last.fm doesn't have an album for the scrobble, we must skip it.
+                if (albumName) {
+                    itemsToProcess.push({
+                        isTrack: true,
+                        trackName: trackName,
+                        artist: artistName,
+                        name: albumName, 
+                        image: t.image?.[3]?.['#text'] || ''
+                    });
+                }
+            });
+        }
+
+        if (itemsToProcess.length === 0) {
+            progressText.textContent = "No valid data found.";
+            return progressBar.style.width = '100%';
+        }
+
+        progressText.textContent = "Data fetched! Opening review modal...";
+        progressBar.style.width = '100%';
+
+        const listContainer = document.getElementById('bulk-log-list');
+        listContainer.innerHTML = ''; 
+
+        // 2. Generate the UI Modal
+        itemsToProcess.forEach((item, index) => {
+            const rawId = `${item.artist}|||${item.name}`;
+            const displayName = item.isTrack ? item.trackName : item.name;
+            const displaySub = item.isTrack ? `${item.artist} (from ${item.name})` : item.artist;
+            
+            listContainer.innerHTML += `
+                <div class="bulk-log-item" data-id="${rawId}" data-image="${item.image}" data-istrack="${item.isTrack}" data-trackname="${encodeURIComponent(item.trackName || '')}" data-artist="${encodeURIComponent(item.artist)}" data-album="${encodeURIComponent(item.name)}" style="display: flex; align-items: center; gap: 15px; padding: 15px; border-bottom: 1px solid #2c3440;">
+                    
+                    <input type="checkbox" class="bulk-import-checkbox" checked style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--accent);">
+                    
+                    <img src="${item.image || 'https://via.placeholder.com/50'}" style="width: 50px; height: 50px; border-radius: 4px; object-fit: cover;">
+                    <div style="flex-grow: 1;">
+                        <div style="font-weight: bold;">${displayName}</div>
+                        <div style="font-size: 0.8rem; color: #9ab;">${displaySub}</div>
+                    </div>
+                    
+                    <div class="mini-star-rater" data-index="${index}" style="display: flex; cursor: pointer; color: #2c3440;">
+                        <span class="bulk-star" data-val="1">★</span>
+                        <span class="bulk-star" data-val="2">★</span>
+                        <span class="bulk-star" data-val="3">★</span>
+                        <span class="bulk-star" data-val="4">★</span>
+                        <span class="bulk-star" data-val="5">★</span>
+                    </div>
+                    
+                    <button class="bulk-like-btn action-btn-icon" data-index="${index}" style="padding: 5px 10px;">
+                        <span class="heart-icon">❤</span>
+                    </button>
+                </div>
+            `;
+        });
+
+        setTimeout(() => {
+            statusDiv.style.display = 'none';
+            document.getElementById('import-log-container').style.display = 'none';
+        }, 1000);
+
+        document.getElementById('bulk-log-modal').style.display = 'flex';
+        setupBulkInteractions(itemsToProcess);
+
+    } catch (err) {
+        console.error(err);
+        progressText.textContent = "Error during sync.";
+        alert("Failed to sync Last.fm: " + err.message);
+    }
+};
+
+document.getElementById('save-bulk-logs-btn').onclick = async () => {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    const items = document.querySelectorAll('.bulk-log-item');
+    const today = new Date().toISOString().split('T')[0];
+    const btn = document.getElementById('save-bulk-logs-btn');
+
+    btn.textContent = "Saving... (This may take a moment)";
+    btn.disabled = true;
+    
+    let successCount = 0;
+
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        
+        // NEW: Check if this item is selected. If not, skip it!
+        const checkbox = item.querySelector('.bulk-import-checkbox');
+        if (!checkbox || !checkbox.checked) continue;
+
+        const compositeId = item.dataset.id; 
+        const image = item.dataset.image;
+        const isTrack = item.dataset.istrack === "true";
+        
+        const trackName = decodeURIComponent(item.dataset.trackname);
+        const artist = decodeURIComponent(item.dataset.artist);
+        const album = decodeURIComponent(item.dataset.album);
+        
+        const rating = window.bulkRatings[i];
+        const isLiked = window.bulkLikes[i];
+
+        let payload = {
+            user_id: user.id,
+            media_id: compositeId,
+            media_type: 'album',
+            rating: rating,
+            is_liked: isLiked,
+            image_url: image,
+            watched_on: today,
+            created_at: new Date().toISOString()
+        };
+
+        if (isTrack) {
+            try {
+                const albumRes = await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}&api_key=${lastfmKey}&format=json`).then(r => r.json());
+                
+                if (albumRes.album && albumRes.album.tracks && albumRes.album.tracks.track) {
+                    const trackList = Array.isArray(albumRes.album.tracks.track) ? albumRes.album.tracks.track : [albumRes.album.tracks.track];
+                    const safeTrackName = trackName.toLowerCase().trim();
+                    
+                    let foundIndex = trackList.findIndex(tr => tr.name.toLowerCase().trim() === safeTrackName);
+                    
+                    if (foundIndex === -1) {
+                        foundIndex = trackList.findIndex(tr => 
+                            tr.name.toLowerCase().includes(safeTrackName) || 
+                            safeTrackName.includes(tr.name.toLowerCase())
+                        );
+                    }
+                    
+                    if (foundIndex !== -1) {
+                        payload.episode_number = foundIndex + 1; 
+                    } else {
+                        console.warn(`Could not map track number for: ${trackName}`);
+                    }
+                }
+            } catch (e) {
+                console.error("Could not fetch track index for", trackName);
+            }
+        }
+
+        const { error } = await supabaseClient.from('media_logs').insert(payload); 
+        if (!error) successCount++;
+    }
+
+    alert(`Saved ${successCount} logs to your diary!`);
+    document.getElementById('bulk-log-modal').style.display = 'none';
+    btn.textContent = "Save All to Diary";
+    btn.disabled = false;
+};
+
+function setupBulkInteractions(albumsArray) {
+    window.bulkRatings = new Array(albumsArray.length).fill(0);
+    window.bulkLikes = new Array(albumsArray.length).fill(false);
+
+    // 1. Setup Stars (With Half-Star Visuals)
+    document.querySelectorAll('.mini-star-rater').forEach(rater => {
+        const index = rater.dataset.index;
+        const stars = rater.querySelectorAll('.bulk-star');
+        
+        stars.forEach(star => {
+            star.onclick = (e) => {
+                const rect = star.getBoundingClientRect();
+                const isLeftHalf = (e.clientX - rect.left) < (rect.width / 2);
+                const val = parseInt(star.dataset.val);
+                
+                const rating = isLeftHalf ? val - 0.5 : val;
+                window.bulkRatings[index] = rating;
+
+                // Visually update the stars
+                stars.forEach(s => {
+                    const sVal = parseInt(s.dataset.val);
+                    
+                    // Reset all styles first
+                    s.style.color = '#2c3440';
+                    s.style.background = 'none';
+                    s.style.webkitBackgroundClip = 'initial';
+                    s.style.webkitTextFillColor = 'initial';
+
+                    if (sVal <= rating) {
+                        // Full Star
+                        s.style.color = 'var(--accent)';
+                    } else if (sVal - 0.5 === rating) {
+                        // Half Star (using CSS gradient text clipping)
+                        s.style.background = 'linear-gradient(90deg, var(--accent) 50%, #2c3440 50%)';
+                        s.style.webkitBackgroundClip = 'text';
+                        s.style.webkitTextFillColor = 'transparent';
+                    }
+                });
+            };
+        });
+    });
+
+    // 2. Setup Likes
+    document.querySelectorAll('.bulk-like-btn').forEach(btn => {
+        const index = btn.dataset.index;
+        btn.onclick = () => {
+            window.bulkLikes[index] = !window.bulkLikes[index];
+            btn.classList.toggle('active', window.bulkLikes[index]);
+            btn.style.color = window.bulkLikes[index] ? '#ff4d4d' : '';
+        };
+    });
+
+    // 3. Setup Toggle All Button
+    const toggleBtn = document.getElementById('bulk-toggle-all-btn');
+    if (toggleBtn) {
+        toggleBtn.onclick = () => {
+            const checkboxes = document.querySelectorAll('.bulk-import-checkbox');
+            const isDeselecting = toggleBtn.textContent === "Deselect All";
+            
+            checkboxes.forEach(cb => cb.checked = !isDeselecting);
+            toggleBtn.textContent = isDeselecting ? "Select All" : "Deselect All";
+        };
+    }
+}
+
+document.getElementById('cancel-bulk-log').onclick = () => {
+    document.getElementById('bulk-log-modal').style.display = 'none';
+};
+
 // Updated Helper for green "Success" logs
 function addImportLog(title, message, type) {
     const logList = document.getElementById('import-log-list');
@@ -777,7 +1048,7 @@ async function resolveMedia(title, year) {
         if (res.results && res.results.length > 0) {
             const movieId = res.results[0].id;
             // Fetch full details to get the runtime
-            const detailUrl = `https://api.themoviedb.org/3/movie/${movieId}?api_key=`; // Note: using Bearer token in headers is better
+            const detailUrl = `https://api.themoviedb.org/3/movie/${movieId}?api_key=`; // Bearer token in headers works better
             const details = await fetch(`https://api.themoviedb.org/3/movie/${movieId}`, {
                 headers: { Authorization: `Bearer ${tmdbToken}` }
             }).then(r => r.json());
