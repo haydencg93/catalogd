@@ -490,7 +490,7 @@ function renderResults(items, isTrending = false) {
             } else if (item.type === 'user') {
                 window.location.href = `profile.html?id=${item.id}`;
             } else {
-                window.location.href = `details.html?id=${item.id}&type=${item.type}`;
+                window.location.href = `details.html?id=${encodeURIComponent(item.id)}&type=${item.type}`;
             }
         };
         

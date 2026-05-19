@@ -253,7 +253,7 @@ async function initDetails() {
         }
 
         document.getElementById('go-to-log').onclick = () => {
-            window.location.href = `log.html?id=${id}&type=${type}`;
+            window.location.href = `log.html?id=${encodeURIComponent(id)}&type=${type}`;
         };
 
         setupHeader();

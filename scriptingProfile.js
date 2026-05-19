@@ -575,7 +575,7 @@ window.openTagDetails = async (tag) => {
             
             const row = document.createElement('div');
             row.className = 'tag-log-row';
-            row.onclick = () => window.location.href = `details.html?id=${log.media_id}&type=${log.media_type}`;
+            row.onclick = () => window.location.href = `details.html?id=${encodeURIComponent(log.media_id)}&type=${log.media_type}`;
             
             row.innerHTML = `
                 <img src="${log.image || 'https://placehold.co/50x75/1b2228/9ab?text=No+Img'}" class="tag-log-poster">
@@ -651,7 +651,7 @@ async function renderRecent(logs) {
         fullLogs.forEach(log => {
             const card = document.createElement('div');
             card.className = 'media-card';
-            card.onclick = () => window.location.href = `details.html?id=${log.media_id}&type=${log.media_type}`;
+            card.onclick = () => window.location.href = `details.html?id=${encodeURIComponent(log.media_id)}&type=${log.media_type}`;
 
             const stars = '★'.repeat(Math.floor(log.rating || 0)) + ((log.rating % 1 !== 0) ? '½' : '');
             
@@ -730,7 +730,7 @@ window.filterFavs = (type) => {
     list.forEach(item => {
         const card = document.createElement('div');
         card.className = 'media-card';
-        card.onclick = () => window.location.href = `details.html?id=${item.id}&type=${item.type}`;
+        card.onclick = () => window.location.href = `details.html?id=${encodeURIComponent(item.id)}&type=${item.type}`;
         
         card.innerHTML = `
             <div class="poster-wrapper">
@@ -903,7 +903,7 @@ async function renderLibrary(items) {
         fullItems.forEach(item => {
             const card = document.createElement('div');
             card.className = 'media-card';
-            card.onclick = () => window.location.href = `details.html?id=${item.media_id}&type=${item.media_type}`;
+            card.onclick = () => window.location.href = `details.html?id=${encodeURIComponent(item.media_id)}&type=${item.media_type}`;
 
             // Build the star string (handling half stars)
             let starsHtml = '';
