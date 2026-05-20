@@ -436,7 +436,7 @@ async function renderStatusItems(items, gridId) {
         const textColor = '#000';
 
         return `
-            <div class="media-card" onclick="window.location.href='details.html?id=${item.media_id}&type=${item.media_type}'">
+            <div class="media-card" data-type="${item.media_type}" onclick="window.location.href='details.html?id=${item.media_id}&type=${item.media_type}'">
                 <div class="poster-wrapper">
                     <img src="${item.image || 'https://placehold.co/500x750/1b2228/9ab?text=No+Image'}" 
                          alt="${item.title}"

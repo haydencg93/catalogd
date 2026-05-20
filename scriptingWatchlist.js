@@ -162,6 +162,7 @@ async function renderWatchlist(items, token, typeLabel) {
         fullItems.forEach(item => {
             const card = document.createElement('div');
             card.className = 'media-card';
+            card.setAttribute('data-type', item.media_type);
             card.onclick = () => window.location.href = `details.html?id=${item.media_id}&type=${item.media_type}`;
             card.innerHTML = `
                 <div class="poster-wrapper">

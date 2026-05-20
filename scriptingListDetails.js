@@ -267,7 +267,7 @@ async function renderList() {
 
         const card = document.createElement('div');
         card.className = `media-card ${isManaging ? 'managing' : ''} ${isRanked ? 'ranked-card' : ''}`;
-        card.setAttribute('data-id', item.id);
+        card.setAttribute('data-type', item.media_type);
 
         const rankBadge = isRanked ? `<div class="rank-badge">${i + 1}</div>` : '';
         const removeBtn = isOwner ? `<button class="remove-btn" onclick="removeItem('${item.id}', event)">✕</button>` : '';

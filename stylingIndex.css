@@ -312,6 +312,44 @@ input {
     font-weight: bold;
 }
 
+/* GLOBAL MEDIA ASPECT RATIOS (Cropped safely via object-fit) */
+
+/* Movies & TV Shows (500w x 750h) */
+.media-card[data-type="movie"] img, .media-card[data-type="tv"] img,
+.diary-poster[data-type="movie"], .diary-poster[data-type="tv"],
+.preview-poster[data-type="movie"], .preview-poster[data-type="tv"],
+#poster-area img[data-type="movie"], #poster-area img[data-type="tv"] {
+    aspect-ratio: 500 / 750 !important;
+    object-fit: cover !important;
+}
+
+/* Books (305w x 500h) */
+.media-card[data-type="book"] img,
+.diary-poster[data-type="book"],
+.preview-poster[data-type="book"],
+#poster-area img[data-type="book"] {
+    aspect-ratio: 305 / 500 !important;
+    object-fit: cover !important;
+}
+
+/* Music (300w x 300h) */
+.media-card[data-type="album"] img,
+.diary-poster[data-type="album"],
+.preview-poster[data-type="album"],
+#poster-area img[data-type="album"] {
+    aspect-ratio: 1 / 1 !important;
+    object-fit: cover !important;
+}
+
+/* YouTube (480w x 360h) */
+.media-card[data-type="youtube"] img,
+.diary-poster[data-type="youtube"],
+.preview-poster[data-type="youtube"],
+#poster-area img[data-type="youtube"] {
+    aspect-ratio: 480 / 360 !important;
+    object-fit: cover !important;
+}
+
 /* --- GLOBAL MOBILE RESPONSIVENESS (< 768px) --- */
 @media (max-width: 768px) {
     /* Stack Header & Navigation */

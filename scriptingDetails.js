@@ -128,6 +128,10 @@ async function initDetails() {
 
         globalData = data;
 
+        if (!globalData.backdrop && globalData.poster_path) {
+            globalData.backdrop = globalData.poster_path;
+        }
+
         const { data: { session } } = await supabaseClient.auth.getSession();
         if (session?.user) {
             const { data: customArt } = await supabaseClient.from('custom_imgs').select('*').eq('user_id', session.user.id).eq('media_id', String(id)).eq('media_type', type).maybeSingle();
@@ -141,14 +145,13 @@ async function initDetails() {
         document.getElementById('media-overview').textContent = data.overview;
         document.getElementById('media-meta').textContent = data.meta;
         
+        if (globalData.backdrop) {
+            document.getElementById('backdrop-overlay').style.backgroundImage = `url(${globalData.backdrop})`;
+        }
+
         // --- YOUTUBE POSTER, PROVIDERS, & CAST RENDERING ---
         if (type === 'youtube') {
-            // 1. Render the iframe
-            document.getElementById('poster-area').innerHTML = `
-                <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.6);">
-                    <iframe src="https://www.youtube.com/embed/${id}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" frameborder="0" allowfullscreen></iframe>
-                </div>
-            `;
+            document.getElementById('poster-area').innerHTML = `<img src="${data.poster_path}" alt="poster" data-type="youtube">`;
             
             // 2. Set YouTube as the Watch Provider
             const providerSection = document.getElementById('watch-providers');
@@ -257,8 +260,7 @@ async function initDetails() {
         }
         else {
             // Standard poster logic for movies/tv/books
-            document.getElementById('poster-area').innerHTML = `<img src="${data.poster_path}" alt="poster">`;
-            if (data.backdrop) document.getElementById('backdrop-overlay').style.backgroundImage = `url(${data.backdrop})`;
+            document.getElementById('poster-area').innerHTML = `<img src="${globalData.poster_path}" alt="poster" data-type="${type}">`;
         }
 
         document.getElementById('go-to-log').onclick = () => {

@@ -350,7 +350,7 @@ async function fetchAndFormatRow(log, config) {
         return `
             <tr id="row-${log.id}">
                 <td class="diary-year">${log.watched_on || 'Unknown'}</td>
-                <td><img src="${image}" class="diary-poster" alt="poster" onerror="this.src='https://via.placeholder.com/92x138?text=No+Image';"></td>
+                <td><img src="${image}" class="diary-poster" data-type="${log.media_type}" alt="poster" onerror="this.src='https://via.placeholder.com/92x138?text=No+Image';"></td>
                 <td class="diary-name" onclick="window.location.href='details.html?id=${log.media_id}&type=${log.media_type}'">
                     <div style="display: flex; align-items: center; flex-wrap: wrap;">
                         ${displayTitle}

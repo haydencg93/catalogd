@@ -155,7 +155,7 @@ async function fetchUserLists(userId, currentUserId) {
                     posterUrl = customArt.custom_poster;
                 }
                 
-                postersHtml += `<img src="${posterUrl}" class="preview-poster" onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">`;
+                postersHtml += `<img src="${posterUrl}" class="preview-poster" data-type="${item.media_type}" onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">`;
             }
             postersHtml += '</div>';
 
