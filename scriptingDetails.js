@@ -446,20 +446,27 @@ async function setupStatusManager(mediaId, mediaType) {
 async function fetchCredits(config, mediaId, mediaType) {
     if (mediaType === 'book' || mediaType === 'youtube' || mediaType === 'album') return;
     const castList = document.getElementById('cast-list');
-    const url = `https://api.themoviedb.org/3/${mediaType}/${mediaId}/credits`;
+    
+    // --- ?language=en-US to bypass corrupted TMDB caches ---
+    const url = `https://api.themoviedb.org/3/${mediaType}/${mediaId}/credits?language=en-US`;
 
     try {
         const response = await fetch(url, {
             method: 'GET',
             headers: { 
-                accept: 'application/json', // Forces TMDB to send readable JSON, preventing the GZIP token error
+                accept: 'application/json', 
                 Authorization: `Bearer ${config.tmdb_token}` 
             }
         });
 
-        const res = await response.json();
+        // --- Read as text first to safely catch binary GZIP errors ---
+        const text = await response.text();
+        if (text.startsWith('\x1F\x8B')) {
+            throw new Error("TMDB returned raw corrupted GZIP data.");
+        }
         
-        // Safety check: if the API returns an error object instead of the cast data, exit gracefully
+        const res = JSON.parse(text);
+        
         if (!res || !res.crew || !res.cast) return;
 
         const director = res.crew.find(person => 
@@ -494,6 +501,7 @@ async function fetchCredits(config, mediaId, mediaType) {
         `).join('');
     } catch (err) { 
         console.error("Credits error:", err); 
+        castList.innerHTML = `<p class="meta">Cast information is currently unavailable.</p>`;
     }
 }
 
@@ -685,16 +693,31 @@ async function setupTVTracker(config, seriesId) {
     const markBtn = document.getElementById('mark-season-btn');
     const clearBtn = document.getElementById('clear-season-btn');
     
-    const res = await fetch(`https://api.themoviedb.org/3/tv/${seriesId}`, {
-        headers: { Authorization: `Bearer ${config.tmdb_token}` }
-    }).then(r => r.json());
+    try {
+        // --- ?language=en-US ---
+        const response = await fetch(`https://api.themoviedb.org/3/tv/${seriesId}?language=en-US`, {
+            headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` }
+        });
+        
+        const text = await response.text();
+        if (text.startsWith('\x1F\x8B')) throw new Error("Raw GZIP data");
+        const res = JSON.parse(text);
 
-    seasonSelector.innerHTML = res.seasons.map(s => `<option value="${s.season_number}">${s.name}</option>`).join('');
-    seasonSelector.onchange = () => loadEpisodes(config, seriesId, seasonSelector.value);
-    loadEpisodes(config, seriesId, res.seasons[0].season_number);
+        seasonSelector.innerHTML = res.seasons.map(s => `<option value="${s.season_number}">${s.name}</option>`).join('');
+        seasonSelector.onchange = () => loadEpisodes(config, seriesId, seasonSelector.value);
+        
+        // --- Default to Season 1 instead of Specials (Season 0) if possible ---
+        const defaultSeason = res.seasons.find(s => s.season_number === 1) || res.seasons[0];
+        if (defaultSeason) {
+            seasonSelector.value = defaultSeason.season_number;
+            loadEpisodes(config, seriesId, defaultSeason.season_number);
+        }
 
-    markBtn.onclick = () => markSeasonAsWatched();
-    clearBtn.onclick = () => clearSeasonProgress();
+        markBtn.onclick = () => markSeasonAsWatched();
+        clearBtn.onclick = () => clearSeasonProgress();
+    } catch (err) {
+        trackerSection.innerHTML = `<h3>Episode Tracker</h3><p class="meta">Error connecting to TMDB tracker.</p>`;
+    }
 }
 
 // Add a global variable to track log visibility
@@ -813,9 +836,15 @@ async function loadEpisodes(config, seriesId, seasonNum) {
     const list = document.getElementById('episode-list');
     list.innerHTML = 'Loading...';
     try {
-        const res = await fetch(`https://api.themoviedb.org/3/tv/${seriesId}/season/${seasonNum}`, {
-            headers: { Authorization: `Bearer ${config.tmdb_token}` }
-        }).then(r => r.json());
+        // --- ?language=en-US to bypass TMDB cache ---
+        const response = await fetch(`https://api.themoviedb.org/3/tv/${seriesId}/season/${seasonNum}?language=en-US`, {
+            headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` }
+        });
+        
+        // --- Read as text first to catch GZIP errors ---
+        const text = await response.text();
+        if (text.startsWith('\x1F\x8B')) throw new Error("Raw GZIP data");
+        const res = JSON.parse(text);
 
         const { data: { user } } = await supabaseClient.auth.getUser();
         let watchedSet = new Set();
@@ -833,7 +862,10 @@ async function loadEpisodes(config, seriesId, seasonNum) {
             </div>
         `).join('');
         updateUnifiedProgress(watchedSet.size, res.episodes.length, "episodes watched");
-    } catch (err) { list.innerHTML = "Error loading episodes."; }
+    } catch (err) { 
+        console.error("Episode load error:", err);
+        list.innerHTML = "<p class='meta'>Error loading episodes.</p>"; 
+    }
 }
 
 async function toggleEpisode(seriesId, seasonNum, epNum) {
@@ -853,10 +885,21 @@ async function markSeasonAsWatched() {
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) return alert("Please sign in.");
     const config = await fetch('config.json').then(r => r.json());
-    const res = await fetch(`https://api.themoviedb.org/3/tv/${id}/season/${seasonNum}`, { headers: { Authorization: `Bearer ${config.tmdb_token}` } }).then(r => r.json());
-    const logs = res.episodes.map(ep => ({ user_id: user.id, series_id: String(id), season_number: seasonNum, episode_number: ep.episode_number }));
-    await supabaseClient.from('episode_logs').upsert(logs);
-    loadEpisodes(config, id, seasonNum);
+    
+    try {
+        const response = await fetch(`https://api.themoviedb.org/3/tv/${id}/season/${seasonNum}?language=en-US`, { 
+            headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` } 
+        });
+        
+        const text = await response.text();
+        const res = JSON.parse(text);
+        
+        const logs = res.episodes.map(ep => ({ user_id: user.id, series_id: String(id), season_number: seasonNum, episode_number: ep.episode_number }));
+        await supabaseClient.from('episode_logs').upsert(logs);
+        loadEpisodes(config, id, seasonNum);
+    } catch (err) {
+        alert("Error marking season as watched.");
+    }
 }
 
 async function refreshProgressBar(seriesId, seasonNum) {
