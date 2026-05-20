@@ -21,6 +21,7 @@ let LASTFM_KEY = '';
 let supabaseClient = null; 
 let isSignUpMode = false;
 let currentTab = 'movie';
+let customImgsMap = new Map();
 
 // 3. Initialize App
 async function loadConfig() {
@@ -78,6 +79,17 @@ async function checkUserStatus() {
     const { data: { user } } = await supabaseClient.auth.getUser();
     
     if (user) {
+        const { data: customImgs } = await supabaseClient
+            .from('custom_imgs')
+            .select('*')
+            .eq('user_id', user.id);
+            
+        if (customImgs) {
+            customImgs.forEach(img => {
+                customImgsMap.set(`${img.media_type}_${img.media_id}`, img);
+            });
+        }
+
         loginBtn.textContent = "Sign Out";
         loginBtn.onclick = async () => {
             await supabaseClient.auth.signOut();
@@ -171,7 +183,7 @@ async function fetchTrending(type = 'movie') {
             }));
             renderResults(books, true);
         } else if (type === 'album') {
-            // --- NEW: LAST.FM TRENDING LOGIC ---
+            // --- LAST.FM TRENDING LOGIC ---
             const res = await fetch(`https://ws.audioscrobbler.com/2.0/?method=tag.gettopalbums&tag=pop&api_key=${LASTFM_KEY}&format=json&limit=15`);
             const data = await res.json();
             const albums = (data.albums.album || []).map(a => {
@@ -494,6 +506,13 @@ function renderResults(items, isTrending = false) {
             }
         };
         
+        // --- OVERRIDE WITH CUSTOM POSTER ---
+        let finalImage = item.image;
+        const customArt = customImgsMap.get(`${item.type}_${String(item.id)}`);
+        if (customArt && customArt.custom_poster) {
+            finalImage = customArt.custom_poster;
+        }
+
         const trendingBadge = isTrending && item.type !== 'user' ? `<div class="trending-label">Trending Today</div>` : '';
         const userBadge = item.type === 'user' ? `<div class="trending-label">Member</div>` : '';
 
@@ -501,7 +520,7 @@ function renderResults(items, isTrending = false) {
             <div class="poster-wrapper">
                 ${trendingBadge}
                 ${userBadge}
-                <img src="${item.image}" 
+                <img src="${finalImage}" 
                      alt="${item.title}" 
                      loading="lazy" 
                      onerror="this.onerror=null; this.src='https://via.placeholder.com/500x750?text=No+Image';">

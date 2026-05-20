@@ -8,6 +8,7 @@ let currentItems = [];
 let sortableInstance = null;
 let isOwner = false;
 let lastfmKey = "";
+let customImgsMap = new Map();
 
 async function initListDetails() {
     // 1. Initialize Supabase and Config
@@ -41,6 +42,17 @@ async function initListDetails() {
 
     const list = fetchedList; 
     isRanked = list.is_ranked;
+
+    const { data: customImgs } = await supabaseClient
+        .from('custom_imgs')
+        .select('*')
+        .eq('user_id', list.user_id);
+        
+    if (customImgs) {
+        customImgs.forEach(img => {
+            customImgsMap.set(`${img.media_type}_${img.media_id}`, img);
+        });
+    }
 
     // 4. Determine Permissions (Owner vs Collaborator vs Visitor)
     const isActualOwner = currentUserId === list.user_id;
@@ -247,6 +259,11 @@ async function renderList() {
     for (let i = 0; i < currentItems.length; i++) {
         const item = currentItems[i];
         const details = await fetchMediaDetails(item.media_id, item.media_type);
+
+        const customArt = customImgsMap.get(`${item.media_type}_${String(item.media_id)}`);
+        if (customArt && customArt.custom_poster) {
+            details.poster = customArt.custom_poster;
+        }
 
         const card = document.createElement('div');
         card.className = `media-card ${isManaging ? 'managing' : ''} ${isRanked ? 'ranked-card' : ''}`;

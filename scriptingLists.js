@@ -2,6 +2,7 @@ let supabaseClient = null;
 let listOwnerId = null;
 let isViewerOwner = false;
 let lastfmKey = null;
+let customImgsMap = new Map();
 
 async function initLists() {
     const response = await fetch('config.json');
@@ -52,6 +53,17 @@ async function initLists() {
             .single();
         
         pageTitle.textContent = profile ? `${profile.display_name}'s Lists` : "Lists";
+    }
+
+    const { data: customImgs } = await supabaseClient
+        .from('custom_imgs')
+        .select('*')
+        .eq('user_id', listOwnerId);
+        
+    if (customImgs) {
+        customImgs.forEach(img => {
+            customImgsMap.set(`${img.media_type}_${img.media_id}`, img);
+        });
     }
 
     fetchUserLists(listOwnerId, currentUserId);
@@ -137,6 +149,12 @@ async function fetchUserLists(userId, currentUserId) {
                         if (res.poster_path) posterUrl = `https://image.tmdb.org/t/p/w185${res.poster_path}`;
                     }
                 } catch (e) { console.warn("Poster fetch failed", e); }
+
+                const customArt = customImgsMap.get(`${item.media_type}_${String(item.media_id)}`);
+                if (customArt && customArt.custom_poster) {
+                    posterUrl = customArt.custom_poster;
+                }
+                
                 postersHtml += `<img src="${posterUrl}" class="preview-poster" onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">`;
             }
             postersHtml += '</div>';
@@ -192,6 +210,12 @@ async function renderListsUI(finalLists, userId) {
                     if (res.poster_path) posterUrl = `https://image.tmdb.org/t/p/w185${res.poster_path}`;
                 }
             } catch (e) {}
+
+            const customArt = customImgsMap.get(`${item.media_type}_${String(item.media_id)}`);
+            if (customArt && customArt.custom_poster) {
+                posterUrl = customArt.custom_poster;
+            }
+
             postersHtml += `<img src="${posterUrl}" class="preview-poster">`;
         }
         postersHtml += '</div>';

@@ -7,6 +7,7 @@ let sortOrder = 'desc';
 let currentType = 'all';
 let diaryOwnerId = null;
 let isViewerOwner = false;
+let customImgsMap = new Map();
 
 async function initDiary() {
     try {
@@ -29,9 +30,20 @@ async function initDiary() {
             return;
         }
 
+        // --- FETCH ALL CUSTOM IMAGES FOR THIS DIARY OWNER ---
+        const { data: customImgs } = await supabaseClient
+            .from('custom_imgs')
+            .select('*')
+            .eq('user_id', diaryOwnerId);
+            
+        if (customImgs) {
+            customImgs.forEach(img => {
+                customImgsMap.set(`${img.media_type}_${img.media_id}`, img);
+            });
+        }
+
         // 2. UI Adjustments for Networking
-        const pageTitle = document.querySelector('h1');
-        if (!isViewerOwner) {
+        const pageTitle = document.querySelector('h1');        if (!isViewerOwner) {
             // Fetch owner name for the title
             const { data: profile } = await supabaseClient
                 .from('profiles')
@@ -241,7 +253,6 @@ async function renderDiary(config, append = false) {
     }
 }
 
-// FIXED: Parameter changed from 'token' to 'config'
 async function fetchAndFormatRow(log, config) { 
     try {
         let title, year, image, displayTitle;
@@ -286,6 +297,12 @@ async function fetchAndFormatRow(log, config) {
             title = res.title || res.name;
             year = (res.release_date || res.first_air_date || '').split('-')[0];
             image = res.poster_path ? `https://image.tmdb.org/t/p/w92${res.poster_path}` : 'https://via.placeholder.com/92x138?text=No+Poster';
+        }
+
+        // --- NEW: OVERRIDE WITH CUSTOM POSTER ---
+        const customArt = customImgsMap.get(`${log.media_type}_${String(log.media_id)}`);
+        if (customArt && customArt.custom_poster) {
+            image = customArt.custom_poster;
         }
 
         // 2. Logic to build the "Display Title" based on log depth

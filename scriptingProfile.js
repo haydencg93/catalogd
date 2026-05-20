@@ -6,6 +6,7 @@ const LIBRARY_PAGE_SIZE = 50;
 let currentLibraryFilter = 'all';
 let isOwner = false;
 let profileUserId = null;
+let customImgsMap = new Map();
 
 async function initProfile() {
     try {
@@ -35,6 +36,17 @@ async function initProfile() {
             return;
         }
 
+        const { data: customImgs } = await supabaseClient
+            .from('custom_imgs')
+            .select('*')
+            .eq('user_id', profileUserId);
+            
+        if (customImgs) {
+            customImgs.forEach(img => {
+                customImgsMap.set(`${img.media_type}_${img.media_id}`, img);
+            });
+        }
+
         const { data: profile, error: profileError } = await supabaseClient
             .from('profiles')
             .select('*')
@@ -42,7 +54,7 @@ async function initProfile() {
             .single();
 
         // Fetch all statuses for the user whose profile we are viewing
-// 1. Define the containers
+        // 1. Define the containers
         const activeSection = document.getElementById('active-tracking-section');
         const activeGrid = document.getElementById('active-grid');
         const holdGrid = document.getElementById('on-hold-grid');
@@ -135,7 +147,6 @@ async function initProfile() {
         if (profileError) throw profileError;
 
         if (profile) {
-            // --- FIX: CONSOLIDATED RENDERING ---
             const avatarContainer = document.getElementById('user-avatar');
             const bannerContainer = document.getElementById('profile-banner');
 
@@ -388,8 +399,6 @@ async function renderStatusItems(items, gridId) {
                 const decodedId = decodeURIComponent(item.media_id);
                 const [artist, albumName] = decodedId.split('|||');
                 title = albumName;
-                
-                // NEW: Fetch from Last.fm dynamically!
                 try {
                     const res = await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(albumName)}&api_key=${config.lastfm_key}&format=json`).then(r => r.json());
                     image = res.album?.image?.[3]['#text'] || `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`;
@@ -406,8 +415,16 @@ async function renderStatusItems(items, gridId) {
             }
         } catch (e) {
             title = "Unknown Item";
-            image = '';
+            image = item.image_url || ''; // Fallback to what we have in the DB
         }
+
+        // --- OVERRIDE WITH CUSTOM POSTER (Moved outside the try/catch!) ---
+        // We force String() here to prevent any integer vs string mismatch bugs
+        const customArt = customImgsMap.get(`${item.media_type}_${String(item.media_id)}`);
+        if (customArt && customArt.custom_poster) {
+            image = customArt.custom_poster;
+        }
+        
         return { ...item, title, image, progressText };
     });
 
@@ -507,24 +524,20 @@ window.openTagDetails = async (tag) => {
         if (event.target === modal) modal.style.display = 'none';
     };
 
-    // Helper to safely parse dates and prevent timezone shifting
     const getSafeDate = (log) => {
         let dateVal = log.watched_on || log.created_at;
-        // If it's a strict YYYY-MM-DD string, append noon to lock the day
         if (dateVal && dateVal.length === 10) {
             dateVal += "T12:00:00"; 
         }
         return new Date(dateVal);
     };
 
-    // 1. Filter and SORT using the safe dates
     const taggedLogs = allUserLogs.filter(log => log.tags && log.tags.includes(tag));
     const sortedLogs = taggedLogs.sort((a, b) => getSafeDate(b) - getSafeDate(a));
 
     const config = await fetch('config.json').then(r => r.json());
 
     try {
-        // 2. Fetch the metadata (titles and images) for each log
         const fullLogs = await Promise.all(sortedLogs.map(async (log) => {
             let title, image;
             try {
@@ -553,18 +566,23 @@ window.openTagDetails = async (tag) => {
                     title = res.title || res.name;
                     image = res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : '';
                 }
+                
+                // --- OVERRIDE WITH CUSTOM POSTER ---
+                const customArt = customImgsMap.get(`${log.media_type}_${log.media_id}`);
+                if (customArt && customArt.custom_poster) {
+                    image = customArt.custom_poster;
+                }
+                
                 return { ...log, title, image };
             } catch (innerError) {
                 return { ...log, title: "Unknown", image: "" };
             }
         }));
 
-        // 3. Build the UI rows
         body.innerHTML = '';
         fullLogs.forEach(log => {
             const stars = '★'.repeat(Math.floor(log.rating || 0)) + ((log.rating % 1 !== 0) ? '½' : '');
             
-            // Use the same safe date helper for the display text
             const safeDate = getSafeDate(log);
             const dateStr = safeDate.toLocaleDateString(undefined, {
                 year: 'numeric', month: 'short', day: 'numeric'
@@ -624,8 +642,6 @@ async function renderRecent(logs) {
                     const decodedId = decodeURIComponent(log.media_id);
                     const [artist, albumName] = decodedId.split('|||');
                     title = albumName;
-                    
-                    // NEW: Fetch from Last.fm dynamically!
                     try {
                         const res = await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(albumName)}&api_key=${config.lastfm_key}&format=json`).then(r => r.json());
                         image = res.album?.image?.[3]['#text'] || `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`;
@@ -639,6 +655,13 @@ async function renderRecent(logs) {
                     title = res.title || res.name;
                     image = res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : '';
                 }
+                
+                // --- OVERRIDE WITH CUSTOM POSTER ---
+                const customArt = customImgsMap.get(`${log.media_type}_${log.media_id}`);
+                if (customArt && customArt.custom_poster) {
+                    image = customArt.custom_poster;
+                }
+                
                 return { ...log, title, image };
             } catch (innerError) {
                 return { ...log, title: "Unknown", image: "" };
@@ -654,13 +677,10 @@ async function renderRecent(logs) {
             card.onclick = () => window.location.href = `details.html?id=${encodeURIComponent(log.media_id)}&type=${log.media_type}`;
 
             const stars = '★'.repeat(Math.floor(log.rating || 0)) + ((log.rating % 1 !== 0) ? '½' : '');
-            
-            // Determine hover text for rewatch icon based on media type
             let rewatchText = 'Rewatch';
             if (log.media_type === 'book') rewatchText = 'Reread';
             else if (log.media_type === 'album') rewatchText = 'Relisten';
 
-            // Create the HTML for badges only if data exists
             const reviewBadge = log.notes ? `<div class="card-icon-badge" title="Reviewed">📝</div>` : '';
             const likeBadge = log.is_liked ? `<div class="card-icon-badge icon-heart" title="Liked">❤️</div>` : '';
             const rewatchBadge = log.is_rewatch ? `<div class="card-icon-badge" title="${rewatchText}" style="font-size: 0.8rem;">🔁</div>` : '';
@@ -710,14 +730,13 @@ window.filterFavs = (type) => {
         else if (type === 'movie' && btnText === 'movies') btn.classList.add('active');
         else if (type === 'tv' && btnText === 'tv') btn.classList.add('active');
         else if (type === 'book' && btnText === 'books') btn.classList.add('active');
-        else if (type === 'album' && btnText === 'music') btn.classList.add('active'); // Added
+        else if (type === 'album' && btnText === 'music') btn.classList.add('active'); 
         else if (type === 'youtube' && btnText === 'youtube') btn.classList.add('active');
     });
 
     const grid = document.getElementById('favorites-grid');
     grid.innerHTML = '';
     
-    // Ensure your favorites object supports 'album' key
     const favorites = window.userFavorites || { movie: [], tv: [], book: [], youtube: [], album: [], all: [] };
     const list = favorites[type] || [];
 
@@ -728,13 +747,20 @@ window.filterFavs = (type) => {
     }
 
     list.forEach(item => {
+        // --- OVERRIDE WITH CUSTOM POSTER ---
+        let finalImage = item.image;
+        const customArt = customImgsMap.get(`${item.type}_${item.id}`);
+        if (customArt && customArt.custom_poster) {
+            finalImage = customArt.custom_poster;
+        }
+
         const card = document.createElement('div');
         card.className = 'media-card';
         card.onclick = () => window.location.href = `details.html?id=${encodeURIComponent(item.id)}&type=${item.type}`;
         
         card.innerHTML = `
             <div class="poster-wrapper">
-                <img src="${item.image}" 
+                <img src="${finalImage}" 
                 alt="${item.title}" 
                 loading="lazy" 
                 onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
@@ -891,6 +917,13 @@ async function renderLibrary(items) {
                     title = res.title || res.name;
                     image = res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : '';
                 }
+                
+                // --- OVERRIDE WITH CUSTOM POSTER ---
+                const customArt = customImgsMap.get(`${item.media_type}_${item.media_id}`);
+                if (customArt && customArt.custom_poster) {
+                    image = customArt.custom_poster;
+                }
+                
                 return { ...item, title, image };
             } catch (innerError) {
                 return { ...item, title: "Unknown", image: "" };
@@ -905,14 +938,12 @@ async function renderLibrary(items) {
             card.className = 'media-card';
             card.onclick = () => window.location.href = `details.html?id=${encodeURIComponent(item.media_id)}&type=${item.media_type}`;
 
-            // Build the star string (handling half stars)
             let starsHtml = '';
             if (item.rating > 0) {
                 const starString = '★'.repeat(Math.floor(item.rating)) + ((item.rating % 1 !== 0) ? '½' : '');
                 starsHtml = `<span style="color: var(--accent); margin-left: 8px;">${starString}</span>`;
             }
             
-            // Move the like icon to the poster overlay (matching Recent Activity)
             const likeBadge = item.is_liked ? `<div class="card-icon-badge icon-heart">❤️</div>` : '';
 
             card.innerHTML = `

@@ -128,6 +128,15 @@ async function initDetails() {
 
         globalData = data;
 
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session?.user) {
+            const { data: customArt } = await supabaseClient.from('custom_imgs').select('*').eq('user_id', session.user.id).eq('media_id', String(id)).eq('media_type', type).maybeSingle();
+            if (customArt) {
+                if (customArt.custom_poster) globalData.poster_path = customArt.custom_poster;
+                if (customArt.custom_background) globalData.backdrop = customArt.custom_background;
+            }
+        }
+
         document.getElementById('media-title').textContent = data.title;
         document.getElementById('media-overview').textContent = data.overview;
         document.getElementById('media-meta').textContent = data.meta;
@@ -175,7 +184,7 @@ async function initDetails() {
                 `;
             }
         } 
-        // --- NEW: ALBUM POSTER & TRACKLIST RENDERING ---
+        // --- ALBUM POSTER & TRACKLIST RENDERING ---
         else if (type === 'album') {
             // Render the standard poster
             document.getElementById('poster-area').innerHTML = `<img src="${data.poster_path}" alt="poster">`;
@@ -319,6 +328,7 @@ async function initDetails() {
         setupWatchlist(id, type);
         setupListManager(id, type);
         setupStatusManager(id, type);
+        setupCustomArt(id, type);
     } catch (err) { 
         console.error(err); 
     }
@@ -1140,5 +1150,68 @@ window.toggleListItem = async (listId, mediaId, mediaType, btnElement) => {
         }
     }
 };
+
+async function setupCustomArt(mediaId, mediaType) {
+    const editBtn = document.getElementById('edit-art-btn');
+    const modal = document.getElementById('custom-art-modal');
+    const closeBtn = document.getElementById('close-art-modal');
+    const saveBtn = document.getElementById('save-art-btn');
+    const posterInput = document.getElementById('custom-poster-input');
+    const bgInput = document.getElementById('custom-bg-input');
+
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) return; // Keep the button hidden if not signed in
+
+    // 1. Show the Edit button
+    editBtn.style.display = 'block';
+
+    // 2. Fetch existing art to pre-fill the inputs if they exist
+    const { data: existingArt } = await supabaseClient
+        .from('custom_imgs')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('media_id', String(mediaId))
+        .eq('media_type', mediaType)
+        .maybeSingle();
+
+    // 3. Open Modal & Pre-fill
+    editBtn.onclick = () => {
+        posterInput.value = existingArt?.custom_poster || '';
+        bgInput.value = existingArt?.custom_background || '';
+        modal.style.display = 'flex';
+    };
+
+    // 4. Close Modal Handling
+    closeBtn.onclick = () => modal.style.display = 'none';
+    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+
+    // 5. Save the Art
+    saveBtn.onclick = async () => {
+        saveBtn.textContent = "Saving...";
+        saveBtn.disabled = true;
+
+        const customPoster = posterInput.value.trim() || null;
+        const customBg = bgInput.value.trim() || null;
+
+        const { error } = await supabaseClient
+            .from('custom_imgs')
+            .upsert({
+                user_id: user.id,
+                media_id: String(mediaId),
+                media_type: mediaType,
+                custom_poster: customPoster,
+                custom_background: customBg
+            }, { onConflict: 'user_id,media_id,media_type' });
+
+        if (!error) {
+            // Reload the page to cleanly fetch and apply defaults/customs across all elements
+            location.reload(); 
+        } else {
+            alert("Error saving art: " + error.message);
+            saveBtn.textContent = "Save Art";
+            saveBtn.disabled = false;
+        }
+    };
+}
 
 initDetails();
