@@ -386,8 +386,8 @@ async function renderStatusItems(items, gridId) {
         let title, image, progressText = "";
         try {
             if (item.media_type === 'book') {
-                const res = await fetch(`https://openlibrary.org${item.media_id}.json`).then(r => r.json());
-                title = res.title;
+                const res = await fetch(`https://openlibrary.org${item.media_id}.json`).then(r => r.json()).catch(() => ({}));
+                title = res.title || 'Unknown Book';
                 image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : '';
                 progressText = item.current_page ? `Pg ${item.current_page}` : item.status.charAt(0).toUpperCase() + item.status.slice(1);
             } else if (item.media_type === 'youtube') {
@@ -407,10 +407,11 @@ async function renderStatusItems(items, gridId) {
                 }
                 progressText = artist;
             } else {
-                const res = await fetch(`https://api.themoviedb.org/3/${item.media_type}/${item.media_id}`, {
-                    headers: { Authorization: `Bearer ${config.tmdb_token}` } 
+                const res = await fetch(`https://api.themoviedb.org/3/${item.media_type}/${item.media_id}?language=en-US`, {
+                    headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` } 
                 }).then(r => r.json());
-                title = res.title || res.name;
+                if (res.success === false) throw new Error("TMDB returned an error JSON");
+                title = res.title || res.name || 'Unknown Title';
                 image = res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : '';
             }
         } catch (e) {
@@ -542,8 +543,8 @@ window.openTagDetails = async (tag) => {
             let title, image;
             try {
                 if (log.media_type === 'book') {
-                    const res = await fetch(`https://openlibrary.org${log.media_id}.json`).then(r => r.json());
-                    title = res.title;
+                    const res = await fetch(`https://openlibrary.org${item.media_id}.json`).then(r => r.json()).catch(() => ({}));
+                    title = res.title || 'Unknown Book';
                     image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : '';
                 } else if (log.media_type === 'youtube') {
                     const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${log.media_id}`).then(r => r.json());
@@ -560,10 +561,11 @@ window.openTagDetails = async (tag) => {
                         image = `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`;
                     }
                 } else {
-                    const res = await fetch(`https://api.themoviedb.org/3/${log.media_type}/${log.media_id}`, {
-                        headers: { Authorization: `Bearer ${config.tmdb_token}` } 
+                    const res = await fetch(`https://api.themoviedb.org/3/${log.media_type}/${log.media_id}?language=en-US`, {
+                        headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` } 
                     }).then(r => r.json());
-                    title = res.title || res.name;
+                    if (res.success === false) throw new Error("TMDB returned an error JSON");
+                    title = res.title || res.name || 'Unknown Title';
                     image = res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : '';
                 }
                 
@@ -631,8 +633,8 @@ async function renderRecent(logs) {
             let title, image;
             try {
                 if (log.media_type === 'book') {
-                    const res = await fetch(`https://openlibrary.org${log.media_id}.json`).then(r => r.json());
-                    title = res.title;
+                    const res = await fetch(`https://openlibrary.org${item.media_id}.json`).then(r => r.json()).catch(() => ({}));
+                    title = res.title || 'Unknown Book';
                     image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : '';
                 } else if (log.media_type === 'youtube') {
                     const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${log.media_id}`).then(r => r.json());
@@ -649,10 +651,11 @@ async function renderRecent(logs) {
                         image = `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`;
                     }
                 } else {
-                    const res = await fetch(`https://api.themoviedb.org/3/${log.media_type}/${log.media_id}`, {
-                        headers: { Authorization: `Bearer ${config.tmdb_token}` } 
+                    const res = await fetch(`https://api.themoviedb.org/3/${log.media_type}/${log.media_id}?language=en-US`, {
+                        headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` } 
                     }).then(r => r.json());
-                    title = res.title || res.name;
+                    if (res.success === false) throw new Error("TMDB returned an error JSON");
+                    title = res.title || res.name || 'Unknown Title';
                     image = res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : '';
                 }
                 
@@ -892,8 +895,8 @@ async function renderLibrary(items) {
             let title, image;
             try {
                 if (item.media_type === 'book') {
-                    const res = await fetch(`https://openlibrary.org${item.media_id}.json`).then(r => r.json());
-                    title = res.title;
+                    const res = await fetch(`https://openlibrary.org${item.media_id}.json`).then(r => r.json()).catch(() => ({}));
+                    title = res.title || 'Unknown Book';
                     image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : '';
                 } else if (item.media_type === 'youtube') {
                     const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${item.media_id}`).then(r => r.json());
@@ -911,10 +914,11 @@ async function renderLibrary(items) {
                         image = `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`;
                     }
                 } else {
-                    const res = await fetch(`https://api.themoviedb.org/3/${item.media_type}/${item.media_id}`, {
-                        headers: { Authorization: `Bearer ${config.tmdb_token}` } 
+                    const res = await fetch(`https://api.themoviedb.org/3/${item.media_type}/${item.media_id}?language=en-US`, {
+                        headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` } 
                     }).then(r => r.json());
-                    title = res.title || res.name;
+                    if (res.success === false) throw new Error("TMDB returned an error JSON");
+                    title = res.title || res.name || 'Unknown Title';
                     image = res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : '';
                 }
                 

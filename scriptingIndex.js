@@ -171,13 +171,29 @@ async function fetchTrending(type = 'movie') {
 
     try {
         if (type === 'book') {
-            const res = await fetch(`https://openlibrary.org/trending/daily.json?limit=15`);
-            const data = await res.json();
-            const books = (data.works || []).map(work => ({
+            // OpenLibrary's trending API occasionally crashes and returns a 502 HTML error page.
+            let res = await fetch(`https://openlibrary.org/trending/daily.json?limit=15`);
+            let text = await res.text();
+            
+            // If the response is HTML instead of JSON, fallback to their highly stable Search API
+            if (text.trim().startsWith('<')) {
+                console.warn("OpenLibrary trending API is down, falling back to search API...");
+                res = await fetch(`https://openlibrary.org/search.json?q=subject:fiction&sort=editions&limit=15`);
+                text = await res.text();
+            }
+
+            const data = JSON.parse(text);
+            
+            // The Search API uses `data.docs`, while Trending uses `data.works`. We check for both.
+            const itemsList = data.works || data.docs || [];
+            
+            const books = itemsList.map(work => ({
                 title: work.title,
-                year: work.first_publish_year,
+                year: work.first_publish_year || (work.publish_year && work.publish_year[0]) || '',
                 author: work.author_name ? work.author_name[0] : null,
-                image: work.cover_edition_key ? `https://covers.openlibrary.org/b/olid/${work.cover_edition_key}-M.jpg` : 'https://via.placeholder.com/500x750?text=No+Image',
+                image: work.cover_edition_key 
+                    ? `https://covers.openlibrary.org/b/olid/${work.cover_edition_key}-M.jpg` 
+                    : (work.cover_i ? `https://covers.openlibrary.org/b/id/${work.cover_i}-M.jpg` : 'https://placehold.co/500x750/1b2228/9ab?text=No+Cover'),
                 type: 'book',
                 id: work.key
             }));

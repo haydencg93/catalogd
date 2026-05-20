@@ -72,48 +72,41 @@ async function initDetails() {
             };
         }
         // --- 2. BOOK FETCH ---
+        // --- 2. BOOK FETCH ---
         else if (type === 'book') {
-            const res = await fetch(`https://openlibrary.org${id}.json`).then(r => r.json());
-            const editionsRes = await fetch(`https://openlibrary.org${id}/editions.json`).then(r => r.json());
-            const authorData = res.authors || [];
+            // Safely fetch and catch any 404 errors from OpenLibrary
+            const res = await fetch(`https://openlibrary.org${id}.json`).then(r => r.json()).catch(() => ({}));
+            
+            if (res.error || !res.title) {
+                alert("Book not found. It may have been removed or merged by OpenLibrary.");
+                window.location.href = 'index.html';
+                return;
+            }
+
+            let editionsRes = {};
+            try {
+                const edFetch = await fetch(`https://openlibrary.org${id}/editions.json`);
+                if (edFetch.ok) {
+                    editionsRes = await edFetch.json();
+                }
+            } catch (e) {
+                console.warn("Editions data missing for this book.");
+            }
 
             let firstAuthorName = '';
             if (res.authors && res.authors.length > 0) {
-                const authorKey = res.authors[0].author.key;
-                const authorDataFetch = await fetch(`https://openlibrary.org${authorKey}.json`).then(r => r.json());
-                firstAuthorName = authorDataFetch.name;
-            }
-
-            let foundIsbn = null;
-            if (editionsRes.entries) {
-                for (const edition of editionsRes.entries) {
-                    const isbn13 = edition.isbn_13?.[0];
-                    const isbn10 = edition.isbn_10?.[0];
-                    if (isbn13 || isbn10) {
-                        foundIsbn = isbn13 || isbn10;
-                        break; 
+                try {
+                    const authorKey = res.authors[0].author.key;
+                    const authorFetch = await fetch(`https://openlibrary.org${authorKey}.json`);
+                    if (authorFetch.ok) {
+                        const authorJson = await authorFetch.json();
+                        firstAuthorName = authorJson.name;
                     }
+                } catch (e) {
+                    console.warn("Author data missing for this book.");
                 }
             }
-
-            data = {
-                title: res.title,
-                overview: res.description?.value || res.description || "No description.",
-                poster_path: res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-L.jpg` : null,
-                meta: `Published: ${res.first_publish_date || 'Unknown'}`,
-                authors: res.authors || [],
-                authorName: firstAuthorName
-            };
-            
-            let pageCount = null;
-            if (editionsRes.entries) {
-                for (const edition of editionsRes.entries) {
-                    pageCount = pageCount || edition.number_of_pages;
-                    if (pageCount) break; 
-                }
-            }
-            data.pages = pageCount;
-        } 
+        }
         // --- 3. MOVIE & TV FETCH ---
         else {
             const res = await fetch(`https://api.themoviedb.org/3/${type}/${id}`, tmdbOptions).then(r => r.json());
@@ -260,7 +253,8 @@ async function initDetails() {
         }
         else {
             // Standard poster logic for movies/tv/books
-            document.getElementById('poster-area').innerHTML = `<img src="${globalData.poster_path}" alt="poster" data-type="${type}">`;
+            const finalPoster = globalData.poster_path || 'https://placehold.co/500x750/1b2228/9ab?text=No+Cover';
+            document.getElementById('poster-area').innerHTML = `<img src="${finalPoster}" alt="poster" data-type="${type}">`;
         }
 
         document.getElementById('go-to-log').onclick = () => {

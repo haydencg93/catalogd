@@ -285,16 +285,18 @@ async function fetchAndFormatRow(log, config) {
             }
             tracks = res.album?.tracks?.track || [];
         } else if (log.media_type === 'book') {
-            const res = await fetch(`https://openlibrary.org${log.media_id}.json`).then(r => r.json());
-            title = res.title;
+            const res = await fetch(`https://openlibrary.org${log.media_id}.json`).then(r => r.json()).catch(() => ({}));
+            title = res.title || 'Unknown Book';
             year = res.first_publish_date || 'N/A';
-            image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-S.jpg` : 'https://via.placeholder.com/92x138?text=No+Cover';
+            image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-S.jpg` : 'https://placehold.co/92x138/1b2228/9ab?text=No+Cover';
         } else {
-            // FIXED: Now uses config.tmdb_token
-            const res = await fetch(`https://api.themoviedb.org/3/${log.media_type}/${log.media_id}`, {
-                headers: { Authorization: `Bearer ${config.tmdb_token}` } 
+            const res = await fetch(`https://api.themoviedb.org/3/${log.media_type}/${log.media_id}?language=en-US`, {
+                headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` } 
             }).then(r => r.json());
-            title = res.title || res.name;
+            
+            if (res.success === false) throw new Error("TMDB returned an error JSON");
+            
+            title = res.title || res.name || 'Unknown Title'; // Fallback prevents "undefined"
             year = (res.release_date || res.first_air_date || '').split('-')[0];
             image = res.poster_path ? `https://image.tmdb.org/t/p/w92${res.poster_path}` : 'https://via.placeholder.com/92x138?text=No+Poster';
         }
