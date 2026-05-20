@@ -7,6 +7,7 @@ let isViewerOwner = false;
 let currentWatchlistPage = 1;
 const WATCHLIST_PAGE_SIZE = 50;
 let currentWatchlistFilter = 'all';
+let customImgsMap = new Map();
 
 async function initWatchlist() {
     const response = await fetch('config.json');
@@ -52,6 +53,17 @@ async function initWatchlist() {
         backBtn.onclick = () => {
             window.location.href = `profile.html?id=${watchlistOwnerId}`;
         };
+    }
+
+    const { data: customImgs } = await supabaseClient
+        .from('custom_imgs')
+        .select('*')
+        .eq('user_id', watchlistOwnerId);
+        
+    if (customImgs) {
+        customImgs.forEach(img => {
+            customImgsMap.set(`${img.media_type}_${img.media_id}`, img);
+        });
     }
 
     // 3. Fetch items for the specific owner
@@ -133,6 +145,12 @@ async function renderWatchlist(items, token, typeLabel) {
                 title = "Unknown Item";
                 image = 'https://placehold.co/500x750/1b2228/9ab?text=Error';
             }
+
+            const customArt = customImgsMap.get(`${item.media_type}_${String(item.media_id)}`);
+            if (customArt && customArt.custom_poster) {
+                image = customArt.custom_poster;
+            }
+
             return { ...item, title, image };
         });
 
