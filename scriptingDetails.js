@@ -444,14 +444,23 @@ async function setupStatusManager(mediaId, mediaType) {
 }
 
 async function fetchCredits(config, mediaId, mediaType) {
-    if (mediaType === 'book' || mediaType === 'youtube') return;
+    if (mediaType === 'book' || mediaType === 'youtube' || mediaType === 'album') return;
     const castList = document.getElementById('cast-list');
     const url = `https://api.themoviedb.org/3/${mediaType}/${mediaId}/credits`;
 
     try {
-        const res = await fetch(url, {
-            headers: { Authorization: `Bearer ${config.tmdb_token}` }
-        }).then(r => r.json());
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: { 
+                accept: 'application/json', // Forces TMDB to send readable JSON, preventing the GZIP token error
+                Authorization: `Bearer ${config.tmdb_token}` 
+            }
+        });
+
+        const res = await response.json();
+        
+        // Safety check: if the API returns an error object instead of the cast data, exit gracefully
+        if (!res || !res.crew || !res.cast) return;
 
         const director = res.crew.find(person => 
             person.job === 'Director' || 
@@ -483,7 +492,9 @@ async function fetchCredits(config, mediaId, mediaType) {
                 </div>
             </div>
         `).join('');
-    } catch (err) { console.error("Credits error:", err); }
+    } catch (err) { 
+        console.error("Credits error:", err); 
+    }
 }
 
 async function fetchBookAuthors(authorsList) {
