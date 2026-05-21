@@ -43,20 +43,9 @@ async function initListDetails() {
     const list = fetchedList; 
     isRanked = list.is_ranked;
 
-    const { data: customImgs } = await supabaseClient
-        .from('custom_imgs')
-        .select('*')
-        .eq('user_id', list.user_id);
-        
-    if (customImgs) {
-        customImgs.forEach(img => {
-            customImgsMap.set(`${img.media_type}_${img.media_id}`, img);
-        });
-    }
-
     // 4. Determine Permissions (Owner vs Collaborator vs Visitor)
     const isActualOwner = currentUserId === list.user_id;
-    isOwner = isActualOwner; 
+    let isCollaborator = false;
 
     if (!isActualOwner && currentUserId) {
         const { data: collab } = await supabaseClient
@@ -66,12 +55,26 @@ async function initListDetails() {
             .eq('user_id', currentUserId)
             .maybeSingle();
         
-        if (collab) {
-            isOwner = true; 
+        if (collab) isCollaborator = true;
+    }
+
+    isOwner = isActualOwner || isCollaborator;
+
+    // --- FIX: Fetch the correct Custom Images based on ownership ---
+    const targetImgUserId = isOwner ? currentUserId : list.user_id;
+    if (targetImgUserId) {
+        const { data: customImgs } = await supabaseClient
+            .from('custom_imgs')
+            .select('*')
+            .eq('user_id', targetImgUserId);
+            
+        if (customImgs) {
+            customImgs.forEach(img => {
+                customImgsMap.set(`${img.media_type}_${img.media_id}`, img);
+            });
         }
     }
 
-    // 5. UI Permissions & Ranked Toggle Setup
     // 5. UI Permissions & Edit Setup
     const manageBtn = document.getElementById('manage-order-btn');
     const editListBtn = document.getElementById('edit-list-btn');
@@ -94,86 +97,86 @@ async function initListDetails() {
         // EDITOR MODE (Owner OR Collaborator)
         manageBtn.style.display = isRanked ? 'inline-block' : 'none';
 
-        // --- Split Owner vs Collaborator Logic ---
+        // --- SHARED LOGIC: Both Owners and Collaborators can Edit the List Details ---
+        editListBtn.style.display = 'inline-block';
+
+        editListBtn.onclick = () => {
+            // Populate the modal with current data
+            document.getElementById('edit-list-name').value = list.name;
+            document.getElementById('edit-list-desc').value = list.description || "";
+            document.getElementById('edit-visibility-select').value = String(list.is_public);
+            document.getElementById('edit-ranked-toggle').checked = isRanked;
+            editModal.style.display = 'block';
+        };
+
+        closeEditModal.onclick = () => editModal.style.display = 'none';
+        window.addEventListener('click', (e) => {
+            if (e.target === editModal) editModal.style.display = 'none';
+        });
+
+        document.getElementById('save-list-edits-btn').onclick = async () => {
+            const newName = document.getElementById('edit-list-name').value.trim();
+            const newDesc = document.getElementById('edit-list-desc').value.trim();
+            const isNowPublic = document.getElementById('edit-visibility-select').value === 'true';
+            const isNowRanked = document.getElementById('edit-ranked-toggle').checked;
+
+            if (!newName) return alert("List name cannot be empty.");
+
+            const btn = document.getElementById('save-list-edits-btn');
+            btn.textContent = "Saving...";
+            btn.disabled = true;
+
+            try {
+                // 1. Update Core List Settings
+                const { error: listUpdateErr } = await supabaseClient
+                    .from('media_lists')
+                    .update({ 
+                        name: newName,
+                        description: newDesc,
+                        is_public: isNowPublic,
+                        is_ranked: isNowRanked 
+                    })
+                    .eq('id', listId);
+                
+                if (listUpdateErr) throw listUpdateErr;
+
+                // 2. If Ranked was just turned ON, assign initial ranks to existing items
+                if (isNowRanked && !isRanked && currentItems.length > 0) {
+                    const updates = currentItems.map((item, index) => {
+                        return supabaseClient
+                            .from('list_items')
+                            .update({ rank: index + 1 })
+                            .eq('id', item.id);
+                    });
+                    await Promise.all(updates); 
+                }
+
+                // 3. Update Local Variables & UI smoothly
+                list.name = newName;
+                list.description = newDesc;
+                list.is_public = isNowPublic;
+                isRanked = isNowRanked;
+
+                document.getElementById('list-name').textContent = list.name;
+                document.getElementById('list-desc').textContent = list.description || "Collection";
+                manageBtn.style.display = isRanked ? 'inline-block' : 'none';
+
+                editModal.style.display = 'none';
+                await fetchListItems(); // Re-render the cards (adds/removes numbers)
+                
+            } catch (err) {
+                alert("Error updating list: " + err.message);
+            } finally {
+                btn.textContent = "Save Changes";
+                btn.disabled = false;
+            }
+        };
+
+        // --- Split Owner vs Collaborator Logic for the Modal/Invites ---
         if (isActualOwner) {
-            // OWNER ONLY: Can edit the list details and invite collaborators
-            editListBtn.style.display = 'inline-block';
+            // OWNER ONLY: Can invite collaborators
             setupCollabModal();
             collabBtn.style.display = 'inline-block';
-
-            // --- Edit Modal Logic ---
-            editListBtn.onclick = () => {
-                // Populate the modal with current data
-                document.getElementById('edit-list-name').value = list.name;
-                document.getElementById('edit-list-desc').value = list.description || "";
-                document.getElementById('edit-visibility-select').value = String(list.is_public);
-                document.getElementById('edit-ranked-toggle').checked = isRanked;
-                editModal.style.display = 'block';
-            };
-
-            closeEditModal.onclick = () => editModal.style.display = 'none';
-            window.addEventListener('click', (e) => {
-                if (e.target === editModal) editModal.style.display = 'none';
-            });
-
-            document.getElementById('save-list-edits-btn').onclick = async () => {
-                const newName = document.getElementById('edit-list-name').value.trim();
-                const newDesc = document.getElementById('edit-list-desc').value.trim();
-                const isNowPublic = document.getElementById('edit-visibility-select').value === 'true';
-                const isNowRanked = document.getElementById('edit-ranked-toggle').checked;
-
-                if (!newName) return alert("List name cannot be empty.");
-
-                const btn = document.getElementById('save-list-edits-btn');
-                btn.textContent = "Saving...";
-                btn.disabled = true;
-
-                try {
-                    // 1. Update Core List Settings
-                    const { error: listUpdateErr } = await supabaseClient
-                        .from('media_lists')
-                        .update({ 
-                            name: newName,
-                            description: newDesc,
-                            is_public: isNowPublic,
-                            is_ranked: isNowRanked 
-                        })
-                        .eq('id', listId);
-                    
-                    if (listUpdateErr) throw listUpdateErr;
-
-                    // 2. If Ranked was just turned ON, assign initial ranks to existing items
-                    if (isNowRanked && !isRanked && currentItems.length > 0) {
-                        const updates = currentItems.map((item, index) => {
-                            return supabaseClient
-                                .from('list_items')
-                                .update({ rank: index + 1 })
-                                .eq('id', item.id);
-                        });
-                        await Promise.all(updates); 
-                    }
-
-                    // 3. Update Local Variables & UI smoothly
-                    list.name = newName;
-                    list.description = newDesc;
-                    list.is_public = isNowPublic;
-                    isRanked = isNowRanked;
-
-                    document.getElementById('list-name').textContent = list.name;
-                    document.getElementById('list-desc').textContent = list.description || "Collection";
-                    manageBtn.style.display = isRanked ? 'inline-block' : 'none';
-
-                    editModal.style.display = 'none';
-                    await fetchListItems(); // Re-render the cards (adds/removes numbers)
-                    
-                } catch (err) {
-                    alert("Error updating list: " + err.message);
-                } finally {
-                    btn.textContent = "Save Changes";
-                    btn.disabled = false;
-                }
-            };
-            
         } else {
             // COLLABORATOR ONLY: Change Collab button to "Leave List"
             collabBtn.textContent = "Leave List";
@@ -268,6 +271,7 @@ async function renderList() {
         const card = document.createElement('div');
         card.className = `media-card ${isManaging ? 'managing' : ''} ${isRanked ? 'ranked-card' : ''}`;
         card.setAttribute('data-type', item.media_type);
+        card.setAttribute('data-id', item.id);
 
         const rankBadge = isRanked ? `<div class="rank-badge">${i + 1}</div>` : '';
         const removeBtn = isOwner ? `<button class="remove-btn" onclick="removeItem('${item.id}', event)">✕</button>` : '';
@@ -300,15 +304,11 @@ async function renderList() {
 
     // Initialize drag-and-drop if managing order
     if (isManaging && isRanked) {
-        sortableInstance = new Sortable(container, {
+        sortableInstance = new Sortable(container, { 
             animation: 150,
-            ghostClass: 'sortable-ghost',
-            onEnd: () => {
-                const newOrderIds = Array.from(container.querySelectorAll('.media-card'))
-                                        .map(card => card.getAttribute('data-id'));
-
-                // Reorder the local array based on the new DOM order
-                currentItems = newOrderIds.map(id => currentItems.find(item => item.id === id));
+            disabled: !isManaging || !isRanked,
+            onEnd: (evt) => {
+                // Instantly update the visual numbers on the posters when dropped!
                 updateRankBadges();
             }
         });
@@ -334,21 +334,25 @@ document.getElementById('save-order-btn').onclick = async () => {
     btn.disabled = true;
 
     try {
-        // Individual updates to handle collaborator RLS specifically
-        for (let i = 0; i < currentItems.length; i++) {
-            const item = currentItems[i];
+        // Grab the physical cards directly from the screen in their new dropped order
+        const container = document.getElementById('list-content');
+        const cards = container.querySelectorAll('.media-card');
+        
+        // Loop through the cards and update Supabase row by row
+        for (let i = 0; i < cards.length; i++) {
+            const dbId = cards[i].getAttribute('data-id');
             const newRank = i + 1;
 
-            console.log(`Saving: Item ${item.id} -> New Rank ${newRank}`);
+            if (!dbId) continue;
 
             const { error } = await supabaseClient
                 .from('list_items')
                 .update({ rank: newRank })
-                .eq('id', item.id);
+                .eq('id', dbId);
             
             if (error) {
-                console.error(`Error updating rank for item ${item.id}:`, error);
-                throw new Error(`Permission denied or database error on item ${i + 1}.`);
+                console.error(`Error updating rank for item ${dbId}:`, error);
+                throw new Error(`Permission denied or database error on rank ${newRank}.`);
             }
         }
 
