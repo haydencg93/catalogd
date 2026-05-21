@@ -7,10 +7,9 @@ Get Done Today = ~
 ### To Do/Fix
 - counting of hours is wrong for tv shows when logging series/season
 - like a review
+- Build ML model for similar to (look at pdf for how and mlDb.md for kaggle db)
 
 <!-- ----------------------------------------------------------------------- -->
 <!-- Future Additions -->
 ## Future Additions:
-- Build ML model for similar to (look at pdf for how and mlDb.md for kaggle db)
-- Custom posters
-- Characters
+- Characters/Fandoms/ETC
