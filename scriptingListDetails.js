@@ -60,7 +60,7 @@ async function initListDetails() {
 
     isOwner = isActualOwner || isCollaborator;
 
-    // --- FIX: Fetch the correct Custom Images based on ownership ---
+    // --- Fetch the correct Custom Images based on ownership ---
     const targetImgUserId = isOwner ? currentUserId : list.user_id;
     if (targetImgUserId) {
         const { data: customImgs } = await supabaseClient
@@ -510,7 +510,7 @@ async function fetchMediaDetails(id, type) {
                 title: res.title,
                 poster: res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : 'https://placehold.co/500x750/1b2228/9ab?text=No+Cover'
             };
-        } else if (type === 'album') { // NEW: Add Album Fetching
+        } else if (type === 'album') {
             const decodedId = decodeURIComponent(id);
             const [artist, albumName] = decodedId.split('|||');
             const res = await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(albumName)}&api_key=${lastfmKey}&format=json`).then(r => r.json());
