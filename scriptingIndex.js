@@ -14,6 +14,7 @@ const authName = document.getElementById('auth-name');
 const authUsername = document.getElementById('auth-username');
 const authRetype = document.getElementById('auth-retype');
 const signupFields = document.getElementById('signup-fields');
+const profileBtn = document.getElementById('profile-btn');
 
 // 2. Global Variables
 let TMDB_TOKEN = '';
@@ -23,7 +24,13 @@ let isSignUpMode = false;
 let currentTab = 'movie';
 let customImgsMap = new Map();
 
-// 3. Initialize App
+/*
+* Fetches configuration variables, initializes external APIs (Supabase, TMDB, Last.fm),
+*   sets up initial event listeners for the search bar, and dictates the initial
+*   UI state based on URL parameters or trending defaults.
+* @async
+* @throws {Error} If config.json cannot be fetched.
+*/
 async function loadConfig() {
     try {
         const response = await fetch('config.json');
@@ -71,9 +78,6 @@ async function loadConfig() {
         loader.textContent = "Error: " + err.message;
     }
 }
-
-// 4. Authentication Logic
-const profileBtn = document.getElementById('profile-btn');
 
 async function checkUserStatus() {
     const { data: { user } } = await supabaseClient.auth.getUser();
@@ -155,13 +159,12 @@ function toggleAuthMode() {
 }
 
 async function fetchTrending(type = 'movie') {
-    // NEW: Update the section title text based on the tab
     const sectionTitle = document.getElementById('section-title');
     if (sectionTitle) {
         let typeLabel = 'Movies';
         if (type === 'tv') typeLabel = 'TV Shows';
         if (type === 'book') typeLabel = 'Books';
-        if (type === 'album') typeLabel = 'Music Albums'; // <--- ADDED THIS LINE
+        if (type === 'album') typeLabel = 'Music Albums';
         sectionTitle.textContent = `Trending ${typeLabel}`;
     }
 
@@ -210,7 +213,7 @@ async function fetchTrending(type = 'movie') {
                 const compositeId = encodeURIComponent(`${a.artist.name}|||${a.name}`);
                 return {
                     title: a.name,
-                    year: '', // <--- FIXED: Removed the word "Trending"
+                    year: '',
                     author: a.artist ? a.artist.name : null,
                     image: img,
                     type: 'album',

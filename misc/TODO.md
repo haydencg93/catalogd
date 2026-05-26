@@ -17,3 +17,4 @@ Get Done Today = ~
 <!-- Future Additions -->
 ## Future Additions:
 - Characters/Fandoms/ETC
+    - using the Fandom api
