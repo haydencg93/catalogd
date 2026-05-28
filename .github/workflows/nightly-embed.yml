@@ -1,9 +1,12 @@
 name: Nightly ML Embedding Pipeline
 
 on:
+  push:
+    branches:
+        - main
   schedule:
     # Runs automatically every day at Midnight UTC
-    - cron: '08 5 * * *'
+    - cron: '13 5 * * *'
   workflow_dispatch:
     # Allows you to click a "Run Now" button manually in GitHub if you want to test it
 
