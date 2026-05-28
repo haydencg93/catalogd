@@ -6,7 +6,7 @@ on:
         - main
   schedule:
     # Runs automatically every day at Midnight UTC
-    - cron: '13 5 * * *'
+    - cron: '16 0 * * *'
   workflow_dispatch:
     # Allows you to click a "Run Now" button manually in GitHub if you want to test it
 
