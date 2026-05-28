@@ -1,0 +1,37 @@
+name: Nightly ML Embedding Pipeline
+
+on:
+  schedule:
+    # Runs automatically every day at Midnight UTC
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    # Allows you to click a "Run Now" button manually in GitHub if you want to test it
+
+jobs:
+  embed_media:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18' 
+
+      - name: Install Dependencies
+        # Navigates to your seeder folder and installs the required packages
+        run: |
+          cd seederAi
+          npm install @supabase/supabase-js @qdrant/js-client-rest @xenova/transformers dotenv ws
+
+      - name: Run ML Generator
+        # Injects your secure secrets and runs the script
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+        run: |
+          cd seederAi
+          node generate_embeddings.js

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catalogd | AI Recommendations</title>
+    <link rel="icon" type="image/x-icon" href="catalogdFavicon.png" />
+    <link rel="stylesheet" href="stylingIndex.css">
+    <link rel="stylesheet" href="stylingRecs.css">
+</head>
+<body>
+    <header>
+        <div class="logo" onclick="window.location.href='index.html'">
+            <img src="catalogdLogo.png" alt="Catalogd" width="300" height="82">
+        </div>
+        <div class="nav-actions">
+            <button id="home-btn" class="secondary-btn" onclick="window.location.href='index.html'">Back to Home</button>
+        </div>
+    </header>
+
+    <main class="recs-container">
+        <h1 class="section-title">Discover Your Next Favorite</h1>
+        <p class="recs-subtitle">Feed the AI a few things you love, and it will mathematically calculate what you should explore next across movies, shows, and books.</p>
+
+        <div class="engine-builder">
+            <div class="builder-panel">
+                <h3>1. Define Your Vibe (Inputs)</h3>
+                <p class="meta" style="font-size: 0.85rem; margin-top: -10px;">Type exact titles to prevent mismatches.</p>
+                
+                <div class="input-group" style="position: relative; margin-top: 20px;">
+                    <input type="text" id="rec-search-input" placeholder="Search for movies, tv, or books..." autocomplete="off">
+                    <div id="rec-search-results" class="search-results-dropdown" style="display:none; position: absolute; top: 100%; left: 0; right: 0; background: #1b2228; border: 1px solid #2c3440; border-radius: 8px; max-height: 300px; overflow-y: auto; z-index: 100;"></div>
+                </div>
+
+                <div id="active-inputs-container" class="active-tags-area">
+                    <p class="meta" id="empty-inputs-msg">No inputs added yet.</p>
+                    </div>
+            </div>
+
+            <div class="builder-panel">
+                <h3>2. Select Target Media (Outputs)</h3>
+                <p class="meta" style="font-size: 0.85rem; margin-top: -10px;">What do you want the AI to find?</p>
+                
+                <div class="output-options">
+                    <label class="output-checkbox">
+                        <input type="checkbox" value="movie" checked>
+                        <span class="checkmark"></span> Movies
+                    </label>
+                    <label class="output-checkbox">
+                        <input type="checkbox" value="tv" checked>
+                        <span class="checkmark"></span> TV Shows
+                    </label>
+                    <label class="output-checkbox">
+                        <input type="checkbox" value="book">
+                        <span class="checkmark"></span> Books
+                    </label>
+                </div>
+
+                <button id="generate-btn" class="primary-btn generate-btn" disabled>Generate Recommendations</button>
+                <p id="status-msg" class="meta status-msg"></p>
+            </div>
+        </div>
+
+        <h2 id="results-header" class="section-title" style="display: none; margin-top: 60px;">Your Recommendations</h2>
+        <div class="grid" id="results-grid"></div>
+    </main>
+
+    <script src="scriptingRecs.js"></script>
+</body>
+</html>

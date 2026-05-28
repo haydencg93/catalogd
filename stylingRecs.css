@@ -1,0 +1,265 @@
+.recs-container {
+    max-width: 1000px;
+    margin: 0 auto 60px;
+    padding: 0 20px;
+}
+
+.recs-subtitle {
+    text-align: center;
+    color: #9ab;
+    font-size: 1.1rem;
+    max-width: 600px;
+    margin: -20px auto 40px;
+    line-height: 1.5;
+}
+
+.engine-builder {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    background: var(--card);
+    padding: 30px;
+    border-radius: 16px;
+    border: 1px solid #2c3440;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+}
+
+.builder-panel h3 {
+    margin-top: 0;
+    color: #fff;
+    border-bottom: 1px solid #2c3440;
+    padding-bottom: 10px;
+}
+
+.input-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.recs-select {
+    background: #14181c;
+    color: #fff;
+    border: 1px solid #2c3440;
+    border-radius: 8px;
+    padding: 10px;
+    outline: none;
+}
+
+.input-row input {
+    margin: 0;
+    padding: 10px 15px;
+    border-radius: 8px;
+    border: 1px solid #2c3440;
+    background: #14181c;
+    color: #fff;
+    flex-grow: 1;
+}
+
+.active-tags-area {
+    margin-top: 20px;
+    min-height: 80px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 8px;
+    padding: 15px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-content: flex-start;
+}
+
+.vibe-tag {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--accent);
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.vibe-tag span {
+    color: var(--accent);
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+}
+
+.vibe-tag button {
+    background: none;
+    border: none;
+    color: #ff4d4d;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 1rem;
+    padding: 0;
+    margin-left: 5px;
+}
+
+/* Custom Checkboxes */
+.output-options {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin: 20px 0 30px;
+}
+
+.output-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #fff;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.output-checkbox input {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.generate-btn {
+    width: 100%;
+    padding: 15px;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+}
+
+.generate-btn:disabled {
+    background: #2c3440;
+    color: #678;
+    cursor: not-allowed;
+}
+
+.status-msg {
+    text-align: center;
+    margin-top: 15px;
+    font-weight: bold;
+}
+
+/* Specific styling for recommendation cards without native images */
+.rec-text-card {
+    background: var(--card);
+    border: 1px solid #2c3440;
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: transform 0.2s;
+}
+
+.rec-text-card:hover {
+    transform: translateY(-5px);
+    border-color: var(--accent);
+}
+
+.match-score {
+    color: var(--accent);
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+
+#rec-search-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 12px 15px;
+    background: #14181c;
+    border: 1px solid #2c3440;
+    border-radius: 8px;
+    color: white;
+    font-size: 1rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+#rec-search-input:focus {
+    border-color: var(--accent);
+}
+
+.search-results-dropdown {
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.search-results-dropdown::-webkit-scrollbar {
+    width: 6px;
+}
+.search-results-dropdown::-webkit-scrollbar-thumb {
+    background: #2c3440;
+    border-radius: 10px;
+}
+
+.search-item-dropdown:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* Override the default grid for the recommendations page */
+#results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
+    gap: 25px;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+/* The new Horizontal Card Layout */
+.rec-horizontal-card {
+    display: flex;
+    gap: 20px;
+    background: var(--card);
+    border: 1px solid #2c3440;
+    border-radius: 12px;
+    padding: 15px;
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
+}
+
+.rec-horizontal-card:hover {
+    transform: translateY(-5px);
+    border-color: var(--accent);
+    box-shadow: 0 10px 20px rgba(0, 224, 84, 0.1);
+}
+
+.rec-poster {
+    width: 120px;
+    height: 180px;
+    border-radius: 8px;
+    object-fit: cover;
+    background: #14181c;
+    flex-shrink: 0;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.rec-info {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    overflow: hidden;
+}
+
+/* Mobile Responsiveness for Horizontal Cards */
+@media (max-width: 768px) {
+    #results-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .rec-horizontal-card {
+        padding: 10px;
+        gap: 15px;
+    }
+    
+    .rec-poster {
+        width: 90px;
+        height: 135px;
+    }
+}
+
+@media (max-width: 768px) {
+    .engine-builder {
+        grid-template-columns: 1fr;
+    }
+}

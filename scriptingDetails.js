@@ -72,7 +72,6 @@ async function initDetails() {
             };
         }
         // --- 2. BOOK FETCH ---
-        // --- 2. BOOK FETCH ---
         else if (type === 'book') {
             // Safely fetch and catch any 404 errors from OpenLibrary
             const res = await fetch(`https://openlibrary.org${id}.json`).then(r => r.json()).catch(() => ({}));
@@ -106,6 +105,29 @@ async function initDetails() {
                     console.warn("Author data missing for this book.");
                 }
             }
+
+            // NEW: Actually packaging the fetched data into the global `data` object
+            let pageCount = 0;
+            if (editionsRes.entries && editionsRes.entries.length > 0) {
+                const edWithPages = editionsRes.entries.find(e => e.number_of_pages);
+                if (edWithPages) pageCount = edWithPages.number_of_pages;
+            }
+
+            let coverImg = 'https://via.placeholder.com/500x750/1b2228/9ab?text=No+Cover';
+            if (res.covers && res.covers.length > 0) {
+                coverImg = `https://covers.openlibrary.org/b/id/${res.covers[0]}-L.jpg`;
+            }
+
+            data = {
+                title: res.title,
+                overview: typeof res.description === 'string' ? res.description : (res.description?.value || 'No overview available.'),
+                poster_path: coverImg,
+                backdrop: null, 
+                meta: `${res.first_publish_date || 'Unknown Year'} • Book • ${pageCount ? pageCount + ' Pages' : 'Pages Unknown'}`,
+                pages: pageCount,
+                authors: res.authors || [],
+                authorName: firstAuthorName
+            };
         }
         // --- 3. MOVIE & TV FETCH ---
         else {
@@ -325,6 +347,12 @@ async function initDetails() {
         setupListManager(id, type);
         setupStatusManager(id, type);
         setupCustomArt(id, type);
+
+        if (['movie', 'tv', 'book'].includes(type)) {
+            loadSimilar('all');
+        }
+
+        checkAndQueueMedia(id, type, config);
     } catch (err) { 
         console.error(err); 
     }
@@ -1262,6 +1290,189 @@ async function setupCustomArt(mediaId, mediaType) {
             saveBtn.disabled = false;
         }
     };
+}
+
+// ==========================================
+// AI RECOMMENDATIONS ENGINE (If You Liked This...)
+// ==========================================
+
+window.loadSimilar = async function(filterType = 'all') {
+    const simSection = document.getElementById('similar-section');
+    const loader = document.getElementById('similar-loader');
+    const grid = document.getElementById('similar-grid');
+    
+    // Safety check: Only run this for movies, tv, and books
+    if (!['movie', 'tv', 'book'].includes(type)) return;
+    
+    simSection.style.display = 'block';
+    
+    // Update active filter button
+    document.querySelectorAll('#similar-section .filter-btn').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(`sim-btn-${filterType}`).classList.add('active');
+
+    loader.style.display = 'block';
+    grid.innerHTML = '';
+    
+    // Convert OpenLibrary string keys into Universal IDs just like our mass seeders did
+    const universalId = type === 'book' ? parseInt(String(id).replace(/\D/g, ''), 10) + 100000000 : parseInt(id, 10);
+    
+    // Tell the Edge Function what we want back
+    let desiredOutputs = ['movie', 'tv', 'book'];
+    if (filterType !== 'all') {
+        desiredOutputs = [filterType];
+    }
+    
+    try {
+        const config = await fetch('config.json').then(r => r.json());
+        
+        const response = await fetch(`${config.supabase_url}/functions/v1/get-recommendations`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${config.supabase_key}` 
+            },
+            body: JSON.stringify({
+                favoriteIds: [universalId], // Pass the current page's ID to the AI
+                desiredOutputs: desiredOutputs
+            })
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+
+        // Limit to 12 items so the grid looks perfectly balanced (2 rows of 6 on desktop)
+        const toShow = data.recommendations.slice(0, 12);
+        
+        if (toShow.length === 0) {
+            grid.innerHTML = `<p class="meta" style="grid-column: 1/-1; text-align:center;">No similar ${filterType === 'all' ? 'items' : filterType + 's'} found in the database yet.</p>`;
+        } else {
+            toShow.forEach(rec => {
+                const card = document.createElement('div');
+                card.className = 'media-card';
+                card.setAttribute('data-type', rec.media_type);
+                card.onclick = () => window.location.href = `details.html?id=${encodeURIComponent(rec.id)}&type=${rec.media_type}`;
+                
+                const imgId = `sim-poster-${rec.id}`;
+                
+                card.innerHTML = `
+                    <div class="poster-wrapper">
+                        <img id="${imgId}" src="https://via.placeholder.com/500x750/1b2228/9ab?text=Loading..." alt="${rec.title}" loading="lazy">
+                        <span class="badge badge-${rec.media_type}">${rec.media_type}</span>
+                    </div>
+                    <div class="media-info">
+                        <div class="title" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${rec.title}</div>
+                        <div class="meta" style="color: var(--accent); font-weight: bold; margin-top: 4px;">${rec.match_percentage}% Match</div>
+                    </div>`;
+                    
+                grid.appendChild(card);
+                
+                // Fire off the lazy-loader to grab the poster
+                fetchSimPoster(rec, imgId, config);
+            });
+        }
+    } catch (e) {
+        console.error("AI Recommendation Fetch Error:", e);
+        grid.innerHTML = `<p class="meta" style="grid-column: 1/-1; text-align:center;">AI Engine is currently unavailable.</p>`;
+    } finally {
+        loader.style.display = 'none';
+    }
+};
+
+// Lazy loader specifically for the grid posters
+async function fetchSimPoster(rec, imgId, config) {
+    const imgEl = document.getElementById(imgId);
+    if (!imgEl) return;
+    
+    try {
+        if (rec.media_type === 'movie' || rec.media_type === 'tv') {
+            const res = await fetch(`https://api.themoviedb.org/3/${rec.media_type}/${rec.id}`, {
+                headers: { Authorization: `Bearer ${config.tmdb_token}` }
+            }).then(r => r.json());
+            imgEl.src = res.poster_path ? `https://image.tmdb.org/t/p/w342${res.poster_path}` : 'https://via.placeholder.com/500x750/1b2228/9ab?text=No+Poster';
+        } else if (rec.media_type === 'book') {
+            const rawNum = parseInt(rec.id) - 100000000;
+            const res = await fetch(`https://openlibrary.org/works/OL${rawNum}W.json`).then(r => r.json());
+            imgEl.src = (res.covers && res.covers.length > 0) ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : 'https://via.placeholder.com/500x750/1b2228/9ab?text=No+Cover';
+        }
+    } catch (e) {
+        imgEl.src = 'https://via.placeholder.com/500x750/1b2228/ff4d4d?text=Error';
+    }
+}
+
+// ==========================================
+// SILENT JIT (Just-In-Time) QUEUE
+// ==========================================
+async function checkAndQueueMedia(mediaId, mediaType, config) {
+    if (!['movie', 'tv', 'book'].includes(mediaType)) return;
+
+    // Standardize the ID
+    const universalId = mediaType === 'book' ? parseInt(String(mediaId).replace(/\D/g, ''), 10) + 100000000 : parseInt(mediaId, 10);
+
+    try {
+        // 1. Check if it already exists in the Taste Graph
+        const { data: existing } = await supabaseClient
+            .from('global_movies')
+            .select('tmdb_id')
+            .eq('tmdb_id', universalId)
+            .maybeSingle();
+
+        if (existing) return; // It's already in the database. Do nothing!
+
+        console.log("[I] Media not found in Taste Graph. Queuing for nightly ML embedding...");
+
+        let tags = [];
+        let title = '';
+        let year = null;
+        let popularity = 0;
+        let overview = '';
+
+        // 2. Fetch the rich tag data based on type
+        if (mediaType === 'movie' || mediaType === 'tv') {
+            const res = await fetch(`https://api.themoviedb.org/3/${mediaType}/${mediaId}?append_to_response=keywords`, { 
+                headers: { Authorization: `Bearer ${config.tmdb_token}` } 
+            }).then(r => r.json());
+            
+            title = res.title || res.name;
+            year = (res.release_date || res.first_air_date || '').split('-')[0];
+            popularity = res.popularity;
+            overview = res.overview;
+            
+            const genres = res.genres ? res.genres.map(g => g.name) : [];
+            const kwList = mediaType === 'tv' ? (res.keywords?.results || []) : (res.keywords?.keywords || []);
+            tags = [...genres, ...kwList.map(k => k.name)];
+            
+        } else if (mediaType === 'book') {
+            const res = await fetch(`https://openlibrary.org${mediaId}.json`).then(r => r.json());
+            title = res.title;
+            year = res.first_publish_date ? res.first_publish_date : null; 
+            overview = typeof res.description === 'string' ? res.description : (res.description?.value || '');
+            tags = res.subjects ? res.subjects.map(s => typeof s === 'string' ? s : s.name || '') : [];
+        }
+
+        if (tags.length === 0) return; // We can't build math without tags, so we abandon ship.
+
+        // 3. Silently push it to Supabase
+        const { error } = await supabaseClient.from('global_movies').upsert({
+            tmdb_id: universalId,
+            title: title,
+            release_year: year ? String(year) : null,
+            popularity: popularity || 0,
+            overview: typeof overview === 'string' ? overview : 'No overview available.',
+            tags: tags.slice(0, 15).join(', '),
+            media_type: mediaType,
+            is_embedded: false 
+        }, { onConflict: 'tmdb_id' });
+
+        // NEW: Actually check for the error before logging success!
+        if (error) {
+            throw new Error(error.message);
+        }
+
+        console.log("[S] Successfully added to the ML queue!");
+
+    } catch (err) {
+        console.error("[E] Background Queue Error:", err);
+    }
 }
 
 initDetails();

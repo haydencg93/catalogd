@@ -114,6 +114,22 @@
                 <!-- Cast injected via JS -->
             </div>
         </div>
+
+        <div id="similar-section" class="rating-section" style="display: none; grid-column: 1 / -1; margin-top: 50px; background: transparent; border: none; padding: 0;">
+            <h2 class="section-title" style="margin-bottom: 30px; font-size: 2rem;">If You Liked This...</h2>
+            
+            <div class="filter-nav" style="display: flex; justify-content: center; gap: 15px; margin-bottom: 30px;">
+                <button id="sim-btn-all" class="filter-btn active" onclick="loadSimilar('all')">All Matches</button>
+                <button id="sim-btn-movie" class="filter-btn" onclick="loadSimilar('movie')">Movies</button>
+                <button id="sim-btn-tv" class="filter-btn" onclick="loadSimilar('tv')">TV Shows</button>
+                <button id="sim-btn-book" class="filter-btn" onclick="loadSimilar('book')">Books</button>
+            </div>
+
+            <div class="grid" id="similar-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 20px;">
+                </div>
+            <div id="similar-loader" style="text-align: center; color: #9ab; display: none; margin-top: 20px;">Calculating mathematical vectors...</div>
+        </div>
+
     </main>
 
     <!-- Modals -->
