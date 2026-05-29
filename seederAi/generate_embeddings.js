@@ -4,7 +4,7 @@ const path = require('path');
 const WebSocket = require('ws'); 
 
 const config = require('../config.json');
-require('dotenv').config({ path: path.join(__dirname, '../.env') });
+require('dotenv').config({ path: path.join(__dirname, '../misc/.env') });
 
 const supabase = createClient(config.supabase_url, process.env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -16,8 +16,8 @@ const qdrant = new QdrantClient({
     apiKey: process.env.QDRANT_API_KEY,
 });
 
-async function runSplitBrainPipeline() {
-    console.log("[I] Initializing Automated Split-Brain Pipeline...");
+async function runUnifiedPipeline() {
+    console.log("[I] Initializing Unified Vector Search Pipeline...");
     
     const TransformersApi = Function('return import("@xenova/transformers")')();
     const { pipeline: transformersPipeline } = await TransformersApi;
@@ -28,10 +28,10 @@ async function runSplitBrainPipeline() {
     let totalProcessed = 0;
 
     while (keepRunning) {
-        // Fetch the next batch of 100 unprocessed movies
+        // NEW: Fetching all the rich metadata so we can store it in Qdrant!
         const { data: movies, error: fetchError } = await supabase
             .from('global_movies')
-            .select('tmdb_id, title, tags')
+            .select('tmdb_id, title, tags, overview, media_type, popularity, release_year')
             .not('tags', 'is', null)
             .eq('is_embedded', false)
             .limit(100); 
@@ -42,52 +42,55 @@ async function runSplitBrainPipeline() {
         }
 
         if (!movies || movies.length === 0) {
-            console.log(`\n[S] SUCCESS! All movies have been embedded and synced!`);
+            console.log(`\n[S] SUCCESS! All items have been embedded with Rich Payloads!`);
             console.log(`[I] Total processed this session: ${totalProcessed}`);
             keepRunning = false;
             break;
         }
 
-        console.log(`\n[I] Processing batch of ${movies.length} movies...`);
+        console.log(`\n[I] Processing batch of ${movies.length} items...`);
 
         for (let i = 0; i < movies.length; i++) {
             const movie = movies[i];
             
             try {
-                // 1. Generate & Push to Qdrant
+                // 1. Generate the Math
                 const output = await generateEmbedding(movie.tags, { pooling: 'mean', normalize: true });
                 
+                // 2. Push to Qdrant WITH the new Rich Payload
                 await qdrant.upsert('movies', {
                     wait: true,
                     points: [{
                         id: movie.tmdb_id,
                         vector: Array.from(output.data),
-                        payload: { title: movie.title } 
+                        payload: { 
+                            title: movie.title,
+                            overview: movie.overview,
+                            media_type: movie.media_type,
+                            popularity: movie.popularity,
+                            release_year: movie.release_year
+                        } 
                     }]
                 });
 
-                // 2. Mark as complete in Supabase (Adding .select() to force verification)
-                const { data: updatedData, error: updateError } = await supabase
+                // 3. DELETE the item from Supabase to save storage space!
+                const { error: deleteError } = await supabase
                     .from('global_movies')
-                    .update({ is_embedded: true })
-                    .eq('tmdb_id', movie.tmdb_id)
-                    .select(); // Forces Supabase to return the updated row data
+                    .delete()
+                    .eq('tmdb_id', movie.tmdb_id);
 
-                if (updateError) {
-                    console.error(`[E] DB Sync Error for ${movie.title}:`, updateError.message);
-                } else if (!updatedData || updatedData.length === 0) {
-                    console.error(`[E] Supabase Mismatch: Could not find TMDB ID ${movie.tmdb_id} to update.`);
+                if (deleteError) {
+                    console.error(`[E] DB Deletion Error for ${movie.title}:`, deleteError.message);
                 } else {
                     totalProcessed++;
-                    console.log(`[S] (${totalProcessed}) Synced to Qdrant & Supabase: ${movie.title}`);
+                    console.log(`[S] (${totalProcessed}) Synced to Qdrant & Cleared from Queue: ${movie.title}`);
                 }
 
             } catch (err) {
-                // If Qdrant rejects the push, it will be caught here
                 console.error(`[E] Pipeline Error on ${movie.title}:`, err.message);
             }
         }
     }
 }
 
-runSplitBrainPipeline();
+runUnifiedPipeline();
