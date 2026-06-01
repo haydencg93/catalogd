@@ -1,21 +1,174 @@
 :root {
-    --bg: #14181c;
-    --card: #1b2228;
-    --accent: #00e054;
+    --bg: #050608;
+    --glass-bg: rgba(15, 18, 25, 0.4);
+    --glass-border: rgba(255, 255, 255, 0.05);
+    
+    /* Cinematic Mystic Palette */
+    --accent: #0d0776;       /* Midnight Indigo */
+    --accent-glow: rgba(38, 34, 117, 0.4);
     --text: #ffffff;
-    --movie-tag: #ff9000;
-    --tv-tag: #00b0f0;
-    --book-tag: #be55ff;
-    --album-tag: #eb3486;
-    --youtube-tag: #ff0000;
+    
+    /* Tag Colors (Muted for Cinematic feel) */
+    --movie-tag: #fb923c;
+    --tv-tag: #38bdf8;
+    --book-tag: #c084fc;
+    --album-tag: #f472b6;
+    --youtube-tag: #f87171;
+}
+
+/* Standardize the arrow icon */
+.dropdown-arrow {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-size: contain;
+    transition: transform 0.3s ease;
+}
+
+/* Rotate arrow when menu is open */
+.profile-trigger.active .dropdown-arrow {
+    transform: rotate(180deg);
+}
+
+.search-bar-wrapper select {
+    background: rgba(0, 0, 0, 0.2);
+    appearance: none;
+    -webkit-appearance: none; /* Crucial for Safari/Chrome */
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    /* Anchor the arrow exactly 12px from the right edge */
+    background-position: right 12px center;
+    background-size: 16px;
+    padding: 15px 35px 15px 15px; 
+    color: white;
+    border: none;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    outline: none;
+    /* Prevent the box from expanding into the input area */
+    flex-shrink: 0; 
+}
+
+.search-bar-wrapper select option {
+    background: #050608; /* Match your dark void theme */
+    color: white;
+    padding: 10px;
+}
+
+.search-bar-wrapper input {
+    margin: 0 !important; /* Overrides your global input margin */
+    border-radius: 0 !important;
+    max-width: none !important;
+    flex-grow: 1;
+    background: transparent !important;
+    border: none !important;
+    color: white;
+    padding-left: 20px;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+.search-bar-wrapper input:focus {
+    outline: none;
+}
+
+.search-bar-wrapper {
+    display: flex;
+    margin: 40px auto;
+    width: 100%;
+    max-width: 600px;
+    /* Liquid Glass Fill */
+    background: rgba(255, 255, 255, 0.03); 
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 30px;
+    overflow: hidden;
+    transition: all 0.4s ease;
+}
+
+.search-bar-wrapper:focus-within {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--accent);
+    box-shadow: 0 0 20px rgba(79, 70, 229, 0.2);
+}
+
+.search-bar-wrapper select:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* Apply Glass to Cards */
+.media-card {
+    position: relative;
+    overflow: hidden; /* Ensures the shine stays inside the card */
+}
+
+/* Apply Glass to Auth Modal */
+.auth-card {
+    background: rgba(15, 20, 25, 0.6);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
 body {
-    background-color: var(--bg);
+    background-color: #050608; 
+    background-image: 
+        radial-gradient(circle at 0% 0%, rgba(30, 58, 138, 0.4), transparent 50%), /* Navy */
+        radial-gradient(circle at 100% 100%, rgba(76, 29, 149, 0.3), transparent 50%), /* Deep Purple */
+        radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 0.9), transparent 80%); 
+    background-attachment: fixed;
+    background-size: cover;
     color: var(--text);
-    font-family: 'Segoe UI', sans-serif;
+    font-family: 'Outfit', 'Inter', sans-serif;
     margin: 0;
     padding: 20px;
+    min-height: 100vh;
+}
+
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: -1;
+    /* This ensures it doesn't tile and covers the full viewport */
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    /* Blur makes the radial gradients bleed into one another */
+    filter: blur(120px);
+    pointer-events: none;
+    transition: background 0.8s ease;
+}
+
+body::after {
+    bottom: -10%; 
+    right: -10%;
+    animation-delay: -7s;
+}
+
+/* The Liquid Orbs */
+body::before, body::after {
+    content: '';
+    position: fixed;
+    width: 50vw;
+    height: 50vw;
+    border-radius: 50%;
+    filter: blur(120px);
+    z-index: -1;
+    animation: liquidFloat 15s infinite alternate ease-in-out;
+    opacity: 0.4;
+}
+
+@keyframes liquidFloat {
+    0% { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(10%, 15%) scale(1.2); }
 }
 
 header {
@@ -28,8 +181,64 @@ header {
     border-bottom: 1px solid #2c3440;
 }
 
-.logo { font-size: 2rem; font-weight: 900; cursor: pointer; }
-.logo span { color: var(--accent); }
+header, main {
+    background: transparent; 
+}
+
+.css-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.css-logo:hover {
+    transform: scale(1.05);
+}
+
+.logo-circles {
+    display: flex;
+    align-items: center;
+}
+
+.circle {
+    width: 24px; /* Slightly smaller for a tighter, more modern look */
+    height: 24px;
+    border-radius: 50%;
+    margin-left: -8px; /* Slightly tighter overlap */
+    border: 2px solid var(--bg);
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+.circle:first-child {
+    margin-left: 0;
+}
+
+/* Ensure the colors are consistent with your requirements */
+.c-movie { background: var(--movie-tag); z-index: 3; }
+.c-tv { background: var(--tv-tag); z-index: 2; }
+.c-book { background: var(--book-tag); z-index: 1; }
+
+/* Refined hover effect for the empty circles */
+.css-logo:hover .circle {
+    margin-left: 2px;
+    transform: translateY(-2px) rotate(-5deg);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+}
+
+.logo-text {
+    font-size: 2.2rem;
+    font-weight: 800;
+    letter-spacing: -1px;
+    color: #fff;
+}
+
+.logo-text span {
+    color: var(--accent);
+    text-shadow: 0 0 15px var(--accent-glow);
+}
 
 input {
     display: block;
@@ -43,79 +252,17 @@ input {
     color: white;
 }
 
-/* Unified Search Bar Wrapper */
-.search-bar-wrapper {
-    display: flex;
-    margin: 40px auto;
-    width: 100%;
-    max-width: 600px;
-    background: var(--card);
-    border: 2px solid #2c3440;
-    border-radius: 30px;
-    overflow: hidden; /* Keeps the children inside the rounded border */
-    transition: border-color 0.3s ease;
-}
-
-.search-bar-wrapper:focus-within {
-    border-color: var(--accent);
-}
-
-.search-bar-wrapper select {
-    background: #242c33; /* Slightly lighter than the card for contrast */
-    color: white;
-    border: none;
-    border-right: 1px solid #2c3440;
-    padding: 15px 15px 15px 25px;
-    font-size: 0.95rem;
-    font-weight: bold;
-    cursor: pointer;
-    outline: none;
-    /* Clean up the default browser dropdown arrow */
-    appearance: none; 
-    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    background-size: 16px;
-    padding-right: 35px; /* Room for the custom arrow */
-}
-
-.search-bar-wrapper input {
-    margin: 0 !important; /* Overrides your global input margin */
-    border: none !important; /* Overrides your global input border */
-    border-radius: 0 !important;
-    background: transparent !important;
-    max-width: none !important;
-    flex-grow: 1;
-    padding-left: 20px;
-}
-
-.search-bar-wrapper input:focus {
-    outline: none;
-}
-
 /* Dynamic Section Title (Trending / Search Results) */
 .section-title {
-    text-align: center;
-    margin: 20px auto 40px;
-    font-size: 2.2rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
     font-weight: 900;
-    color: #ffffff;
-    letter-spacing: 0.5px;
-    position: relative;
-    text-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    text-shadow: 0 0 20px rgba(168, 85, 247, 0.3); /* Subtle glow on text */
 }
 
-/* The Glowing Accent Line */
 .section-title::after {
-    content: '';
-    display: block;
-    width: 60px;
-    height: 4px;
     background: var(--accent);
-    border-radius: 2px;
-    margin: 15px auto 0;
-    box-shadow: 0 0 15px rgba(0, 224, 84, 0.6); /* Glow effect using your green accent */
-    transition: width 0.3s ease;
+    box-shadow: 0 0 20px var(--accent);
 }
 
 /* Subtle animation on hover */
@@ -141,16 +288,35 @@ input {
                 opacity 0.3s ease, 
                 filter 0.3s ease, 
                 box-shadow 0.3s ease !important;
+    will-change: transform; /* Tells the browser to optimize for this movement */
+    backface-visibility: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.08); 
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 
+                inset 0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
-.media-card:hover { 
-    transform: translateY(-5px); 
-    box-shadow: 0 10px 20px rgba(0, 224, 84, 0.1); /* Added for sync */
+.media-card:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 
+                inset 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
 .media-card img { width: 100%; aspect-ratio: 2/3; object-fit: cover; }
-.media-info { padding: 12px; }
-.badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; font-weight: bold; }
+.media-info {
+    padding: 16px;
+    background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+}
+.badge { 
+    position: absolute;
+    bottom: 12px;
+    left: 12px; /* Added spacing from the left edge */
+    font-size: 0.7rem; 
+    padding: 3px 10px; 
+    border-radius: 6px; 
+    text-transform: uppercase; 
+    font-weight: 700;
+    z-index: 2;
+}
 .badge-movie { background: var(--movie-tag); color: #000; }
 .badge-tv { background: var(--tv-tag); color: #fff; }
 .badge-book { background: var(--book-tag); color: #fff; }
@@ -178,10 +344,64 @@ input {
     width: 90%; 
     border-radius: 8px; 
 }
-.primary-btn { background: var(--accent); color: #000; border: none; padding: 10px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; width: 100%; }
+.primary-btn {
+    /* Special Case: The Primary Button (Solid liquid fill) */
+    background: linear-gradient(135deg, rgba(79, 70, 229, 0.4), rgba(67, 56, 202, 0.2));
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #000;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-weight: bold;
+    cursor: pointer;
+    width: 100%;
+}
 .secondary-btn { background: transparent; color: white; border: 1px solid #456; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
 #auth-switch { color: #9ab; cursor: pointer; margin-top: 15px; font-size: 0.8rem; }
 .close-btn { position: absolute; top: 10px; right: 15px; background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
+
+.primary-btn, .filter-btn {
+    /* Adds a subtle top-edge highlight */
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+/* Base Liquid Glass Button Style */
+.primary-btn, .secondary-btn, .filter-btn {
+    position: relative;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.05); /* Very light glass */
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    z-index: 1;
+}
+
+/* Add the Liquid Inner Glow */
+.primary-btn::before, .secondary-btn::before, .filter-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    /* Soft glowing gradient that mimics the background liquid colors */
+    background: radial-gradient(circle at 50% -20%, rgba(79, 70, 229, 0.3), transparent 70%);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    z-index: -1;
+}
+
+/* Hover State: The "Liquid" Reaction */
+.primary-btn:hover, .secondary-btn:hover, .filter-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+.primary-btn:hover::before, .secondary-btn:hover::before, .filter-btn:hover::before {
+    opacity: 1;
+}
 
 .filter-nav {
     display: flex;
@@ -220,19 +440,18 @@ input {
 
 .trending-label {
     position: absolute;
-    top: 10px;
-    left: 10px;
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(5px);
+    top: 12px;
+    left: 12px; /* Added spacing from the left edge */
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
     color: var(--accent);
     padding: 4px 10px;
     border-radius: 6px;
     font-size: 0.7rem;
     font-weight: bold;
-    text-transform: uppercase;
-    letter-spacing: 1px;
     z-index: 2;
-    border: 1px solid var(--accent);
+    border: 1px solid rgba(255, 255, 255, 0.2); /* Soft white border */
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5); /* Pops the text */
 }
 
 /* Optional: Subtle animation to make it pop */
@@ -251,9 +470,8 @@ input {
     opacity: 1 !important;
     transform: scale(1.05) translateY(-10px) !important;
     filter: grayscale(0);
-    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5), 0 0 15px rgba(0, 224, 84, 0.3);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5), 0 0 15px var(--accent-glow);
     border-color: var(--accent);
-    z-index: 10; /* Ensures the popped-out card stays on top of others */
 }
 
 .media-info .title {
@@ -351,15 +569,57 @@ input {
 }
 
 /* AI Recommendations Button Hover Effect */
+/* 1. Update the AI Button */
 #recs-btn {
-    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    background: linear-gradient(135deg, var(--accent), #4338ca);
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px var(--accent-glow) !important;
 }
 
 #recs-btn:hover {
-    transform: translateY(-3px) scale(1.02);
-    box-shadow: 0 10px 25px rgba(0, 224, 84, 0.4) !important;
-    filter: brightness(1.1);
+    box-shadow: 0 10px 25px var(--accent-glow) !important;
 }
+
+
+.profile-dropdown { position: relative; display: inline-block; }
+
+.profile-trigger {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 30px;
+    padding: 5px 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+#nav-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
+
+.dropdown-content {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 50px;
+    background: rgba(15, 18, 25, 0.9);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    min-width: 150px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    z-index: 1000;
+}
+
+.dropdown-content a {
+    color: white;
+    padding: 12px 16px;
+    display: block;
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.dropdown-content a:hover { background: rgba(79, 70, 229, 0.2); }
 
 /* --- GLOBAL MOBILE RESPONSIVENESS (< 768px) --- */
 @media (max-width: 768px) {
@@ -389,6 +649,8 @@ input {
         border-bottom: 1px solid #2c3440;
         text-align: center;
         background-position: calc(50% + 40px) center; /* Centers the arrow */
+        -webkit-appearance: none;
+        -moz-appearance: none;
     }
 
     .search-bar-wrapper input {

@@ -15,6 +15,7 @@ const authUsername = document.getElementById('auth-username');
 const authRetype = document.getElementById('auth-retype');
 const signupFields = document.getElementById('signup-fields');
 const profileBtn = document.getElementById('profile-btn');
+const profileMenu = document.getElementById('profile-menu');
 
 // 2. Global Variables
 let TMDB_TOKEN = '';
@@ -81,6 +82,8 @@ async function loadConfig() {
 
 async function checkUserStatus() {
     const { data: { user } } = await supabaseClient.auth.getUser();
+    const profileMenu = document.getElementById('profile-menu');
+    const loginBtn = document.getElementById('login-btn');
     
     if (user) {
         const { data: customImgs } = await supabaseClient
@@ -100,10 +103,21 @@ async function checkUserStatus() {
             location.reload();
         };
         if (profileBtn) profileBtn.style.display = 'inline-block';
+
+        loginBtn.style.display = 'none'; // Hide Sign In
+        profileMenu.style.display = 'block'; // Show Dropdown
+        
+        // Ensure avatar is set (Optional: fetch from Supabase user metadata)
+        const avatar = document.getElementById('nav-avatar');
+        if (user.user_metadata.avatar_url) avatar.src = user.user_metadata.avatar_url;
     } else {
+        loginBtn.style.display = 'block'; 
+        profileMenu.style.display = 'none';
+        
         loginBtn.textContent = "Sign In";
-        loginBtn.onclick = openAuthModal;
-        if (profileBtn) profileBtn.style.display = 'none';
+        loginBtn.onclick = function() {
+            openAuthModal();
+        }
     }
 }
 
@@ -571,6 +585,62 @@ async function handleForgotPassword() {
     } catch (err) {
         alert("Error: " + err.message);
     }
+}
+
+document.addEventListener('mousemove', (e) => {
+    const cards = document.querySelectorAll('.media-card');
+    
+    cards.forEach(card => {
+        const rect = card.getBoundingClientRect();
+        const x = e.clientX - rect.left; // Mouse position inside card
+        const y = e.clientY - rect.top;
+        
+        // Calculate tilt
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+        const rotateX = (y - centerY) / 20; // Adjust 20 for intensity
+        const rotateY = (centerX - x) / 20;
+        
+        card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
+    });
+});
+
+// Reset tilt when mouse leaves
+document.addEventListener('mouseleave', () => {
+    const cards = document.querySelectorAll('.media-card');
+    cards.forEach(card => {
+        card.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale(1)';
+    });
+});
+
+function toggleProfileDropdown(event) {
+    // Prevent the click from immediately bubbling up to the window.onclick listener
+    if (event) event.stopPropagation();
+    
+    const content = document.getElementById('dropdown-content');
+    const trigger = document.querySelector('.profile-trigger');
+    
+    const isVisible = content.style.display === 'block';
+    content.style.display = isVisible ? 'none' : 'block';
+    
+    trigger.classList.toggle('active', !isVisible);
+}
+
+// Update the window click listener to be more specific
+window.onclick = function(event) {
+    const dropdown = document.getElementById('dropdown-content');
+    const trigger = document.querySelector('.profile-trigger');
+    
+    // Only close if the click is NOT on the trigger and NOT inside the menu
+    if (event.target !== trigger && !trigger.contains(event.target) && !dropdown.contains(event.target)) {
+        dropdown.style.display = 'none';
+        trigger.classList.remove('active');
+    }
+}
+
+async function signOut() {
+    await supabaseClient.auth.signOut();
+    location.reload();
 }
 
 authConfirmBtn.addEventListener('click', handleAuth);
