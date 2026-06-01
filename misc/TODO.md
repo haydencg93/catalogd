@@ -10,11 +10,13 @@ Get Done Today = ~
 - like a review
 - user profile links
 - adding to list in list not showing custom poster
-- mark all eps as watched not fully working
-- Build ML model for similar to (look at pdf for how and mlDb.md for kaggle db)
+- Maybe change ml model where I am doing the physical math and not the apis
+- Fandom for books
 
 <!-- ----------------------------------------------------------------------- -->
 <!-- Future Additions -->
 ## Future Additions:
 - Characters/Fandoms/ETC
     - using the Fandom api
+- Add in a feature of New that you might like
+- Add in a feature of since you watched/read this... (Next Watch/Read)
