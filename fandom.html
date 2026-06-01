@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Catalogd | Fandom</title>
+    <link rel="stylesheet" href="stylingIndex.css">
+    <link rel="stylesheet" href="stylingDetails.css">
+    <link rel="stylesheet" href="stylingFandom.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <header>
+        <div class="logo" onclick="window.location.href='index.html'">
+            <img src="catalogdLogo.png" alt="Catalogd" width="300" height="82">
+        </div>
+        <div class="nav-actions">
+            <button id="back-btn" class="secondary-btn" onclick="window.history.back()">Back to Details</button>
+        </div>
+    </header>
+
+    <main class="details-container">
+        <div id="left-col">
+            <div id="fandom-poster-area">
+                <img id="fandom-image" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='500' height='750'><rect width='500' height='750' fill='%2314181c'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='24' fill='%239ab'>Loading...</text></svg>" alt="Fandom Art">
+            </div>
+            <button id="follow-fandom-btn" class="primary-btn" style="width: 100%; margin-top: 15px;">Follow Fandom</button>
+        </div>
+        
+        <div class="info-pane">
+            <h1 id="fandom-title">Loading Wikipedia Lore...</h1>
+            <div id="fandom-meta" class="meta">Universal Translator Active</div>
+            
+            <div class="rating-section">
+                <h3>Wikipedia Summary</h3>
+                <p id="fandom-overview" style="line-height: 1.6;"></p>
+                <a id="wiki-link" href="#" target="_blank" style="color: var(--accent); display: none; margin-top: 10px;">Read full article on Wikipedia →</a>
+            </div>
+
+            <div id="fandom-plot-section" class="rating-section" style="display: none; margin-top: 20px;">
+                <h3>Plot</h3>
+                <div id="fandom-plot-content" class="wiki-content"></div>
+            </div>
+
+            <div id="fandom-cast-section" class="rating-section" style="display: none; margin-top: 20px;">
+                <h3>Cast & Characters</h3>
+                <!-- <p class="meta" style="margin-bottom: 15px;">Click a character to view their profile.</p> -->
+                <div id="fandom-cast-content" class="wiki-content"></div>
+            </div>
+        </div>
+    </main>
+
+    <script src="scriptingFandom.js"></script>
+</body>
+</html>
