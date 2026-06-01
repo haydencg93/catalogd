@@ -283,6 +283,21 @@ async function initDetails() {
             window.location.href = `log.html?id=${encodeURIComponent(id)}&type=${type}`;
         };
 
+        // --- FANDOM BUTTON LOGIC ---
+        const fandomBtn = document.getElementById('fandom-btn');
+        if (fandomBtn) {
+            // Hide the button for books, albums, and youtube videos
+            if (type === 'book' || type === 'youtube' || type === 'album') {
+                fandomBtn.style.display = 'none';
+            } else {
+                // Show it and set the click handler for Movies and TV Shows
+                fandomBtn.style.display = 'block';
+                fandomBtn.onclick = () => {
+                    window.location.href = `fandom.html?id=${encodeURIComponent(id)}&type=${type}`;
+                };
+            }
+        }
+
         setupHeader();
 
         if (type === 'tv') setupTVTracker(config, id);

@@ -1,0 +1,150 @@
+/* Make sure Wikipedia's injected HTML respects our app's theme */
+.wiki-content {
+    line-height: 1.7;
+    color: #ccd6e0;
+    font-size: 1rem;
+}
+
+.wiki-content a {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.wiki-content a:hover {
+    text-decoration: underline;
+}
+
+.wiki-content ul, .wiki-content ol {
+    margin-left: 20px;
+    margin-bottom: 15px;
+}
+
+.wiki-content li {
+    margin-bottom: 8px;
+}
+
+/* Force Wikipedia tables to be responsive and fit your dark theme */
+.wiki-content table {
+    width: 100% !important;
+    background: #14181c !important;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+.wiki-content th, .wiki-content td {
+    border: 1px solid #2c3440 !important;
+    padding: 10px;
+    text-align: left;
+}
+
+.wiki-content th {
+    background: #1b2228 !important;
+    color: #9ab;
+}
+
+/* Hide annoying Wikipedia edit links and citations */
+.mw-editsection, .reference {
+    display: none !important;
+}
+
+/* --- Catalogd Native Fandom Grids --- */
+
+.fandom-character-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.fandom-character-card {
+    background: #1b2228;
+    border: 1px solid #2c3440;
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+.fandom-character-card:hover {
+    transform: translateY(-5px);
+    border-color: var(--accent);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+}
+
+.fandom-char-img-wrapper {
+    width: 100%;
+    aspect-ratio: 2 / 3; /* Matches standard poster sizing */
+    background: #14181c;
+    overflow: hidden;
+}
+
+.fandom-char-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: opacity 0.3s ease;
+}
+
+.fandom-char-info {
+    padding: 15px;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.fandom-char-text {
+    font-size: 0.9rem;
+    color: #ccd6e0;
+    line-height: 1.5;
+    margin: 0;
+    /* Cleanly truncate long text descriptions */
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Clean up Wikipedia's inline images in the plot section */
+#fandom-plot-content .thumb {
+    margin: 20px auto;
+    max-width: 100%;
+    display: block;
+    background: transparent;
+    border: none;
+}
+
+#fandom-plot-content .thumbinner {
+    background: #14181c;
+    border: 1px solid #2c3440;
+    border-radius: 8px;
+    padding: 10px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#fandom-plot-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+}
+
+/* Style the image captions */
+#fandom-plot-content .thumbcaption {
+    margin-top: 10px;
+    font-size: 0.85rem;
+    color: #9ab;
+    text-align: center;
+}
+
+/* Hide the little magnify icon Wikipedia adds to image captions */
+#fandom-plot-content .magnify {
+    display: none;
+}
