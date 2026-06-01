@@ -85,8 +85,8 @@
 .known-for-grid .media-card:hover {
     opacity: 1 !important;
     transform: scale(1.05) translateY(-5px) !important;
-    box-shadow: 0 10px 25px rgba(0, 224, 84, 0.2);
-    border-color: #00e054; /* Your accent color */
+    box-shadow: 0 10px 25px rgba(13, 7, 118, 0.4); 
+    border-color: #0d0776; /* Midnight Indigo */
 }
 
 /* --- Filmography List Section --- */

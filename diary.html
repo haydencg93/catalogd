@@ -10,13 +10,32 @@
 </head>
 <body>
     <header>
-        <div class="logo" onclick="window.location.href='index.html'">
-            <img src="catalogdLogo.png" alt="Catalogd" width="300" height="82">
+        <div class="css-logo" onclick="window.location.href='index.html'">
+            <div class="logo-circles">
+                <div class="circle c-movie"></div>
+                <div class="circle c-tv"></div>
+                <div class="circle c-book"></div>
+            </div>
+            <div class="logo-text">catalog<span>d</span></div>
         </div>
-        <nav class="nav-actions">
-            <button onclick="window.location.href='profile.html'" class="secondary-btn">Profile</button>
-            <button onclick="window.location.href='index.html'" class="secondary-btn">Home</button>
-        </nav>
+        <div class="nav-actions">
+            <button id="login-btn" class="secondary-btn">Sign In</button>
+            <div id="profile-menu" class="profile-dropdown" style="display:none;">
+                <button class="profile-trigger" onclick="toggleProfileDropdown(event)">
+                    <img src="https://ui-avatars.com/api/?name=User&background=0d0776&color=fff" id="nav-avatar" alt="Profile">
+                    <span class="dropdown-arrow"></span>
+                </button>
+                <div id="dropdown-content" class="dropdown-content">
+                    <a href="diary.html">Diary</a>
+                    <a href="lists.html">Lists</a>
+                    <a href="watchlist.html">Watchlist</a>
+                    <a href="profile.html">My Profile</a>
+                    <a href="settings.html">Settings</a>
+                    <hr>
+                    <a href="#" onclick="signOut()">Sign Out</a>
+                </div>
+            </div>
+        </div>
     </header>
 
 <main class="diary-container">

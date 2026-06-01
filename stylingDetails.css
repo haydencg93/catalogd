@@ -275,7 +275,6 @@
     line-height: 1.4;
 }
 
-/* Add to stylingDetails.css */
 .secondary-btn.active {
     background: var(--accent) !important;
     border-color: var(--accent) !important;
@@ -489,8 +488,8 @@
 }
 
 .director-highlight {
-    border: 2px solid var(--accent) !important;
-    background: rgba(0, 224, 84, 0.08) !important;
+    border: 2px solid var(--accent) !important; /* Uses --accent from stylingIndex.css */
+    background: rgba(3, 0, 59, 0.15) !important; /* Faded Indigo background */
 }
 
 .director-highlight .cast-role {
@@ -556,7 +555,7 @@
     position: fixed; 
     inset: 0; 
     background: rgba(0,0,0,0.85);
-    display: none; /* Controlled by JS */
+    display: none;
     justify-content: center; 
     align-items: center; 
     z-index: 2000;
@@ -782,6 +781,14 @@
 .log-tag-pill:hover {
     background: rgba(255, 255, 255, 0.1);
     color: #fff;
+}
+
+#similar-grid .media-card:hover {
+    opacity: 1 !important;
+    transform: scale(1.05) translateY(-10px) !important;
+    /* Indigo shadow and border */
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5), 0 0 15px rgba(13, 7, 118, 0.6);
+    border-color: #0d0776; 
 }
 
 /* --- DETAILS PAGE MOBILE RESPONSIVENESS (< 768px) --- */
