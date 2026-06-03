@@ -1,6 +1,7 @@
 let favoriteInputs = [];
 let configData = null;
 let searchTimeout = null;
+let supabaseClient = null;
 
 // DOM Elements
 const searchInput = document.getElementById('rec-search-input');
@@ -16,12 +17,65 @@ async function initRecs() {
     try {
         const response = await fetch('config.json');
         configData = await response.json();
+        
+        supabaseClient = supabase.createClient(configData.supabase_url, configData.supabase_key);
+        setupHeader();
+        
         setupLiveSearch();
     } catch (err) {
         console.error("[E] Could not load config.json:", err);
         statusMsg.textContent = "Error loading configuration.";
         statusMsg.style.color = "#ff4d4d";
     }
+}
+
+// --- HEADER & AUTH LOGIC ---
+async function setupHeader() {
+    const loginBtn = document.getElementById('login-btn');
+    const profileMenu = document.getElementById('profile-menu');
+
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (user) {
+        if (loginBtn) loginBtn.style.display = 'none'; 
+        if (profileMenu) profileMenu.style.display = 'inline-block';
+        
+        const avatar = document.getElementById('nav-avatar');
+        if (avatar && user.user_metadata && user.user_metadata.avatar_url) {
+            avatar.src = user.user_metadata.avatar_url;
+        }
+    } else {
+        if (loginBtn) {
+            loginBtn.style.display = 'inline-block';
+            loginBtn.textContent = "Sign In";
+            loginBtn.onclick = () => window.location.href = 'index.html'; 
+        }
+        if (profileMenu) profileMenu.style.display = 'none';
+    }
+}
+
+function toggleProfileDropdown(event) {
+    if (event) event.stopPropagation();
+    const content = document.getElementById('dropdown-content');
+    const trigger = document.querySelector('.profile-trigger');
+    if (!content || !trigger) return;
+    
+    const isVisible = content.style.display === 'block';
+    content.style.display = isVisible ? 'none' : 'block';
+    trigger.classList.toggle('active', !isVisible);
+}
+
+window.onclick = (event) => {
+    const dropdown = document.getElementById('dropdown-content');
+    const trigger = document.querySelector('.profile-trigger');
+    if (dropdown && trigger && event.target !== trigger && !trigger.contains(event.target) && !dropdown.contains(event.target)) {
+        dropdown.style.display = 'none';
+        trigger.classList.remove('active');
+    }
+};
+
+async function signOut() {
+    await supabaseClient.auth.signOut();
+    location.reload();
 }
 
 // Replicates the ID shifting math from your Mass Seeders

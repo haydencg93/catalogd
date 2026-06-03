@@ -93,8 +93,25 @@ async function initListDetails() {
             window.location.href = 'index.html';
             return;
         }
+
+        // --- NEW: Fetch profile and inject context button ---
+        const { data: profile } = await supabaseClient
+            .from('profiles')
+            .select('display_name')
+            .eq('id', list.user_id)
+            .single();
+
+        const navActions = document.querySelector('.nav-actions');
+        if (navActions && !document.getElementById('context-profile-btn')) {
+            const contextBtn = document.createElement('button');
+            contextBtn.id = 'context-profile-btn';
+            contextBtn.className = 'secondary-btn';
+            contextBtn.style.marginRight = '10px';
+            contextBtn.textContent = profile ? `← ${profile.display_name}'s Lists` : '← Back to Lists';
+            contextBtn.onclick = () => window.location.href = `lists.html?id=${list.user_id}`;
+            navActions.prepend(contextBtn);
+        }
     } else {
-        // EDITOR MODE (Owner OR Collaborator)
         manageBtn.style.display = isRanked ? 'inline-block' : 'none';
 
         // --- SHARED LOGIC: Both Owners and Collaborators can Edit the List Details ---
@@ -198,6 +215,18 @@ async function initListDetails() {
         }
     }
 
+    const navActions = document.querySelector('.nav-actions');
+    if (navActions && !document.getElementById('context-profile-btn') && !isViewerOwner) {
+        const contextBtn = document.createElement('button');
+        contextBtn.id = 'context-profile-btn';
+        contextBtn.className = 'secondary-btn';
+        contextBtn.style.marginRight = '10px';
+        contextBtn.textContent = profile ? `← ${profile.display_name}'s Profile` : '← Back to Profile';
+        contextBtn.onclick = () => window.location.href = `profile.html?id=${listOwnerId}`;
+        
+        navActions.prepend(contextBtn);
+    }
+
     const contextId = params.get('context'); 
     const backToListsBtn = document.getElementById('back-to-lists-btn');
 
@@ -219,6 +248,55 @@ async function initListDetails() {
     
     await fetchListItems();
     if (isOwner) setupSearch();
+    setupHeader()
+}
+
+async function setupHeader() {
+    const loginBtn = document.getElementById('login-btn');
+    const profileMenu = document.getElementById('profile-menu');
+
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (user) {
+        if (loginBtn) loginBtn.style.display = 'none'; 
+        if (profileMenu) profileMenu.style.display = 'inline-block';
+        
+        const avatar = document.getElementById('nav-avatar');
+        if (avatar && user.user_metadata && user.user_metadata.avatar_url) {
+            avatar.src = user.user_metadata.avatar_url;
+        }
+    } else {
+        if (loginBtn) {
+            loginBtn.style.display = 'inline-block';
+            loginBtn.textContent = "Sign In";
+            loginBtn.onclick = () => window.location.href = 'index.html'; 
+        }
+        if (profileMenu) profileMenu.style.display = 'none';
+    }
+}
+
+function toggleProfileDropdown(event) {
+    if (event) event.stopPropagation();
+    const content = document.getElementById('dropdown-content');
+    const trigger = document.querySelector('.profile-trigger');
+    if (!content || !trigger) return;
+    
+    const isVisible = content.style.display === 'block';
+    content.style.display = isVisible ? 'none' : 'block';
+    trigger.classList.toggle('active', !isVisible);
+}
+
+window.onclick = (event) => {
+    const dropdown = document.getElementById('dropdown-content');
+    const trigger = document.querySelector('.profile-trigger');
+    if (dropdown && trigger && event.target !== trigger && !trigger.contains(event.target) && !dropdown.contains(event.target)) {
+        dropdown.style.display = 'none';
+        trigger.classList.remove('active');
+    }
+};
+
+async function signOut() {
+    await supabaseClient.auth.signOut();
+    location.reload();
 }
 
 async function fetchListItems() {

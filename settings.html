@@ -19,9 +19,26 @@
             </div>
             <div class="logo-text">catalog<span>d</span></div>
         </div>
-        <nav class="nav-actions">
-            <button onclick="window.location.href='profile.html'" class="secondary-btn">Back to Profile</button>
-        </nav>
+        <div class="nav-actions">
+            <!-- Login remains -->
+            <button id="login-btn" class="secondary-btn">Sign In</button>
+            
+            <div id="profile-menu" class="profile-dropdown" style="display:none;">
+                <button class="profile-trigger" onclick="toggleProfileDropdown()">
+                    <img src="https://ui-avatars.com/api/?name=User&background=0d0776&color=fff" id="nav-avatar" alt="Profile">
+                    <span class="dropdown-arrow"></span>
+                </button>
+                <div id="dropdown-content" class="dropdown-content">
+                    <a href="diary.html">Diary</a>
+                    <a href="lists.html">Lists</a>
+                    <a href="watchlist.html">Watchlist</a>
+                    <a href="profile.html">Profile</a>
+                    <a href="settings.html">Settings</a>
+                    <hr>
+                    <a href="#" onclick="signOut()">Sign Out</a>
+                </div>
+            </div>
+        </div>
     </header>
 
     <main class="settings-container">

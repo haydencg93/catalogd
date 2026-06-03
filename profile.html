@@ -28,7 +28,7 @@
                     <a href="diary.html">Diary</a>
                     <a href="lists.html">Lists</a>
                     <a href="watchlist.html">Watchlist</a>
-                    <a href="profile.html">My Profile</a>
+                    <a href="profile.html">Profile</a>
                     <a href="settings.html">Settings</a>
                     <hr>
                     <a href="#" onclick="signOut()">Sign Out</a>
@@ -84,19 +84,23 @@
 
         <div id="tab-home" class="tab-content active">
             <div class="stats-bar">
-                <div class="stat-card">
-                    <span id="stat-count" class="stat-value">0</span>
-                    <span class="stat-label">Total Logs</span>
+                <div class="stat-card" id="followers-stat-btn" style="cursor: pointer;">
+                    <span id="followers-count" class="stat-value">0</span>
+                    <span class="stat-label">Followers</span>
                 </div>
                 <div class="stat-card" id="following-stat-btn" style="cursor: pointer;">
                     <span id="following-count" class="stat-value">0</span>
                     <span class="stat-label">Following</span>
                 </div>
-                <div class="stat-card" id="followers-stat-btn" style="cursor: pointer;">
-                    <span id="followers-count" class="stat-value">0</span>
-                    <span class="stat-label">Followers</span>
+                <div class="stat-card" onclick="window.location.href='diary.html' + (typeof profileUserId !== 'undefined' ? '?id=' + profileUserId : '')" style="cursor: pointer; border-color: var(--accent);">
+                    <span id="stat-count" class="stat-value">0</span>
+                    <span class="stat-label">Diary →</span>
                 </div>
-                <div class="stat-card" onclick="window.location.href='watchlist.html' + (profileUserId ? '?id=' + profileUserId : '')" style="cursor: pointer; border-color: var(--accent);">
+                <div class="stat-card" onclick="window.location.href='lists.html' + (typeof profileUserId !== 'undefined' ? '?id=' + profileUserId : '')" style="cursor: pointer; border-color: var(--accent);">
+                    <span id="lists-count" class="stat-value">0</span>
+                    <span class="stat-label">Lists →</span>
+                </div>
+                <div class="stat-card" onclick="window.location.href='watchlist.html' + (typeof profileUserId !== 'undefined' ? '?id=' + profileUserId : '')" style="cursor: pointer; border-color: var(--accent);">
                     <span id="watchlist-count" class="stat-value">0</span>
                     <span class="stat-label">Watchlist →</span>
                 </div>

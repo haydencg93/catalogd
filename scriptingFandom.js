@@ -1,6 +1,7 @@
 const params = new URLSearchParams(window.location.search);
 let mediaId = params.get('id');
 const mediaType = params.get('type');
+let supabaseClient = null;
 
 // Unblockable Inline SVG Placeholders
 const FALLBACK_POSTER = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='500' height='750'><rect width='500' height='750' fill='%2314181c'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='24' fill='%239ab'>No Image</text></svg>`;
@@ -18,6 +19,10 @@ async function initFandomPage() {
         showError("Fandom exploration is currently only available for Movies, TV Shows, and Albums.");
         return;
     }
+
+    const config = await fetch('config.json').then(r => r.json());
+    supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
+    setupHeader();
 
     const propertyId = propertyMap[mediaType];
     
@@ -38,6 +43,53 @@ async function initFandomPage() {
         console.error("Fandom Fetch Error:", error);
         showError("Failed to load Wikipedia lore.");
     }
+}
+
+// --- NEW HEADER & AUTH LOGIC ---
+
+async function setupHeader() {
+    const loginBtn = document.getElementById('login-btn');
+    const profileMenu = document.getElementById('profile-menu');
+
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (user) {
+        loginBtn.style.display = 'none'; 
+        profileMenu.style.display = 'inline-block';
+        
+        const avatar = document.getElementById('nav-avatar');
+        if (avatar && user.user_metadata && user.user_metadata.avatar_url) {
+            avatar.src = user.user_metadata.avatar_url;
+        }
+    } else {
+        loginBtn.style.display = 'inline-block';
+        profileMenu.style.display = 'none';
+        loginBtn.textContent = "Sign In";
+        loginBtn.onclick = () => window.location.href = 'index.html'; 
+    }
+}
+
+function toggleProfileDropdown(event) {
+    if (event) event.stopPropagation();
+    const content = document.getElementById('dropdown-content');
+    const trigger = document.querySelector('.profile-trigger');
+    
+    const isVisible = content.style.display === 'block';
+    content.style.display = isVisible ? 'none' : 'block';
+    trigger.classList.toggle('active', !isVisible);
+}
+
+window.onclick = function(event) {
+    const dropdown = document.getElementById('dropdown-content');
+    const trigger = document.querySelector('.profile-trigger');
+    if (dropdown && trigger && event.target !== trigger && !trigger.contains(event.target) && !dropdown.contains(event.target)) {
+        dropdown.style.display = 'none';
+        trigger.classList.remove('active');
+    }
+}
+
+async function signOut() {
+    await supabaseClient.auth.signOut();
+    location.reload();
 }
 
 async function getWikipediaTitle(propertyId, externalId) {
