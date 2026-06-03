@@ -23,6 +23,17 @@ async function initLog() {
     const youtubeGroup = document.getElementById('youtube-input-group');
     const trackGroup = document.getElementById('track-input-group');
 
+    const backBtn = document.getElementById('back-to-details-btn');
+    if (backBtn) {
+        backBtn.onclick = () => {
+            const discard = confirm("Are you sure you want to discard this log?\n\nClick 'OK' to discard your changes and go back, or 'Cancel' to finish your log.");
+            if (discard) {
+                // Routes them back to the exact media they were looking at
+                window.location.href = `details.html?id=${id}&type=${type}`;
+            }
+        };
+    }
+
     if (type === 'book') {
         const res = await fetch(`https://openlibrary.org${id}.json`).then(r => r.json());
         document.getElementById('media-title').textContent = res.title;
