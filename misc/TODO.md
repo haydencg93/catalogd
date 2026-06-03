@@ -12,6 +12,7 @@ Get Done Today = ~
 - adding to list in list not showing custom poster
 - Maybe change ml model where I am doing the physical math and not the apis
 - Fandom for books
+- Add in game funtionality (IGDB)
 
 <!-- ----------------------------------------------------------------------- -->
 <!-- Future Additions -->
