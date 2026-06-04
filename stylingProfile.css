@@ -1,15 +1,3 @@
-:root {
-    --bg: #14181c;
-    --card: #1b2228;
-    --accent: #00e054;
-    --text: #ffffff;
-    --movie-tag: #ff9000;
-    --tv-tag: #00b0f0;
-    --book-tag: #be55ff;
-    --album-tag: #eb3486;
-    --youtube-tag: #ff0000;
-}
-
 body {
     background-color: var(--bg);
     color: var(--text);
@@ -109,8 +97,8 @@ input {
 }
 
 .filter-btn {
-    background: #242c33;
-    border: 1px solid #2c3440;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
     color: #9ab;
     padding: 6px 16px;
     border-radius: 20px;
@@ -131,10 +119,9 @@ input {
     font-weight: bold;
 }
 
-/* Grid layout for Recent Activity */
 /* Unified Card Styling for all sections (Recent, Active, Favorites) */
 .grid .media-card {
-    background: var(--card);
+    background: var(--glass-bg);
     border-radius: 12px;
     overflow: hidden;
     border: 1px solid transparent;
@@ -146,8 +133,8 @@ input {
 
 .grid .media-card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 10px 20px rgba(0, 224, 84, 0.1);
-    border-color: rgba(0, 224, 84, 0.3);
+    box-shadow: 0 10px 20px var(--accent-glow);
+    border-color: var(--accent);
 }
 
 .grid .media-card img {
@@ -183,18 +170,33 @@ input {
     position: relative;
 }
 
+/* Snaps the Profile Status Badges to the bottom-right of the poster */
 .active-badge {
     position: absolute;
-    bottom: 8px;
-    left: 8px;
-    background: var(--accent);
-    color: #000;
-    font-size: 0.65rem;
-    font-weight: 900;
-    padding: 3px 8px;
-    border-radius: 4px;
-    letter-spacing: 1px;
-    z-index: 2;
+    bottom: 6px;
+    right: 6px;
+    left: auto; 
+    width: max-content; 
+    white-space: nowrap; 
+    padding: 3px 6px; 
+    border-radius: 4px; 
+    font-size: 0.65rem; 
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    border: 1px solid currentColor;
+    z-index: 10;
+    pointer-events: none; 
+    transition: all 0.3s ease; 
+    backdrop-filter: blur(8px); /* Creates the smoked glass effect */
+    -webkit-backdrop-filter: blur(8px); /* Safari support */
+}
+
+/* Fill the badge with solid color and turns text black when the poster is hovered! */
+.media-card:hover .active-badge {
+    background: var(--badge-text) !important;
+    color: #000 !important;
 }
 
 /* Watchlist Stats Card Button */
@@ -204,7 +206,7 @@ input {
 }
 
 .stat-card[onclick]:hover {
-    background: rgba(0, 224, 84, 0.05);
+    background: var(--accent-glow);
     border-color: var(--accent) !important;
     transform: translateY(-3px);
 }
@@ -212,14 +214,13 @@ input {
 .profile-banner {
     width: 100%;
     height: 240px;
-    /* This creates a 40% black overlay */
     background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), #2c3440;
     border-radius: 12px;
     margin-bottom: -60px;
     background-size: cover;
     background-position: center;
-    border: 1px solid #2c3440;
-    transition: background 0.3s ease; /* Smooth transition when image loads */
+    border: 1px solid var(--glass-border);
+    transition: background 0.3s ease;
 }
 
 .avatar-placeholder {
@@ -273,23 +274,22 @@ input {
 }
 
 .profile-container { max-width: 900px; margin: 60px auto; padding: 0 20px; }
-.stats-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 50px; }
-.stat-card { background: var(--card); padding: 20px; border-radius: 12px; text-align: center; border: 1px solid #2c3440; }
+.stats-bar {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-bottom: 50px;
+}
+.stat-card { 
+    background: var(--glass-bg); 
+    padding: 20px; 
+    border-radius: 12px; 
+    text-align: center; 
+    border: 1px solid var(--glass-border); 
+    box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+}
 .stat-value { display: block; font-size: 2rem; font-weight: bold; color: var(--accent); }
 .stat-label { color: #9ab; font-size: 0.9rem; text-transform: uppercase; }
-
-.active-badge {
-    position: absolute;
-    bottom: 5px;
-    left: 5px;
-    background: var(--accent);
-    color: #000;
-    font-size: 0.6rem;
-    font-weight: 900;
-    padding: 2px 6px;
-    border-radius: 4px;
-    letter-spacing: 1px;
-}
 
 .section-header {
     display: flex;
@@ -322,15 +322,15 @@ input {
 }
 
 .social-modal-content {
-    background-color: #1b2228;
-    margin: 5% auto; /* Centers it vertically and horizontally */
+    background-color: var(--bg);
+    margin: 5% auto;
     padding: 25px;
-    border: 1px solid #2c3440;
+    border: 1px solid var(--glass-border);
     border-radius: 16px;
     width: 90%;
     max-width: 400px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-    position: relative; /* Context for the close button */
+    position: relative;
 }
 
 .modal-header {
@@ -340,6 +340,23 @@ input {
     border-bottom: 1px solid #2c3440;
     padding-bottom: 15px;
     margin-bottom: 15px;
+}
+
+/* Modal Close Button Tweak */
+.close-btn {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: none;
+    border: none;
+    color: #9ab;
+    font-size: 1.8rem;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.close-btn:hover {
+    color: #fff;
 }
 
 .social-list-container {
@@ -414,7 +431,7 @@ input {
 .profile-tabs {
     display: flex;
     gap: 30px;
-    border-bottom: 1px solid #2c3440;
+    border-bottom: 1px solid var(--glass-border);
     margin-bottom: 30px;
 }
 
@@ -460,11 +477,11 @@ input {
 
 /* Hover effect ONLY for active, clickable buttons */
 #library-pagination .secondary-btn:not([disabled]):hover {
-    background-color: rgba(0, 224, 84, 0.1); /* Subtle tint of your green accent */
-    color: var(--accent);                    /* Turn text green */
-    border-color: var(--accent);             /* Turn border green */
-    transform: translateY(-2px);             /* Slight lift effect */
-    box-shadow: 0 4px 10px rgba(0, 224, 84, 0.15); /* Soft green glow */
+    background-color: var(--accent-glow); 
+    color: var(--accent);                    
+    border-color: var(--accent);             
+    transform: translateY(-2px);             
+    box-shadow: 0 4px 10px var(--accent-glow); 
 }
 
 /* --- Profile Tags Section --- */
@@ -477,7 +494,7 @@ input {
 
 .profile-tag-pill {
     background: rgba(255, 255, 255, 0.05);
-    border: 1px solid #2c3440;
+    border: 1px solid var(--glass-border);
     color: #fff;
     padding: 8px 16px;
     border-radius: 20px;
@@ -501,7 +518,7 @@ input {
 
 .tag-count {
     background: var(--accent);
-    color: #14181c;
+    color: #fff;
     font-size: 0.75rem;
     font-weight: 900;
     padding: 2px 8px;
@@ -516,7 +533,7 @@ input {
 /* Styles for the rows inside the Tag Details Modal */
 .tag-log-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start; /* Aligns the text block to the top of the poster */
     gap: 15px;
     padding: 12px;
     cursor: pointer;
@@ -543,7 +560,8 @@ input {
 .tag-log-info {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px; /* Tighter gap to fit the new three-line layout */
+    margin-top: -2px; /* Optical adjustment to perfectly level the text with the top of the image */
 }
 
 .tag-log-title {
@@ -629,5 +647,10 @@ input {
     .profile-container h1 {
         font-size: 2.2rem;
         text-align: center;
+    }
+
+    /* Ensure the 5 stats cards stack nicely in rows of 2 on small screens */
+    .stats-bar {
+        grid-template-columns: repeat(2, 1fr) !important;
     }
 }

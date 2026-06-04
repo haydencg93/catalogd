@@ -43,7 +43,8 @@ async function initDiary() {
         }
 
         // 2. UI Adjustments for Networking
-        const pageTitle = document.querySelector('h1');        if (!isViewerOwner) {
+        const pageTitle = document.querySelector('h1');        
+        if (!isViewerOwner) {
             // Fetch owner name for the title
             const { data: profile } = await supabaseClient
                 .from('profiles')
@@ -60,6 +61,20 @@ async function initDiary() {
                 #diary-table td:nth-child(7) { display: none !important; }
             `;
             document.head.appendChild(style);
+            
+            // --- NEW: Inject the "Back to Profile" Context Button ---
+            const navActions = document.querySelector('.nav-actions');
+            if (navActions && !document.getElementById('context-profile-btn')) {
+                const contextBtn = document.createElement('button');
+                contextBtn.id = 'context-profile-btn';
+                contextBtn.className = 'secondary-btn';
+                contextBtn.style.marginRight = '10px';
+                contextBtn.textContent = profile ? `← ${profile.display_name}'s Profile` : '← Back to Profile';
+                contextBtn.onclick = () => window.location.href = `profile.html?id=${diaryOwnerId}`;
+                
+                // Prepend puts it at the very left of the nav-actions container
+                navActions.prepend(contextBtn);
+            }
         }
 
         // 3. Fetch logs for the SPECIFIC user
@@ -74,16 +89,7 @@ async function initDiary() {
         
         applyFilters();
         setupLoadMore(config);
-
-        // 4. Update the "Profile" back button to stay in context
-        const backToProfileBtn = document.querySelector('button[onclick*="profile.html"]');
-        if (backToProfileBtn) {
-            backToProfileBtn.removeAttribute('onclick'); // Removes the hardcoded HTML link
-            backToProfileBtn.onclick = () => {
-                window.location.href = `profile.html?id=${diaryOwnerId}`;
-            };
-        }
-
+        setupHeader();
     } catch (err) {
         console.error("Diary init error:", err);
     }
@@ -399,11 +405,58 @@ document.querySelector('.close-modal').onclick = () => {
 };
 
 window.onclick = (event) => {
+    // 1. Review Modal Logic
     const modal = document.getElementById('review-modal');
     if (event.target == modal) {
         modal.style.display = 'none';
     }
+
+    // 2. Profile Dropdown Logic
+    const dropdown = document.getElementById('dropdown-content');
+    const trigger = document.querySelector('.profile-trigger');
+    if (dropdown && trigger && event.target !== trigger && !trigger.contains(event.target) && !dropdown.contains(event.target)) {
+        dropdown.style.display = 'none';
+        trigger.classList.remove('active');
+    }
 };
+
+// --- NEW HEADER & AUTH LOGIC ---
+
+async function setupHeader() {
+    const loginBtn = document.getElementById('login-btn');
+    const profileMenu = document.getElementById('profile-menu');
+
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (user) {
+        loginBtn.style.display = 'none'; 
+        profileMenu.style.display = 'inline-block';
+        
+        const avatar = document.getElementById('nav-avatar');
+        if (avatar && user.user_metadata && user.user_metadata.avatar_url) {
+            avatar.src = user.user_metadata.avatar_url;
+        }
+    } else {
+        loginBtn.style.display = 'inline-block';
+        profileMenu.style.display = 'none';
+        loginBtn.textContent = "Sign In";
+        loginBtn.onclick = () => window.location.href = 'index.html'; 
+    }
+}
+
+function toggleProfileDropdown(event) {
+    if (event) event.stopPropagation();
+    const content = document.getElementById('dropdown-content');
+    const trigger = document.querySelector('.profile-trigger');
+    
+    const isVisible = content.style.display === 'block';
+    content.style.display = isVisible ? 'none' : 'block';
+    trigger.classList.toggle('active', !isVisible);
+}
+
+async function signOut() {
+    await supabaseClient.auth.signOut();
+    location.reload();
+}
 
 window.deleteDiaryEntry = async (logId) => {
     if (!confirm("Are you sure you want to delete this entry from your diary?")) return;

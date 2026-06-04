@@ -276,8 +276,9 @@ async function initProfile() {
         allLibraryItems = Array.from(libraryMap.values()).sort((a, b) => new Date(b.first_added) - new Date(a.first_added));
         filterLibrary('all'); // Initial render
 
-        // 7. Watchlist/Follower Counts
+        // 7. Watchlist/Follower/Lists Counts
         const { count: watchlistCount } = await supabaseClient.from('user_watchlist').select('*', { count: 'exact', head: true }).eq('user_id', profileUserId);
+        const { count: listsCount } = await supabaseClient.from('media_lists').select('*', { count: 'exact', head: true }).eq('user_id', profileUserId);
         const { count: followingCount } = await supabaseClient.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', profileUserId);
         const { count: followersCount } = await supabaseClient.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', profileUserId);
 
@@ -285,11 +286,76 @@ async function initProfile() {
         document.getElementById('followers-count').textContent = followersCount || 0;
         document.getElementById('watchlist-count').textContent = watchlistCount || 0;
         
+        const listsCountEl = document.getElementById('lists-count');
+        if (listsCountEl) listsCountEl.textContent = listsCount || 0;
+        
         setupSocialModalListeners();
-
+        setupHeader()
     } catch (err) {
         console.error("Critical Profile Init Error:", err);
     }
+}
+
+// --- HEADER & AUTH LOGIC ---
+async function setupHeader() {
+    const loginBtn = document.getElementById('login-btn');
+    const profileMenu = document.getElementById('profile-menu');
+
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (user) {
+        if (loginBtn) loginBtn.style.display = 'none'; 
+        if (profileMenu) profileMenu.style.display = 'inline-block';
+        
+        const avatar = document.getElementById('nav-avatar');
+        if (avatar && user.user_metadata && user.user_metadata.avatar_url) {
+            avatar.src = user.user_metadata.avatar_url;
+        }
+    } else {
+        if (loginBtn) {
+            loginBtn.style.display = 'inline-block';
+            loginBtn.textContent = "Sign In";
+            loginBtn.onclick = () => window.location.href = 'index.html'; 
+        }
+        if (profileMenu) profileMenu.style.display = 'none';
+    }
+}
+
+function toggleProfileDropdown(event) {
+    if (event) event.stopPropagation();
+    const content = document.getElementById('dropdown-content');
+    const trigger = document.querySelector('.profile-trigger');
+    if (!content || !trigger) return;
+    
+    const isVisible = content.style.display === 'block';
+    content.style.display = isVisible ? 'none' : 'block';
+    trigger.classList.toggle('active', !isVisible);
+}
+
+window.onclick = (event) => {
+    // Merge with any existing modal logic
+    const dropdown = document.getElementById('dropdown-content');
+    const trigger = document.querySelector('.profile-trigger');
+    if (dropdown && trigger && event.target !== trigger && !trigger.contains(event.target) && !dropdown.contains(event.target)) {
+        dropdown.style.display = 'none';
+        trigger.classList.remove('active');
+    }
+    
+    // Existing Settings Modal Logic
+    const settingsModal = document.getElementById('settings-modal');
+    if (settingsModal && event.target == settingsModal) {
+        settingsModal.style.display = 'none';
+    }
+    
+    // Existing Tag Details Modal Logic
+    const tagModal = document.getElementById('tag-details-modal');
+    if (tagModal && event.target == tagModal) {
+        tagModal.style.display = 'none';
+    }
+};
+
+async function signOut() {
+    await supabaseClient.auth.signOut();
+    location.reload();
 }
 
 async function setupSocialUI(currentUserId, targetUserId) {
@@ -419,7 +485,7 @@ async function renderStatusItems(items, gridId) {
             image = item.image_url || ''; // Fallback to what we have in the DB
         }
 
-        // --- OVERRIDE WITH CUSTOM POSTER (Moved outside the try/catch!) ---
+        // --- OVERRIDE WITH CUSTOM POSTER ---
         // We force String() here to prevent any integer vs string mismatch bugs
         const customArt = customImgsMap.get(`${item.media_type}_${String(item.media_id)}`);
         if (customArt && customArt.custom_poster) {
@@ -436,20 +502,34 @@ async function renderStatusItems(items, gridId) {
         const statusColor = item.status === 'paused' ? '#ffcc00' : (item.status === 'dropped' ? '#ff4d4d' : 'var(--accent)');
         const textColor = '#000';
 
+        // STATUS COLOR MAPPING
+        let badgeBg = 'rgba(0, 0, 0, 0.6)'; // Locked to translucent black
+        let badgeText = '#ffffff';
+        const s = (statusLabel || '').toLowerCase();
+        
+        if (s.includes('watching') || s.includes('reading') || s.includes('active')) {
+            badgeText = '#00e054';              // Neon Green Text
+        } else if (s.includes('pause') || s.includes('hold')) {
+            badgeText = '#facc15';                // Neon Yellow Text
+        } else if (s.includes('drop')) {
+            badgeText = '#f87171';                 // Neon Red Text
+        } else if (s.includes('complet')) {
+            badgeText = 'var(--text-accent)';      // Indigo Text
+        }
+
         return `
             <div class="media-card" data-type="${item.media_type}" onclick="window.location.href='details.html?id=${item.media_id}&type=${item.media_type}'">
                 <div class="poster-wrapper">
                     <img src="${item.image || 'https://placehold.co/500x750/1b2228/9ab?text=No+Image'}" 
                          alt="${item.title}"
                          onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
-                    <div class="active-badge" style="background: ${statusColor}; color: ${textColor};">${statusLabel}</div>
+                    
+                    <div class="active-badge" style="--badge-text: ${badgeText}; background: ${badgeBg}; color: ${badgeText};">${statusLabel}</div>
+                    
+                    <span class="badge badge-${item.media_type}">${item.media_type}</span>
                 </div>
                 <div class="media-info">
-                    <div class="title">${item.title}</div>
-                    <div class="meta">
-                        <span class="badge badge-${item.media_type}">${item.media_type}</span>
-                        <span style="color: ${statusColor === 'var(--accent)' ? 'var(--accent)' : statusColor};">${item.progressText}</span>
-                    </div>
+                    <div class="title" style="font-weight: bold; margin-bottom: 5px;">${item.title}</div>
                 </div>
             </div>
         `;
@@ -598,14 +678,17 @@ window.openTagDetails = async (tag) => {
             row.onclick = () => window.location.href = `details.html?id=${encodeURIComponent(log.media_id)}&type=${log.media_type}`;
             
             row.innerHTML = `
-                <img src="${log.image || 'https://placehold.co/50x75/1b2228/9ab?text=No+Img'}" class="tag-log-poster">
+                <img src="${log.image || 'https://placehold.co/50x75/1b2228/9ab?text=No+Img'}" class="tag-log-poster" style="width: 45px; height: 68px; border-radius: 4px; object-fit: cover; flex-shrink: 0;">
                 <div class="tag-log-info">
-                    <div class="tag-log-title">${log.title} <span class="badge badge-${log.media_type}">${log.media_type}</span></div>
+                    <div class="tag-log-title">${log.title}</div>
                     <div class="tag-log-meta">
-                        <span style="color: var(--accent); margin-right: 10px;">${stars}</span>
+                        <span class="text-glow" style="margin-right: 10px;">${stars}</span>
                         <span style="color: #9ab; margin-right: 10px;">${dateStr}</span>
                         ${likeIcon}
                         ${reviewIcon}
+                    </div>
+                    <div style="margin-top: 2px;">
+                        <span class="badge badge-${log.media_type}" style="position: static; font-size: 0.65rem; padding: 2px 6px; display: inline-block;">${log.media_type}</span>
                     </div>
                 </div>
             `;
@@ -698,12 +781,12 @@ async function renderRecent(logs) {
                     <img src="${log.image || 'https://placehold.co/500x750/1b2228/9ab?text=No+Image'}" 
                          alt="${log.title}"
                          onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
+                    <span class="badge badge-${log.media_type}">${log.media_type}</span>
                 </div>
                 <div class="media-info">
                     <div class="title" style="font-weight:bold; margin-bottom:5px;">${log.title}</div>
                     <div class="meta">
-                        <span class="badge badge-${log.media_type}">${log.media_type}</span>
-                        <span style="color: var(--accent); margin-left: 5px;">${stars}</span>
+                        <span class="text-glow" style="margin-left: 0;">${stars}</span>
                     </div>
                 </div>
             `;
@@ -767,10 +850,10 @@ window.filterFavs = (type) => {
                 alt="${item.title}" 
                 loading="lazy" 
                 onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
+                <span class="badge badge-${item.type}">${item.type}</span>
             </div>
             <div class="media-info">
                 <div class="title">${item.title}</div>
-                <div class="meta"><span class="badge badge-${item.type}">${item.type}</span></div>
             </div>`;
         grid.appendChild(card);
     });
@@ -945,7 +1028,7 @@ async function renderLibrary(items) {
             let starsHtml = '';
             if (item.rating > 0) {
                 const starString = '★'.repeat(Math.floor(item.rating)) + ((item.rating % 1 !== 0) ? '½' : '');
-                starsHtml = `<span style="color: var(--accent); margin-left: 8px;">${starString}</span>`;
+                starsHtml = `<span class="text-glow">${starString}</span>`;
             }
             
             const likeBadge = item.is_liked ? `<div class="card-icon-badge icon-heart">❤️</div>` : '';
@@ -958,11 +1041,11 @@ async function renderLibrary(items) {
                     <img src="${item.image || 'https://placehold.co/500x750/1b2228/9ab?text=No+Image'}" 
                          alt="${item.title}"
                          onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
+                    <span class="badge badge-${item.media_type}">${item.media_type}</span>
                 </div>
                 <div class="media-info">
                     <div class="title" style="font-weight:bold; margin-bottom:5px;">${item.title}</div>
                     <div class="meta">
-                        <span class="badge badge-${item.media_type}">${item.media_type}</span>
                         ${starsHtml}
                     </div>
                 </div>

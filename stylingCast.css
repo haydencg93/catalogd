@@ -17,7 +17,7 @@
     width: 280px;
     border-radius: 12px;
     box-shadow: 0 15px 35px rgba(0,0,0,0.5);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--glass-border);
 }
 
 #person-bio-area {
@@ -85,8 +85,8 @@
 .known-for-grid .media-card:hover {
     opacity: 1 !important;
     transform: scale(1.05) translateY(-5px) !important;
-    box-shadow: 0 10px 25px rgba(0, 224, 84, 0.2);
-    border-color: #00e054; /* Your accent color */
+    box-shadow: 0 10px 25px rgba(13, 7, 118, 0.4); 
+    border-color: #0d0776; /* Midnight Indigo */
 }
 
 /* --- Filmography List Section --- */
@@ -106,21 +106,15 @@
     display: flex;
     gap: 20px;
     padding: 10px 15px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: background 0.2s, transform 0.2s;
     align-items: center;
 }
 
 .film-row:hover {
-    background: rgba(255, 255, 255, 0.05);
-}
-
-.film-year {
-    color: #678;
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 1.1rem;
-    min-width: 60px;
+    background: var(--accent-glow); /* Changed from white opacity to Indigo Glow */
+    transform: translateX(5px); /* Adds a smooth little nudge */
 }
 
 .mini-poster {
@@ -128,7 +122,7 @@
     height: 60px;
     object-fit: cover;
     border-radius: 4px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--glass-border); /* Updated to Glass */
     flex-shrink: 0;
 }
 

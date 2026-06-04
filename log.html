@@ -10,9 +10,19 @@
 </head>
 <body>
     <header>
-        <div class="logo" onclick="window.location.href='index.html'">
-            <img src="catalogdLogo.png" alt="Catalogd" width="300" height="82">
+        <div class="css-logo" onclick="window.location.href='index.html'">
+            <div class="logo-text">catalog<span>d</span></div>
+            <div class="logo-circles">
+                <div class="circle c-movie"></div>
+                <div class="circle c-tv"></div>
+                <div class="circle c-book"></div>
+                <div class="circle c-album"></div>
+                <div class="circle c-youtube"></div>
+            </div>
         </div>
+        <nav class="nav-actions">
+            <button id="back-to-details-btn" class="secondary-btn">← Cancel & Go Back</button>
+        </nav>
     </header>
 
     <main class="log-container">
@@ -38,12 +48,12 @@
 
             <div id="youtube-input-group" class="input-group" style="display:none;">
                 <label>Video Duration (Minutes)</label>
-                <input type="number" id="youtube-duration" placeholder="e.g., 15" style="width: 100%; background: #14181c; color: white; border: 1px solid #2c3440; padding: 12px; border-radius: 8px; box-sizing: border-box;">
+                <input type="number" id="youtube-duration" placeholder="e.g., 15" style="width: 100%; background: rgba(0,0,0,0.4); color: white; border: 1px solid var(--glass-border); padding: 12px; border-radius: 8px; box-sizing: border-box;">
             </div>
 
             <div id="track-input-group" class="input-group" style="display:none;">
                 <label>Select Track</label>
-                <select id="track-select" style="width: 100%; background: #14181c; color: white; border: 1px solid #2c3440; padding: 12px; border-radius: 8px; box-sizing: border-box;"></select>
+                <select id="track-select" style="width: 100%; background: rgba(0,0,0,0.4); color: white; border: 1px solid var(--glass-border); padding: 12px; border-radius: 8px; box-sizing: border-box;"></select>
             </div>
 
             <div id="dropdown-group" class="tracker-controls" style="display:none;">

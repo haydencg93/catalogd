@@ -5,6 +5,7 @@
     <title>Catalogd | Details</title>
     <link rel="stylesheet" href="stylingIndex.css">
     <link rel="stylesheet" href="stylingDetails.css">
+    <script src="scriptingDetails.js"></script>
     <link rel="icon" type="image/x-icon" href="catalogdFavicon.png" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="animeFillerListApi/utils.js"></script>
@@ -12,8 +13,15 @@
 <body>
     <div id="backdrop-overlay"></div>
     <header>
-        <div class="logo" onclick="window.location.href='index.html'">
-            <img src="catalogdLogo.png" alt="Catalogd" width="300" height="82">
+        <div class="css-logo" onclick="window.location.href='index.html'">
+            <div class="logo-text">catalog<span>d</span></div>
+            <div class="logo-circles">
+                <div class="circle c-movie"></div>
+                <div class="circle c-tv"></div>
+                <div class="circle c-book"></div>
+                <div class="circle c-album"></div>
+                <div class="circle c-youtube"></div>
+            </div>
         </div>
         
         <section class="search-section" style="flex-grow: 1; margin: 0 40px;">
@@ -33,8 +41,22 @@
         </section>
 
         <div class="nav-actions">
-            <button id="profile-btn" class="secondary-btn" style="display:none;" onclick="window.location.href='profile.html'">My Profile</button>
             <button id="login-btn" class="secondary-btn">Sign In</button>
+            <div id="profile-menu" class="profile-dropdown" style="display:none;">
+                <button class="profile-trigger" onclick="toggleProfileDropdown(event)">
+                    <img src="https://ui-avatars.com/api/?name=User&background=0d0776&color=fff" id="nav-avatar" alt="Profile">
+                    <span class="dropdown-arrow"></span>
+                </button>
+                <div id="dropdown-content" class="dropdown-content">
+                    <a href="diary.html">Diary</a>
+                    <a href="lists.html">Lists</a>
+                    <a href="watchlist.html">Watchlist</a>
+                    <a href="profile.html">Profile</a>
+                    <a href="settings.html">Settings</a>
+                    <hr>
+                    <a href="#" onclick="signOut()">Sign Out</a>
+                </div>
+            </div>
         </div>
     </header>
 
@@ -198,7 +220,5 @@
             <button id="save-art-btn" class="primary-btn" style="margin-top: 10px;">Save Art</button>
         </div>
     </div>
-
-    <script src="scriptingDetails.js"></script>
 </body>
 </html>
