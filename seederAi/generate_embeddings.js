@@ -20,7 +20,13 @@ async function runUnifiedPipeline() {
     console.log("[I] Initializing Unified Vector Search Pipeline...");
     
     const TransformersApi = Function('return import("@xenova/transformers")')();
-    const { pipeline: transformersPipeline } = await TransformersApi;
+    
+    // 1. Extract 'env' alongside 'pipeline'
+    const { pipeline: transformersPipeline, env } = await TransformersApi;
+    
+    // 2. Bypass the GitHub Actions 429 IP ban by using a reliable mirror!
+    env.remoteHost = 'https://hf-mirror.com';
+
     const generateEmbedding = await transformersPipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
     console.log("[S] Local ML Model loaded.");
 
@@ -28,7 +34,7 @@ async function runUnifiedPipeline() {
     let totalProcessed = 0;
 
     while (keepRunning) {
-        // NEW: Fetching all the rich metadata so we can store it in Qdrant!
+        // Fetching all the rich metadata so we can store it in Qdrant!
         const { data: movies, error: fetchError } = await supabase
             .from('global_movies')
             .select('tmdb_id, title, tags, overview, media_type, popularity, release_year')
