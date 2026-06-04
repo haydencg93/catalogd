@@ -451,16 +451,51 @@ async function renderStatusItems(items, gridId) {
     const displayPromises = items.map(async (item) => {
         let title, image, progressText = "";
         try {
+            // --- PROGRESS FETCHING LOGIC ---
+            if (item.media_type === 'tv') {
+                // TV progress is stored in 'episode_logs'
+                const { data: tvLog } = await supabaseClient
+                    .from('episode_logs')
+                    .select('season_number, episode_number')
+                    .eq('user_id', profileUserId)
+                    .eq('series_id', String(item.media_id))
+                    .order('season_number', { ascending: false })
+                    .order('episode_number', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+                
+                if (tvLog) {
+                    progressText = `S${tvLog.season_number} E${tvLog.episode_number}`;
+                }
+            } else if (item.media_type === 'book' || item.media_type === 'album') {
+                // Books and Albums are stored in 'media_logs'
+                const { data: mediaLog } = await supabaseClient
+                    .from('media_logs')
+                    .select('current_page, episode_number')
+                    .eq('user_id', profileUserId)
+                    .eq('media_id', item.media_id)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+
+                if (mediaLog) {
+                    if (item.media_type === 'book' && mediaLog.current_page) {
+                        progressText = `Pg ${mediaLog.current_page}`;
+                    } else if (item.media_type === 'album' && mediaLog.episode_number) {
+                        progressText = `Track ${mediaLog.episode_number}`;
+                    }
+                }
+            }
+
+            // --- MEDIA INFO FETCHING ---
             if (item.media_type === 'book') {
                 const res = await fetch(`https://openlibrary.org${item.media_id}.json`).then(r => r.json()).catch(() => ({}));
                 title = res.title || 'Unknown Book';
                 image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : '';
-                progressText = item.current_page ? `Pg ${item.current_page}` : item.status.charAt(0).toUpperCase() + item.status.slice(1);
             } else if (item.media_type === 'youtube') {
                 const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${item.media_id}`).then(r => r.json());
                 title = res.title || 'YouTube Video';
                 image = res.thumbnail_url || '';
-                progressText = item.status.charAt(0).toUpperCase() + item.status.slice(1);
             } else if (item.media_type === 'album') {
                 const decodedId = decodeURIComponent(item.media_id);
                 const [artist, albumName] = decodedId.split('|||');
@@ -471,7 +506,6 @@ async function renderStatusItems(items, gridId) {
                 } catch (e) {
                     image = `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`; 
                 }
-                progressText = artist;
             } else {
                 const res = await fetch(`https://api.themoviedb.org/3/${item.media_type}/${item.media_id}?language=en-US`, {
                     headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` } 
@@ -482,11 +516,9 @@ async function renderStatusItems(items, gridId) {
             }
         } catch (e) {
             title = "Unknown Item";
-            image = item.image_url || ''; // Fallback to what we have in the DB
+            image = item.image_url || ''; 
         }
 
-        // --- OVERRIDE WITH CUSTOM POSTER ---
-        // We force String() here to prevent any integer vs string mismatch bugs
         const customArt = customImgsMap.get(`${item.media_type}_${String(item.media_id)}`);
         if (customArt && customArt.custom_poster) {
             image = customArt.custom_poster;
@@ -499,22 +531,20 @@ async function renderStatusItems(items, gridId) {
     
     grid.innerHTML = fullItems.map(item => {
         const statusLabel = item.status.toUpperCase();
-        const statusColor = item.status === 'paused' ? '#ffcc00' : (item.status === 'dropped' ? '#ff4d4d' : 'var(--accent)');
-        const textColor = '#000';
-
+        
         // STATUS COLOR MAPPING
-        let badgeBg = 'rgba(0, 0, 0, 0.6)'; // Locked to translucent black
+        let badgeBg = 'rgba(0, 0, 0, 0.7)'; 
         let badgeText = '#ffffff';
         const s = (statusLabel || '').toLowerCase();
         
         if (s.includes('watching') || s.includes('reading') || s.includes('active')) {
-            badgeText = '#00e054';              // Neon Green Text
+            badgeText = '#00e054'; 
         } else if (s.includes('pause') || s.includes('hold')) {
-            badgeText = '#facc15';                // Neon Yellow Text
+            badgeText = '#facc15'; 
         } else if (s.includes('drop')) {
-            badgeText = '#f87171';                 // Neon Red Text
+            badgeText = '#f87171'; 
         } else if (s.includes('complet')) {
-            badgeText = 'var(--text-accent)';      // Indigo Text
+            badgeText = 'var(--text-accent)'; 
         }
 
         return `
@@ -524,12 +554,15 @@ async function renderStatusItems(items, gridId) {
                          alt="${item.title}"
                          onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
                     
-                    <div class="active-badge" style="--badge-text: ${badgeText}; background: ${badgeBg}; color: ${badgeText};">${statusLabel}</div>
+                    <div class="active-badge" style="--badge-text: ${badgeText}; background: ${badgeBg}; color: ${badgeText};">
+                        ${statusLabel}
+                    </div>
                     
                     <span class="badge badge-${item.media_type}">${item.media_type}</span>
                 </div>
                 <div class="media-info">
                     <div class="title" style="font-weight: bold; margin-bottom: 5px;">${item.title}</div>
+                    ${item.progressText ? `<div class="meta" style="font-size: 0.8rem; color: #9ab; margin-top: -2px;">${item.progressText}</div>` : ''}
                 </div>
             </div>
         `;
