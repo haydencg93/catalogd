@@ -590,6 +590,8 @@ input {
 .profile-dropdown { position: relative; display: inline-block; }
 
 .profile-trigger {
+    position: relative;
+    overflow: hidden;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 30px;
@@ -598,7 +600,30 @@ input {
     align-items: center;
     gap: 10px;
     cursor: pointer;
-    transition: background 0.3s ease;
+    transition: all 0.3s ease;
+    z-index: 1;
+}
+
+/* The hidden liquid glow */
+.profile-trigger::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% -20%, rgba(79, 70, 229, 0.3), transparent 70%);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    z-index: -1;
+}
+
+/* Activate glow on hover OR when the menu is actively open */
+.profile-trigger:hover, .profile-trigger.active {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.profile-trigger:hover::before, .profile-trigger.active::before {
+    opacity: 1;
 }
 
 #nav-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
@@ -618,17 +643,41 @@ input {
 }
 
 .dropdown-content a {
+    position: relative;
+    overflow: hidden;
     color: white;
     padding: 12px 16px;
     display: block;
     text-decoration: none;
     font-size: 0.9rem;
+    transition: all 0.3s ease;
+    z-index: 1;
 }
 
-.dropdown-content a:hover { background: rgba(79, 70, 229, 0.2); }
+/* The hidden liquid glow */
+.dropdown-content a::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 50%, rgba(79, 70, 229, 0.3), transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: -1;
+}
+
+/* The Hover Reaction */
+.dropdown-content a:hover { 
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-accent);
+    text-shadow: 0 0 10px rgba(129, 140, 248, 0.4);
+    padding-left: 20px; /* Slight indent slide effect */
+}
+
+.dropdown-content a:hover::before {
+    opacity: 1;
+}
 
 /* --- GLOBAL TEXT READABILITY FIXES --- */
-
 /* Fixes the "d" in your catalogd logo */
 .logo span, .logo-text span { 
     color: var(--text-accent); 

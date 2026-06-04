@@ -166,7 +166,18 @@ async function initDetails() {
 
         // --- YOUTUBE POSTER, PROVIDERS, & CAST RENDERING ---
         if (type === 'youtube') {
-            document.getElementById('poster-area').innerHTML = `<img src="${data.poster_path}" alt="poster" data-type="youtube">`;
+            // Replace static poster with a responsive 16:9 playable iframe
+            document.getElementById('poster-area').innerHTML = `
+                <div style="position: relative; width: 100%; padding-bottom: 56.25%; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.6);">
+                    <iframe 
+                        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" 
+                        src="https://www.youtube.com/embed/${id}" 
+                        title="${data.title}" 
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                        allowfullscreen>
+                    </iframe>
+                </div>
+            `;
             
             // 2. Set YouTube as the Watch Provider
             const providerSection = document.getElementById('watch-providers');
@@ -653,7 +664,7 @@ function displayBookLinks(title, authorName) {
     const list = document.getElementById('providers-list');
     providerSection.querySelector('h4').textContent = "Get this Book";
 
-    // If authorName is missing, just search by title
+    // If authorName is missing, just search by title for shopping links
     const searchTerms = authorName ? `${title} ${authorName}` : title;
     const query = encodeURIComponent(searchTerms);
 
@@ -665,34 +676,47 @@ function displayBookLinks(title, authorName) {
         chirp: "https://www.chirpbooks.com/favicon.ico"
     };
 
+    // Build Dynamic Trailer Query for Books
+    let yearPart = globalData.meta.split(' • ')[0].trim();
+    if (yearPart === 'Unknown Year' || !/^\d{4}$/.test(yearPart)) yearPart = '';
+    const trailerQuery = encodeURIComponent(`${title} ${yearPart ? yearPart + ' ' : ''}book trailer`);
+
     list.innerHTML = `
         <div class="provider-group">
             <span class="provider-type-label">Check nearby libraries</span>
-            <div class="book-link-list">
-                <a href="https://search.worldcat.org/search?q=${query}" target="_blank" class="book-external-link">
-                    <img src="${logos.worldcat}"> <span>WorldCat</span>
+            <div class="provider-icons">
+                <a href="https://search.worldcat.org/search?q=${query}" target="_blank" style="text-decoration: none; display: inline-block;">
+                    <img src="${logos.worldcat}" class="provider-logo" title="WorldCat" style="background: white; object-fit: contain;">
                 </a>
             </div>
         </div>
         <div class="provider-group">
             <span class="provider-type-label">Buy Used or New</span>
-            <div class="book-link-list">
-                <a href="https://www.thriftbooks.com/browse/?b.search=${query}" target="_blank" class="book-external-link">
-                    <img src="${logos.thriftbooks}"> <span>ThriftBooks</span>
+            <div class="provider-icons">
+                <a href="https://www.thriftbooks.com/browse/?b.search=${query}" target="_blank" style="text-decoration: none; display: inline-block;">
+                    <img src="${logos.thriftbooks}" class="provider-logo" title="ThriftBooks" style="background: white; object-fit: contain;">
                 </a>
-                <a href="https://www.betterworldbooks.com/search/results?q=${query}" target="_blank" class="book-external-link">
-                    <img src="${logos.bwb}"> <span>Better World Books</span>
+                <a href="https://www.betterworldbooks.com/search/results?q=${query}" target="_blank" style="text-decoration: none; display: inline-block;">
+                    <img src="${logos.bwb}" class="provider-logo" title="Better World Books" style="background: white; object-fit: contain;">
                 </a>
-                <a href="https://www.amazon.com/s?k=${query}" target="_blank" class="book-external-link">
-                    <img src="${logos.amazon}"> <span>Amazon</span>
+                <a href="https://www.amazon.com/s?k=${query}" target="_blank" style="text-decoration: none; display: inline-block;">
+                    <img src="${logos.amazon}" class="provider-logo" title="Amazon" style="background: white; object-fit: contain;">
                 </a>
             </div>
         </div>
         <div class="provider-group">
             <span class="provider-type-label">Audiobooks</span>
-            <div class="book-link-list">
-                <a href="https://www.chirpbooks.com/search?q=${query}" target="_blank" class="book-external-link">
-                    <img src="${logos.chirp}"> <span>Chirp</span>
+            <div class="provider-icons">
+                <a href="https://www.chirpbooks.com/search?q=${query}" target="_blank" style="text-decoration: none; display: inline-block;">
+                    <img src="${logos.chirp}" class="provider-logo" title="Chirp" style="background: white; object-fit: contain;">
+                </a>
+            </div>
+        </div>
+        <div class="provider-group">
+            <span class="provider-type-label">Trailer</span>
+            <div class="provider-icons">
+                <a href="https://www.youtube.com/results?search_query=${trailerQuery}" target="_blank" style="text-decoration: none; display: inline-block;">
+                    <img src="https://www.youtube.com/s/desktop/40cd5ddc/img/favicon_144x144.png" class="provider-logo" title="YouTube Trailer" style="background: transparent; border: none; object-fit: contain;">
                 </a>
             </div>
         </div>
@@ -1012,40 +1036,56 @@ async function fetchWatchProviders(config) {
     const buy = results.buy || [];
     const container = document.getElementById('providers-list');
     
-    if (!stream.length && !buy.length) {
-        container.innerHTML = "<p class='meta'>Not available to stream or buy.</p>";
-        return;
-    }
-
     let html = '';
 
-    // Streaming Group
-    if (stream.length) {
-        html += `
-            <div class="provider-group">
-                <span class="provider-type-label">Stream</span>
-                <div class="provider-icons">
-                    ${stream.map(p => `
-                        <img src="https://image.tmdb.org/t/p/original${p.logo_path}" 
-                             title="${p.provider_name}" class="provider-logo">
-                    `).join('')}
-                </div>
-            </div>`;
+    if (!stream.length && !buy.length) {
+        html += "<p class='meta' style='margin-bottom: 15px; font-size: 0.9rem;'>Not available to stream or buy.</p>";
+    } else {
+        // Streaming Group
+        if (stream.length) {
+            html += `
+                <div class="provider-group">
+                    <span class="provider-type-label">Stream</span>
+                    <div class="provider-icons">
+                        ${stream.map(p => `
+                            <img src="https://image.tmdb.org/t/p/original${p.logo_path}" 
+                                 title="${p.provider_name}" class="provider-logo">
+                        `).join('')}
+                    </div>
+                </div>`;
+        }
+
+        // Buy/Rent Group
+        if (buy.length) {
+            html += `
+                <div class="provider-group">
+                    <span class="provider-type-label">Buy / Rent</span>
+                    <div class="provider-icons">
+                        ${buy.map(p => `
+                            <img src="https://image.tmdb.org/t/p/original${p.logo_path}" 
+                                 title="${p.provider_name}" class="provider-logo">
+                        `).join('')}
+                    </div>
+                </div>`;
+        }
     }
 
-    // Buy/Rent Group
-    if (buy.length) {
-        html += `
-            <div class="provider-group">
-                <span class="provider-type-label">Buy / Rent</span>
-                <div class="provider-icons">
-                    ${buy.map(p => `
-                        <img src="https://image.tmdb.org/t/p/original${p.logo_path}" 
-                             title="${p.provider_name}" class="provider-logo">
-                    `).join('')}
-                </div>
-            </div>`;
-    }
+    // Build Dynamic Trailer Link
+    let yearPart = globalData.meta.split(' • ')[0].trim();
+    if (yearPart === 'Unknown Year' || !/^\d{4}$/.test(yearPart)) yearPart = '';
+    
+    const typeStr = type === 'tv' ? 'tv show' : 'movie';
+    const query = encodeURIComponent(`${globalData.title} ${yearPart ? yearPart + ' ' : ''}${typeStr} trailer`);
+    
+    html += `
+        <div class="provider-group">
+            <span class="provider-type-label">Trailer</span>
+            <div class="provider-icons">
+                <a href="https://www.youtube.com/results?search_query=${query}" target="_blank">
+                    <img src="https://www.youtube.com/s/desktop/40cd5ddc/img/favicon_144x144.png" class="provider-logo" title="Watch Trailer on YouTube" style="background: transparent; border: none; object-fit: contain;">
+                </a>
+            </div>
+        </div>`;
 
     container.innerHTML = html;
 }
