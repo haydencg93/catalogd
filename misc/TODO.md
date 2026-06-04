@@ -11,6 +11,7 @@ Get Done Today = ~
 - user profile links
 - adding to list in list not showing custom poster
 - Maybe change ml model where I am doing the physical math and not the apis
+- YouTube vids on details page not showing playable youtube vid and only showing cover img
 - Fandom for books
 - Add in game funtionality (IGDB)
 
