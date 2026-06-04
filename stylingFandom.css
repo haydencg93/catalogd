@@ -28,20 +28,22 @@
 /* Force Wikipedia tables to be responsive and fit your dark theme */
 .wiki-content table {
     width: 100% !important;
-    background: #14181c !important;
+    background: var(--glass-bg) !important;
     border-collapse: collapse;
     margin-bottom: 20px;
+    border-radius: 8px;
+    overflow: hidden;
 }
 
 .wiki-content th, .wiki-content td {
-    border: 1px solid #2c3440 !important;
+    border: 1px solid var(--glass-border) !important;
     padding: 10px;
     text-align: left;
 }
 
 .wiki-content th {
-    background: #1b2228 !important;
-    color: #9ab;
+    background: rgba(0, 0, 0, 0.4) !important;
+    color: var(--text-accent);
 }
 
 /* Hide annoying Wikipedia edit links and citations */
@@ -59,20 +61,19 @@
 }
 
 .fandom-character-card {
-    background: #1b2228;
-    border: 1px solid #2c3440;
+    display: flex;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
     border-radius: 12px;
     overflow: hidden;
     cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-    display: flex;
-    flex-direction: column;
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .fandom-character-card:hover {
     transform: translateY(-5px);
     border-color: var(--accent);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 10px 20px var(--accent-glow);
 }
 
 .fandom-char-img-wrapper {
@@ -120,10 +121,10 @@
 }
 
 #fandom-plot-content .thumbinner {
-    background: #14181c;
-    border: 1px solid #2c3440;
-    border-radius: 8px;
-    padding: 10px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--glass-border);
+    padding: 5px;
+    border-radius: 6px;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;

@@ -244,12 +244,10 @@ async function renderWatchlist(items, token, typeLabel) {
                          alt="${item.title}" 
                          loading="lazy"
                          onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
+                    <span class="badge badge-${item.media_type}">${item.media_type}</span>
                 </div>
                 <div class="media-info">
                     <div class="title" style="font-weight:bold;">${item.title}</div>
-                    <div class="meta">
-                        <span class="badge badge-${item.media_type}">${item.media_type}</span>
-                    </div>
                 </div>
             `;
             grid.appendChild(card);

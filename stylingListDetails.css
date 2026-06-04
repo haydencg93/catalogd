@@ -1,15 +1,43 @@
-.list-header-info { margin-bottom: 40px; border-bottom: 1px solid #2c3440; padding-bottom: 20px; }
-.search-container { background: var(--card); padding: 20px; border-radius: 12px; margin-bottom: 30px; }
-.search-results-dropdown { 
-    background: #14181c; border: 1px solid #2c3440; border-radius: 8px; 
-    max-height: 300px; overflow-y: auto; margin-top: 10px; display: none;
+.list-header-info {
+    margin-bottom: 40px;
+    border-bottom: 1px solid var(--glass-border);
+    padding-bottom: 20px;
 }
+
+.search-container { 
+    background: var(--glass-bg); 
+    padding: 20px; 
+    border-radius: 12px; 
+    margin-bottom: 30px; 
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.search-results-dropdown { 
+    background: var(--bg); 
+    border: 1px solid var(--glass-border); 
+    border-radius: 8px; 
+    max-height: 300px; 
+    overflow-y: auto; 
+    margin-top: 10px; 
+    display: none;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+}
+
 .search-result-item { 
     display: flex; align-items: center; gap: 15px; padding: 10px; 
-    cursor: pointer; border-bottom: 1px solid #2c3440; 
+    cursor: pointer; border-bottom: 1px solid var(--glass-border); 
 }
-.search-result-item:hover { background: rgba(0, 224, 84, 0.1); }
-.search-result-item img { width: 40px; border-radius: 4px; }
+
+.search-result-item:hover { 
+    background: var(--accent-glow); 
+}
+
+.search-result-item img {
+    width: 40px;
+    border-radius: 4px;
+    border: 1px solid var(--glass-border);
+}
 
 .list-items-grid { 
     display: grid;
@@ -33,24 +61,18 @@
 
 .rank-badge {
     position: absolute;
-    /* Move it slightly inward so it doesn't get cut off by the container */
     top: 5px;
     left: 5px;
-    
-    background: #00e054; /* Your accent color */
-    color: #000; /* Dark text for high contrast */
-    
+    background: var(--text-accent); /* Updated from neon green */
+    color: #000;
     font-weight: 800;
     font-size: 0.85rem;
     padding: 4px 8px;
     border-radius: 4px;
-    
-    /* Add a subtle shadow and border for depth */
     box-shadow: 0 2px 8px rgba(0,0,0,0.5);
     border: 1px solid rgba(0,0,0,0.1);
-    
     z-index: 15;
-    pointer-events: none; /* Allows clicks to pass through to the poster */
+    pointer-events: none;
 }
 
 .reorder-controls {

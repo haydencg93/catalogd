@@ -215,18 +215,6 @@ async function initListDetails() {
         }
     }
 
-    const navActions = document.querySelector('.nav-actions');
-    if (navActions && !document.getElementById('context-profile-btn') && !isViewerOwner) {
-        const contextBtn = document.createElement('button');
-        contextBtn.id = 'context-profile-btn';
-        contextBtn.className = 'secondary-btn';
-        contextBtn.style.marginRight = '10px';
-        contextBtn.textContent = profile ? `← ${profile.display_name}'s Profile` : '← Back to Profile';
-        contextBtn.onclick = () => window.location.href = `profile.html?id=${listOwnerId}`;
-        
-        navActions.prepend(contextBtn);
-    }
-
     const contextId = params.get('context'); 
     const backToListsBtn = document.getElementById('back-to-lists-btn');
 
@@ -359,12 +347,10 @@ async function renderList() {
             ${removeBtn}
             <div class="poster-wrapper">
                 <img src="${details.poster}" alt="${details.title}" onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
+                <span class="badge badge-${item.media_type}">${item.media_type}</span>
             </div>
             <div class="media-info">
                 <div class="title" style="font-weight:bold; font-size: 0.9rem; margin-bottom: 5px;">${details.title}</div>
-                <div class="meta">
-                    <span class="badge badge-${item.media_type}">${item.media_type}</span>
-                </div>
             </div>
         `;
         

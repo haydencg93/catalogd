@@ -4,8 +4,9 @@
     --glass-border: rgba(255, 255, 255, 0.05);
     
     /* Cinematic Mystic Palette */
-    --accent: #0d0776;       /* Midnight Indigo */
-    --accent-glow: rgba(38, 34, 117, 0.4);
+    --accent: #3f35eb;           /* Electric Indigo (Brighter for buttons/borders) */
+    --text-accent: #818cf8;      /* Soft Ice-Indigo (Perfect for text/links) */
+    --accent-glow: rgba(65, 56, 231, 0.4);
     --text: #ffffff;
     
     /* Tag Colors (Muted for Cinematic feel) */
@@ -187,8 +188,9 @@ header, main {
 
 .css-logo {
     display: flex;
-    align-items: center;
-    gap: 12px;
+    flex-direction: column; /* Stacks the text on top of the circles */
+    align-items: center; /* Centers everything */
+    gap: 4px; /* Tighter gap between text and circles */
     cursor: pointer;
     transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
@@ -200,13 +202,14 @@ header, main {
 .logo-circles {
     display: flex;
     align-items: center;
+    justify-content: center;
 }
 
 .circle {
-    width: 24px; /* Slightly smaller for a tighter, more modern look */
-    height: 24px;
+    width: 18px; /* Slightly smaller to accommodate 5 items */
+    height: 18px;
     border-radius: 50%;
-    margin-left: -8px; /* Slightly tighter overlap */
+    margin-left: -8px; /* Overlap them tightly */
     border: 2px solid var(--bg);
     transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     box-shadow: 0 4px 6px rgba(0,0,0,0.3);
@@ -216,15 +219,17 @@ header, main {
     margin-left: 0;
 }
 
-/* Ensure the colors are consistent with your requirements */
-.c-movie { background: var(--movie-tag); z-index: 3; }
-.c-tv { background: var(--tv-tag); z-index: 2; }
-.c-book { background: var(--book-tag); z-index: 1; }
+/* Ensure z-index layers them correctly from left to right */
+.c-movie { background: var(--movie-tag); z-index: 5; }
+.c-tv { background: var(--tv-tag); z-index: 4; }
+.c-book { background: var(--book-tag); z-index: 3; }
+.c-album { background: var(--album-tag); z-index: 2; }
+.c-youtube { background: var(--youtube-tag); z-index: 1; }
 
-/* Refined hover effect for the empty circles */
+/* The Expansion Hover Effect */
 .css-logo:hover .circle {
-    margin-left: 2px;
-    transform: translateY(-2px) rotate(-5deg);
+    margin-left: 4px; /* Spreads them outward horizontally */
+    transform: translateY(-2px); /* Slight lift */
     box-shadow: 0 6px 12px rgba(0,0,0,0.4);
 }
 
@@ -233,6 +238,7 @@ header, main {
     font-weight: 800;
     letter-spacing: -1px;
     color: #fff;
+    line-height: 1; /* Keeps the container tight so the circles hug the text */
 }
 
 .logo-text span {
@@ -620,6 +626,32 @@ input {
 }
 
 .dropdown-content a:hover { background: rgba(79, 70, 229, 0.2); }
+
+/* --- GLOBAL TEXT READABILITY FIXES --- */
+
+/* Fixes the "d" in your catalogd logo */
+.logo span, .logo-text span { 
+    color: var(--text-accent); 
+    text-shadow: 0 0 10px rgba(129, 140, 248, 0.4);
+}
+
+/* Forces all links to use the brighter, readable accent */
+a {
+    color: var(--text-accent);
+    transition: text-shadow 0.2s ease, color 0.2s ease;
+}
+
+a:hover {
+    color: #a5b4fc; /* Gets even brighter when hovered */
+    text-shadow: 0 0 12px rgba(165, 180, 252, 0.6);
+}
+
+/* A universal utility class to make specific ratings/numbers glow */
+.text-glow {
+    color: var(--text-accent) !important;
+    text-shadow: 0 0 10px rgba(129, 140, 248, 0.5) !important;
+    font-weight: bold;
+}
 
 /* --- GLOBAL MOBILE RESPONSIVENESS (< 768px) --- */
 @media (max-width: 768px) {

@@ -17,17 +17,17 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 30px;
-    background: var(--card);
+    background: var(--glass-bg);
     padding: 30px;
     border-radius: 16px;
-    border: 1px solid #2c3440;
+    border: 1px solid var(--glass-border);
     box-shadow: 0 20px 40px rgba(0,0,0,0.4);
 }
 
 .builder-panel h3 {
     margin-top: 0;
     color: #fff;
-    border-bottom: 1px solid #2c3440;
+    border-bottom: 1px solid var(--glass-border);
     padding-bottom: 10px;
 }
 
@@ -38,9 +38,9 @@
 }
 
 .recs-select {
-    background: #14181c;
+    background: rgba(0, 0, 0, 0.4);
     color: #fff;
-    border: 1px solid #2c3440;
+    border: 1px solid var(--glass-border);
     border-radius: 8px;
     padding: 10px;
     outline: none;
@@ -50,8 +50,8 @@
     margin: 0;
     padding: 10px 15px;
     border-radius: 8px;
-    border: 1px solid #2c3440;
-    background: #14181c;
+    border: 1px solid var(--glass-border);
+    background: rgba(0, 0, 0, 0.4);
     color: #fff;
     flex-grow: 1;
 }
@@ -130,7 +130,7 @@
 }
 
 .generate-btn:disabled {
-    background: #2c3440;
+    background: rgba(255, 255, 255, 0.05);
     color: #678;
     cursor: not-allowed;
 }
@@ -168,8 +168,8 @@
     width: 100%;
     box-sizing: border-box;
     padding: 12px 15px;
-    background: #14181c;
-    border: 1px solid #2c3440;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--glass-border);
     border-radius: 8px;
     color: white;
     font-size: 1rem;
@@ -189,7 +189,7 @@
     width: 6px;
 }
 .search-results-dropdown::-webkit-scrollbar-thumb {
-    background: #2c3440;
+    background: rgba(255, 255, 255, 0.2);
     border-radius: 10px;
 }
 
@@ -206,12 +206,16 @@
     margin: 0 auto;
 }
 
+.rec-horizontal-card .badge {
+    position: static !important;
+}
+
 /* The new Horizontal Card Layout */
 .rec-horizontal-card {
     display: flex;
     gap: 20px;
-    background: var(--card);
-    border: 1px solid #2c3440;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
     border-radius: 12px;
     padding: 15px;
     transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
@@ -221,7 +225,7 @@
 .rec-horizontal-card:hover {
     transform: translateY(-5px);
     border-color: var(--accent);
-    box-shadow: 0 10px 20px rgba(0, 224, 84, 0.1);
+    box-shadow: 0 10px 20px var(--accent-glow);
 }
 
 .rec-poster {
