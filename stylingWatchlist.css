@@ -150,14 +150,11 @@ body {
     .filter-nav {
         flex-wrap: wrap;
         justify-content: center;
-        width: 100%;
-        border-bottom: 1px solid #2c3440;
-        padding-bottom: 20px;
-        margin-bottom: 20px;
     }
-
     .filter-btn {
-        flex: 1 1 40%;
-        margin: 0;
+        flex: 1 1 30%;
+        text-align: center;
+        padding: 10px;
+        font-size: 0.9rem;
     }
 }
