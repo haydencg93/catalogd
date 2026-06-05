@@ -710,13 +710,14 @@ input {
     }
 
     .filter-nav {
-        flex-wrap: wrap !important; /* Allows buttons to wrap to a second line if they don't fit */
-        justify-content: flex-start !important;
-        gap: 8px !important;
+        flex-wrap: wrap;
+        justify-content: center;
     }
-
+    
     .filter-btn {
-        font-size: 0.75rem !important; /* Slightly smaller to fit more buttons per row */
-        padding: 5px 12px !important;
+        flex: 1 1 30%;
+        text-align: center;
+        padding: 10px;
+        font-size: 0.9rem;
     }
 }

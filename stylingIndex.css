@@ -743,10 +743,14 @@ a:hover {
     /* Wrap Filter Buttons (Movies, TV, Books, YouTube) */
     .filter-nav {
         flex-wrap: wrap;
+        justify-content: center;
     }
     
     .filter-btn {
-        flex: 1 1 40%;
+        flex: 1 1 30%;
+        text-align: center;
+        padding: 10px;
+        font-size: 0.9rem;
     }
 
     /* Scale Modals */

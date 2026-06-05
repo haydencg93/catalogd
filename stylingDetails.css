@@ -817,45 +817,182 @@
 
 /* --- DETAILS PAGE MOBILE RESPONSIVENESS (< 768px) --- */
 @media (max-width: 768px) {
+    /* 
+       CRITICAL: Setting these to 'contents' allows the children 
+       to participate in the grid of .details-container 
+    */
+    #left-col, .info-pane {
+        display: contents !important;
+    }
+
     .details-container {
-        flex-direction: column; /* Stacks the poster above the info */
-        align-items: center;
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important; 
+        gap: 20px;
+        padding: 10px;
+    }
+
+    /* ROW 1: Title across the whole screen */
+    #media-title {
+        grid-row: 1 !important; 
+        grid-column: 1 / -1 !important; 
         text-align: center;
-        padding: 0 15px;
+        font-size: 1.8rem;
+        margin-bottom: 10px;
     }
 
+    /* ROW 2 & 3: Cover and Edit Button on Left | Providers on Right */
     #poster-area {
-        width: 65%; /* Keeps the poster a reasonable size */
-        max-width: 250px;
-        margin: 0 auto 20px;
+        grid-row: 2 !important;
+        grid-column: 1 / 2 !important;
+    }
+    #poster-area img {
+        width: 100% !important;
+        height: auto !important;
     }
 
-    /* Wrap the Meta Tags (Year, Genre, Runtime) */
-    .meta {
-        justify-content: center;
+    /* This places the Edit Art button in its own row so it doesn't cover the image */
+    #edit-art-btn {
+        grid-row: 3 !important; 
+        grid-column: 1 / 2 !important;
+        width: 100% !important;
+        margin-top: 5px !important;
+    }
+
+    /* Watch providers and meta span both rows (2 and 3) to stay aligned with the cover block */
+    #watch-providers, #media-meta {
+        grid-row: 2 / 4 !important; 
+        grid-column: 2 / 3 !important;
+        text-align: left;
+    }
+
+    /* Anime Specific: Filler list under Edit Art button on left half */
+    #filler-status-container {
+        grid-row: 4 !important;
+        grid-column: 1 / 2 !important;
+        margin-top: 10px !important;
+    }
+
+    /* YouTube Specific Layout */
+    .details-container:has(iframe) #poster-area {
+        grid-column: 1 / -1 !important;
+        grid-row: 2 !important;
+    }
+    .details-container:has(iframe) #edit-art-btn {
+        grid-column: 1 / -1 !important;
+        grid-row: 3 !important;
+    }
+    .details-container:has(iframe) #watch-providers,
+    .details-container:has(iframe) #media-meta {
+        grid-column: 1 / -1 !important;
+        grid-row: 4 !important;
+        text-align: center;
+    }
+
+    /* ROW 5: Description (Pushed down to accommodate fillers/meta) */
+    #media-overview {
+        grid-row: 5 !important;
+        grid-column: 1 / -1 !important;
+        font-size: 1rem;
+        line-height: 1.5;
+        margin-bottom: 20px;
+    }
+
+    /* ROW 6: Tracker Section (TV & Books) */
+    #tv-tracker {
+        /* REMOVED !important here so that JS display:none actually works */
+        display: flex; 
+        grid-row: 6 !important;
+        grid-column: 1 / -1 !important;
+        flex-direction: column !important;
+    }
+
+    #progress-container { order: 1; margin-bottom: 15px; }
+    .tracker-controls { 
+        order: 2; 
+        display: flex !important; 
+        flex-direction: column !important; 
+        gap: 10px !important; 
+    }
+    #season-selector { width: 100% !important; }
+    .tracker-btns { 
+        order: 3; 
+        display: grid !important; 
+        grid-template-columns: 1fr 1fr !important; 
+        gap: 10px !important; 
+    }
+    #episode-list { 
+        order: 4; 
+        grid-template-columns: 1fr !important; 
+        width: 100% !important; 
+    }
+
+    /* Book Tracker specifics */
+    .book-progress-container { width: 100% !important; }
+    .quick-update-row { display: flex !important; flex-direction: column !important; gap: 10px !important; }
+    #quick-page-input { width: 100% !important; box-sizing: border-box; }
+
+    /* ROW 7: Logs on left (50%), Rating buttons on right (50%) */
+    #journal-history {
+        grid-row: 7 !important;
+        grid-column: 1 / 2 !important;
+        margin-top: 0 !important;
+    }
+    
+    .info-pane .rating-section:not(#tv-tracker) {
+        grid-row: 7 !important;
+        grid-column: 2 / 3 !important;
+        margin-top: 0 !important;
+    }
+    .main-actions {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 10px !important;
+    }
+    .main-actions button {
+        width: 100% !important;
+    }
+
+    /* ROW 8: Fandom Button on the right side */
+    #fandom-btn {
+        grid-row: 8 !important;
+        grid-column: 2 / 3 !important;
+        width: 100% !important;
+        margin-top: 10px !important;
+    }
+
+    /* Row 9+: Cast and Similar */
+    #cast-section {
+        grid-row: 9 !important;
+        grid-column: 1 / -1 !important;
+    }
+    #cast-list {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 15px !important;
+    }
+    .cast-card {
+        width: 100% !important;
+        flex-direction: column !important;
+        text-align: center;
+    }
+
+    #similar-section {
+        grid-row: 10 !important;
+        grid-column: 1 / -1 !important;
+    }
+    #similar-grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+    }
+
+    .filter-nav {
         flex-wrap: wrap;
-        gap: 10px;
-    }
-
-    /* Center Provider and Cast lists */
-    #providers-list, #cast-list {
         justify-content: center;
     }
-
-    /* Stack Action Buttons */
-    .action-buttons {
-        flex-direction: column;
-        width: 100%;
-        gap: 15px;
-    }
-
-    .action-buttons button {
-        width: 100%;
-    }
-
-    /* Modal adjustments */
-    .auth-card.filler-card {
-        width: 95%;
-        padding: 20px 10px;
+    .filter-btn {
+        flex: 1 1 30%;
+        text-align: center;
+        padding: 10px;
+        font-size: 0.9rem;
     }
 }
