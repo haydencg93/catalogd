@@ -618,39 +618,105 @@ input {
 
 /* --- PROFILE PAGE MOBILE RESPONSIVENESS (< 768px) --- */
 @media (max-width: 768px) {
-    .profile-header {
+    /* 1. Nav-actions directly below logo */
+    header {
         flex-direction: column;
-        text-align: center;
         align-items: center;
         gap: 15px;
-        margin-top: -50px; /* Adjust avatar overlap */
+        text-align: center;
     }
 
-    .profile-stats {
-        flex-wrap: wrap;
-        justify-content: center;
+    /* 2. Profile header look similar to computer (Keep as Row) */
+    .profile-header {
+        flex-direction: row !important; 
+        text-align: left !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        margin-top: 0 !important; 
+        padding-left: 20px !important;
+        gap: 20px;
+    }
+
+    /* 3. Bio whole width of screen */
+    .user-bio-container {
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 0 20px;
+        box-sizing: border-box;
+    }
+
+    /* 4. Profile tabs: 3 at a time with scroll bar */
+    .profile-tabs {
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        justify-content: flex-start !important;
+        gap: 10px;
+        -webkit-overflow-scrolling: touch; /* Smooth scroll for iOS */
+        padding-bottom: 5px;
+    }
+    .tab-btn {
+        flex: 0 0 auto !important; /* Prevents shrinking */
+        white-space: nowrap;
+        font-size: 1rem;
+    }
+
+    /* 5. Stats-bar 2-card width */
+    .stats-bar {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    /* 6. Favorites, Active, Recent, and On Hold: 2 media cards width */
+    #favorites-grid, 
+    #active-grid, 
+    #recent-grid, 
+    #on-hold-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
         gap: 15px;
     }
 
-    .profile-tabs {
-        flex-wrap: wrap;
-        justify-content: center;
+    /* 7. Library: 4 media cards width */
+    #library-grid {
+        grid-template-columns: repeat(4, 1fr) !important;
         gap: 10px;
     }
 
-    .tab-btn {
-        flex: 1 1 40%;
-        margin: 0;
+    /* 8. Tags: At least 50% window size (Larger pills) */
+    .tags-cloud-container {
+        width: 100% !important;
+        justify-content: center;
     }
-
-    /* Ensure Watchlist/List titles don't overflow */
-    .profile-container h1 {
-        font-size: 2.2rem;
+    .profile-tag-pill {
+        flex: 0 1 45%; /* Makes tags roughly half the screen width */
+        justify-content: center;
         text-align: center;
+        font-size: 0.85rem;
     }
 
-    /* Ensure the 5 stats cards stack nicely in rows of 2 on small screens */
-    .stats-bar {
-        grid-template-columns: repeat(2, 1fr) !important;
+    /* General mobile adjustments for the main container */
+    .profile-container {
+        margin: 30px auto;
+        padding: 0 10px;
+    }
+    
+    .profile-banner {
+        height: 180px; /* Slightly shorter banner for mobile */
+        margin-bottom: -50px;
+    }
+
+    .section-header {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 15px !important;
+    }
+
+    .filter-nav {
+        flex-wrap: wrap !important; /* Allows buttons to wrap to a second line if they don't fit */
+        justify-content: flex-start !important;
+        gap: 8px !important;
+    }
+
+    .filter-btn {
+        font-size: 0.75rem !important; /* Slightly smaller to fit more buttons per row */
+        padding: 5px 12px !important;
     }
 }
