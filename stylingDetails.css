@@ -817,10 +817,6 @@
 
 /* --- DETAILS PAGE MOBILE RESPONSIVENESS (< 768px) --- */
 @media (max-width: 768px) {
-    /* 
-       CRITICAL: Setting these to 'contents' allows the children 
-       to participate in the grid of .details-container 
-    */
     #left-col, .info-pane {
         display: contents !important;
     }
@@ -828,11 +824,12 @@
     .details-container {
         display: grid !important;
         grid-template-columns: 1fr 1fr !important; 
-        gap: 20px;
+        gap: 10px; 
         padding: 10px;
+        align-items: start; 
     }
 
-    /* ROW 1: Title across the whole screen */
+    /* ROW 1: Title */
     #media-title {
         grid-row: 1 !important; 
         grid-column: 1 / -1 !important; 
@@ -841,68 +838,70 @@
         margin-bottom: 10px;
     }
 
-    /* ROW 2 & 3: Cover and Edit Button on Left | Providers on Right */
-    #poster-area {
+    /* ROW 2: Poster Wrapper (Left) and Info Wrapper (Right) */
+    #poster-controls-wrapper {
         grid-row: 2 !important;
         grid-column: 1 / 2 !important;
+        display: flex;
+        flex-direction: column;
+        gap: 10px; 
     }
+    
     #poster-area img {
         width: 100% !important;
         height: auto !important;
+        display: block;
     }
 
-    /* This places the Edit Art button in its own row so it doesn't cover the image */
-    #edit-art-btn {
-        grid-row: 3 !important; 
-        grid-column: 1 / 2 !important;
-        width: 100% !important;
-        margin-top: 5px !important;
-    }
-
-    /* Watch providers and meta span both rows (2 and 3) to stay aligned with the cover block */
-    #watch-providers, #media-meta {
-        grid-row: 2 / 4 !important; 
+    #media-info-right {
+        grid-row: 2 !important;
         grid-column: 2 / 3 !important;
         text-align: left;
+        display: flex;
+        flex-direction: column;
+        gap: 5px; 
     }
 
-    /* Anime Specific: Filler list under Edit Art button on left half */
+    #media-meta {
+        margin-bottom: 0 !important; 
+        padding-top: 5px;
+    }
+    #watch-providers {
+        margin-top: 0 !important;
+    }
+
+    /* ROW 3: Filler */
     #filler-status-container {
-        grid-row: 4 !important;
+        grid-row: 3 !important;
         grid-column: 1 / 2 !important;
         margin-top: 10px !important;
     }
 
     /* YouTube Specific Layout */
-    .details-container:has(iframe) #poster-area {
+    .details-container:has(iframe) #poster-controls-wrapper {
         grid-column: 1 / -1 !important;
         grid-row: 2 !important;
     }
-    .details-container:has(iframe) #edit-art-btn {
+    .details-container:has(iframe) #media-info-right {
         grid-column: 1 / -1 !important;
         grid-row: 3 !important;
-    }
-    .details-container:has(iframe) #watch-providers,
-    .details-container:has(iframe) #media-meta {
-        grid-column: 1 / -1 !important;
-        grid-row: 4 !important;
         text-align: center;
+        align-items: center;
     }
 
-    /* ROW 5: Description (Pushed down to accommodate fillers/meta) */
+    /* ROW 4: Description */
     #media-overview {
-        grid-row: 5 !important;
+        grid-row: 4 !important;
         grid-column: 1 / -1 !important;
         font-size: 1rem;
         line-height: 1.5;
         margin-bottom: 20px;
     }
 
-    /* ROW 6: Tracker Section (TV & Books) */
+    /* ROW 5: Tracker Section */
     #tv-tracker {
-        /* REMOVED !important here so that JS display:none actually works */
         display: flex; 
-        grid-row: 6 !important;
+        grid-row: 5 !important;
         grid-column: 1 / -1 !important;
         flex-direction: column !important;
     }
@@ -910,7 +909,7 @@
     #progress-container { order: 1; margin-bottom: 15px; }
     .tracker-controls { 
         order: 2; 
-        display: flex !important; 
+        display: flex; 
         flex-direction: column !important; 
         gap: 10px !important; 
     }
@@ -932,15 +931,15 @@
     .quick-update-row { display: flex !important; flex-direction: column !important; gap: 10px !important; }
     #quick-page-input { width: 100% !important; box-sizing: border-box; }
 
-    /* ROW 7: Logs on left (50%), Rating buttons on right (50%) */
+    /* ROW 6: Logs and Rating buttons */
     #journal-history {
-        grid-row: 7 !important;
+        grid-row: 6 !important;
         grid-column: 1 / 2 !important;
         margin-top: 0 !important;
     }
     
     .info-pane .rating-section:not(#tv-tracker) {
-        grid-row: 7 !important;
+        grid-row: 6 !important;
         grid-column: 2 / 3 !important;
         margin-top: 0 !important;
     }
@@ -953,32 +952,49 @@
         width: 100% !important;
     }
 
-    /* ROW 8: Fandom Button on the right side */
+    /* ROW 7: Fandom Button */
     #fandom-btn {
-        grid-row: 8 !important;
+        grid-row: 7 !important;
         grid-column: 2 / 3 !important;
         width: 100% !important;
         margin-top: 10px !important;
     }
 
-    /* Row 9+: Cast and Similar */
+    /* Row 8+: Cast and Similar */
     #cast-section {
-        grid-row: 9 !important;
+        grid-row: 8 !important;
         grid-column: 1 / -1 !important;
     }
     #cast-list {
         display: grid !important;
-        grid-template-columns: repeat(2, 1fr) !important;
+        /* minmax(0, 1fr) forces items to shrink to fit the column */
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important; 
         gap: 15px !important;
     }
     .cast-card {
-        width: 100% !important;
+        display: flex !important;
         flex-direction: column !important;
-        text-align: center;
+        align-items: center !important;
+        text-align: center !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        padding: 10px !important;
+    }
+    .cast-card img {
+        width: 100% !important;
+        max-width: 100% !important;
+        height: auto !important;
+    }
+    .cast-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        width: 100% !important;
     }
 
     #similar-section {
-        grid-row: 10 !important;
+        grid-row: 9 !important;
         grid-column: 1 / -1 !important;
     }
     #similar-grid {

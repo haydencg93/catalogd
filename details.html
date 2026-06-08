@@ -63,8 +63,13 @@
 
     <main class="details-container">
         <div id="left-col">
-            <div id="poster-area"></div>
-            <button id="edit-art-btn" class="secondary-btn" style="display:none; width: 100%; margin-top: 10px;">Edit Art</button>
+            <div id="poster-controls-wrapper">
+                <div id="poster-area"></div>
+                <button id="edit-art-btn" class="secondary-btn" style="display:none; width: 100%; margin-top: 10px;">Edit Art</button>
+                <div style="margin-top: 10px;">
+                    <button id="fandom-btn" class="primary-btn" style="width: 100%; background: #9ab; color: #14181c;">Explore Fandom Wiki</button>
+                </div>
+            </div>
             
             <div id="journal-history" class="history-section">
                 <h4>Your Logs</h4>
@@ -84,14 +89,17 @@
         <div class="info-pane">
             <h1 id="media-title"></h1>
             
-            <div id="watch-providers" class="providers-section">
-                <h4>Where to Watch</h4>
-                <div id="providers-list" class="provider-icons">
-                    <!-- Providers injected via JS -->
+            <div id="media-info-right">
+                <div id="media-meta" class="meta"></div>
+
+                <div id="watch-providers" class="providers-section">
+                    <h4>Where to Watch</h4>
+                    <div id="providers-list" class="provider-icons">
+                        <!-- Providers injected via JS -->
+                    </div>
                 </div>
             </div>
 
-            <div id="media-meta" class="meta"></div>
             <p id="media-overview"></p>
 
             <!-- TV Episode Tracker -->
@@ -124,9 +132,6 @@
                     <button id="watchlist-btn" class="secondary-btn">Add to Watchlist</button>
                     <button id="add-to-list-btn" class="secondary-btn">Add to List</button>
                 </div>
-            </div>
-            <div style="margin-top: 10px;">
-                <button id="fandom-btn" class="primary-btn" style="width: 100%; background: #9ab; color: #14181c;">Explore Fandom Wiki</button>
             </div>
             <div id="filler-status-container" style="margin-bottom: 15px; display: none;">
                 <div id="filler-info" class="meta" style="color: #ff9800; font-weight: bold;"></div>
