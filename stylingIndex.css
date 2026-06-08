@@ -187,12 +187,25 @@ header, main {
 }
 
 .css-logo {
-    display: flex;
-    flex-direction: column; /* Stacks the text on top of the circles */
-    align-items: center; /* Centers everything */
-    gap: 4px; /* Tighter gap between text and circles */
-    cursor: pointer;
-    transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    display: flex !important;
+    flex-direction: column !important; 
+    align-items: center !important; 
+    gap: 4px !important; 
+    cursor: pointer !important;
+}
+
+.logo-text {
+    font-family: 'Outfit', sans-serif !important; /* This requires the link in the HTML head! */
+    font-size: 2.2rem !important;
+    font-weight: 800 !important;
+    letter-spacing: -1px !important;
+    color: #fff !important;
+    line-height: 1 !important; 
+}
+
+.logo-text span {
+    color: var(--accent) !important;
+    text-shadow: 0 0 15px var(--accent-glow) !important;
 }
 
 .css-logo:hover {
