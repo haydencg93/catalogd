@@ -5,7 +5,7 @@ Get Done Today = ~
 ## BUGS:
 ### In Progress
 ### To Do/Fix
-- counting of hours is wrong for tv shows when logging series/season
+- counting of hours is wrong for tv shows when logging series/season (mark towards stats btn on logs automatically checked)
 - counting of time is NOT completed/working for music
 - like a review
 - user profile links
