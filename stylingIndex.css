@@ -101,6 +101,20 @@
     background: rgba(255, 255, 255, 0.05);
 }
 
+.header-search {
+    flex-grow: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0 20px !important;
+}
+
+.header-search .search-bar-wrapper {
+    margin: 0 !important; /* Remove the 40px margin from index page */
+    width: 100% !important;
+    max-width: 500px !important; /* Keeps it from becoming a giant line on widescreen */
+}
+
 /* Apply Glass to Cards */
 .media-card {
     position: relative;
@@ -733,7 +747,6 @@ a:hover {
         width: 100%;
     }
 
-    /* Fix the Unified Search Bar */
     .search-bar-wrapper {
         flex-direction: column;
         border-radius: 16px;
@@ -751,6 +764,30 @@ a:hover {
     .search-bar-wrapper input {
         padding: 15px !important;
         text-align: center;
+    }
+
+    .header-search {
+        width: 100% !important;
+        display: flex !important;
+        justify-content: center !important;
+        margin: 10px 0 !important; 
+        order: 3; /* Keeps it at the bottom of the header */
+    }
+
+    .header-search .search-bar-wrapper {
+        /* This forces it to be the same wide box as the index page */
+        width: 92% !important; 
+        max-width: none !important; 
+        margin: 0 auto !important;
+        flex-direction: column !important; /* Force the stacked look */
+        border-radius: 16px !important;
+    }
+
+    /* Ensure the input and select take up the full width of the wrapper */
+    .header-search .search-bar-wrapper select,
+    .header-search .search-bar-wrapper input {
+        width: 100% !important;
+        box-sizing: border-box !important;
     }
 
     /* Wrap Filter Buttons (Movies, TV, Books, YouTube) */
