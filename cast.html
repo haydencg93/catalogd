@@ -23,8 +23,20 @@
             </div>
         </div>
         
-        <section class="search-section" style="flex-grow: 1; margin: 0 40px;">
-            <input type="text" id="search-input" placeholder="Search for movies, shows, books, cast members, ..." style="margin: 0; max-width: 400px;">
+        <section class="search-section" style="flex-grow: 1; margin: 0 40px; display: flex; justify-content: center;">
+            <div class="search-bar-wrapper" style="margin: 0; max-width: 500px;">
+                <select id="search-filter">
+                    <option value="all">All</option>
+                    <option value="movie">Movies</option>
+                    <option value="tv">TV Shows</option>
+                    <option value="book">Books</option>
+                    <option value="album">Music</option>
+                    <option value="user">Users</option>
+                    <option value="person">Cast Members</option>
+                    <option value="author">Authors</option>
+                </select>
+                <input type="text" id="search-input" placeholder="Search for movies, shows, books, cast members, ...">
+            </div>
         </section>
 
         <div class="nav-actions">
@@ -35,6 +47,7 @@
                     <span class="dropdown-arrow"></span>
                 </button>
                 <div id="dropdown-content" class="dropdown-content">
+                    <a href="index.html">Home</a>
                     <a href="diary.html">Diary</a>
                     <a href="lists.html">Lists</a>
                     <a href="watchlist.html">Watchlist</a>
