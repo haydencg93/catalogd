@@ -588,6 +588,9 @@ async function handleForgotPassword() {
 }
 
 document.addEventListener('mousemove', (e) => {
+    // Only run this animation if the screen width is greater than 768px (Desktop)
+    if (window.innerWidth <= 768) return; 
+
     const cards = document.querySelectorAll('.media-card');
     
     cards.forEach(card => {
@@ -607,6 +610,9 @@ document.addEventListener('mousemove', (e) => {
 
 // Reset tilt when mouse leaves
 document.addEventListener('mouseleave', () => {
+    // Only run this animation if the screen width is greater than 768px (Desktop)
+    if (window.innerWidth <= 768) return;
+
     const cards = document.querySelectorAll('.media-card');
     cards.forEach(card => {
         card.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale(1)';
