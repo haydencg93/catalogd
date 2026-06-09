@@ -4,6 +4,8 @@ Get Done Today = ~
 <!-- BUGS: -->
 ## BUGS:
 ### In Progress
+- Add in ALL cast if possible as well as cast by season for tv show
+- the relaoding of details page not working after puttkng custom poster/background
 ### To Do/Fix
 - counting of hours is wrong for tv shows when logging series/season (mark towards stats btn on logs automatically checked)
 - counting of time is NOT completed/working for music
