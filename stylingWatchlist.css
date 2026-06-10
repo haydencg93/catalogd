@@ -157,4 +157,9 @@ body {
         padding: 10px;
         font-size: 0.9rem;
     }
+
+    #watchlist-grid {
+        grid-template-columns: repeat(2, 1fr); /* Forces 2 columns on mobile */
+        gap: 15px;                             /* Slightly smaller gap for smaller screens */
+    }
 }
