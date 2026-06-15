@@ -630,7 +630,7 @@ window.openTagDetails = async (tag) => {
 
     title.textContent = `Logs tagged with "${tag}"`;
     body.innerHTML = '<p class="meta">Loading logs...</p>';
-    modal.style.display = 'block';
+    modal.style.display = 'flex';
 
     closeBtn.onclick = () => modal.style.display = 'none';
     
@@ -913,7 +913,7 @@ async function openSocialModal(type) {
     
     title.textContent = type === 'followers' ? 'Followers' : 'Following';
     body.innerHTML = '<p class="meta">Loading users...</p>';
-    modal.style.display = 'block';
+    modal.style.display = 'flex';
 
     try {
         let query;

@@ -304,28 +304,26 @@ input {
     margin: 10px auto 0; /* Added 10px top margin as an extra buffer */
 }
 
-/* Update your Social Modal Styles */
 .modal {
-    display: none; 
-    position: fixed; /* Ensures it stays relative to the screen, not the page height */
-    z-index: 9999; /* Higher than any other element */
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.8);
+    display: none; /* Controlled by JS, will be set to 'flex' */
+    position: fixed; 
+    inset: 0; /* Shorthand for top:0, left:0, right:0, bottom:0 */
+    background: rgba(0, 0, 0, 0.85);
+    justify-content: center; 
+    align-items: center; 
+    z-index: 9999;
     backdrop-filter: blur(5px);
-    overflow: hidden; /* Prevents the background page from scrolling */
 }
 
 .social-modal-content {
     background-color: var(--bg);
-    margin: 5% auto;
     padding: 25px;
     border: 1px solid var(--glass-border);
     border-radius: 16px;
     width: 90%;
     max-width: 400px;
+    max-height: 80vh; /* Prevents it from taking up the whole screen */
+    overflow-y: auto; /* Forces scrolling inside the modal box */
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     position: relative;
 }
