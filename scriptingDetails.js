@@ -3,6 +3,9 @@ const id = params.get('id');
 const type = params.get('type');
 let supabaseClient = null;
 let globalData = null;
+let fullCastData = [];
+let fullCrewData = [];
+let directorData = null;
 
 async function initDetails() {
     try {
@@ -497,62 +500,165 @@ async function fetchCredits(config, mediaId, mediaType) {
     if (mediaType === 'book' || mediaType === 'youtube' || mediaType === 'album') return;
     const castList = document.getElementById('cast-list');
     
-    // --- ?language=en-US to bypass corrupted TMDB caches ---
-    const url = `https://api.themoviedb.org/3/${mediaType}/${mediaId}/credits?language=en-US`;
+    // Switch to aggregate_credits for TV shows to get total episode counts
+    const endpoint = mediaType === 'tv' ? 'aggregate_credits' : 'credits';
+    const url = `https://api.themoviedb.org/3/${mediaType}/${mediaId}/${endpoint}?language=en-US`;
 
     try {
         const response = await fetch(url, {
             method: 'GET',
-            headers: { 
-                accept: 'application/json', 
-                Authorization: `Bearer ${config.tmdb_token}` 
-            }
+            headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` }
         });
 
-        // --- Read as text first to safely catch binary GZIP errors ---
         const text = await response.text();
-        if (text.startsWith('\x1F\x8B')) {
-            throw new Error("TMDB returned raw corrupted GZIP data.");
-        }
+        if (text.startsWith('\x1F\x8B')) throw new Error("TMDB returned raw corrupted GZIP data.");
         
         const res = JSON.parse(text);
-        
         if (!res || !res.crew || !res.cast) return;
 
-        const director = res.crew.find(person => 
-            person.job === 'Director' || 
-            (person.job === 'Executive Producer' && mediaType === 'tv')
-        );
-        
-        const topCast = res.cast.slice(0, 11);
-        let finalDisplayList = [];
-        
-        if (director) {
-            finalDisplayList.push({
-                id: director.id,
-                name: director.name,
-                character: director.job,
-                profile_path: director.profile_path,
-                isDirector: true
-            });
-        }
-        
-        topCast.forEach(actor => finalDisplayList.push(actor));
+        // Normalize TV vs Movie data structures so the rest of the app doesn't have to guess
+        if (mediaType === 'tv') {
+            fullCastData = res.cast.map(p => ({
+                ...p,
+                displayRole: p.roles && p.roles.length > 0 ? p.roles[0].character : 'Cast',
+                epCountStr: p.total_episode_count ? `${p.total_episode_count} Ep${p.total_episode_count > 1 ? 's' : ''}` : ''
+            }));
 
-        castList.innerHTML = finalDisplayList.map(person => `
-            <div class="cast-card ${person.isDirector ? 'director-highlight' : ''}" 
-                 onclick="window.location.href='cast.html?personId=${person.id}'">
-                <img src="${person.profile_path ? 'https://image.tmdb.org/t/p/w185' + person.profile_path : 'https://via.placeholder.com/185x278?text=No+Photo'}" alt="${person.name}">
-                <div class="cast-info">
-                    <span class="cast-name">${person.name}</span>
-                    <span class="cast-role">${person.character || 'Cast'} ${person.isDirector ? '🎬' : ''}</span>
-                </div>
-            </div>
-        `).join('');
+            fullCrewData = res.crew.map(p => ({
+                ...p,
+                job: p.jobs && p.jobs.length > 0 ? p.jobs[0].job : 'Crew',
+                displayRole: p.jobs && p.jobs.length > 0 ? p.jobs[0].job : 'Crew',
+                epCountStr: p.total_episode_count ? `${p.total_episode_count} Ep${p.total_episode_count > 1 ? 's' : ''}` : ''
+            }));
+        } else {
+            fullCastData = res.cast.map(p => ({
+                ...p,
+                displayRole: p.character || 'Cast',
+                epCountStr: ''
+            }));
+
+            fullCrewData = res.crew.map(p => ({
+                ...p,
+                job: p.job,
+                displayRole: p.job || 'Crew',
+                epCountStr: ''
+            }));
+        }
+
+        // Store the global data
+        directorData = fullCrewData.find(person => 
+            person.job === 'Director' || (person.job === 'Executive Producer' && mediaType === 'tv')
+        );
+
+        renderMainPageCast();
+
     } catch (err) { 
         console.error("Credits error:", err); 
         castList.innerHTML = `<p class="meta">Cast information is currently unavailable.</p>`;
     }
+}
+
+function renderMainPageCast() {
+    const castList = document.getElementById('cast-list');
+    const castSection = document.getElementById('cast-section');
+    let finalDisplayList = [];
+
+    // 1. Add Director First
+    if (directorData) {
+        finalDisplayList.push({
+            ...directorData,
+            isDirector: true
+        });
+    }
+
+    // 2. Render Top 11
+    const castToShow = fullCastData.slice(0, 11);
+    castToShow.forEach(actor => finalDisplayList.push(actor));
+
+    castList.innerHTML = finalDisplayList.map(person => `
+        <div class="cast-card ${person.isDirector ? 'director-highlight' : ''}" 
+             onclick="window.location.href='cast.html?personId=${person.id}'">
+            <img src="${person.profile_path ? 'https://image.tmdb.org/t/p/w185' + person.profile_path : 'https://via.placeholder.com/185x278?text=No+Photo'}" alt="${person.name}">
+            <div class="cast-info">
+                <span class="cast-name">${person.name}</span>
+                <span class="cast-role">${person.displayRole} ${person.isDirector ? '🎬' : ''}</span>
+                ${person.epCountStr ? `<span style="display:block; font-size: 0.75rem; color: var(--accent); margin-top: 2px;">${person.epCountStr}</span>` : ''}
+            </div>
+        </div>
+    `).join('');
+
+    // 3. Add Modal Trigger Button
+    let viewAllBtn = document.getElementById('view-all-cast-btn');
+    if (!viewAllBtn && (fullCastData.length > 11 || fullCrewData.length > 1)) {
+        viewAllBtn = document.createElement('button');
+        viewAllBtn.id = 'view-all-cast-btn';
+        viewAllBtn.textContent = 'View Full Cast & Crew';
+        viewAllBtn.style.cssText = `
+            background: rgba(255, 255, 255, 0.05); border: 1px solid #2c3440;
+            color: #9ab; padding: 12px; border-radius: 8px; cursor: pointer;
+            transition: all 0.2s ease; width: 100%; margin-top: 20px; font-weight: bold; font-size: 0.9rem;
+        `;
+        
+        viewAllBtn.onmouseover = () => {
+            viewAllBtn.style.color = '#fff'; viewAllBtn.style.background = 'rgba(255, 255, 255, 0.1)'; viewAllBtn.style.borderColor = 'var(--accent)';
+        };
+        viewAllBtn.onmouseout = () => {
+            viewAllBtn.style.color = '#9ab'; viewAllBtn.style.background = 'rgba(255, 255, 255, 0.05)'; viewAllBtn.style.borderColor = '#2c3440';
+        };
+
+        viewAllBtn.onclick = () => openCastModal();
+        castSection.appendChild(viewAllBtn);
+    }
+}
+
+function openCastModal() {
+    const modal = document.getElementById('cast-modal');
+    const closeBtn = document.getElementById('close-cast-modal');
+    const searchInput = document.getElementById('cast-search-input');
+    const grid = document.getElementById('full-cast-grid');
+    
+    // Combine Cast and Crew into one mega-list
+    const combinedList = [...fullCastData, ...fullCrewData];
+
+    // Function to render the grid based on search text
+    const renderGrid = (filterText = '') => {
+        const lowerFilter = filterText.toLowerCase();
+        
+        const filtered = combinedList.filter(person => 
+            person.name.toLowerCase().includes(lowerFilter) || 
+            person.displayRole.toLowerCase().includes(lowerFilter)
+        );
+
+        if (filtered.length === 0) {
+            grid.innerHTML = `<p class="meta" style="grid-column: 1/-1; text-align: center;">No cast or crew found matching "${filterText}".</p>`;
+            return;
+        }
+
+        grid.innerHTML = filtered.map(person => `
+            <div class="cast-card ${person.job === 'Director' ? 'director-highlight' : ''}" 
+                 onclick="window.location.href='cast.html?personId=${person.id}'">
+                <img src="${person.profile_path ? 'https://image.tmdb.org/t/p/w185' + person.profile_path : 'https://via.placeholder.com/185x278?text=No+Photo'}" 
+                     alt="${person.name}" loading="lazy">
+                <div class="cast-info">
+                    <span class="cast-name">${person.name}</span>
+                    <span class="cast-role">${person.displayRole} ${person.job === 'Director' ? '🎬' : ''}</span>
+                    ${person.epCountStr ? `<span style="display:block; font-size: 0.75rem; color: var(--accent); margin-top: 2px;">${person.epCountStr}</span>` : ''}
+                </div>
+            </div>
+        `).join('');
+    };
+
+    // Initialize Modal
+    searchInput.value = '';
+    renderGrid();
+
+    // Attach Search Listener
+    searchInput.oninput = (e) => renderGrid(e.target.value);
+
+    // Open & Close Logic
+    modal.style.display = 'flex';
+    closeBtn.onclick = () => modal.style.display = 'none';
+    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
 }
 
 async function fetchBookAuthors(authorsList) {

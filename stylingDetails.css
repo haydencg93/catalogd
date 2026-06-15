@@ -766,6 +766,58 @@
     border-color: #0d0776; 
 }
 
+/* --- Cast & Crew Modal --- */
+.cast-modal-card {
+    max-width: 900px !important;
+    width: 90%;
+    max-height: 85vh; /* Prevents it from taking up the whole screen */
+    display: flex;
+    flex-direction: column;
+    padding: 30px !important;
+}
+
+.modal-cast-grid {
+    overflow-y: auto;
+    flex-grow: 1; /* Takes up remaining modal space */
+    padding-right: 10px;
+    margin-top: 0;
+}
+
+.cast-modal-card h2 {
+    text-align: center; /* Centers the title above the search bar */
+    width: 100%;
+}
+
+#cast-search-input {
+    width: 100%;
+    max-width: 500px; /* Stops it from stretching the full width of the modal */
+    display: block; 
+    margin: 10px auto 25px auto; /* 'auto' on the left and right centers it */
+    padding: 12px 20px;
+    border-radius: 30px; /* Making it pill-shaped looks great for centered search bars! */
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid #2c3440;
+    color: white;
+    box-sizing: border-box;
+    font-size: 1rem;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+#cast-search-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+/* Custom scrollbar to match the app theme */
+.modal-cast-grid::-webkit-scrollbar {
+    width: 6px;
+}
+.modal-cast-grid::-webkit-scrollbar-thumb {
+    background: #2c3440;
+    border-radius: 10px;
+}
+
 /* --- DETAILS PAGE MOBILE RESPONSIVENESS (< 768px) --- */
 @media (max-width: 768px) {
     #left-col, .info-pane {
@@ -961,5 +1013,25 @@
         text-align: center;
         padding: 10px;
         font-size: 0.9rem;
+    }
+
+    /* --- Modal Mobile Overrides --- */
+    .modal-cast-grid {
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important; /* Forces 3 equal columns */
+        gap: 10px !important;
+    }
+
+    /* Shrink the text slightly on mobile so 3 cards fit nicely */
+    .modal-cast-grid .cast-card {
+        padding: 8px !important;
+    }
+    
+    .modal-cast-grid .cast-name {
+        font-size: 0.8rem !important;
+    }
+    
+    .modal-cast-grid .cast-role {
+        font-size: 0.7rem !important;
     }
 }
