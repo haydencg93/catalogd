@@ -82,7 +82,6 @@ async function runWorker() {
         const { data: queue, error } = await supabase
             .from('filler_list_mgnt')
             .select('*')
-            .eq('filler_exists', false)
             .is('notes', null);
 
         if (error) {

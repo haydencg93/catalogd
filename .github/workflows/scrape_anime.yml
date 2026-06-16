@@ -41,7 +41,7 @@ jobs:
         run: node index.js "${{ github.event.inputs.anime_name }}"
 
       - name: Commit and Push New JSON Data
-        # --- ADDED THIS TO ESCAPE THE SUBFOLDER FOR GIT ---
+        # --- ESCAPE THE SUBFOLDER FOR GIT ---
         working-directory: .
         run: |
           git config --global user.name "github-actions[bot]"

@@ -343,28 +343,73 @@ async function initDetails() {
             const fillerAction = document.getElementById('filler-action-area');
             
             fillerContainer.style.display = 'block';
+            fillerInfo.textContent = ""; // Clear default text
 
             try {
+                // 1. Check if we have the file locally
                 const fillerFile = await fetch(`animeFillerListApi/data/${slug}.json`);
+                let hasFiller = false;
+                let fillerData = null;
                 
                 if (fillerFile.ok) {
-                    const fillerData = await fillerFile.json();
-                    
-                    if (fillerData.error) {
-                        fillerInfo.textContent = "Filler status unavailable for this title.";
-                        fillerAction.innerHTML = ""; 
-                    } else {
-                        fillerInfo.textContent = ""; 
-                        fillerAction.innerHTML = `
-                            <button id="view-filler-btn" class="primary-btn" style="background: #ff9800; width: auto; padding: 10px 20px;">
-                                View Filler Episodes
-                            </button>`;
-                        document.getElementById('view-filler-btn').onclick = () => openFillerModal(fillerData);
-                    }
-                } else {
-                    fillerInfo.textContent = "Filler list data not found.";
-                    checkIfAlreadyRequested(slug, data.title, fillerAction);
+                    fillerData = await fillerFile.json();
+                    if (!fillerData.error) hasFiller = true;
                 }
+
+                // 2. Check DB for pending requests
+                const { data: existingRequest } = await supabaseClient
+                    .from('filler_list_mgnt')
+                    .select('filler_exists, notes')
+                    .eq('name', slug)
+                    .maybeSingle();
+
+                // 3. Build UI
+                // 3. Build UI
+                let html = '';
+                
+                // View Button (if exists)
+                if (hasFiller) {
+                    html += `
+                        <button id="view-filler-btn" class="primary-btn" style="background: #ff9800; width: 100%; margin-bottom: 10px; padding: 10px 20px;">
+                            View Filler Episodes
+                        </button>
+                    `;
+                } else {
+                    html += `<p class="meta" style="margin-top: 0; margin-bottom: 15px;">Filler list data not found.</p>`;
+                }
+
+                // Check if there is an active pending request (a record exists, but no notes yet)
+                const isPending = existingRequest && !existingRequest.notes;
+
+                if (isPending) {
+                    html += `<div class="meta" style="font-size: 0.85rem; color: #ff9800;">${hasFiller ? 'Update' : 'List'} request pending... check back soon!</div>`;
+                } else {
+                    // Show previous scraper notes if they exist (e.g., "Successfully scraped")
+                    if (existingRequest && existingRequest.notes) {
+                        html += `<div class="meta" style="font-size: 0.85rem; margin-bottom: 10px;">Status: ${existingRequest.notes}</div>`;
+                    }
+                    
+                    // Always render the request button if it's not actively pending!
+                    const btnText = hasFiller ? "Request a Filler List Update" : "Request Filler List";
+                    html += `
+                        <button id="request-filler-btn" class="secondary-btn" style="width: 100%; border-color: #ff9800; color: #ff9800;">
+                            ${btnText}
+                        </button>
+                    `;
+                }
+
+                fillerAction.innerHTML = html;
+
+                // Attach listeners dynamically
+                if (hasFiller) {
+                    document.getElementById('view-filler-btn').onclick = () => openFillerModal(fillerData);
+                }
+                
+                // Only attach the request listener if the button was actually rendered
+                if (!isPending) {
+                    document.getElementById('request-filler-btn').onclick = () => requestFiller(slug, hasFiller);
+                }
+
             } catch (e) {
                 console.error("Filler fetch error:", e);
                 fillerInfo.textContent = "Error loading filler data.";
@@ -1323,19 +1368,24 @@ async function checkIfAlreadyRequested(slug, originalName, actionArea) {
     }
 }
 
-async function requestFiller(slug) {
+async function requestFiller(slug, isUpdate) {
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) return alert("Please sign in to request filler lists!");
 
+    // Use UPSERT and clear the notes to put it back into a "pending" state for your scraper
     const { error } = await supabaseClient
         .from('filler_list_mgnt')
-        .insert({ name: slug, filler_exists: false });
+        .upsert(
+            { name: slug, filler_exists: isUpdate, notes: null }, 
+            { onConflict: 'name' }
+        );
 
     if (!error) {
-        alert("Request sent! Our scraper will look for this soon.");
+        alert(isUpdate ? "Update request sent! We'll check for new episodes." : "Request sent! Our scraper will look for this soon.");
         location.reload();
     } else {
         console.error(error);
+        alert("There was an error sending your request.");
     }
 }
 
