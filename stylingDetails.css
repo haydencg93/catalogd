@@ -447,19 +447,27 @@
 }
 
 .cast-name {
-    display: block;
+    display: -webkit-box;
+    -webkit-line-clamp: 2; /* Allows wrapping up to 2 lines */
+    -webkit-box-orient: vertical;
+    overflow: hidden;
     font-size: 0.95rem;
     font-weight: 700;
     color: #fff;
     margin-bottom: 4px;
     line-height: 1.2;
+    overflow-wrap: break-word; /* Forces super long unbroken names to wrap */
 }
 
 .cast-role {
-    display: block;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
     font-size: 0.8rem;
     color: #9ab;
     line-height: 1.3;
+    overflow-wrap: break-word;
 }
 
 .director-highlight {
@@ -989,11 +997,14 @@
         max-width: 100% !important;
         height: auto !important;
     }
-    .cast-name {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+    .cast-name, .cast-role {
         width: 100% !important;
+        white-space: normal !important; /* CRITICAL: Forces text to wrap */
+        overflow-wrap: break-word !important;
+        word-wrap: break-word !important;
+        display: -webkit-box !important;
+        -webkit-line-clamp: 2 !important; /* Max 2 lines before truncating */
+        -webkit-box-orient: vertical !important;
     }
 
     #similar-section {
