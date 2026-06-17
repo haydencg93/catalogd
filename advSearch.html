@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catalogd | Advanced Search</title>
+    <link rel="icon" type="image/x-icon" href="catalogdFavicon.png" />
+    <link rel="stylesheet" href="stylingIndex.css">
+    <link rel="stylesheet" href="stylingAdvSearch.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <div class="css-logo" onclick="window.location.href='index.html'">
+            <div class="logo-text">catalog<span>d</span></div>
+            <div class="logo-circles">
+                <div class="circle c-movie"></div>
+                <div class="circle c-tv"></div>
+                <div class="circle c-book"></div>
+                <div class="circle c-album"></div>
+                <div class="circle c-youtube"></div>
+            </div>
+        </div>
+        <div class="nav-actions">
+            <button id="login-btn" class="secondary-btn" style="display:none;">Sign In</button>
+            <div id="profile-menu" class="profile-dropdown" style="display:none;">
+                <button class="profile-trigger" onclick="toggleProfileDropdown(event)">
+                    <img src="https://ui-avatars.com/api/?name=User&background=0d0776&color=fff" id="nav-avatar" alt="Profile">
+                    <span class="dropdown-arrow"></span>
+                </button>
+                <div id="dropdown-content" class="dropdown-content">
+                    <a href="index.html">Home</a>
+                    <a href="diary.html">Diary</a>
+                    <a href="lists.html">Lists</a>
+                    <a href="watchlist.html">Watchlist</a>
+                    <a href="profile.html">Profile</a>
+                    <a href="settings.html">Settings</a>
+                    <hr>
+                    <a href="#" onclick="signOut()">Sign Out</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <h2 class="section-title">Advanced Search</h2>
+        
+        <div class="adv-search-container auth-card">
+            <div class="adv-search-section">
+                <span class="adv-search-label">I want to watch a...</span>
+                <div id="type-container" class="pill-grid">
+                    <div class="pill active" data-id="movie" onclick="togglePill(this, 'type')">Movie</div>
+                    <div class="pill" data-id="tv" onclick="togglePill(this, 'type')">TV Show</div>
+                </div>
+            </div>
+
+            <div class="adv-search-section">
+                <span class="adv-search-label">Must Contain Word(s)</span>
+                <input type="text" id="text-search-input" class="adv-search-input" placeholder="Search by title or description (e.g. cabin, revenge)...">
+            </div>
+
+            <div class="adv-search-section" id="duration-section">
+                <span class="adv-search-label" style="margin-bottom: 5px;">Duration</span>
+                
+                <div id="movie-duration-wrapper">
+                    <span class="adv-search-label" style="font-size: 0.75rem; color: #678; margin-top: 10px;">Movies</span>
+                    <div id="movie-duration-container" class="pill-grid">
+                        <div class="pill" data-id="m30-60" data-min="30" data-max="60" onclick="togglePill(this, 'movie-duration')">30 min - 1 hr</div>
+                        <div class="pill" data-id="m60-90" data-min="60" data-max="90" onclick="togglePill(this, 'movie-duration')">1 hr - 1.5 hrs</div>
+                        <div class="pill" data-id="m90-120" data-min="90" data-max="120" onclick="togglePill(this, 'movie-duration')">1.5 hrs - 2 hrs</div>
+                        <div class="pill" data-id="m120-150" data-min="120" data-max="150" onclick="togglePill(this, 'movie-duration')">2 hrs - 2.5 hrs</div>
+                        <div class="pill" data-id="m150-180" data-min="150" data-max="180" onclick="togglePill(this, 'movie-duration')">2.5 hrs - 3 hrs</div>
+                        <div class="pill" data-id="m180-999" data-min="180" data-max="999" onclick="togglePill(this, 'movie-duration')">3+ hrs</div>
+                    </div>
+                </div>
+
+                <div id="tv-duration-wrapper" style="display: none;">
+                    <span class="adv-search-label" style="font-size: 0.75rem; color: #678; margin-top: 15px;">TV Shows (Avg. Episode)</span>
+                    <div id="tv-duration-container" class="pill-grid">
+                        <div class="pill" data-id="t0-10" data-min="0" data-max="10" onclick="togglePill(this, 'tv-duration')">0 - 10 mins</div>
+                        <div class="pill" data-id="t10-20" data-min="10" data-max="20" onclick="togglePill(this, 'tv-duration')">10 - 20 mins</div>
+                        <div class="pill" data-id="t20-30" data-min="20" data-max="30" onclick="togglePill(this, 'tv-duration')">20 - 30 mins</div>
+                        <div class="pill" data-id="t30-40" data-min="30" data-max="40" onclick="togglePill(this, 'tv-duration')">30 - 40 mins</div>
+                        <div class="pill" data-id="t40-50" data-min="40" data-max="50" onclick="togglePill(this, 'tv-duration')">40 - 50 mins</div>
+                        <div class="pill" data-id="t50-999" data-min="50" data-max="999" onclick="togglePill(this, 'tv-duration')">50+ mins</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="adv-search-section">
+                <span class="adv-search-label">Streaming On</span>
+                <div id="providers-container" class="pill-grid">
+                    <p class="meta" style="margin:0;">Loading providers...</p>
+                </div>
+            </div>
+
+            <div class="adv-search-section">
+                <span class="adv-search-label">Core Genres</span>
+                
+                <div class="match-toggle-container" style="margin-top: -5px; margin-bottom: 15px;">
+                    <span style="font-size: 0.85rem; color: #fff; font-weight: 500;">Match Requirement:</span>
+                    <div class="segmented-control">
+                        <input type="radio" id="core-match-any" name="core-genre-logic" value="any" checked>
+                        <label for="core-match-any">Must Include 1+</label>
+                        <input type="radio" id="core-match-all" name="core-genre-logic" value="all">
+                        <label for="core-match-all">Must Include All</label>
+                    </div>
+                </div>
+
+                <div id="core-genres-container" class="pill-grid">
+                    <p class="meta" style="margin:0;">Loading genres...</p>
+                </div>
+            </div>
+
+            <div class="adv-search-section">
+                <span class="adv-search-label">Specific Themes & Tropes</span>
+                
+                <div class="match-toggle-container" style="margin-top: -5px; margin-bottom: 15px;">
+                    <span style="font-size: 0.85rem; color: #fff; font-weight: 500;">Match Requirement:</span>
+                    <div class="segmented-control">
+                        <input type="radio" id="theme-match-any" name="theme-logic" value="any" checked>
+                        <label for="theme-match-any">Must Include 1+</label>
+                        <input type="radio" id="theme-match-all" name="theme-logic" value="all">
+                        <label for="theme-match-all">Must Include All</label>
+                    </div>
+                </div>
+
+                <input type="text" id="genre-search" class="adv-search-input" placeholder="Search themes (e.g. LGBT, Cyberpunk, Zombies)...">
+                
+                <div id="genres-search-results" class="pill-grid" style="display: none; margin-top: 10px;"></div>
+
+                <div id="genres-selected-container" class="pill-grid selected-pills-area" style="display: none; margin-top: 15px;"></div>
+            </div>
+
+            <button id="find-matches-btn" class="primary-btn" style="margin-top: 20px; font-size: 1.1rem; padding: 15px;">
+                Find Matches
+            </button>
+        </div>
+
+        <div id="adv-search-loader" style="display: none; text-align: center; margin-top: 40px; color: #9ab;">Finding matches...</div>
+        <div id="results-grid" class="grid" style="margin-top: 50px;"></div>
+        
+        <div style="text-align: center;">
+            <button id="load-more-btn" class="secondary-btn" style="display: none; margin: 40px auto 20px; padding: 12px 40px; font-size: 1.1rem;">
+                Load More Matches
+            </button>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="scriptingAdvSearch.js"></script>
+</body>
+</html>
