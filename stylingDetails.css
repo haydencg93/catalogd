@@ -834,7 +834,8 @@
 
     .details-container {
         display: grid !important;
-        grid-template-columns: 1fr 1fr !important; 
+        /* minmax(0, 1fr) forces a strict 50/50 split regardless of content size */
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important; 
         gap: 10px; 
         padding: 10px;
         align-items: start; 
@@ -856,6 +857,7 @@
         display: flex;
         flex-direction: column;
         gap: 10px; 
+        min-width: 0 !important; /* Stops the flexbox from stretching the grid column */
     }
     
     #poster-area img {
@@ -883,9 +885,22 @@
 
     /* ROW 3: Filler */
     #filler-status-container {
-        grid-row: 3 !important;
-        grid-column: 1 / 2 !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
         margin-top: 10px !important;
+        padding: 10px !important; 
+    }
+
+    #filler-action-area button,
+    #filler-action-area .meta,
+    #filler-info {
+        width: 100% !important;
+        box-sizing: border-box !important;
+        white-space: normal !important; /* Allows text to wrap */
+        word-wrap: break-word !important; /* Force breaks long unbroken strings */
+        overflow-wrap: break-word !important;
+        font-size: 0.85rem !important; 
+        line-height: 1.3 !important;
     }
 
     /* YouTube Specific Layout */
@@ -944,15 +959,15 @@
 
     /* ROW 6: Logs and Rating buttons */
     #journal-history {
-        grid-row: 6 !important;
-        grid-column: 1 / 2 !important;
-        margin-top: 0 !important;
+        grid-row: 7 !important;
+        grid-column: 1 / -1 !important; /* Full width */
+        margin-top: 10px !important;
     }
     
     .info-pane .rating-section:not(#tv-tracker) {
         grid-row: 6 !important;
-        grid-column: 2 / 3 !important;
-        margin-top: 0 !important;
+        grid-column: 1 / -1 !important; /* 1 / -1 forces it to span the full screen width */
+        margin-top: 10px !important;
     }
     .main-actions {
         display: flex !important;
@@ -965,17 +980,18 @@
 
     /* ROW 7: Fandom Button */
     #fandom-btn {
-        grid-row: 7 !important;
-        grid-column: 2 / 3 !important;
+        grid-row: 8 !important;
+        grid-column: 1 / -1 !important; /* Full width */
         width: 100% !important;
         margin-top: 10px !important;
     }
 
     /* Row 8+: Cast and Similar */
     #cast-section {
-        grid-row: 8 !important;
+        grid-row: 9 !important;
         grid-column: 1 / -1 !important;
     }
+
     #cast-list {
         display: grid !important;
         /* minmax(0, 1fr) forces items to shrink to fit the column */
@@ -1008,7 +1024,7 @@
     }
 
     #similar-section {
-        grid-row: 9 !important;
+        grid-row: 10 !important;
         grid-column: 1 / -1 !important;
     }
     #similar-grid {
