@@ -24,7 +24,10 @@ async function initProfile() {
 
         // 2. Identify User
         const params = new URLSearchParams(window.location.search);
-        const urlUserId = params.get('id');
+        
+        // Grab the ID whether the previous page called it 'userId' OR 'id'
+        const urlUserId = params.get('userId') || params.get('id'); 
+        
         const { data: { session } } = await supabaseClient.auth.getSession();
         const loggedInUserId = session?.user?.id;
 

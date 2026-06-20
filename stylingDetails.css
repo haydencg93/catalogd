@@ -211,12 +211,6 @@
     padding-bottom: 5px;
 }
 
-.history-item {
-    margin-bottom: 20px;
-    padding-bottom: 15px;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
-}
-
 .history-item:last-child { border: none; }
 
 .history-header {
@@ -736,7 +730,9 @@
     cursor: default; /* Ensures the mouse doesn't turn into a hand/pointer */
 }
 
-.history-item:last-child { border: none; }
+.following-log-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
 
 /* Keep the pointer ONLY for the delete trash can */
 .history-item span[onclick] {
@@ -765,6 +761,21 @@
     background: rgba(255, 255, 255, 0.1);
     color: #fff;
 }
+
+/* --- Split History Row (Desktop) --- */
+.history-split-row {
+    grid-column: 1 / -1; /* Forces it to span both left and right columns */
+    display: flex;
+    gap: 40px; 
+    align-items: flex-start; /* Stops them from stretching to unequal heights */
+    margin-top: 20px;
+}
+
+.history-split-row > .history-section {
+    flex: 1; /* Tells them to share exactly half the space */
+    min-width: 0; /* Prevents wide content from blowing out the flexbox */
+    margin-top: 0; /* Overrides the default margin so they align neatly */
+}   
 
 #similar-grid .media-card:hover {
     opacity: 1 !important;
@@ -958,12 +969,33 @@
     #quick-page-input { width: 100% !important; box-sizing: border-box; }
 
     /* ROW 6: Logs and Rating buttons */
+    .history-split-row {
+        grid-row: 7 !important;
+        grid-column: 1 / -1 !important;
+        display: flex !important;
+        flex-direction: column !important; /* Stack them top-to-bottom */
+        gap: 15px !important;
+        margin-top: 15px !important;
+    }
+
+    .history-split-row > .history-section {
+        margin-top: 0 !important;
+        width: 100% !important;
+        box-sizing: border-box;
+    }
+    
     #journal-history {
         grid-row: 7 !important;
         grid-column: 1 / -1 !important; /* Full width */
         margin-top: 10px !important;
     }
     
+    #following-history {
+        grid-row: 8 !important;
+        grid-column: 1 / -1 !important; 
+        margin-top: 10px !important;
+    }
+
     .info-pane .rating-section:not(#tv-tracker) {
         grid-row: 6 !important;
         grid-column: 1 / -1 !important; /* 1 / -1 forces it to span the full screen width */

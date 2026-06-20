@@ -417,6 +417,7 @@ async function initDetails() {
         }
 
         fetchMediaHistory();
+        fetchFollowingLogs();
         setupWatchlist(id, type);
         setupListManager(id, type);
         setupStatusManager(id, type);
@@ -1718,6 +1719,103 @@ async function checkAndQueueMedia(mediaId, mediaType, config) {
 
     } catch (err) {
         console.error("[E] Background Queue Error:", err);
+    }
+}
+
+async function fetchFollowingLogs() {
+    const section = document.getElementById('following-history');
+    const listContainer = document.getElementById('following-history-list');
+    const { data: { user } } = await supabaseClient.auth.getUser();
+
+    // If not signed in, show a prompt instead of hiding the section
+    if (!user) {
+        section.style.display = 'block';
+        listContainer.innerHTML = '<p class="meta">Sign in to see friend reviews.</p>';
+        return; 
+    }
+
+    try {
+        // 1. Find who the user follows from the 'follows' table
+        const { data: follows, error: followError } = await supabaseClient
+            .from('follows')
+            .select('following_id')
+            .eq('follower_id', user.id);
+
+        // If the user doesn't follow anyone, show the empty state
+        if (followError || !follows || follows.length === 0) {
+            section.style.display = 'block';
+            listContainer.innerHTML = '<p class="meta">No reviews from friends yet.</p>';
+            return;
+        }
+
+        const followingIds = follows.map(f => f.following_id);
+
+        // 2. Fetch logs for THIS media from THOSE users
+        const { data: logs, error: logsError } = await supabaseClient
+            .from('media_logs')
+            .select('*')
+            .eq('media_id', String(id))
+            .in('user_id', followingIds)
+            .order('created_at', { ascending: false })
+            .limit(5); // Show top 5 recent friend logs
+
+        // If friends haven't reviewed it, show the empty state
+        if (logsError || !logs || logs.length === 0) {
+            section.style.display = 'block';
+            listContainer.innerHTML = '<p class="meta">No reviews from friends yet.</p>';
+            return;
+        }
+
+        // 3. Fetch the profile info for these specific users
+        const logUserIds = [...new Set(logs.map(log => log.user_id))];
+        const { data: profiles, error: profilesError } = await supabaseClient
+            .from('profiles')
+            .select('id, username, avatar_url')
+            .in('id', logUserIds);
+
+        // Create a quick lookup dictionary for the profiles
+        const profileMap = {};
+        if (profiles) {
+            profiles.forEach(p => {
+                profileMap[p.id] = p;
+            });
+        }
+
+        // 4. Render the UI
+        section.style.display = 'block';
+        
+        listContainer.innerHTML = logs.map(log => {
+            const profile = profileMap[log.user_id] || {};
+            const username = profile.username || 'Unknown User';
+            const avatar = profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=1b2228&color=9ab`;
+            
+            const stars = '★'.repeat(Math.floor(log.rating || 0)) + ((log.rating || 0) % 1 !== 0 ? '½' : '');
+            const logDate = new Date(log.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+            
+            const reviewPreview = log.notes ? `<div class="history-notes">"${log.notes}"</div>` : '';
+            const heartBadge = log.is_liked ? `<span title="Liked" style="font-size: 0.85rem;">❤️</span>` : '';
+
+            return `
+                <div class="history-item following-log-item" style="cursor: pointer; transition: background 0.2s; padding: 10px; border-radius: 8px; margin: 0 -10px 10px -10px;" onclick="window.location.href='profile.html?userId=${log.user_id}'">
+                    <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 8px;">
+                        <img src="${avatar}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1px solid #2c3440;">
+                        <span style="font-weight: bold; font-size: 0.9rem; color: #fff;">${username}</span>
+                        <span style="font-size: 0.75rem; color: #678; margin-left: auto;">${logDate}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span class="history-stars">${stars}</span>
+                        ${heartBadge}
+                    </div>
+                    ${reviewPreview}
+                </div>
+            `;
+        }).join('');
+
+    } catch (err) {
+        console.error("Error fetching friend logs:", err);
+        // Fallback for random network errors
+        section.style.display = 'block';
+        listContainer.innerHTML = '<p class="meta">Unable to load friend reviews.</p>';
     }
 }
 

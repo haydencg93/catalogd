@@ -77,14 +77,6 @@
                     <div id="filler-action-area" style="margin-top: 10px;"></div>
                 </div>
             </div>
-            
-            <div id="journal-history" class="history-section">
-                <h4>Your Logs</h4>
-                <div id="history-list">
-                    <!-- Logs injected via JS -->
-                </div>
-                <button id="show-more-logs" style="display: none; width: 100%; margin-top: 10px;"></button>
-            </div>
         </div>
         
         <!-- Column 2: Info and Interaction -->
@@ -140,7 +132,21 @@
                 <div id="filler-action-area" style="margin-top: 10px;"></div>
             </div>
         </div>
-        <!-- Cast Section -->
+        <div class="history-split-row">
+            <div id="journal-history" class="history-section">
+                <h4>Your Logs</h4>
+                <div id="history-list">
+                    </div>
+                <button id="show-more-logs" style="display: none; width: 100%; margin-top: 10px;"></button>
+            </div>
+            
+            <div id="following-history" class="history-section" style="display: none;">
+                <h4>Friend Reviews</h4>
+                <div id="following-history-list">
+                    </div>
+            </div>
+        </div>
+
         <div id="cast-section" class="rating-section">
             <h3>Cast & Crew</h3>
             <div id="cast-list" class="cast-grid">
