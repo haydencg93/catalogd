@@ -115,7 +115,30 @@ async function getWikipediaTitle(propertyId, externalId) {
 function scrubWikipediaHeaders(htmlString) {
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = htmlString;
+    
+    // Remove headers and edit links
     tempDiv.querySelectorAll('h1, h2, h3, h4, h5, h6, .mw-editsection').forEach(el => el.remove());
+    
+    // Fix relative Wikipedia links
+    tempDiv.querySelectorAll('a').forEach(link => {
+        const href = link.getAttribute('href');
+        
+        if (href) {
+            // Check if the link is a relative Wikipedia path
+            if (href.startsWith('/wiki/')) {
+                link.setAttribute('href', `https://en.wikipedia.org${href}`);
+                link.setAttribute('target', '_blank'); 
+                link.setAttribute('rel', 'noopener noreferrer'); 
+            } 
+            // Wikipedia's REST API sometimes returns paths starting with "./"
+            else if (href.startsWith('./')) {
+                link.setAttribute('href', `https://en.wikipedia.org/wiki/${href.substring(2)}`);
+                link.setAttribute('target', '_blank');
+                link.setAttribute('rel', 'noopener noreferrer');
+            }
+        }
+    });
+    
     return tempDiv.innerHTML;
 }
 
