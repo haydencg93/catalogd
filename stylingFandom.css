@@ -149,3 +149,68 @@
 #fandom-plot-content .magnify {
     display: none;
 }
+
+/* --- FANDOM MOBILE RESPONSIVENESS (< 768px) --- */
+@media (max-width: 768px) {
+    /* 1. Force a single-column flex layout, overriding stylingDetails.css */
+    .details-container {
+        display: flex !important;
+        flex-direction: column !important;
+        width: 100% !important;
+        padding: 15px !important; 
+        box-sizing: border-box;
+    }
+
+    /* 2. Dissolve the columns so children can be ordered together */
+    #left-col, .info-pane {
+        display: contents !important; 
+    }
+
+    /* 3. Execute the exact stacking order */
+    #fandom-title {
+        order: 1 !important;
+        text-align: center;
+        margin: 10px 0 5px 0 !important;
+        width: 100%;
+    }
+
+    #fandom-meta {
+        order: 2 !important;
+        text-align: center;
+        margin-bottom: 15px !important;
+        width: 100%;
+    }
+
+    #follow-fandom-btn {
+        order: 3 !important;
+        max-width: 280px;
+        margin: 0 auto 20px auto !important;
+        width: 100%;
+    }
+
+    #fandom-poster-area {
+        order: 4 !important;
+        width: 100%;
+        max-width: 280px;
+        margin: 0 auto 20px auto !important;
+    }
+
+    #fandom-poster-area img, #fandom-image {
+        width: 100%;
+        height: auto;
+        border-radius: 8px;
+    }
+
+    /* Summary, Plot, and Cast share this class and will follow DOM order naturally */
+    .rating-section {
+        order: 5 !important;
+        margin-top: 15px !important;
+        width: 100% !important; 
+    }
+
+    .fandom-character-grid {
+        /* Forces exactly 2 equal-width columns */
+        grid-template-columns: repeat(2, 1fr) !important; 
+        gap: 15px;
+    }
+}
