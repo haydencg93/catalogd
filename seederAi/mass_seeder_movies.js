@@ -32,7 +32,7 @@ async function fetchTmdbDetails(tmdbId) {
 
     try {
         // Fetch base details AND keywords in one single optimized API call
-        const res = await fetch(`https://api.themoviedb.org/3/movie/${tmdbId}?append_to_response=keywords`, options);
+        const res = await fetch(`https://api.themoviedb.org/3/movie/${tmdbId}?append_to_response=keywords,credits`, options);
         
         if (!res.ok) {
             // Safety Catch: If TMDB rate-limits us, pause heavily
@@ -48,13 +48,17 @@ async function fetchTmdbDetails(tmdbId) {
         const genres = data.genres ? data.genres.map(g => g.name) : [];
         const keywords = data.keywords && data.keywords.keywords ? data.keywords.keywords.map(k => k.name) : [];
         const combinedTags = [...genres, ...keywords].join(', ');
+        const characters = data.credits && data.credits.cast 
+            ? data.credits.cast.map(c => c.character).filter(Boolean).slice(0, 15).join(', ') 
+            : '';
 
         return {
             title: data.title,
             release_year: data.release_date ? data.release_date.split('-')[0] : null,
             popularity: data.popularity,
             overview: data.overview,
-            tags: combinedTags
+            tags: combinedTags,
+            characters: characters // 3. Return the string
         };
     } catch (error) {
         console.error(`[E] Error fetching TMDB ID ${tmdbId}:`, error.message);
@@ -114,8 +118,9 @@ async function runMassSeeder() {
                             popularity: enrichedData.popularity,
                             overview: enrichedData.overview,
                             tags: enrichedData.tags,
-                            is_embedded: false // IMPORTANT: Flags it for your Qdrant script
-                        }, { onConflict: 'tmdb_id' }); // Upsert prevents duplicate rows
+                            characters: enrichedData.characters, // Push to Supabase!
+                            is_embedded: false 
+                        }, { onConflict: 'tmdb_id' });
 
                     if (error) {
                         console.error(`[E] DB Error on ${enrichedData.title}:`, error.message);

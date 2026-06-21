@@ -1,5 +1,6 @@
 let TMDB_TOKEN = '';
 let supabaseClient = null;
+let configData = null;
 
 // Elements
 const durationSection = document.getElementById('duration-section');
@@ -31,9 +32,10 @@ let currentPage = 1;
 async function initAdvSearch() {
     try {
         const response = await fetch('config.json');
-        const config = await response.json();
-        TMDB_TOKEN = config.tmdb_token;
-        supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
+        configData = await response.json(); // <-- Changed from "const config ="
+        
+        TMDB_TOKEN = configData.tmdb_token;
+        supabaseClient = supabase.createClient(configData.supabase_url, configData.supabase_key);
 
         await setupHeader();
         await fetchTopProviders();
@@ -241,9 +243,25 @@ async function executeSearch(isLoadMore = false) {
     loader.style.display = 'block';
     loadMoreBtn.style.display = 'none';
 
-    // Fetch values
+    // 1. Check for a Character Query
+    const characterQuery = document.getElementById('character-search-input') ? document.getElementById('character-search-input').value.trim() : '';
+    let characterFallbackActive = false;
+
+    // 2. The Split-Brain Routing & Fallback Catch
+    if (characterQuery && !isLoadMore) {
+        try {
+            const qdrantSuccess = await executeCharacterSearch(characterQuery);
+            if (qdrantSuccess) return; // If Qdrant worked perfectly, stop here!
+        } catch (err) {
+            // THE FALLBACK: Log the error to the console, flag it, and let the code continue to TMDB!
+            console.error("[Qdrant Fallback] Character search failed:", err.message);
+            characterFallbackActive = true; 
+        }
+    }
+
+    // Fetch values for standard TMDB search
     const providersStr = Array.from(activeProviders).join('|');
-    const textQuery = document.getElementById('text-search-input').value.toLowerCase().trim(); // NEW
+    const textQuery = document.getElementById('text-search-input').value.toLowerCase().trim(); 
     
     // Logic for Core Genres
     const coreLogic = document.querySelector('input[name="core-genre-logic"]:checked').value;
@@ -438,6 +456,113 @@ window.onclick = function(event) {
 window.signOut = async function() {
     await supabaseClient.auth.signOut();
     window.location.href = 'index.html';
+}
+
+async function executeCharacterSearch(characterQuery) {
+    resultsGrid.innerHTML = '';
+    loader.style.display = 'block';
+    loadMoreBtn.style.display = 'none';
+
+    try {
+        // 1. Fetch from Qdrant
+        const response = await fetch(`${configData.supabase_url}/functions/v1/search-characters`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${configData.supabase_key}` 
+            },
+            body: JSON.stringify({ query: characterQuery })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(`Edge Function Failed: ${data.error}`);
+        }
+
+        let matches = data.results || [];
+
+        // 2. Filter locally by Media Type
+        matches = matches.filter(m => activeTypes.has(m.media_type));
+
+        // 3. Filter locally by Core Genres & Themes
+        const requiredTags = [...Array.from(activeCoreGenres).map(id => document.querySelector(`.pill[data-id="${id}"]`).innerText), ...Array.from(activeKeywords.values())].map(t => t.toLowerCase());
+        
+        if (requiredTags.length > 0) {
+            matches = matches.filter(m => {
+                const payloadTags = (m.tags || '').toLowerCase();
+                // Simple logic: Does the Qdrant tag payload contain at least one of the selected themes?
+                return requiredTags.some(tag => payloadTags.includes(tag)); 
+            });
+        }
+
+        if (matches.length === 0) {
+            resultsGrid.innerHTML = '<p class="meta" style="grid-column: 1/-1; text-align:center;">No matches found for that character with your current filters.</p>';
+            return;
+        }
+
+        // 4. Render using the Lazy Poster approach
+        renderQdrantResults(matches);
+
+    } catch (err) {
+        console.error("Character Search Error:", err);
+        resultsGrid.innerHTML = '<p class="meta" style="grid-column: 1/-1; text-align:center;">Failed to fetch character data.</p>';
+    } finally {
+        loader.style.display = 'none';
+        document.getElementById('results-grid').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+
+function renderQdrantResults(items) {
+    items.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'media-card';
+        card.setAttribute('data-type', item.media_type);
+        
+        card.onclick = () => {
+            window.location.href = `details.html?id=${encodeURIComponent(item.id)}&type=${item.media_type}`;
+        };
+        
+        const imgId = `poster-${item.id}`;
+
+        // Create the card with a loading placeholder
+        card.innerHTML = `
+            <div class="poster-wrapper">
+                <img id="${imgId}" src="https://via.placeholder.com/500x750/1b2228/9ab?text=Loading..." alt="${item.title}">
+                <span class="badge badge-${item.media_type}">${item.media_type}</span>
+            </div>
+            <div class="media-info">
+                <div class="title">${item.title}</div>
+                <div class="meta">${item.release_year || ''}</div>
+            </div>`;
+        
+        resultsGrid.appendChild(card);
+
+        // Tell the background script to go find the actual image!
+        fetchDynamicPoster(item, imgId);
+    });
+}
+
+// Brought over from scriptingRecs.js
+async function fetchDynamicPoster(rec, imgElementId) {
+    const imgEl = document.getElementById(imgElementId);
+    if (!imgEl) return;
+
+    try {
+        if (rec.media_type === 'movie' || rec.media_type === 'tv') {
+            const res = await fetch(`https://api.themoviedb.org/3/${rec.media_type}/${rec.id}`, {
+                headers: { Authorization: `Bearer ${TMDB_TOKEN}` }
+            }).then(r => r.json());
+            
+            if (res.poster_path) {
+                imgEl.src = `https://image.tmdb.org/t/p/w500${res.poster_path}`;
+            } else {
+                imgEl.src = 'https://via.placeholder.com/500x750/1b2228/9ab?text=No+Poster';
+            }
+        } 
+    } catch (e) {
+        imgEl.src = 'https://via.placeholder.com/500x750/1b2228/ff4d4d?text=Error';
+    }
 }
 
 initAdvSearch();

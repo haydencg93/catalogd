@@ -37,7 +37,7 @@ async function runUnifiedPipeline() {
         // Fetching all the rich metadata so we can store it in Qdrant!
         const { data: movies, error: fetchError } = await supabase
             .from('global_movies')
-            .select('tmdb_id, title, tags, overview, media_type, popularity, release_year')
+            .select('tmdb_id, title, tags, overview, media_type, popularity, release_year, characters')
             .not('tags', 'is', null)
             .eq('is_embedded', false)
             .limit(100); 
@@ -60,10 +60,13 @@ async function runUnifiedPipeline() {
             const movie = movies[i];
             
             try {
-                // 1. Generate the Math
-                const output = await generateEmbedding(movie.tags, { pooling: 'mean', normalize: true });
-                
-                // 2. Push to Qdrant WITH the new Rich Payload
+                // 1. Combine the tags and the characters into one giant context string
+                const mathInputString = `${movie.tags}, ${movie.characters || ''}`;
+
+                // 2. Generate the math based on the COMBINED string
+                const output = await generateEmbedding(mathInputString, { pooling: 'mean', normalize: true });
+
+                // 3. Push to Qdrant (same as before)
                 await qdrant.upsert('movies', {
                     wait: true,
                     points: [{
@@ -71,6 +74,7 @@ async function runUnifiedPipeline() {
                         vector: Array.from(output.data),
                         payload: { 
                             title: movie.title,
+                            characters: movie.characters,
                             overview: movie.overview,
                             media_type: movie.media_type,
                             popularity: movie.popularity,

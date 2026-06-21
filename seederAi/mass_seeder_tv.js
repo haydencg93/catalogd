@@ -29,8 +29,8 @@ async function fetchTmdbTvDetails(tmdbId) {
     };
 
     try {
-        // Hitting the TV endpoint instead of Movie
-        const res = await fetch(`https://api.themoviedb.org/3/tv/${tmdbId}?append_to_response=keywords`, options);
+        // ADDED: ,credits to the endpoint
+        const res = await fetch(`https://api.themoviedb.org/3/tv/${tmdbId}?append_to_response=keywords,credits`, options);
         
         if (!res.ok) {
             if (res.status === 429) {
@@ -43,18 +43,23 @@ async function fetchTmdbTvDetails(tmdbId) {
         const data = await res.json();
         
         const genres = data.genres ? data.genres.map(g => g.name) : [];
-        // TV shows sometimes use 'results' inside keywords
         const keywordArray = data.keywords && data.keywords.results ? data.keywords.results : (data.keywords && data.keywords.keywords ? data.keywords.keywords : []);
         const keywords = keywordArray.map(k => k.name);
         
         const combinedTags = [...genres, ...keywords].join(', ');
 
+        // ADDED: Character extraction
+        const characters = data.credits && data.credits.cast 
+            ? data.credits.cast.map(c => c.character).filter(Boolean).slice(0, 15).join(', ') 
+            : '';
+
         return {
-            title: data.name, // TMDB uses 'name' for TV titles
+            title: data.name, 
             release_year: data.first_air_date ? data.first_air_date.split('-')[0] : null,
             popularity: data.popularity,
             overview: data.overview,
-            tags: combinedTags
+            tags: combinedTags,
+            characters: characters // Return the string
         };
     } catch (error) {
         console.error(`[E] Error fetching TMDB ID ${tmdbId}:`, error.message);
@@ -111,9 +116,10 @@ async function runTvSeeder() {
                             popularity: enrichedData.popularity,
                             overview: enrichedData.overview,
                             tags: enrichedData.tags,
-                            media_type: 'tv', // Explicitly tagging this as a TV show
+                            characters: enrichedData.characters, // Push to Supabase
+                            media_type: 'tv',
                             is_embedded: false 
-                        }, { onConflict: 'tmdb_id' }); 
+                        }, { onConflict: 'tmdb_id' });
 
                     if (error) {
                         console.error(`[E] DB Error on ${enrichedData.title}:`, error.message);
