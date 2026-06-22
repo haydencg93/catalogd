@@ -71,7 +71,7 @@ async function loadConfig() {
             searchInput.value = searchQuery;
             unifiedSearch(searchQuery);
         } else {
-            fetchTrending('movie');
+            loadTabContent('movie');
         }
 
     } catch (err) {
@@ -172,91 +172,293 @@ function toggleAuthMode() {
     authRetype.style.display = isSignUpMode ? "block" : "none";
 }
 
-async function fetchTrending(type = 'movie') {
+async function loadTabContent(type) {
     const sectionTitle = document.getElementById('section-title');
-    if (sectionTitle) {
-        let typeLabel = 'Movies';
-        if (type === 'tv') typeLabel = 'TV Shows';
-        if (type === 'book') typeLabel = 'Books';
-        if (type === 'album') typeLabel = 'Music Albums';
-        sectionTitle.textContent = `Trending ${typeLabel}`;
-    }
+    if (sectionTitle) sectionTitle.style.display = 'none'; // Hide headers for normal browsing
 
     resultsGrid.innerHTML = '';
     loader.style.display = 'block';
-    loader.textContent = `Fetching trending ${type}s...`;
+    loader.textContent = `Fetching ${type}s...`;
 
     try {
+        let forYouItems = [];
+        // Only attempt For You if it is a Movie or TV show
+        if (['movie', 'tv'].includes(type)) {
+            forYouItems = await getForYouItems(type);
+        }
+
+        let trendingItems = await getTrendingItems(type);
+
+        // Remove any trending items that are already in the For You array to prevent duplicates
+        const forYouIds = new Set(forYouItems.map(item => String(item.id)));
+        trendingItems = trendingItems.filter(item => !forYouIds.has(String(item.id)));
+
+        // Combine them: For You items populate at the top of the grid!
+        const combined = [...forYouItems, ...trendingItems];
+
+        if (combined.length === 0) {
+            resultsGrid.innerHTML = '<p class="meta" style="grid-column: 1/-1; text-align: center;">No items found.</p>';
+        } else {
+            renderResults(combined);
+        }
+    } catch (err) {
+        console.error("Tab content load failed:", err);
+        loader.textContent = "Failed to load content.";
+    } finally {
+        if(loader.textContent.startsWith("Fetching")) loader.style.display = 'none';
+    }
+}
+
+async function getTrendingItems(type) {
+    try {
         if (type === 'book') {
-            // OpenLibrary's trending API occasionally crashes and returns a 502 HTML error page.
             let res = await fetch(`https://openlibrary.org/trending/daily.json?limit=15`);
             let text = await res.text();
-            
-            // If the response is HTML instead of JSON, fallback to their highly stable Search API
             if (text.trim().startsWith('<')) {
-                console.warn("OpenLibrary trending API is down, falling back to search API...");
                 res = await fetch(`https://openlibrary.org/search.json?q=subject:fiction&sort=editions&limit=15`);
                 text = await res.text();
             }
-
             const data = JSON.parse(text);
-            
-            // The Search API uses `data.docs`, while Trending uses `data.works`. We check for both.
             const itemsList = data.works || data.docs || [];
-            
-            const books = itemsList.map(work => ({
+            return itemsList.map(work => ({
                 title: work.title,
                 year: work.first_publish_year || (work.publish_year && work.publish_year[0]) || '',
                 author: work.author_name ? work.author_name[0] : null,
-                image: work.cover_edition_key 
-                    ? `https://covers.openlibrary.org/b/olid/${work.cover_edition_key}-M.jpg` 
-                    : (work.cover_i ? `https://covers.openlibrary.org/b/id/${work.cover_i}-M.jpg` : 'https://placehold.co/500x750/1b2228/9ab?text=No+Cover'),
+                image: work.cover_edition_key ? `https://covers.openlibrary.org/b/olid/${work.cover_edition_key}-M.jpg` : (work.cover_i ? `https://covers.openlibrary.org/b/id/${work.cover_i}-M.jpg` : 'https://placehold.co/500x750/1b2228/9ab?text=No+Cover'),
                 type: 'book',
-                id: work.key
+                id: work.key,
+                isTrending: true // Flag for the badge
             }));
-            renderResults(books, true);
         } else if (type === 'album') {
-            // --- LAST.FM TRENDING LOGIC ---
             const res = await fetch(`https://ws.audioscrobbler.com/2.0/?method=tag.gettopalbums&tag=pop&api_key=${LASTFM_KEY}&format=json&limit=15`);
             const data = await res.json();
-            const albums = (data.albums.album || []).map(a => {
+            return (data.albums.album || []).map(a => {
                 let img = 'https://via.placeholder.com/500x750?text=No+Image';
-                if (a.image && a.image.length > 3 && a.image[3]['#text']) {
-                    img = a.image[3]['#text'];
-                }
+                if (a.image && a.image.length > 3 && a.image[3]['#text']) img = a.image[3]['#text'];
                 const compositeId = encodeURIComponent(`${a.artist.name}|||${a.name}`);
-                return {
-                    title: a.name,
-                    year: '',
-                    author: a.artist ? a.artist.name : null,
-                    image: img,
-                    type: 'album',
-                    id: compositeId
-                };
+                return { title: a.name, year: '', author: a.artist ? a.artist.name : null, image: img, type: 'album', id: compositeId, isTrending: true };
             });
-            renderResults(albums, true);
         } else {
-            const url = `https://api.themoviedb.org/3/trending/${type}/day`;
-            const options = {
-                method: 'GET',
-                headers: { accept: 'application/json', Authorization: `Bearer ${TMDB_TOKEN}` }
-            };
-            const res = await fetch(url, options);
+            const res = await fetch(`https://api.themoviedb.org/3/trending/${type}/day`, { headers: { accept: 'application/json', Authorization: `Bearer ${TMDB_TOKEN}` } });
             const data = await res.json();
-            const items = (data.results || []).map(item => ({
+            return (data.results || []).map(item => ({
                 title: item.title || item.name,
                 year: (item.release_date || item.first_air_date || '').split('-')[0],
                 image: `https://image.tmdb.org/t/p/w500${item.poster_path}`,
                 type: type,
-                id: item.id
+                id: item.id,
+                isTrending: true // Flag for the badge
             }));
-            renderResults(items, true);
         }
-        loader.style.display = 'none';
-    } catch (err) {
-        console.error("Trending fetch failed:", err);
-        loader.textContent = "Failed to load content.";
+    } catch (e) {
+        console.error("Trending fetch error:", e);
+        return [];
     }
+}
+
+async function getForYouItems(mediaType) {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) return [];
+
+    try {
+        // 1. Fetch up to 25 highly-rated items
+        const { data: highlyRated } = await supabaseClient
+            .from('media_logs')
+            .select('media_id, rating') 
+            .eq('user_id', user.id)
+            .eq('media_type', mediaType)
+            .gte('rating', 4)
+            .order('rating', { ascending: false })
+            .order('created_at', { ascending: false })
+            .limit(25);
+
+        if (!highlyRated || highlyRated.length === 0) return [];
+
+        let genreCounts = {};
+        let keywordCounts = {};
+        let genreNames = {};
+        let keywordNames = {};
+        
+        // 2. Fetch TMDB data for ALL 25 items simultaneously
+        const analyzePromises = highlyRated.map(item => 
+            fetch(`https://api.themoviedb.org/3/${mediaType}/${item.media_id}?append_to_response=keywords`, {
+                headers: { Authorization: `Bearer ${TMDB_TOKEN}` }
+            }).then(r => r.json()).catch(() => null) 
+        );
+        
+        const analyzedItems = await Promise.all(analyzePromises);
+
+        // 3. Tally genres and keywords with aggressive weighting
+        analyzedItems.forEach((res, index) => {
+            if (!res) return;
+            
+            const itemRating = highlyRated[index].rating;
+            
+            let weight = 1; 
+            if (itemRating === 5) weight = 5;       
+            else if (itemRating >= 4.5) weight = 2.5; 
+
+            (res.genres || []).forEach(g => {
+                genreCounts[g.id] = (genreCounts[g.id] || 0) + weight;
+                genreNames[g.id] = g.name; 
+            });
+            
+            const keywordsArray = res.keywords?.keywords || res.keywords?.results || [];
+            keywordsArray.forEach(k => {
+                keywordCounts[k.id] = (keywordCounts[k.id] || 0) + weight;
+                keywordNames[k.id] = k.name; 
+            });
+        });
+
+        // 4. STRICT EXTRACTION: Top 3 Genres and Top 5 Keywords
+        const topGenres = Object.keys(genreCounts).sort((a, b) => genreCounts[b] - genreCounts[a]).slice(0, 3);
+        const topKeywords = Object.keys(keywordCounts).sort((a, b) => keywordCounts[b] - keywordCounts[a]).slice(0, 5);
+
+        console.log(`🎬 --- ${mediaType.toUpperCase()} TASTE PROFILE (TARGETED) --- 🎬`);
+        console.log("Top 3 Genres");
+        console.table(topGenres.map(id => ({ Genre: genreNames[id], Score: genreCounts[id] })));
+        console.log("Top 5 Themes/Keywords");
+        console.table(topKeywords.map(id => ({ Theme: keywordNames[id], Score: keywordCounts[id] })));
+        console.log("-------------------------------------------------");
+
+        if (topGenres.length === 0 || topKeywords.length === 0) return [];
+
+        // 5. Fetch all logged items to prevent duplicate recommendations
+        const { data: allDiary } = await supabaseClient
+            .from('media_logs')
+            .select('media_id')
+            .eq('user_id', user.id)
+            .eq('media_type', mediaType);
+            
+        const loggedIds = new Set((allDiary || []).map(d => String(d.media_id)));
+
+        // 6. TARGETED DISCOVERY FETCH
+        // Instead of one big OR search, we fetch 1 page SPECIFICALLY for each of your top 5 themes.
+        // This guarantees the blockbusters in theme #5 can't crowd out the niche films in theme #1.
+        const fetchPromises = topKeywords.map(keywordId => {
+            let url = `https://api.themoviedb.org/3/discover/${mediaType}?language=en-US&sort_by=popularity.desc&watch_region=US`;
+            url += `&with_genres=${topGenres.join('|')}`; // Must have a top genre
+            url += `&with_keywords=${keywordId}`;          // MUST have THIS specific theme
+            return fetch(url, { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } }).then(r => r.json());
+        });
+
+        const targetedPages = await Promise.all(fetchPromises);
+        
+        // Pool all the targeted results together
+        let rawRecommendations = [];
+        targetedPages.forEach(page => {
+            if (page.results) rawRecommendations.push(...page.results);
+        });
+
+        // De-duplicate the pool and remove logged items
+        const candidateIds = [...new Set(rawRecommendations.map(i => i.id))].filter(id => !loggedIds.has(String(id)));
+
+        // 7. THE DEEP FETCH (Get keywords for the candidates)
+        const candidatePromises = candidateIds.map(id => 
+            fetch(`https://api.themoviedb.org/3/${mediaType}/${id}?append_to_response=keywords`, {
+                headers: { Authorization: `Bearer ${TMDB_TOKEN}` }
+            }).then(r => r.json()).catch(() => null)
+        );
+        const detailedCandidates = await Promise.all(candidatePromises);
+
+        // 8. THE STRICT SCORING ENGINE
+        const uniqueRecs = new Map();
+        
+        detailedCandidates.forEach(item => {
+            if (!item || !item.id) return;
+            
+            // RULE 1: Must contain a top genre
+            const hasTopGenre = (item.genres || []).some(g => topGenres.includes(String(g.id)));
+            if (!hasTopGenre) return;
+
+            let themeScore = 0;
+            let genreScore = 0;
+            
+            // Score Themes
+            const keywordsArray = item.keywords?.keywords || item.keywords?.results || [];
+            keywordsArray.forEach(k => {
+                if (topKeywords.includes(String(k.id))) {
+                    themeScore += keywordCounts[k.id];
+                }
+            });
+
+            if (themeScore === 0) return;
+
+            // Score Genres
+            (item.genres || []).forEach(g => {
+                if (topGenres.includes(String(g.id))) {
+                    genreScore += genreCounts[g.id];
+                }
+            });
+            
+            // The Math: A movie with your #1 theme (40 pts -> 40,000) will easily beat 
+            // a movie with your #5 theme (30 pts -> 30,000), even if it's less popular.
+            const finalScore = (themeScore * 1000) + genreScore + (item.popularity / 10000); 
+            
+            uniqueRecs.set(item.id, { ...item, _score: finalScore });
+        });
+
+        // 9. Sort and take the best 12
+        const finalRecs = Array.from(uniqueRecs.values())
+            .sort((a, b) => b._score - a._score)
+            .slice(0, 12);
+
+        return finalRecs.map(item => ({
+            title: item.title || item.name,
+            year: (item.release_date || item.first_air_date || '').split('-')[0],
+            image: `https://image.tmdb.org/t/p/w500${item.poster_path}`,
+            type: mediaType,
+            id: item.id,
+            isForYou: true 
+        }));
+    } catch (err) {
+        console.error("For you fetch error:", err);
+        return [];
+    }
+}
+
+function renderResults(items, targetGrid = resultsGrid) {
+    targetGrid.innerHTML = ''; 
+    
+    items.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'media-card';
+        card.setAttribute('data-type', item.type);
+        
+        card.onclick = () => {
+            if (item.type === 'person') window.location.href = `cast.html?personId=${item.id}`;
+            else if (item.type === 'author') window.location.href = `cast.html?authorId=${item.id}`;
+            else if (item.type === 'user') window.location.href = `profile.html?id=${item.id}`;
+            else window.location.href = `details.html?id=${encodeURIComponent(item.id)}&type=${item.type}`;
+        };
+        
+        let finalImage = item.image;
+        const customArt = customImgsMap.get(`${item.type}_${String(item.id)}`);
+        if (customArt && customArt.custom_poster) finalImage = customArt.custom_poster;
+
+        // Display badges based on the flags embedded inside the item data
+        const trendingBadge = item.isTrending && item.type !== 'user' ? `<div class="trending-label">Trending Today</div>` : '';
+        const userBadge = item.type === 'user' ? `<div class="trending-label">Member</div>` : '';
+        const forYouBadge = item.isForYou ? `<div class="foryou-label">For You</div>` : '';
+
+        card.innerHTML = `
+            <div class="poster-wrapper">
+                ${trendingBadge}
+                ${userBadge}
+                ${forYouBadge}
+                <img src="${finalImage}" 
+                     alt="${item.title}" 
+                     loading="lazy" 
+                     onerror="this.onerror=null; this.src='https://via.placeholder.com/500x750?text=No+Image';">
+                <span class="badge badge-${item.type}">${item.type}</span>
+            </div>
+            <div class="media-info">
+                <div class="title">${item.title}</div>
+                ${item.author ? `<div class="meta" style="color: var(--accent); font-weight: 500;">${item.author}</div>` : ''}
+                <div class="meta">${item.year || ''}</div>
+            </div>`;
+        targetGrid.appendChild(card);
+    });
 }
 
 window.switchTab = function(type) {
@@ -265,16 +467,21 @@ window.switchTab = function(type) {
     document.getElementById(`btn-${type}`).classList.add('active');
     searchInput.value = '';
     
+    const sectionTitle = document.getElementById('section-title');
+    
     if (type === 'youtube') {
         searchInput.placeholder = "Paste a YouTube link here...";
-        document.getElementById('section-title').textContent = "Add a YouTube Video";
-        resultsGrid.innerHTML = '<p class="meta" style="grid-column: 1/-1; text-align: center;">Paste a valid YouTube URL in the search bar above to log it!</p>';
+        if (sectionTitle) {
+            sectionTitle.style.display = 'block';
+            sectionTitle.textContent = "Add a YouTube Video";
+        }
+        document.getElementById('results-grid').innerHTML = '<p class="meta" style="grid-column: 1/-1; text-align: center;">Paste a valid YouTube URL in the search bar above to log it!</p>';
     } else if (type === 'album') {
         searchInput.placeholder = "Search for albums or artists...";
-        fetchTrending(type);
+        loadTabContent(type);
     } else {
         searchInput.placeholder = "Search for movies, shows, books, authors, ...";
-        fetchTrending(type);
+        loadTabContent(type);
     }
 };
 
@@ -289,7 +496,7 @@ async function unifiedSearch(query) {
         window.history.pushState({}, '', url);
         
         filterNav.style.display = 'flex'; 
-        if (currentTab !== 'youtube') fetchTrending(currentTab); 
+        if (currentTab !== 'youtube') loadTabContent(currentTab); 
         return;
     }
 
@@ -467,7 +674,7 @@ async function unifiedSearch(query) {
         if (combined.length === 0) {
             loader.textContent = "No results found.";
         } else {
-            renderResults(combined, false);
+            renderResults(combined);
             loader.style.display = 'none';
         }
     } catch (err) { 
@@ -519,53 +726,6 @@ async function fetchAuthors(query) {
     } catch (e) {
         return [];
     }
-}
-
-function renderResults(items, isTrending = false) {
-    items.forEach(item => {
-        const card = document.createElement('div');
-        card.className = 'media-card';
-        card.setAttribute('data-type', item.type);
-        
-        card.onclick = () => {
-            if (item.type === 'person') {
-                window.location.href = `cast.html?personId=${item.id}`;
-            } else if (item.type === 'author') {
-                window.location.href = `cast.html?authorId=${item.id}`;
-            } else if (item.type === 'user') {
-                window.location.href = `profile.html?id=${item.id}`;
-            } else {
-                window.location.href = `details.html?id=${encodeURIComponent(item.id)}&type=${item.type}`;
-            }
-        };
-        
-        // --- OVERRIDE WITH CUSTOM POSTER ---
-        let finalImage = item.image;
-        const customArt = customImgsMap.get(`${item.type}_${String(item.id)}`);
-        if (customArt && customArt.custom_poster) {
-            finalImage = customArt.custom_poster;
-        }
-
-        const trendingBadge = isTrending && item.type !== 'user' ? `<div class="trending-label">Trending Today</div>` : '';
-        const userBadge = item.type === 'user' ? `<div class="trending-label">Member</div>` : '';
-
-        card.innerHTML = `
-            <div class="poster-wrapper">
-                ${trendingBadge}
-                ${userBadge}
-                <img src="${finalImage}" 
-                     alt="${item.title}" 
-                     loading="lazy" 
-                     onerror="this.onerror=null; this.src='https://via.placeholder.com/500x750?text=No+Image';">
-                <span class="badge badge-${item.type}">${item.type}</span>
-            </div>
-            <div class="media-info">
-                <div class="title">${item.title}</div>
-                ${item.author ? `<div class="meta" style="color: var(--accent); font-weight: 500;">${item.author}</div>` : ''}
-                <div class="meta">${item.year || ''}</div>
-            </div>`;
-        resultsGrid.appendChild(card);
-    });
 }
 
 async function handleForgotPassword() {

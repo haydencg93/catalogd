@@ -15,6 +15,8 @@
     --book-tag: #c084fc;
     --album-tag: #f472b6;
     --youtube-tag: #f87171;
+
+    --foryou-tag: #10b981; /* Emerald Glow */
 }
 
 /* Standardize the arrow icon */
@@ -728,6 +730,31 @@ a:hover {
     color: var(--text-accent) !important;
     text-shadow: 0 0 10px rgba(129, 140, 248, 0.5) !important;
     font-weight: bold;
+}
+
+.foryou-label {
+    position: absolute;
+    top: 12px;
+    right: 12px; /* Placed on the right to balance the media type badge on the left */
+    background: rgba(16, 185, 129, 0.15); /* Tinted transparent background */
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: var(--foryou-tag);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    z-index: 2;
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+}
+
+.media-card:hover .foryou-label {
+    background: var(--foryou-tag);
+    color: #000;
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.6);
 }
 
 /* --- GLOBAL MOBILE RESPONSIVENESS (< 768px) --- */
