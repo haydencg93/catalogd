@@ -34,7 +34,12 @@ async function initSettings() {
         document.getElementById('edit-website').value = profile.website_url || '';
         
         // Populate the link
-        const customLink = `${window.location.origin}/profile.html?user=${profile.username}`;
+        // Grabs the current path (e.g., /catalogd/settings.html) and isolates the folder path (/catalogd/)
+        const currentPath = window.location.pathname;
+        const basePath = currentPath.substring(0, currentPath.lastIndexOf('/') + 1);
+
+        // Builds the correct URL dynamically!
+        const customLink = `${window.location.origin}${basePath}profile.html?user=${profile.username}`;
         document.getElementById('display-custom-link').value = customLink;
 
         // Wire up the new inline copy button
