@@ -74,6 +74,15 @@
                 <label>Website Link</label>
                 <input type="url" id="edit-website" placeholder="https://letterboxd.com/user">
             </div>
+
+            <div class="input-group">
+                <label>Your Shareable Profile Link</label>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <input type="text" id="display-custom-link" disabled style="background: rgba(0,0,0,0.2); color: #9ab; cursor: copy; border-color: transparent; flex-grow: 1; margin: 0;">
+                    <button id="settings-share-btn" type="button" style="background: none; border: none; cursor: pointer; font-size: 1.3rem; padding: 0; margin: 0; opacity: 0.7; transition: opacity 0.2s, transform 0.2s;" title="Copy Profile Link">🔗</button>
+                </div>
+            </div>
+            
             <button id="save-profile-btn" class="primary-btn">Update Profile</button>
         </section>
 

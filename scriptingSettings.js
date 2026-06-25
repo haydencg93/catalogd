@@ -32,6 +32,41 @@ async function initSettings() {
     if (profile) {
         document.getElementById('edit-bio').value = profile.bio || '';
         document.getElementById('edit-website').value = profile.website_url || '';
+        
+        // Populate the link
+        const customLink = `${window.location.origin}/profile.html?user=${profile.username}`;
+        document.getElementById('display-custom-link').value = customLink;
+
+        // Wire up the new inline copy button
+        const settingsShareBtn = document.getElementById('settings-share-btn');
+        
+        settingsShareBtn.onmouseover = () => settingsShareBtn.style.opacity = '1';
+        settingsShareBtn.onmouseout = () => settingsShareBtn.style.opacity = '0.7';
+        
+        settingsShareBtn.onclick = async () => {
+            try {
+                await navigator.clipboard.writeText(customLink);
+                showSuccess();
+            } catch (err) {
+                const tempInput = document.createElement('input');
+                tempInput.value = customLink;
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                document.execCommand('copy');
+                document.body.removeChild(tempInput);
+                showSuccess();
+            }
+
+            function showSuccess() {
+                settingsShareBtn.innerHTML = '✅';
+                settingsShareBtn.style.transform = 'scale(1.1)';
+                setTimeout(() => {
+                    settingsShareBtn.innerHTML = '🔗';
+                    settingsShareBtn.style.transform = 'scale(1)';
+                }, 2000);
+            }
+        };
+
         document.getElementById('lastfm-username-input').value = profile.lastfm_username || '';
         document.getElementById('toggle-active-status').checked = profile.show_active_status !== false; 
         document.getElementById('toggle-paused-status').checked = profile.show_paused_dropped_status !== false;

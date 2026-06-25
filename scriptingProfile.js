@@ -22,12 +22,28 @@ async function initProfile() {
             }
         });
 
-        // 2. Identify User
+        // 2. Identify User from URL
         const params = new URLSearchParams(window.location.search);
+        let urlUserId = params.get('userId') || params.get('id'); 
+        const urlUsername = params.get('user'); 
         
-        // Grab the ID whether the previous page called it 'userId' OR 'id'
-        const urlUserId = params.get('userId') || params.get('id'); 
-        
+        // 3. Fallback Lookup: If we don't have an ID, but we do have a username from a shared link
+        if (!urlUserId && urlUsername) {
+            const { data: userLookup, error: lookupError } = await supabaseClient
+                .from('profiles')
+                .select('id')
+                .ilike('username', urlUsername) // Case-insensitive match
+                .maybeSingle();
+
+            if (userLookup) {
+                urlUserId = userLookup.id; // Swap the username for the database ID
+            } else {
+                alert("User not found!");
+                window.location.href = 'index.html';
+                return;
+            }
+        }
+
         const { data: { session } } = await supabaseClient.auth.getSession();
         const loggedInUserId = session?.user?.id;
 
@@ -174,9 +190,57 @@ async function initProfile() {
 
             // Text Info
             document.getElementById('user-display-name').textContent = profile.display_name || "User";
-            document.getElementById('user-username').textContent = `@${(profile.username || 'user').toLowerCase()}`;
+            
+            const usernameEl = document.getElementById('user-username');
+            usernameEl.textContent = `@${(profile.username || 'user').toLowerCase()}`;
+            
+            // Set up flexbox so the icon sits perfectly inline with the username
+            usernameEl.style.display = 'flex';
+            usernameEl.style.alignItems = 'center';
+            usernameEl.style.gap = '8px';
+
             document.getElementById('member-since').textContent = new Date(profile.created_at).toLocaleDateString();
             document.getElementById('display-bio').textContent = profile.bio || "No bio yet.";
+
+            const shareBtn = document.createElement('button');
+            shareBtn.innerHTML = '🔗';
+            // Style it to look like a subtle inline icon
+            shareBtn.style.cssText = 'background: none; border: none; cursor: pointer; font-size: 1.1rem; padding: 0; margin: 0; opacity: 0.7; transition: opacity 0.2s, transform 0.2s;';
+            shareBtn.title = 'Copy Custom Profile Link';
+            
+            shareBtn.onmouseover = () => shareBtn.style.opacity = '1';
+            shareBtn.onmouseout = () => shareBtn.style.opacity = '0.7';
+
+            shareBtn.onclick = async () => {
+                const cleanUrl = `${window.location.origin}${window.location.pathname}?user=${profile.username}`;
+                
+                // Bulletproof copy mechanism
+                try {
+                    await navigator.clipboard.writeText(cleanUrl);
+                    showSuccess();
+                } catch (err) {
+                    // Fallback for strict browsers
+                    const tempInput = document.createElement('input');
+                    tempInput.value = cleanUrl;
+                    document.body.appendChild(tempInput);
+                    tempInput.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(tempInput);
+                    showSuccess();
+                }
+
+                function showSuccess() {
+                    shareBtn.innerHTML = '✅';
+                    shareBtn.style.transform = 'scale(1.1)';
+                    setTimeout(() => {
+                        shareBtn.innerHTML = '🔗';
+                        shareBtn.style.transform = 'scale(1)';
+                    }, 2000);
+                }
+            };
+            
+            // Append the icon directly inside the username container
+            usernameEl.appendChild(shareBtn);
             
             // Website
             const webElement = document.getElementById('display-website');

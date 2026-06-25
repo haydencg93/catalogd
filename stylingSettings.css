@@ -136,6 +136,12 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
         padding: 0 15px;
     }
     
+    .settings-container *,
+    .settings-container *::before,
+    .settings-container *::after {
+        box-sizing: border-box;
+    }
+
     .settings-card {
         padding: 20px 15px;
     }
@@ -152,5 +158,19 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     .danger-zone button {
         width: 100%;
         margin-bottom: 15px;
+    }
+
+    .input-group input,
+    .input-group textarea,
+    .input-group select { 
+        width: 100%; 
+        box-sizing: border-box; 
+        margin: 0; 
+        padding: 12px; 
+        background: #14181c; 
+        border: 1px solid #2c3440; 
+        border-radius: 8px; 
+        color: white; 
+        font-family: inherit;
     }
 }
