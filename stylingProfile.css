@@ -662,8 +662,12 @@ input {
 
     /* Have the Follow button on its own line */
     #follow-toggle-btn {
-        flex: 1 1 100%;
-        margin-top: 10px !important;
+        display: block !important;
+        width: 100% !important; 
+        max-width: 300px;       /* Prevents the button from being awkwardly wide on tablets */
+        margin: 0 auto 20px auto !important; /* Centers the button and adds space below it */
+        padding: 12px 0;        /* Makes the button a bit chunkier and easier to tap */
+        font-size: 1rem;
     }
 
     /* 3. Bio whole width of screen */

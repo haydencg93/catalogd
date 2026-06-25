@@ -444,7 +444,7 @@ async function setupSocialUI(currentUserId, targetUserId) {
         followBtn.id = 'follow-toggle-btn';
         followBtn.className = 'primary-btn';
         followBtn.style.marginTop = '15px';
-        profileHeader.appendChild(followBtn);
+        profileHeader.after(followBtn);
 
         if (!currentUserId) {
             followBtn.textContent = 'Sign in to Follow';
