@@ -75,7 +75,32 @@
                 <input type="url" id="edit-website" placeholder="https://letterboxd.com/user">
             </div>
 
-            <div class="input-group">
+            <div style="margin-top: 30px; margin-bottom: 20px; padding-top: 20px; border-top: 1px solid #2c3440;">
+                <h4 style="margin-top: 0; color: #9ab; margin-bottom: 15px;">Social Media Usernames</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="input-group" style="margin-bottom: 0;">
+                        <label>Instagram</label>
+                        <input type="text" id="edit-instagram" placeholder="username">
+                    </div>
+                    <div class="input-group" style="margin-bottom: 0;">
+                        <label>Snapchat</label>
+                        <input type="text" id="edit-snapchat" placeholder="username">
+                    </div>
+                    <div class="input-group" style="margin-bottom: 0;">
+                        <label>TikTok</label>
+                        <input type="text" id="edit-tiktok" placeholder="username">
+                    </div>
+                    <div class="input-group" style="margin-bottom: 0;">
+                        <label>YouTube</label>
+                        <input type="text" id="edit-youtube" placeholder="channel alias (e.g. @mkbhd)">
+                    </div>
+                    <div class="input-group" style="margin-bottom: 0; grid-column: 1 / -1;">
+                        <label>GitHub</label>
+                        <input type="text" id="edit-github" placeholder="username">
+                    </div>
+                </div>
+            </div>
+            <div class="input-group" style="margin-top: 20px;">
                 <label>Your Shareable Profile Link</label>
                 <div style="display: flex; gap: 10px; align-items: center;">
                     <input type="text" id="display-custom-link" disabled style="background: rgba(0,0,0,0.2); color: #9ab; cursor: copy; border-color: transparent; flex-grow: 1; margin: 0;">

@@ -33,6 +33,11 @@ async function initSettings() {
     if (profile) {
         document.getElementById('edit-bio').value = profile.bio || '';
         document.getElementById('edit-website').value = profile.website_url || '';
+        document.getElementById('edit-instagram').value = profile.instagram || '';
+        document.getElementById('edit-snapchat').value = profile.snapchat || '';
+        document.getElementById('edit-tiktok').value = profile.tiktok || '';
+        document.getElementById('edit-youtube').value = profile.youtube || '';
+        document.getElementById('edit-github').value = profile.github || '';
         
         // Populate the link
         // Grabs the current path (e.g., /catalogd/settings.html) and isolates the folder path (/catalogd/)
@@ -387,6 +392,14 @@ async function saveAllProfileData() {
     const bioValue = document.getElementById('edit-bio').value;
     const websiteValue = document.getElementById('edit-website').value;
     
+    const instagramVal = document.getElementById('edit-instagram').value.trim();
+    const snapchatVal = document.getElementById('edit-snapchat').value.trim();
+    const tiktokVal = document.getElementById('edit-tiktok').value.trim();
+    let youtubeVal = document.getElementById('edit-youtube').value.trim();
+    const githubVal = document.getElementById('edit-github').value.trim();
+
+    if (youtubeVal && !youtubeVal.startsWith('@')) youtubeVal = '@' + youtubeVal;
+
     const showActive = document.getElementById('toggle-active-status').checked;
     const showPaused = document.getElementById('toggle-paused-status').checked;
 
@@ -410,8 +423,13 @@ async function saveAllProfileData() {
             banner_url: bannerValue,  
             bio: bioValue,
             website_url: websiteValue,
+            instagram: instagramVal,
+            snapchat: snapchatVal,
+            tiktok: tiktokVal,
+            youtube: youtubeVal,
+            github: githubVal,
             favorites: currentFavs,
-            services: currentServices, // <-- Add this line
+            services: currentServices,
             show_active_status: showActive,
             show_paused_dropped_status: showPaused
         })
