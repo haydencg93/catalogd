@@ -37,7 +37,7 @@ async function initAdvSearch() {
         TMDB_TOKEN = configData.tmdb_token;
         supabaseClient = supabase.createClient(configData.supabase_url, configData.supabase_key);
 
-        await setupHeader();
+        await setupHeaderAndProfile();
         await fetchTopProviders();
         await fetchCoreGenres();
 
@@ -81,12 +81,15 @@ async function fetchTopProviders() {
             .sort((a, b) => a.display_priorities.US - b.display_priorities.US)
             .slice(0, 25);
 
-        providersContainer.innerHTML = allProviders.map(p => `
-            <div class="pill" data-id="${p.provider_id}" onclick="togglePill(this, 'provider')">
-                <img src="https://image.tmdb.org/t/p/w45${p.logo_path}" class="pill-logo">
-                ${p.provider_name}
-            </div>
-        `).join('');
+        providersContainer.innerHTML = allProviders.map(p => {
+            const isActive = activeProviders.has(String(p.provider_id)) ? 'active' : '';
+            return `
+                <div class="pill ${isActive}" data-id="${p.provider_id}" onclick="togglePill(this, 'provider')">
+                    <img src="https://image.tmdb.org/t/p/w45${p.logo_path}" class="pill-logo">
+                    ${p.provider_name}
+                </div>
+            `;
+        }).join('');
 
     } catch (e) {
         providersContainer.innerHTML = '<p class="meta">Failed to load providers.</p>';
@@ -415,9 +418,9 @@ function renderResults(items) {
 }
 
 // ----------------------------------------
-// Basic Auth & Header Setup
+// Basic Auth, Profile Data & Header Setup
 // ----------------------------------------
-async function setupHeader() {
+async function setupHeaderAndProfile() {
     const { data: { user } } = await supabaseClient.auth.getUser();
     const loginBtn = document.getElementById('login-btn');
     const profileMenu = document.getElementById('profile-menu');
@@ -428,6 +431,25 @@ async function setupHeader() {
         if (user.user_metadata?.avatar_url) {
             document.getElementById('nav-avatar').src = user.user_metadata.avatar_url;
         }
+
+        // NEW: Fetch the user's saved services
+        const { data: profile } = await supabaseClient
+            .from('profiles')
+            .select('services')
+            .eq('id', user.id)
+            .single();
+
+        if (profile && profile.services) {
+            // Merge both streaming and buying preferences
+            const savedProviders = [
+                ...(profile.services.streaming || []), 
+                ...(profile.services.buying || [])
+            ];
+            
+            // Auto-populate the activeProviders Set
+            savedProviders.forEach(id => activeProviders.add(String(id)));
+        }
+
     } else {
         loginBtn.style.display = 'inline-block';
         profileMenu.style.display = 'none';

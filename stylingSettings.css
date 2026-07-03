@@ -117,6 +117,56 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     opacity: 1;
 }
 
+/* Service Pill Grids */
+.pill-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    max-height: 220px;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 15px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.pill-grid::-webkit-scrollbar { width: 6px; }
+.pill-grid::-webkit-scrollbar-thumb { background: #2c3440; border-radius: 10px; }
+
+.pill {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid #2c3440;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.85rem;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pill:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--accent);
+}
+
+.pill.active {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+    font-weight: bold;
+}
+
+.pill-logo {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    object-fit: cover;
+}
+
 /* Animation for a smooth entrance when switching to Date Range */
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(-8px); }

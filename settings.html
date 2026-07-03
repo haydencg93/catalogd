@@ -102,6 +102,38 @@
         </section>
 
         <section class="settings-card">
+            <h3>Your Services</h3>
+            <p class="meta">Select your preferred platforms. We'll use these to auto-filter your searches and recommendations.</p>
+
+            <div class="input-group">
+                <label>Streaming Providers (Movies/TV)</label>
+                <div id="settings-streaming-container" class="pill-grid" style="margin-top: 10px;">
+                    <p class="meta" style="margin:0;">Loading providers...</p>
+                </div>
+            </div>
+
+            <div class="input-group" style="margin-top: 25px;">
+                <label>Buying & Renting Providers (Movies/TV)</label>
+                <div id="settings-buying-container" class="pill-grid" style="margin-top: 10px;">
+                    <p class="meta" style="margin:0;">Loading providers...</p>
+                </div>
+            </div>
+
+            <div class="input-group" style="margin-top: 25px;">
+                <label>Listening Providers (Music)</label>
+                <div id="settings-listening-container" class="pill-grid" style="margin-top: 10px;">
+                    <div class="pill" data-id="spotify" onclick="toggleServicePill(this, 'listening')">Spotify</div>
+                    <div class="pill" data-id="applemusic" onclick="toggleServicePill(this, 'listening')">Apple Music</div>
+                    <div class="pill" data-id="youtubemusic" onclick="toggleServicePill(this, 'listening')">YouTube Music</div>
+                    <div class="pill" data-id="tidal" onclick="toggleServicePill(this, 'listening')">Tidal</div>
+                    <div class="pill" data-id="amazonmusic" onclick="toggleServicePill(this, 'listening')">Amazon Music</div>
+                </div>
+            </div>
+            
+            <button id="save-services-btn" class="primary-btn" style="margin-top: 20px;">Save Services</button>
+        </section>
+
+        <section class="settings-card">
             <h3>Security</h3>
             <div class="input-group">
                 <label>New Password</label>

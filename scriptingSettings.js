@@ -2,6 +2,7 @@ let supabaseClient = null;
 let tmdbToken = null;
 let lastfmKey = null;
 let currentFavs = { movie: [], tv: [], book: [], album: [], youtube: [], all: [] };
+let currentServices = { streaming: [], buying: [], listening: [] };
 
 const favSearchInput = document.getElementById('fav-search-input');
 const favSearchResults = document.getElementById('fav-search-results');
@@ -78,7 +79,11 @@ async function initSettings() {
 
         // Ensure album is in the fallback object
         currentFavs = profile.favorites || { movie: [], tv: [], book: [], youtube: [], album: [], all: [] };
-        renderFavManager(); 
+        renderFavManager();
+        
+        currentServices = profile.services || { streaming: [], buying: [], listening: [] };
+        await fetchAndRenderProviders();
+        renderActiveServicePills();
     }
 
     // Prefill current data
@@ -87,6 +92,7 @@ async function initSettings() {
     document.getElementById('edit-username').value = meta.username || '';
     document.getElementById('edit-avatar').value = meta.avatar_url || '';
     document.getElementById('edit-banner').value = meta.banner_url || '';
+    document.getElementById('save-services-btn').onclick = saveAllProfileData;
 
     // --- Change Password ---
     document.getElementById('change-password-btn').onclick = async () => {
@@ -280,6 +286,94 @@ favSearchInput.oninput = async () => {
     });
 };
 
+async function fetchAndRenderProviders() {
+    try {
+        const [movieProvRes, tvProvRes] = await Promise.all([
+            fetch(`https://api.themoviedb.org/3/watch/providers/movie?language=en-US&watch_region=US`, { headers: { Authorization: `Bearer ${tmdbToken}` } }).then(r => r.json()),
+            fetch(`https://api.themoviedb.org/3/watch/providers/tv?language=en-US&watch_region=US`, { headers: { Authorization: `Bearer ${tmdbToken}` } }).then(r => r.json())
+        ]);
+
+        const providerMap = new Map();
+        [...(movieProvRes.results || []), ...(tvProvRes.results || [])].forEach(p => {
+            if (!providerMap.has(p.provider_id)) providerMap.set(p.provider_id, p);
+        });
+        
+        // TMDB Provider IDs for major Rent/Buy platforms in the US
+        // This ensures they are routed to the bottom container
+        const buyingIds = new Set([
+            2,   // Apple TV (iTunes)
+            3,   // Google Play Movies
+            7,   // Fandango at Home (Vudu)
+            10,  // Amazon Video (Rent/Buy - distinct from Prime)
+            68,  // Microsoft Store
+            192, // YouTube
+            358, // DirecTV
+            48   // Spectrum On Demand
+        ]);
+
+        const streamingProviders = [];
+        const buyingProviders = [];
+
+        // Sort all by US display priority
+        const sortedProviders = Array.from(providerMap.values())
+            .sort((a, b) => a.display_priorities.US - b.display_priorities.US);
+
+        // Route the providers into their specific buckets
+        sortedProviders.forEach(p => {
+            if (buyingIds.has(p.provider_id)) {
+                buyingProviders.push(p);
+            } else {
+                streamingProviders.push(p);
+            }
+        });
+
+        // Grab the top options for each category
+        const topStreaming = streamingProviders.slice(0, 30);
+        const topBuying = buyingProviders.slice(0, 10); 
+
+        const generatePillHTML = (p, category) => {
+            const isActive = currentServices[category].includes(String(p.provider_id)) ? 'active' : '';
+            return `
+                <div class="pill ${isActive}" data-id="${p.provider_id}" onclick="toggleServicePill(this, '${category}')">
+                    <img src="https://image.tmdb.org/t/p/w45${p.logo_path}" class="pill-logo">
+                    ${p.provider_name}
+                </div>
+            `;
+        };
+
+        // Render to the UI
+        document.getElementById('settings-streaming-container').innerHTML = topStreaming.map(p => generatePillHTML(p, 'streaming')).join('');
+        document.getElementById('settings-buying-container').innerHTML = topBuying.map(p => generatePillHTML(p, 'buying')).join('');
+
+    } catch (e) {
+        document.getElementById('settings-streaming-container').innerHTML = '<p class="meta">Failed to load streaming providers.</p>';
+        document.getElementById('settings-buying-container').innerHTML = '<p class="meta">Failed to load buying providers.</p>';
+    }
+}
+
+function renderActiveServicePills() {
+    // This handles visually updating the hardcoded Music pills on page load
+    const musicPills = document.querySelectorAll('#settings-listening-container .pill');
+    musicPills.forEach(pill => {
+        const id = pill.getAttribute('data-id');
+        if (currentServices.listening.includes(id)) {
+            pill.classList.add('active');
+        }
+    });
+}
+
+window.toggleServicePill = function(element, category) {
+    const id = String(element.getAttribute('data-id'));
+    
+    if (currentServices[category].includes(id)) {
+        currentServices[category] = currentServices[category].filter(val => val !== id);
+        element.classList.remove('active');
+    } else {
+        currentServices[category].push(id);
+        element.classList.add('active');
+    }
+};
+
 // Update Profile
 async function saveAllProfileData() {
     const { data: { user } } = await supabaseClient.auth.getUser();
@@ -317,6 +411,7 @@ async function saveAllProfileData() {
             bio: bioValue,
             website_url: websiteValue,
             favorites: currentFavs,
+            services: currentServices, // <-- Add this line
             show_active_status: showActive,
             show_paused_dropped_status: showPaused
         })

@@ -2,6 +2,7 @@ let favoriteInputs = [];
 let configData = null;
 let searchTimeout = null;
 let supabaseClient = null;
+let userStreamingServices = [];
 
 // DOM Elements
 const searchInput = document.getElementById('rec-search-input');
@@ -43,6 +44,19 @@ async function setupHeader() {
         if (avatar && user.user_metadata && user.user_metadata.avatar_url) {
             avatar.src = user.user_metadata.avatar_url;
         }
+
+        // Fetch user's streaming services from profiles table
+        const { data: profile } = await supabaseClient
+            .from('profiles')
+            .select('services')
+            .eq('id', user.id)
+            .single();
+
+        if (profile && profile.services && profile.services.streaming) {
+            // Convert to strings to ensure exact matching with TMDB payload
+            userStreamingServices = profile.services.streaming.map(String); 
+        }
+
     } else {
         if (loginBtn) {
             loginBtn.style.display = 'inline-block';
@@ -285,8 +299,11 @@ function renderRecommendations(recs) {
         resultsHeader.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 100);
 
+    window.visibleRecsCount = recs.length;
+
     recs.forEach(rec => {
         const card = document.createElement('div');
+        card.id = `rec-card-${rec.id}`; // <-- Add the dynamic ID
         card.className = 'rec-horizontal-card';
         card.onclick = () => {
             window.location.href = `details.html?id=${encodeURIComponent(rec.id)}&type=${rec.media_type}`;
@@ -309,22 +326,55 @@ function renderRecommendations(recs) {
         
         resultsGrid.appendChild(card);
 
-        // Tell the background script to go find the actual image!
-        fetchDynamicPoster(rec, imgId);
+        fetchPosterAndAvail(rec, imgId, `rec-card-${rec.id}`); 
     });
 }
 
-// 5. The Lazy Loader
-async function fetchDynamicPoster(rec, imgElementId) {
+// 5. The Lazy Loader and Availability Checker
+async function fetchPosterAndAvail(rec, imgElementId, cardId) {
     const imgEl = document.getElementById(imgElementId);
+    const cardEl = document.getElementById(cardId);
     if (!imgEl || !configData) return;
 
     try {
         if (rec.media_type === 'movie' || rec.media_type === 'tv') {
-            const res = await fetch(`https://api.themoviedb.org/3/${rec.media_type}/${rec.id}`, {
+            
+            // Appends the providers payload to the standard details fetch
+            const res = await fetch(`https://api.themoviedb.org/3/${rec.media_type}/${rec.id}?append_to_response=watch/providers`, {
                 headers: { Authorization: `Bearer ${configData.tmdb_token}` }
             }).then(r => r.json());
             
+            // Availability Filter Logic
+            const toggle = document.getElementById('services-toggle');
+            if (toggle && toggle.checked && userStreamingServices.length > 0) {
+                const providers = res['watch/providers']?.results?.US;
+                let availableProviderIds = [];
+                
+                if (providers) {
+                    // TMDB separates streaming into flatrate, free, and ads
+                    if (providers.flatrate) availableProviderIds.push(...providers.flatrate.map(p => String(p.provider_id)));
+                    if (providers.ads) availableProviderIds.push(...providers.ads.map(p => String(p.provider_id)));
+                    if (providers.free) availableProviderIds.push(...providers.free.map(p => String(p.provider_id)));
+                }
+
+                // Check if there is an intersection between the media's availability and the user's services
+                const isAvailable = availableProviderIds.some(id => userStreamingServices.includes(id));
+                
+                if (!isAvailable) {
+                    if (cardEl) {
+                        cardEl.style.display = 'none'; // Hide the card from the UI
+                        window.visibleRecsCount--;
+                        
+                        // Let the user know if the filter was too aggressive
+                        if (window.visibleRecsCount === 0) {
+                            statusMsg.textContent = "Matches found, but none are on your streaming services. Try unchecking the filter!";
+                            statusMsg.style.color = "#ffb347";
+                        }
+                    }
+                    return; // Stop rendering
+                }
+            }
+
             if (res.poster_path) {
                 imgEl.src = `https://image.tmdb.org/t/p/w185${res.poster_path}`;
             } else {
@@ -332,7 +382,6 @@ async function fetchDynamicPoster(rec, imgElementId) {
             }
         } 
         else if (rec.media_type === 'book') {
-            // Reverse the math! 100027329 becomes 27329
             const rawNum = parseInt(rec.id) - 100000000;
             const res = await fetch(`https://openlibrary.org/works/OL${rawNum}W.json`).then(r => r.json());
             
