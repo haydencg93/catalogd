@@ -422,8 +422,8 @@ async function saveAllProfileData() {
 
     if (youtubeVal && !youtubeVal.startsWith('@')) youtubeVal = '@' + youtubeVal;
 
-    const showActive = document.getElementById('toggle-active-status').checked;
-    const showPaused = document.getElementById('toggle-paused-status').checked;
+    const showActive = document.getElementById('toggle-active-status')?.checked ?? true;
+    const showPaused = document.getElementById('toggle-paused-status')?.checked ?? true;
 
     // 2. Update Auth Metadata (Keep this for session consistency)
     const { error: authError } = await supabaseClient.auth.updateUser({
