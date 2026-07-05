@@ -69,17 +69,17 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     }
 }
 
-/* Style the Dropdown Selects */
-#export-range-select, #export-type-select {
+/* Style the Dropdown Select */
+#export-range-select {
     width: 100%;
     padding: 12px;
-    background: #14181c; 
+    background: #14181c; /* Matches your input background */
     border: 1px solid #2c3440;
     border-radius: 8px;
     color: white;
     font-size: 1rem;
     cursor: pointer;
-    appearance: none; 
+    appearance: none; /* Removes default browser arrow */
     background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
     background-repeat: no-repeat;
     background-position: right 12px center;
@@ -87,9 +87,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     transition: border-color 0.2s;
 }
 
-#export-range-select:focus, #export-type-select:focus {
+#export-range-select:focus {
     outline: none;
-    border-color: rgba(65, 56, 231, 0.4); 
+    border-color: #00e054; /* Catalogd accent color */
 }
 
 /* Flex container for side-by-side date inputs */

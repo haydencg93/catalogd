@@ -172,31 +172,14 @@
         </section>
 
         <section class="settings-card">
-            <h3>Privacy</h3>
-            <p class="meta">Control who can see your media statuses on your public profile.</p>
-            
-            <div class="input-group" style="flex-direction: row; align-items: center; gap: 10px; margin-bottom: 10px;">
-                <input type="checkbox" id="toggle-active-status" style="width: auto; cursor: pointer;">
-                <label for="toggle-active-status" style="margin: 0; cursor: pointer;">Show "Currently Watching / Reading" statuses</label>
-            </div>
-            
-            <div class="input-group" style="flex-direction: row; align-items: center; gap: 10px;">
-                <input type="checkbox" id="toggle-paused-status" style="width: auto; cursor: pointer;">
-                <label for="toggle-paused-status" style="margin: 0; cursor: pointer;">Show "Paused / Dropped" statuses</label>
-            </div>
-            
-            <button id="save-privacy-btn" class="primary-btn" style="margin-top: 20px;">Save Privacy Settings</button>
-        </section>
-
-        <section class="settings-card">
             <h3>Data</h3>
-            <h4>Export Data</h4>
-            <p class="meta" style="margin-bottom: 15px;">Generate a CSV file of your movie logs formatted specifically for Letterboxd import.</p>
+            <h4>Full Account Export</h4>
+            <p class="meta" style="margin-bottom: 15px;">Download a complete backup of your account, including all media logs, favorites, and settings.</p>
             
             <div class="input-group">
                 <label>Export Range</label>
                 <select id="export-range-select">
-                    <option value="all">ALL MOVIES</option>
+                    <option value="all">ALL TIME</option>
                     <option value="range">Date Range</option>
                 </select>
             </div>
@@ -212,7 +195,18 @@
                 </div>
             </div>
 
-            <button id="start-export-btn" class="primary-btn">Export to Letterboxd</button>
+            <div class="input-group">
+                <label>Export Type</label>
+                <select id="export-type-select">
+                    <option value="all">ALL MEDIA TYPES</option>
+                    <option value="movie">Movies & TV</option>
+                    <option value="book">Books</option>
+                    <option value="album">Music</option>
+                    <option value="youtube">YouTube</option>
+                </select>
+            </div>
+
+            <button id="start-export-btn" class="primary-btn">Download Full Account ZIP</button>
 
             <div id="export-status" style="display:none; margin-top: 15px;">
                 <div style="background: #2c3440; height: 10px; border-radius: 5px; overflow: hidden;">

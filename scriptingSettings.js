@@ -31,56 +31,64 @@ async function initSettings() {
         .single();
 
     if (profile) {
-        document.getElementById('edit-bio').value = profile.bio || '';
-        document.getElementById('edit-website').value = profile.website_url || '';
-        document.getElementById('edit-instagram').value = profile.instagram || '';
-        document.getElementById('edit-snapchat').value = profile.snapchat || '';
-        document.getElementById('edit-tiktok').value = profile.tiktok || '';
-        document.getElementById('edit-youtube').value = profile.youtube || '';
-        document.getElementById('edit-github').value = profile.github || '';
-        
-        // Populate the link
-        // Grabs the current path (e.g., /catalogd/settings.html) and isolates the folder path (/catalogd/)
-        const currentPath = window.location.pathname;
-        const basePath = currentPath.substring(0, currentPath.lastIndexOf('/') + 1);
-
-        // Builds the correct URL dynamically!
-        const customLink = `${window.location.origin}${basePath}profile.html?user=${profile.username}`;
-        document.getElementById('display-custom-link').value = customLink;
-
-        // Wire up the new inline copy button
-        const settingsShareBtn = document.getElementById('settings-share-btn');
-        
-        settingsShareBtn.onmouseover = () => settingsShareBtn.style.opacity = '1';
-        settingsShareBtn.onmouseout = () => settingsShareBtn.style.opacity = '0.7';
-        
-        settingsShareBtn.onclick = async () => {
-            try {
-                await navigator.clipboard.writeText(customLink);
-                showSuccess();
-            } catch (err) {
-                const tempInput = document.createElement('input');
-                tempInput.value = customLink;
-                document.body.appendChild(tempInput);
-                tempInput.select();
-                document.execCommand('copy');
-                document.body.removeChild(tempInput);
-                showSuccess();
-            }
-
-            function showSuccess() {
-                settingsShareBtn.innerHTML = '✅';
-                settingsShareBtn.style.transform = 'scale(1.1)';
-                setTimeout(() => {
-                    settingsShareBtn.innerHTML = '🔗';
-                    settingsShareBtn.style.transform = 'scale(1)';
-                }, 2000);
-            }
+        // Helper function to safely set values only if the element exists
+        const setVal = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.value = val;
+        };
+        const setCheck = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.checked = val;
         };
 
-        document.getElementById('lastfm-username-input').value = profile.lastfm_username || '';
-        document.getElementById('toggle-active-status').checked = profile.show_active_status !== false; 
-        document.getElementById('toggle-paused-status').checked = profile.show_paused_dropped_status !== false;
+        // Safely prefill text fields
+        setVal('edit-bio', profile.bio || '');
+        setVal('edit-website', profile.website_url || '');
+        setVal('edit-instagram', profile.instagram || '');
+        setVal('edit-snapchat', profile.snapchat || '');
+        setVal('edit-tiktok', profile.tiktok || '');
+        setVal('edit-youtube', profile.youtube || '');
+        setVal('edit-github', profile.github || '');
+        setVal('lastfm-username-input', profile.lastfm_username || '');
+
+        // Populate the link
+        const currentPath = window.location.pathname;
+        const basePath = currentPath.substring(0, currentPath.lastIndexOf('/') + 1);
+        const customLink = `${window.location.origin}${basePath}profile.html?user=${profile.username}`;
+        setVal('display-custom-link', customLink);
+
+        // Wire up the inline copy button safely
+        const settingsShareBtn = document.getElementById('settings-share-btn');
+        if (settingsShareBtn) {
+            settingsShareBtn.onmouseover = () => settingsShareBtn.style.opacity = '1';
+            settingsShareBtn.onmouseout = () => settingsShareBtn.style.opacity = '0.7';
+            settingsShareBtn.onclick = async () => {
+                try {
+                    await navigator.clipboard.writeText(customLink);
+                    showSuccess();
+                } catch (err) {
+                    const tempInput = document.createElement('input');
+                    tempInput.value = customLink;
+                    document.body.appendChild(tempInput);
+                    tempInput.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(tempInput);
+                    showSuccess();
+                }
+                function showSuccess() {
+                    settingsShareBtn.innerHTML = '✅';
+                    settingsShareBtn.style.transform = 'scale(1.1)';
+                    setTimeout(() => {
+                        settingsShareBtn.innerHTML = '🔗';
+                        settingsShareBtn.style.transform = 'scale(1)';
+                    }, 2000);
+                }
+            };
+        }
+
+        // Safely set checkboxes
+        setCheck('toggle-active-status', profile.show_active_status !== false); 
+        setCheck('toggle-paused-status', profile.show_paused_dropped_status !== false);
 
         // Ensure album is in the fallback object
         currentFavs = profile.favorites || { movie: [], tv: [], book: [], youtube: [], album: [], all: [] };
@@ -147,11 +155,12 @@ rangeSelect.onchange = async () => {
         const { data: { user } } = await supabaseClient.auth.getUser();
         if (!user) return alert("Please sign in to export data.");
         
-        const rangeType = rangeSelect.value;
+        const rangeType = document.getElementById('export-range-select').value;
         const startDate = document.getElementById('export-start-date').value;
         const endDate = document.getElementById('export-end-date').value;
+        const typeFilter = document.getElementById('export-type-select').value;
         
-        startLetterboxdExport(user.id, rangeType, startDate, endDate);
+        startFullAccountExport(user, rangeType, startDate, endDate, typeFilter);
     };
 
     // --- Import Functionality ---
@@ -198,6 +207,19 @@ rangeSelect.onchange = async () => {
             document.getElementById('new-password').focus();
         }
     }
+
+        // Helper function to safely assign clicks only if the element exists
+    const safeClick = (id, fn) => {
+        const el = document.getElementById(id);
+        if (el) el.onclick = fn;
+    };
+
+    // Safely attach the functions
+    safeClick('save-profile-btn', saveAllProfileData);
+    safeClick('save-favs-btn', saveAllProfileData);
+    safeClick('save-privacy-btn', saveAllProfileData);
+    safeClick('save-services-btn', saveAllProfileData);
+
     setupFavoritesSearch();
     setupHeader();
 }
@@ -443,12 +465,6 @@ async function saveAllProfileData() {
     }
 }
 
-// Attach the function to BOTH buttons inside initSettings
-// Attach the function to ALL buttons
-document.getElementById('save-profile-btn').onclick = saveAllProfileData;
-document.getElementById('save-favs-btn').onclick = saveAllProfileData;
-document.getElementById('save-privacy-btn').onclick = saveAllProfileData; // NEW
-
 function addFavorite(item) {
     if (!currentFavs[item.type]) {
         currentFavs[item.type] = [];
@@ -657,12 +673,200 @@ async function startLetterboxdExport(userId, rangeType, startDate, endDate) {
     progressBar.style.width = "100%";
 }
 
+async function startFullAccountExport(user, rangeType, startDate, endDate, typeFilter) {
+    const statusDiv = document.getElementById('export-status');
+    const progressBar = document.getElementById('export-progress-bar');
+    const progressText = document.getElementById('export-text');
+    const logList = document.getElementById('export-log-list');
+    const logContainer = document.getElementById('export-log-container');
+
+    statusDiv.style.display = 'block';
+    logContainer.style.display = 'block';
+    logList.innerHTML = '';
+    
+    const zip = new JSZip();
+    
+    // Map media types to their folder names
+    const mediaMap = {
+        'movie': 'MoviesTV',
+        'tv': 'MoviesTV',
+        'book': 'Books',
+        'album': 'Music',
+        'youtube': 'YouTube'
+    };
+
+    // 1. PRE-FETCH DATA FOR EXPORT
+    progressText.textContent = "Preparing export data...";
+
+    // Get Provider Names for readability
+    const providerMap = new Map();
+    try {
+        const [mProv, tProv] = await Promise.all([
+            fetch(`https://api.themoviedb.org/3/watch/providers/movie?language=en-US&watch_region=US`, { headers: { Authorization: `Bearer ${tmdbToken}` } }).then(r => r.json()),
+            fetch(`https://api.themoviedb.org/3/watch/providers/tv?language=en-US&watch_region=US`, { headers: { Authorization: `Bearer ${tmdbToken}` } }).then(r => r.json())
+        ]);
+        [...(mProv.results || []), ...(tProv.results || [])].forEach(p => providerMap.set(String(p.provider_id), p.provider_name));
+    } catch (e) { console.error("Provider mapping failed", e); }
+
+    // Get Custom Images for mapping
+    const { data: customs } = await supabaseClient.from('custom_imgs').select('*').eq('user_id', user.id);
+    const customImgMap = new Map();
+    (customs || []).forEach(c => customImgMap.set(`${c.media_type}_${c.media_id}`, { poster: c.custom_poster, bg: c.custom_background }));
+
+
+    // Determine which types to process
+    let typesToProcess = Object.keys(mediaMap);
+    if (typeFilter !== 'all') {
+        // If 'movie' is selected, we include 'tv' as per your request for "Movies/TV Shows" folder
+        typesToProcess = typeFilter === 'movie' ? ['movie', 'tv'] : [typeFilter];
+    }
+
+    try {
+        // 1. ACCOUNT DATA EXPORT
+        progressText.textContent = "Exporting Account Settings...";
+        const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', user.id).single();
+        const accountFolder = zip.folder("Account");
+        const settingsFolder = accountFolder.folder("Settings");
+
+        // HeaderInfo.csv: Display Name, Website, Password(Masked), Status Sharing
+        const headerInfo = [
+            ["Field", "Value"],
+            ["Display Name", profile?.display_name || "N/A"],
+            ["Username", profile?.username || "N/A"],
+            ["Avatar URL", profile?.avatar_url || "N/A"],
+            ["Banner URL", profile?.banner_url || "N/A"],
+            ["Bio", profile?.bio || "N/A"],
+            ["Website", profile?.website_url || "N/A"],
+            ["Status Sharing", `Active: ${profile?.show_active_status}, Paused: ${profile?.show_paused_dropped_status}`]
+        ];
+        settingsFolder.file("HeaderInfo.csv", convertToCSV(headerInfo));
+
+        // SocialMedias.csv
+        const socialMedia = [
+            ["Platform", "Handle"],
+            ["Instagram", profile?.instagram || ""],
+            ["Snapchat", profile?.snapchat || ""],
+            ["TikTok", profile?.tiktok || ""],
+            ["YouTube", profile?.youtube || ""],
+            ["GitHub", profile?.github || ""],
+            ["Last.fm", profile?.lastfm_username || ""]
+        ];
+        settingsFolder.file("SocialMedias.csv", convertToCSV(socialMedia));
+
+        // Favorites.csv
+        const favsData = [["Type", "Title", "ID", "Rank", "Custom Poster", "Custom Background"]];
+        if (profile?.favorites) {
+            Object.entries(profile.favorites).forEach(([type, list]) => {
+                list.forEach((item, index) => {
+                    const custom = customImgMap.get(`${type}_${item.id}`) || { poster: "", bg: "" };
+                    favsData.push([type, item.title, item.id, index + 1, custom.poster, custom.bg]);
+                });
+            });
+        }
+        settingsFolder.file("Favorites.csv", convertToCSV(favsData));
+
+        // Services.csv
+        const servData = [["Category", "Provider ID", "Provider Name"]];
+        if (profile?.services) {
+            Object.entries(profile.services).forEach(([cat, list]) => {
+                list.forEach(id => {
+                    servData.push([cat, id, providerMap.get(id) || "Unknown"]);
+                });
+            });
+        }
+        settingsFolder.file("Services.csv", convertToCSV(servData));
+
+        // Followers/Following (Assuming tables 'follows' exists)
+        const { data: following } = await supabaseClient.from('follows').select('following_id').eq('follower_id', user.id);
+        const { data: followers } = await supabaseClient.from('follows').select('follower_id').eq('following_id', user.id);
+
+        settingsFolder.file("Following.csv", convertToCSV([["User ID"], ... (following || []).map(f => [f.following_id])]));
+        settingsFolder.file("Followers.csv", convertToCSV([["User ID"], ... (followers || []).map(f => [f.follower_id])]));
+
+        // 2. MEDIA DATA EXPORT
+        for (const type of typesToProcess) {
+            const folderName = mediaMap[type];
+            const folder = zip.folder(folderName);
+            progressText.textContent = `Exporting ${type}...`;
+
+            // --- Diary ---
+            let diaryQuery = supabaseClient.from('media_logs').select('*').eq('user_id', user.id).eq('media_type', type);
+            if (rangeType === 'range') {
+                if (startDate) diaryQuery = diaryQuery.gte('created_at', `${startDate}T00:00:00.000Z`);
+                if (endDate) diaryQuery = diaryQuery.lte('created_at', `${endDate}T23:59:59.999Z`);
+            }
+            const { data: diaryLogs } = await diaryQuery;
+            const diaryCsv = [["ID", "Title", "Rating", "Date", "Rewatch", "Liked", "Notes", "Custom Poster", "Custom Background"]];
+            (diaryLogs || []).forEach(log => {
+                const custom = customImgMap.get(`${type}_${log.media_id}`) || { poster: "", bg: "" };
+                diaryCsv.push([log.media_id, log.title || "Unknown", log.rating, log.watched_on, log.is_rewatch, log.is_liked, log.notes, custom.poster, custom.bg]);
+            });
+            folder.file("Diary.csv", convertToCSV(diaryCsv));
+
+            // --- Watchlist ---
+            const { data: wlLogs } = await supabaseClient.from('user_watchlist').select('*').eq('user_id', user.id).eq('media_type', type);
+
+            const wlCsv = [["ID", "Date Added", "Custom Poster", "Custom Background"]];
+            (wlLogs || []).forEach(log => {
+                const custom = customImgMap.get(`${type}_${log.media_id}`) || { poster: "", bg: "" };
+                wlCsv.push([log.media_id, log.created_at, custom.poster, custom.bg]);
+            });
+            folder.file("Watchlist.csv", convertToCSV(wlCsv));
+
+            // --- Statuses ---
+            // Assuming statuses are derived from media_logs (e.g., currently watching)
+            const { data: statusLogs } = await supabaseClient.from('media_status').select('*').eq('user_id', user.id).eq('media_type', type);
+            const statusCsv = [["ID", "Status", "Last Updated", "Custom Poster", "Custom Background"]];
+            (statusLogs || []).forEach(log => {
+                const custom = customImgMap.get(`${type}_${log.media_id}`) || { poster: "", bg: "" };
+                statusCsv.push([log.media_id, log.status, log.updated_at, custom.poster, custom.bg]);
+            });
+            folder.file("Statuses.csv", convertToCSV(statusCsv));
+
+
+            addExportLog(folderName, `Exported ${type} data`, "success");
+        }
+
+        // FINAL ZIP GENERATION
+        progressText.textContent = "Zipping files...";
+        const content = await zip.generateAsync({ type: "blob" });
+        const url = URL.createObjectURL(content);
+        
+        // Filename: Catalogd_username_MMDDYYYY.zip
+        const now = new Date();
+        const dateStr = `${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}${now.getFullYear()}`;
+        const filename = `Catalogd_${user.user_metadata?.username || 'user'}_${dateStr}.zip`;
+
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        link.click();
+
+        progressText.textContent = "Export Complete!";
+        progressBar.style.width = "100%";
+
+    } catch (e) {
+        console.error(e);
+        alert("Export failed: " + e.message);
+    }
+}
+
+// Helper to convert array to CSV string
+function convertToCSV(rows) {
+    return rows.map(row => 
+        row.map(cell => {
+            const stringCell = String(cell);
+            return `"${stringCell.replace(/"/g, '""')}"`;
+        }).join(",")
+    ).join("\n");
+}
+
 function addExportLog(title, message, type) {
     const logList = document.getElementById('export-log-list');
     const li = document.createElement('li');
     li.style.cssText = "margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px solid #2c3440;";
     
-    let color = type === 'success' ? '#4CAF50' : '#ff4d4d';
+    let color = type === 'success' ? '#3f35eb' : '#ff4d4d';
     let icon = type === 'success' ? '🎬' : '❌';
 
     li.innerHTML = `<span style="color: ${color}">${icon} ${title}</span>: <span style="opacity: 0.7">${message}</span>`;
