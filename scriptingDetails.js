@@ -512,6 +512,7 @@ async function setupStatusManager(mediaId, mediaType) {
                         user_id: user.id,
                         media_id: String(mediaId),
                         media_type: mediaType,
+                        media_title: globalData.title,
                         status: selectedStatus,
                         image_url: globalData.poster_path,
                         updated_at: new Date().toISOString()
@@ -786,6 +787,7 @@ async function updatePageProgress(totalPages) {
 
     const logData = {
         user_id: user.id, media_id: id, media_type: 'book',
+        media_title: globalData.title,
         current_page: newPage, total_pages: totalPages,
         is_finished: false, watched_on: new Date().toISOString().split('T')[0]
     };
@@ -1260,6 +1262,7 @@ async function setupWatchlist(mediaId, mediaType) {
                 user_id: user.id, 
                 media_id: String(mediaId), 
                 media_type: mediaType,
+                media_title: globalData.title,
                 image_url: globalData.poster_path
             });
             btn.classList.add('active'); btn.textContent = 'On Watchlist';
@@ -1446,7 +1449,8 @@ window.toggleListItem = async (listId, mediaId, mediaType, btnElement) => {
             .insert({ 
                 list_id: listId, 
                 media_id: String(mediaId), 
-                media_type: mediaType 
+                media_type: mediaType,
+                media_title: globalData.title
             });
         
         if (!error) {

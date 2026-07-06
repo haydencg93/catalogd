@@ -4,6 +4,9 @@ let lastfmKey = null;
 let currentFavs = { movie: [], tv: [], book: [], album: [], youtube: [], all: [] };
 let currentServices = { streaming: [], buying: [], listening: [] };
 
+// --- GLOBAL EXPORT CACHE ---
+const exportTitleCache = new Map();
+
 const favSearchInput = document.getElementById('fav-search-input');
 const favSearchResults = document.getElementById('fav-search-results');
 
@@ -489,190 +492,43 @@ function updateTopAll() {
     currentFavs.all = [topMovie, topTv, topBook, topAlbum, topYoutube].filter(Boolean);
 }
 
-async function startLetterboxdExport(userId, rangeType, startDate, endDate) {
-    const statusDiv = document.getElementById('export-status');
-    const progressBar = document.getElementById('export-progress-bar');
-    const progressText = document.getElementById('export-text');
-    const logList = document.getElementById('export-log-list');
-    const logContainer = document.getElementById('export-log-container');
+async function getExportTitle(id, type) {
+    if (!id) return "Unknown Title";
+    const cacheKey = `${type}_${id}`;
+    if (exportTitleCache.has(cacheKey)) return exportTitleCache.get(cacheKey);
 
-    statusDiv.style.display = 'block';
-    logContainer.style.display = 'block';
-    logList.innerHTML = '';
+    let title = "Unknown Title";
+    try {
+        const options = { headers: { Authorization: `Bearer ${tmdbToken}` } };
+        
+        if (type === 'movie') {
+            const res = await fetch(`https://api.themoviedb.org/3/movie/${id}`, options).then(r=>r.json());
+            title = res.title || title;
+        } else if (type === 'tv') {
+            const res = await fetch(`https://api.themoviedb.org/3/tv/${id}`, options).then(r=>r.json());
+            title = res.name || title;
+        } else if (type === 'book') {
+            const formattedId = id.startsWith('/') ? id : `/works/${id}`;
+            const res = await fetch(`https://openlibrary.org${formattedId}.json`).then(r=>r.json());
+            title = res.title || title;
+        } else if (type === 'album') {
+            const parts = decodeURIComponent(id).split('|||');
+            title = parts[1] || parts[0] || title;
+        } else if (type === 'youtube') {
+            const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${id}`).then(r=>r.json());
+            title = res.title || title;
+        }
+    } catch(e) {
+        console.warn(`Could not resolve title for ${type} ${id}`);
+    }
     
-    const zip = new JSZip();
-    const listsFolder = zip.folder("lists"); 
-
-    // Initialize CSV strings at the top to avoid ReferenceErrors
-    let diaryCsv = "tmdbID,Title,Year,Rating,WatchedDate,Rewatch,Tags,Review,Like\n";
-    let watchlistCsv = "tmdbID,Title,Year,Date\n";
-
-    // --- PART 1: DIARY EXPORT (Filtered by Date) ---
-    let diaryQuery = supabaseClient
-        .from('media_logs')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('media_type', 'movie');
-
-    if (rangeType === 'range') {
-        if (startDate && startDate !== "") {
-            // Append start of day time to ensure we catch everything on that date
-            diaryQuery = diaryQuery.gte('created_at', `${startDate}T00:00:00.000Z`); 
-        }
-        if (endDate && endDate !== "") {
-            // Append end of day time so it doesn't cut off at midnight!
-            diaryQuery = diaryQuery.lte('created_at', `${endDate}T23:59:59.999Z`);
-        }
-    }
-
-    const { data: diaryLogs } = await diaryQuery;
-
-    // --- PART 2: WATCHLIST (Always All) ---
-    const { data: watchlistLogs } = await supabaseClient
-        .from('user_watchlist')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('media_type', 'movie');
-
-    // --- PART 3: CUSTOM LISTS (Always All) ---
-    const { data: userLists } = await supabaseClient
-        .from('media_lists')
-        .select('*, list_items(*)')
-        .eq('user_id', userId);
-
-    // Calculate totals for progress bar
-    const totalDiary = diaryLogs?.length || 0;
-    const totalWatchlist = watchlistLogs?.length || 0;
-    const totalListItems = userLists?.reduce((acc, list) => acc + list.list_items.length, 0) || 0;
-    const grandTotal = totalDiary + totalWatchlist + totalListItems;
-    let processedCount = 0;
-
-    if (grandTotal === 0) {
-        progressText.textContent = "No data found to export.";
-        progressBar.style.width = "100%";
-        return;
-    }
-
-    // Process Diary
-    for (let i = 0; i < totalDiary; i++) {
-        const log = diaryLogs[i];
-        processedCount++;
-        progressText.textContent = `Verifying Diary: ${i + 1}/${totalDiary}`;
-        progressBar.style.width = `${(processedCount / grandTotal) * 100}%`;
-
-        try {
-            // Fetch the details using your existing media_id
-            const details = await fetch(`https://api.themoviedb.org/3/movie/${log.media_id}`, {
-                headers: { Authorization: `Bearer ${tmdbToken}` }
-            }).then(r => r.json());
-
-            const targetTitle = details.title || "Unknown Title";
-            const targetYear = (details.release_date || "").split('-')[0];
-
-            console.log(`🎬 Diary Item - ID: ${details.id} | Name: ${targetTitle} | Year: ${targetYear}`);
-            addExportLog(targetTitle, `Exported (${log.watched_on})`, "success");
-            
-            // Build the tags string (keeping 'Catalogd' so you know where it came from)
-            let formattedTags = "Catalogd";
-            if (log.tags && Array.isArray(log.tags) && log.tags.length > 0) {
-                formattedTags += `, ${log.tags.join(', ')}`;
-            }
-
-            // Push directly to the CSV
-            const row = [
-                details.id,
-                `"${targetTitle.replace(/"/g, '""')}"`,
-                targetYear,
-                log.rating || "",
-                log.watched_on || log.created_at.split('T')[0],
-                log.is_rewatch ? 'Yes' : 'No',
-                `"${formattedTags}"`,
-                `"${(log.notes || "").replace(/"/g, '""').replace(/\n/g, ' ')}"`,
-                log.is_liked ? 'Yes' : '' 
-            ];
-            diaryCsv += row.join(",") + "\n";
-            
-        } catch (e) { 
-            console.error("Failed to export diary item:", e); 
-            addExportLog("Unknown Error", "Failed to fetch from TMDB", "error");
-        }
-        await new Promise(r => setTimeout(r, 50));
-    }
-
-    // Process Watchlist
-    if (totalWatchlist > 0) {
-        for (const item of watchlistLogs) {
-            processedCount++;
-            progressText.textContent = `Processing Watchlist...`;
-            progressBar.style.width = `${(processedCount / grandTotal) * 100}%`;
-
-            try {
-                const res = await fetch(`https://api.themoviedb.org/3/movie/${item.media_id}`, {
-                    headers: { Authorization: `Bearer ${tmdbToken}` }
-                }).then(r => r.json());
-                
-                const year = (res.release_date || "").split('-')[0];
-                console.log(`📌 Watchlist Item - ID: ${res.id} | Name: ${res.title} | Year: ${year}`);
-                addExportLog(res.title, "Added to Watchlist", "success");
-                
-                const row = [res.id, `"${res.title}"`, year, item.created_at.split('T')[0]];
-                watchlistCsv += row.join(",") + "\n";
-            } catch (e) { console.error(e); }
-        }
-    }
-
-    // Process Custom Lists
-    if (userLists) {
-        for (const list of userLists) {
-            if (!list.list_items || list.list_items.length === 0) continue;
-
-            let listCsv = "tmdbID,Title,Year,URL,Description\n";
-            let movieCountInList = 0;
-            const safeListName = list.name.replace(/[\\/:*?"<>|]/g, '$').replace(/\s+/g, '_').toLowerCase();
-            
-            for (const item of list.list_items) {
-                if (item.media_type !== 'movie') continue;
-                processedCount++;
-                progressBar.style.width = `${(processedCount / grandTotal) * 100}%`;
-                
-                try {
-                    const res = await fetch(`https://api.themoviedb.org/3/movie/${item.media_id}`, {
-                        headers: { Authorization: `Bearer ${tmdbToken}` }
-                    }).then(r => r.json());
-
-                    const year = (res.release_date || "").split('-')[0];
-                    const row = [res.id, `"${res.title}"`, year, `https://www.themoviedb.org/movie/${res.id}`, ""];
-                    listCsv += row.join(",") + "\n";
-                    movieCountInList++;
-                } catch (e) { console.error(e); }
-                await new Promise(r => setTimeout(r, 50));
-            }
-
-            if (movieCountInList > 0) {
-                listsFolder.file(`${safeListName}.csv`, listCsv);
-                addExportLog(list.name, `List exported with ${movieCountInList} movies`, "success");
-            }
-        }
-    }
-
-    // Finalize ZIP
-    progressText.textContent = "Zipping files...";
-    zip.file("catalogd_diary.csv", diaryCsv);
-    zip.file("catalogd_watchlist.csv", watchlistCsv);
-
-    const content = await zip.generateAsync({ type: "blob" });
-    const url = URL.createObjectURL(content);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `Catalogd_Export_${new Date().toISOString().split('T')[0]}.zip`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    progressText.textContent = "Export Complete!";
-    progressBar.style.width = "100%";
+    exportTitleCache.set(cacheKey, title);
+    // 50ms buffer to respect API rate limits during bulk exports
+    await new Promise(r => setTimeout(r, 50)); 
+    return title;
 }
 
+// --- ORCHESTRATOR ---
 async function startFullAccountExport(user, rangeType, startDate, endDate, typeFilter) {
     const statusDiv = document.getElementById('export-status');
     const progressBar = document.getElementById('export-progress-bar');
@@ -686,153 +542,36 @@ async function startFullAccountExport(user, rangeType, startDate, endDate, typeF
     
     const zip = new JSZip();
     
-    // Map media types to their folder names
-    const mediaMap = {
-        'movie': 'MoviesTV',
-        'tv': 'MoviesTV',
-        'book': 'Books',
-        'album': 'Music',
-        'youtube': 'YouTube'
-    };
-
-    // 1. PRE-FETCH DATA FOR EXPORT
-    progressText.textContent = "Preparing export data...";
-
-    // Get Provider Names for readability
-    const providerMap = new Map();
-    try {
-        const [mProv, tProv] = await Promise.all([
-            fetch(`https://api.themoviedb.org/3/watch/providers/movie?language=en-US&watch_region=US`, { headers: { Authorization: `Bearer ${tmdbToken}` } }).then(r => r.json()),
-            fetch(`https://api.themoviedb.org/3/watch/providers/tv?language=en-US&watch_region=US`, { headers: { Authorization: `Bearer ${tmdbToken}` } }).then(r => r.json())
-        ]);
-        [...(mProv.results || []), ...(tProv.results || [])].forEach(p => providerMap.set(String(p.provider_id), p.provider_name));
-    } catch (e) { console.error("Provider mapping failed", e); }
-
-    // Get Custom Images for mapping
+    progressText.textContent = "Fetching custom images & maps...";
     const { data: customs } = await supabaseClient.from('custom_imgs').select('*').eq('user_id', user.id);
     const customImgMap = new Map();
     (customs || []).forEach(c => customImgMap.set(`${c.media_type}_${c.media_id}`, { poster: c.custom_poster, bg: c.custom_background }));
 
-
-    // Determine which types to process
-    let typesToProcess = Object.keys(mediaMap);
-    if (typeFilter !== 'all') {
-        // If 'movie' is selected, we include 'tv' as per your request for "Movies/TV Shows" folder
-        typesToProcess = typeFilter === 'movie' ? ['movie', 'tv'] : [typeFilter];
-    }
+    const rangeFilters = { type: rangeType, start: startDate, end: endDate };
 
     try {
-        // 1. ACCOUNT DATA EXPORT
-        progressText.textContent = "Exporting Account Settings...";
-        const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', user.id).single();
-        const accountFolder = zip.folder("Account");
-        const settingsFolder = accountFolder.folder("Settings");
+        // 1. Account Settings & Details
+        await exportAccountSettings(zip, user, customImgMap);
+        await exportListDetails(zip, user);
 
-        // HeaderInfo.csv: Display Name, Website, Password(Masked), Status Sharing
-        const headerInfo = [
-            ["Field", "Value"],
-            ["Display Name", profile?.display_name || "N/A"],
-            ["Username", profile?.username || "N/A"],
-            ["Avatar URL", profile?.avatar_url || "N/A"],
-            ["Banner URL", profile?.banner_url || "N/A"],
-            ["Bio", profile?.bio || "N/A"],
-            ["Website", profile?.website_url || "N/A"],
-            ["Status Sharing", `Active: ${profile?.show_active_status}, Paused: ${profile?.show_paused_dropped_status}`]
-        ];
-        settingsFolder.file("HeaderInfo.csv", convertToCSV(headerInfo));
-
-        // SocialMedias.csv
-        const socialMedia = [
-            ["Platform", "Handle"],
-            ["Instagram", profile?.instagram || ""],
-            ["Snapchat", profile?.snapchat || ""],
-            ["TikTok", profile?.tiktok || ""],
-            ["YouTube", profile?.youtube || ""],
-            ["GitHub", profile?.github || ""],
-            ["Last.fm", profile?.lastfm_username || ""]
-        ];
-        settingsFolder.file("SocialMedias.csv", convertToCSV(socialMedia));
-
-        // Favorites.csv
-        const favsData = [["Type", "Title", "ID", "Rank", "Custom Poster", "Custom Background"]];
-        if (profile?.favorites) {
-            Object.entries(profile.favorites).forEach(([type, list]) => {
-                list.forEach((item, index) => {
-                    const custom = customImgMap.get(`${type}_${item.id}`) || { poster: "", bg: "" };
-                    favsData.push([type, item.title, item.id, index + 1, custom.poster, custom.bg]);
-                });
-            });
+        // 2. Media Specific Exports based on filters
+        if (typeFilter === 'all' || typeFilter === 'movie') {
+            await exportMoviesTV(zip, user, rangeFilters, customImgMap, progressText);
         }
-        settingsFolder.file("Favorites.csv", convertToCSV(favsData));
-
-        // Services.csv
-        const servData = [["Category", "Provider ID", "Provider Name"]];
-        if (profile?.services) {
-            Object.entries(profile.services).forEach(([cat, list]) => {
-                list.forEach(id => {
-                    servData.push([cat, id, providerMap.get(id) || "Unknown"]);
-                });
-            });
+        if (typeFilter === 'all' || typeFilter === 'book') {
+            await exportBooks(zip, user, rangeFilters, customImgMap, progressText);
         }
-        settingsFolder.file("Services.csv", convertToCSV(servData));
-
-        // Followers/Following (Assuming tables 'follows' exists)
-        const { data: following } = await supabaseClient.from('follows').select('following_id').eq('follower_id', user.id);
-        const { data: followers } = await supabaseClient.from('follows').select('follower_id').eq('following_id', user.id);
-
-        settingsFolder.file("Following.csv", convertToCSV([["User ID"], ... (following || []).map(f => [f.following_id])]));
-        settingsFolder.file("Followers.csv", convertToCSV([["User ID"], ... (followers || []).map(f => [f.follower_id])]));
-
-        // 2. MEDIA DATA EXPORT
-        for (const type of typesToProcess) {
-            const folderName = mediaMap[type];
-            const folder = zip.folder(folderName);
-            progressText.textContent = `Exporting ${type}...`;
-
-            // --- Diary ---
-            let diaryQuery = supabaseClient.from('media_logs').select('*').eq('user_id', user.id).eq('media_type', type);
-            if (rangeType === 'range') {
-                if (startDate) diaryQuery = diaryQuery.gte('created_at', `${startDate}T00:00:00.000Z`);
-                if (endDate) diaryQuery = diaryQuery.lte('created_at', `${endDate}T23:59:59.999Z`);
-            }
-            const { data: diaryLogs } = await diaryQuery;
-            const diaryCsv = [["ID", "Title", "Rating", "Date", "Rewatch", "Liked", "Notes", "Custom Poster", "Custom Background"]];
-            (diaryLogs || []).forEach(log => {
-                const custom = customImgMap.get(`${type}_${log.media_id}`) || { poster: "", bg: "" };
-                diaryCsv.push([log.media_id, log.title || "Unknown", log.rating, log.watched_on, log.is_rewatch, log.is_liked, log.notes, custom.poster, custom.bg]);
-            });
-            folder.file("Diary.csv", convertToCSV(diaryCsv));
-
-            // --- Watchlist ---
-            const { data: wlLogs } = await supabaseClient.from('user_watchlist').select('*').eq('user_id', user.id).eq('media_type', type);
-
-            const wlCsv = [["ID", "Date Added", "Custom Poster", "Custom Background"]];
-            (wlLogs || []).forEach(log => {
-                const custom = customImgMap.get(`${type}_${log.media_id}`) || { poster: "", bg: "" };
-                wlCsv.push([log.media_id, log.created_at, custom.poster, custom.bg]);
-            });
-            folder.file("Watchlist.csv", convertToCSV(wlCsv));
-
-            // --- Statuses ---
-            // Assuming statuses are derived from media_logs (e.g., currently watching)
-            const { data: statusLogs } = await supabaseClient.from('media_status').select('*').eq('user_id', user.id).eq('media_type', type);
-            const statusCsv = [["ID", "Status", "Last Updated", "Custom Poster", "Custom Background"]];
-            (statusLogs || []).forEach(log => {
-                const custom = customImgMap.get(`${type}_${log.media_id}`) || { poster: "", bg: "" };
-                statusCsv.push([log.media_id, log.status, log.updated_at, custom.poster, custom.bg]);
-            });
-            folder.file("Statuses.csv", convertToCSV(statusCsv));
-
-
-            addExportLog(folderName, `Exported ${type} data`, "success");
+        if (typeFilter === 'all' || typeFilter === 'album') {
+            await exportMusic(zip, user, rangeFilters, customImgMap, progressText);
+        }
+        if (typeFilter === 'all' || typeFilter === 'youtube') {
+            await exportYouTube(zip, user, rangeFilters, customImgMap, progressText);
         }
 
-        // FINAL ZIP GENERATION
         progressText.textContent = "Zipping files...";
         const content = await zip.generateAsync({ type: "blob" });
         const url = URL.createObjectURL(content);
         
-        // Filename: Catalogd_username_MMDDYYYY.zip
         const now = new Date();
         const dateStr = `${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}${now.getFullYear()}`;
         const filename = `Catalogd_${user.user_metadata?.username || 'user'}_${dateStr}.zip`;
@@ -851,11 +590,232 @@ async function startFullAccountExport(user, rangeType, startDate, endDate, typeF
     }
 }
 
+// --- SPECIFIC EXPORT FUNCTIONS ---
+
+async function exportAccountSettings(zip, user, customImgMap) {
+    const folder = zip.folder("Account").folder("Settings");
+    
+    const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', user.id).single();
+    if (!profile) return;
+
+    // Header Info
+    const headerInfo = [
+        ["Field", "Value"],
+        ["Display Name", profile.display_name || ""],
+        ["Username", profile.username || ""],
+        ["Bio", profile.bio || ""],
+        ["Website", profile.website_url || ""]
+    ];
+    folder.file("HeaderInfo.csv", convertToCSV(headerInfo));
+
+    // Favorites
+    const favsData = [["Type", "Title", "ID", "Rank", "Custom Poster", "Custom Background"]];
+    if (profile.favorites) {
+        for (const [type, list] of Object.entries(profile.favorites)) {
+            for (let i = 0; i < list.length; i++) {
+                const item = list[i];
+                const custom = customImgMap.get(`${type}_${item.id}`) || { poster: "", bg: "" };
+                favsData.push([type, item.title, item.id, i + 1, custom.poster, custom.bg]);
+                exportTitleCache.set(`${type}_${item.id}`, item.title); // Feed the cache
+            }
+        }
+    }
+    folder.file("Favorites.csv", convertToCSV(favsData));
+    addExportLog("Account Settings", "Exported profile & favorites", "success");
+}
+
+async function exportListDetails(zip, user) {
+    const folder = zip.folder("Account").folder("Lists");
+    const { data: lists } = await supabaseClient.from('media_lists').select('*').eq('user_id', user.id);
+    
+    const listCsv = [["List ID", "Name", "Description", "Is Public", "Is Ranked", "Created At"]];
+    (lists || []).forEach(l => {
+        listCsv.push([l.id, l.name, l.description || "", l.is_public, l.is_ranked, l.created_at]);
+    });
+    
+    folder.file("List Details.csv", convertToCSV(listCsv));
+    addExportLog("List Details", `Exported metadata for ${lists?.length || 0} lists`, "success");
+}
+
+// --- SPECIFIC EXPORT FUNCTIONS ---
+async function exportMoviesTV(zip, user, filters, customImgMap, progressText) {
+    console.log("[Export] Starting MoviesTV Export...");
+    try {
+        const folder = zip.folder("MoviesTV");
+        const types = ['movie', 'tv'];
+        
+        await generateMediaData(folder, user, types, filters, customImgMap, progressText, true);
+        await generateListFiles(folder, user, types, customImgMap, progressText);
+        console.log("[Export] MoviesTV Export Complete.");
+    } catch (e) {
+        console.error("[Export Error] Failed in exportMoviesTV:", e);
+        addExportLog("Movies/TV", `Fatal error: ${e.message}`, "error");
+    }
+}
+
+async function exportBooks(zip, user, filters, customImgMap, progressText) {
+    try {
+        const folder = zip.folder("Books");
+        await generateMediaData(folder, user, ['book'], filters, customImgMap, progressText, false);
+        await generateListFiles(folder, user, ['book'], customImgMap, progressText);
+    } catch (e) { console.error("Books Error:", e); }
+}
+
+async function exportMusic(zip, user, filters, customImgMap, progressText) {
+    try {
+        const folder = zip.folder("Music");
+        await generateMediaData(folder, user, ['album'], filters, customImgMap, progressText, false);
+        await generateListFiles(folder, user, ['album'], customImgMap, progressText);
+    } catch (e) { console.error("Music Error:", e); }
+}
+
+async function exportYouTube(zip, user, filters, customImgMap, progressText) {
+    try {
+        const folder = zip.folder("YouTube");
+        await generateMediaData(folder, user, ['youtube'], filters, customImgMap, progressText, false);
+        await generateListFiles(folder, user, ['youtube'], customImgMap, progressText);
+    } catch (e) { console.error("YouTube Error:", e); }
+}
+
+// --- UTILITY DATA GENERATORS ---
+
+async function generateMediaData(folder, user, typesArray, filters, customImgMap, progressText, isLetterboxd) {
+    const typeLabel = typesArray.join('/');
+    console.log(`[Export] Generating Data for: ${typeLabel}`);
+    
+    try {
+        // 1. DIARY
+        console.log(`[Export] Fetching Diary for ${typeLabel}`);
+        progressText.textContent = `Exporting ${typeLabel} Diary...`;
+        const diaryHeaders = isLetterboxd 
+            ? ["tmdbID", "Title", "Year", "Rating", "WatchedDate", "Rewatch", "Tags", "Review", "Custom Poster", "Custom Background"]
+            : ["ID", "Title", "Rating", "Date", "Rewatch", "Tags", "Notes", "Custom Poster", "Custom Background"];
+        
+        const diaryCsv = [diaryHeaders];
+        let diaryQuery = supabaseClient.from('media_logs').select('*').eq('user_id', user.id).in('media_type', typesArray);
+        
+        if (filters.type === 'range') {
+            if (filters.start) diaryQuery = diaryQuery.gte('created_at', `${filters.start}T00:00:00.000Z`);
+            if (filters.end) diaryQuery = diaryQuery.lte('created_at', `${filters.end}T23:59:59.999Z`);
+        }
+        
+        const { data: diaryLogs, error: diaryError } = await diaryQuery;
+        if (diaryError) throw new Error(`Diary Query Error: ${diaryError.message}`);
+
+        for (const log of (diaryLogs || [])) {
+            console.log(`[Export] Processing Diary Log ID: ${log.id}`);
+            const title = log.media_title || "Unknown Title";
+            const custom = customImgMap.get(`${log.media_type}_${log.media_id}`) || { poster: "", bg: "" };
+            const tags = log.tags ? log.tags.join(', ') : "";
+            
+            // Safe date fallback
+            let date = log.watched_on;
+            if (!date && log.created_at) date = log.created_at.split('T')[0];
+            if (!date) date = ""; 
+            
+            if (isLetterboxd) {
+                diaryCsv.push([log.media_id, title, "", log.rating || "", date, log.is_rewatch ? 'Yes' : '', tags, log.notes || "", custom.poster, custom.bg]);
+            } else {
+                diaryCsv.push([log.media_id, title, log.rating || "", date, log.is_rewatch ? 'Yes' : 'No', tags, log.notes || "", custom.poster, custom.bg]);
+            }
+        }
+        folder.file("Diary.csv", convertToCSV(diaryCsv));
+
+        // 2. WATCHLIST
+        console.log(`[Export] Fetching Watchlist for ${typeLabel}`);
+        progressText.textContent = `Exporting ${typeLabel} Watchlist...`;
+        const wlHeaders = isLetterboxd 
+            ? ["tmdbID", "Title", "Date", "Custom Poster", "Custom Background"] 
+            : ["ID", "Title", "Date Added", "Custom Poster", "Custom Background"];
+        
+        const wlCsv = [wlHeaders];
+        const { data: wlLogs, error: wlError } = await supabaseClient.from('user_watchlist').select('*').eq('user_id', user.id).in('media_type', typesArray);
+        if (wlError) throw new Error(`Watchlist Query Error: ${wlError.message}`);
+        
+        for (const log of (wlLogs || [])) {
+            const title = log.media_title || "Unknown Title";
+            const custom = customImgMap.get(`${log.media_type}_${log.media_id}`) || { poster: "", bg: "" };
+            const date = log.created_at ? log.created_at.split('T')[0] : "";
+            wlCsv.push([log.media_id, title, date, custom.poster, custom.bg]);
+        }
+        folder.file("Watchlist.csv", convertToCSV(wlCsv));
+
+        // 3. STATUSES
+        console.log(`[Export] Fetching Statuses for ${typeLabel}`);
+        progressText.textContent = `Exporting ${typeLabel} Statuses...`;
+        const statHeaders = isLetterboxd 
+            ? ["tmdbID", "Title", "Status", "Date", "Custom Poster", "Custom Background"] 
+            : ["ID", "Title", "Status", "Last Updated", "Custom Poster", "Custom Background"];
+            
+        const statCsv = [statHeaders];
+        const { data: statLogs, error: statError } = await supabaseClient.from('media_status').select('*').eq('user_id', user.id).in('media_type', typesArray);
+        if (statError) throw new Error(`Status Query Error: ${statError.message}`);
+        
+        for (const log of (statLogs || [])) {
+            const title = log.media_title || "Unknown Title";
+            const custom = customImgMap.get(`${log.media_type}_${log.media_id}`) || { poster: "", bg: "" };
+            const date = log.updated_at ? log.updated_at.split('T')[0] : "";
+            statCsv.push([log.media_id, title, log.status, date, custom.poster, custom.bg]);
+        }
+        folder.file("Statuses.csv", convertToCSV(statCsv));
+
+        addExportLog(typeLabel, `Core data exported`, "success");
+    } catch (error) {
+        console.error(`[Export Error] generateMediaData failure for ${typeLabel}:`, error);
+        throw error; // Bubble up to specific export function
+    }
+}
+
+async function generateListFiles(parentFolder, user, typesArray, customImgMap, progressText) {
+    try {
+        console.log(`[Export] Processing Lists for ${typesArray}`);
+        progressText.textContent = `Processing Custom Lists for ${typesArray.join('/')}...`;
+        
+        const { data: lists, error: listError } = await supabaseClient.from('media_lists').select('*').eq('user_id', user.id);
+        if (listError) throw new Error(`List Query Error: ${listError.message}`);
+        if (!lists || lists.length === 0) return;
+
+        const listFolder = parentFolder.folder("Lists");
+
+        for (const list of lists) {
+            const { data: items, error: itemError } = await supabaseClient
+                .from('list_items')
+                .select('*')
+                .eq('list_id', list.id)
+                .in('media_type', typesArray)
+                .order('rank', { ascending: true });
+            
+            if (itemError) throw new Error(`List Item Query Error for List ${list.id}: ${itemError.message}`);
+
+            if (items && items.length > 0) {
+                const listCsv = [["Position", "tmdbID", "Title", "Custom Poster", "Custom Background"]];
+                
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i];
+                    const title = await getExportTitle(item.media_id, item.media_type);
+                    const custom = customImgMap.get(`${item.media_type}_${item.media_id}`) || { poster: "", bg: "" };
+                    const position = list.is_ranked ? (item.rank || i + 1) : "";
+                    
+                    listCsv.push([position, item.media_id, title, custom.poster, custom.bg]);
+                }
+                
+                const safeFileName = list.name.replace(/[/\\?%*:|"<>]/g, '-');
+                listFolder.file(`${safeFileName}.csv`, convertToCSV(listCsv));
+                addExportLog("List", `Created ${safeFileName}.csv`, "success");
+            }
+        }
+    } catch (error) {
+        console.error(`[Export Error] generateListFiles failure:`, error);
+        throw error;
+    }
+}
+
 // Helper to convert array to CSV string
 function convertToCSV(rows) {
     return rows.map(row => 
         row.map(cell => {
-            const stringCell = String(cell);
+            // Safely handle null, undefined, or empty values
+            const stringCell = (cell === null || cell === undefined) ? "" : String(cell);
             return `"${stringCell.replace(/"/g, '""')}"`;
         }).join(",")
     ).join("\n");
@@ -921,6 +881,7 @@ async function startImport(data, userId) {
                 user_id: userId,
                 media_id: String(mediaInfo.id),
                 media_type: mediaInfo.type,
+                media_title: title,
                 rating: rowRating,
                 watched_on: watchedDate,
                 runtime: mediaInfo.runtime, // ADD THIS LINE
@@ -1121,6 +1082,7 @@ document.getElementById('save-bulk-logs-btn').onclick = async () => {
             user_id: user.id,
             media_id: compositeId,
             media_type: 'album',
+            media_title: isTrack ? trackName : album,
             rating: rating,
             is_liked: isLiked,
             image_url: image,
@@ -1317,7 +1279,8 @@ async function processAdvancedData(importType, data, userId) {
                 const { error } = await supabaseClient.from('user_watchlist').upsert({
                     user_id: userId,
                     media_id: String(mediaInfo.id),
-                    media_type: mediaInfo.type
+                    media_type: mediaInfo.type,
+                    media_title: title
                 }, { onConflict: 'user_id, media_id, media_type' }); // Prevents duplicates if constraint exists
 
                 if (error) throw error;
@@ -1416,7 +1379,8 @@ async function processListData(rawData, userId) {
                     .insert({
                         list_id: newList.id,
                         media_id: String(mediaInfo.id),
-                        media_type: mediaInfo.type
+                        media_type: mediaInfo.type,
+                        media_title: title
                     });
 
                 if (!itemError) {
