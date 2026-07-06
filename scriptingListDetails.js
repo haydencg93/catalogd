@@ -465,7 +465,7 @@ async function setupSearch() {
                             <div class="meta">YOUTUBE</div>
                         </div>
                     `;
-                    div.onclick = () => addItem(ytId, 'youtube');
+                    div.onclick = () => addItem(ytId, 'youtube', res.title);
                     resultsDiv.appendChild(div);
                     return; // Stop here so we don't fetch TMDB/OpenLibrary
                 }
@@ -504,7 +504,7 @@ function renderSearchResults(tmdb, books, albums) {
                 <div class="meta">${item.media_type.toUpperCase()}</div>
             </div>
         `;
-        div.onclick = () => addItem(item.id, item.media_type);
+        div.onclick = () => addItem(item.id, item.media_type, item.title || item.name);
         resultsDiv.appendChild(div);
     });
 
@@ -518,7 +518,7 @@ function renderSearchResults(tmdb, books, albums) {
                 <div class="meta">BOOK</div>
             </div>
         `;
-        div.onclick = () => addItem(book.key, 'book');
+        div.onclick = () => addItem(book.key, 'book', book.title);
         resultsDiv.appendChild(div);
     });
 
@@ -534,12 +534,12 @@ function renderSearchResults(tmdb, books, albums) {
             </div>
         `;
         const compositeId = encodeURIComponent(`${a.artist}|||${a.name}`);
-        div.onclick = () => addItem(compositeId, 'album');
+        div.onclick = () => addItem(compositeId, 'album', a.name);
         resultsDiv.appendChild(div);
     });
 }
 
-async function addItem(mediaId, mediaType) {
+async function addItem(mediaId, mediaType, mediaTitle) {
     const newRank = isRanked ? currentItems.length + 1 : null;
     
     const { error } = await supabaseClient
@@ -548,6 +548,7 @@ async function addItem(mediaId, mediaType) {
             list_id: listId, 
             media_id: String(mediaId), 
             media_type: mediaType,
+            media_title: mediaTitle,
             rank: newRank
         });
 

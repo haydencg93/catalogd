@@ -334,6 +334,7 @@ async function saveLog() {
     const userNotes = document.getElementById('user-notes').value;
     const watchedDate = document.getElementById('watched-date').value;
     const rating = currentRating;
+    const mediaTitleStr = document.getElementById('media-title').textContent;
     
     const parsedTags = currentTags;
 
@@ -407,6 +408,7 @@ async function saveLog() {
                 user_id: user.id,
                 media_id: id,
                 media_type: type,
+                media_title: mediaTitleStr,
                 rating: rating,
                 notes: userNotes,
                 tags: parsedTags,
