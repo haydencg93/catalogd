@@ -556,7 +556,10 @@ async function startFullAccountExport(user, rangeType, startDate, endDate, typeF
 
         // 2. Media Specific Exports based on filters
         if (typeFilter === 'all' || typeFilter === 'movie') {
-            await exportMoviesTV(zip, user, rangeFilters, customImgMap, progressText);
+            await exportMovies(zip, user, rangeFilters, customImgMap, progressText);
+        }
+        if (typeFilter === 'all' || typeFilter === 'tv') {
+            await exportTV(zip, user, rangeFilters, customImgMap, progressText);
         }
         if (typeFilter === 'all' || typeFilter === 'book') {
             await exportBooks(zip, user, rangeFilters, customImgMap, progressText);
@@ -638,18 +641,31 @@ async function exportListDetails(zip, user) {
 }
 
 // --- SPECIFIC EXPORT FUNCTIONS ---
-async function exportMoviesTV(zip, user, filters, customImgMap, progressText) {
-    console.log("[Export] Starting MoviesTV Export...");
+async function exportMovies(zip, user, filters, customImgMap, progressText) {
+    console.log("[Export] Starting Movies Export...");
     try {
-        const folder = zip.folder("MoviesTV");
-        const types = ['movie', 'tv'];
+        const folder = zip.folder("Movies");
         
-        await generateMediaData(folder, user, types, filters, customImgMap, progressText, true);
-        await generateListFiles(folder, user, types, customImgMap, progressText);
-        console.log("[Export] MoviesTV Export Complete.");
+        await generateMediaData(folder, user, ['movie'], filters, customImgMap, progressText, true);
+        await generateListFiles(folder, user, ['movie'], customImgMap, progressText);
+        console.log("[Export] Movies Export Complete.");
     } catch (e) {
-        console.error("[Export Error] Failed in exportMoviesTV:", e);
-        addExportLog("Movies/TV", `Fatal error: ${e.message}`, "error");
+        console.error("[Export Error] Failed in exportMovies:", e);
+        addExportLog("Movies", `Fatal error: ${e.message}`, "error");
+    }
+}
+
+async function exportTV(zip, user, filters, customImgMap, progressText) {
+    console.log("[Export] Starting TV Export...");
+    try {
+        const folder = zip.folder("TV Shows");
+        
+        await generateMediaData(folder, user, ['tv'], filters, customImgMap, progressText, true);
+        await generateListFiles(folder, user, ['tv'], customImgMap, progressText);
+        console.log("[Export] TV Export Complete.");
+    } catch (e) {
+        console.error("[Export Error] Failed in exportTV:", e);
+        addExportLog("TV Shows", `Fatal error: ${e.message}`, "error");
     }
 }
 
