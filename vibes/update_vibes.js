@@ -54,7 +54,7 @@ function translateKeyword(query) {
         "crime": "police tape",
         "documentary": "vintage film reel",
         "drama": "heartbreak",
-        "family": "warm home",
+        "family": "kids playing",
         "fantasy": "fairies in forest",
         "history": "old books",
         "horror": "dark rainy street",
