@@ -18,7 +18,9 @@ jobs:
           node-version: '18'
 
       - name: Install Dependencies
-        run: npm install @supabase/supabase-js
+        run: |
+          cd vibes
+          npm install
         working-directory: ./vibes
 
       - name: Run Updater Script
@@ -26,6 +28,6 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           UNSPLASH_KEY: ${{ secrets.UNSPLASH_KEY }}
-        run: 
+        run: |
           cd vibes
           node update_vibes.js
