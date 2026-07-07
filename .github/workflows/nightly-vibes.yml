@@ -24,7 +24,7 @@ jobs:
       - name: Run Updater Script
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           UNSPLASH_KEY: ${{ secrets.UNSPLASH_KEY }}
         run: 
           cd vibes
