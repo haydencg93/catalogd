@@ -1,6 +1,7 @@
 let supabaseClient = null;
 let tmdbToken = null;
 let lastfmKey = null;
+
 let currentFavs = { movie: [], tv: [], book: [], album: [], youtube: [], all: [] };
 let currentServices = { streaming: [], buying: [], listening: [] };
 

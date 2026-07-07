@@ -1,0 +1,31 @@
+name: Nightly Vibe Updater
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Runs at 00:00 UTC every day
+  workflow_dispatch: # Allows you to run it manually from the Actions tab for testing
+
+jobs:
+  update-vibes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install Dependencies
+        run: npm install @supabase/supabase-js
+        working-directory: ./.github/scripts
+
+      - name: Run Updater Script
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          UNSPLASH_KEY: ${{ secrets.UNSPLASH_KEY }}
+        run: 
+          cd vibes
+          node update_vibes.js

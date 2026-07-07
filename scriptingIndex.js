@@ -20,6 +20,7 @@ const profileMenu = document.getElementById('profile-menu');
 // 2. Global Variables
 let TMDB_TOKEN = '';
 let LASTFM_KEY = '';
+let UNSPLASH_KEY = '';
 let supabaseClient = null; 
 let isSignUpMode = false;
 let currentTab = 'movie';
@@ -41,6 +42,7 @@ async function loadConfig() {
         TMDB_TOKEN = config.tmdb_token;
         LASTFM_KEY = config.lastfm_key;
         supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
+        UNSPLASH_KEY = config.unsplash_key;
         
         await checkUserStatus(); 
 
@@ -256,6 +258,37 @@ async function getTrendingItems(type) {
     }
 }
 
+function renderVibeBox(genreName, themeName, genreImg, themeImg) {
+    const fallback = 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=1000&auto=format&fit=crop';
+    
+    const vibeContainer = document.createElement('div');
+    vibeContainer.className = 'vibe-container';
+    vibeContainer.innerHTML = `
+        <div class="vibe-title">Your Vibe</div>
+        <div class="vibe-box">
+            <div class="vibe-half" style="background-image: url('${genreImg || fallback}');">
+                <span class="vibe-text">${genreName}</span>
+            </div>
+            <div class="vibe-half" style="background-image: url('${themeImg || fallback}');">
+                <span class="vibe-text">${themeName}</span>
+            </div>
+            <div class="vibe-blend"></div> 
+        </div>
+    `;
+
+    // 1. Remove any existing vibe box so they don't duplicate when switching tabs
+    const existingVibe = document.querySelector('.vibe-container');
+    if (existingVibe) {
+        existingVibe.remove();
+    }
+
+    // 2. Insert it exactly where you requested: above the filter nav
+    const filterNav = document.querySelector('.filter-nav');
+    if (filterNav) {
+        filterNav.parentNode.insertBefore(vibeContainer, filterNav);
+    }
+}
+
 async function getForYouItems(mediaType) {
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) return [];
@@ -397,6 +430,48 @@ async function getForYouItems(mediaType) {
             
             uniqueRecs.set(item.id, { ...item, _score: finalScore });
         });
+
+        const topGenreName = genreNames[topGenres[0]];
+        const topThemeName = keywordNames[topKeywords[0]];
+
+        if (topGenreName && topThemeName) {
+            // 1. Fetch current vibe from DB
+            const { data: vibeData } = await supabaseClient
+                .from('vibes_control')
+                .select('*')
+                .eq('user_id', user.id)
+                .maybeSingle();
+
+            if (!vibeData) {
+                // First time user! Insert a blank row and flag it for tonight's update.
+                await supabaseClient.from('vibes_control').insert({
+                    user_id: user.id,
+                    needs_update: true,
+                    new_top_genre: topGenreName,
+                    new_top_theme: topThemeName
+                });
+                // Render a placeholder UI while they wait for tonight
+                renderVibeBox(topGenreName, topThemeName, '', ''); 
+            } else {
+                // Compare calculated vibe to stored vibe
+                const hasChanged = (vibeData.current_top_genre !== topGenreName) || (vibeData.current_top_theme !== topThemeName);
+                
+                if (hasChanged && !vibeData.needs_update) {
+                    // Flag for update tonight
+                    await supabaseClient.from('vibes_control').update({
+                        needs_update: true,
+                        new_top_genre: topGenreName,
+                        new_top_theme: topThemeName
+                    }).eq('id', vibeData.id);
+                }
+
+                // Render with whatever images we currently have in the database
+                renderVibeBox(vibeData.current_top_genre || topGenreName, 
+                            vibeData.current_top_theme || topThemeName, 
+                            vibeData.image_genre, 
+                            vibeData.image_theme);
+            }
+        }
 
         // 9. Sort and take the best 12
         const finalRecs = Array.from(uniqueRecs.values())
