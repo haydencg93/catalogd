@@ -19,7 +19,7 @@ jobs:
 
       - name: Install Dependencies
         run: npm install @supabase/supabase-js
-        working-directory: ./.github/scripts
+        working-directory: ./vibes
 
       - name: Run Updater Script
         env:
