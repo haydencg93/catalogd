@@ -20,7 +20,6 @@ const profileMenu = document.getElementById('profile-menu');
 // 2. Global Variables
 let TMDB_TOKEN = '';
 let LASTFM_KEY = '';
-let UNSPLASH_KEY = '';
 let supabaseClient = null; 
 let isSignUpMode = false;
 let currentTab = 'movie';
@@ -258,19 +257,42 @@ async function getTrendingItems(type) {
     }
 }
 
-function renderVibeBox(genreName, themeName, genreImg, themeImg) {
-    const fallback = 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=1000&auto=format&fit=crop';
-    
+function renderVibeBox(genreName, themeName, genreImg, themeImg, genreAttr, themeAttr) {
+    // No more external placeholder image — if there's nothing to show yet (e.g. brand new
+    // user waiting on tonight's job), just fall back to a plain gradient background.
+    const fallbackGradient = 'linear-gradient(135deg, #2a2f3a, #1b1f27)';
+
+    function backgroundStyle(img) {
+        return img ? `background-image: url('${img}'); background-size: cover; background-position: center;`
+                    : `background: ${fallbackGradient};`;
+    }
+
+    // Builds a small, unobtrusive credit line for a CC-licensed image. Returns
+    // an empty string if there's nothing to attribute (e.g. the fallback gradient,
+    // or a public-domain image where we chose not to show a credit).
+    function attributionHtml(attr) {
+        if (!attr || !attr.text) return '';
+        const style = 'position:absolute;bottom:6px;right:8px;font-size:10px;line-height:1.2;' +
+            'color:rgba(255,255,255,0.65);background:rgba(0,0,0,0.35);padding:2px 6px;' +
+            'border-radius:4px;text-decoration:none;pointer-events:auto;z-index:2;';
+        const label = attr.url
+            ? `<a href="${attr.url}" target="_blank" rel="noopener noreferrer" class="vibe-attribution-link" style="${style}">${attr.text}</a>`
+            : `<div class="vibe-attribution" style="${style}">${attr.text}</div>`;
+        return label;
+    }
+
     const vibeContainer = document.createElement('div');
     vibeContainer.className = 'vibe-container';
     vibeContainer.innerHTML = `
         <div class="vibe-title">Your Vibe</div>
         <div class="vibe-box">
-            <div class="vibe-half" style="background-image: url('${genreImg || fallback}');">
+            <div class="vibe-half" style="${backgroundStyle(genreImg)}">
                 <span class="vibe-text">${genreName}</span>
+                ${attributionHtml(genreAttr)}
             </div>
-            <div class="vibe-half" style="background-image: url('${themeImg || fallback}');">
+            <div class="vibe-half" style="${backgroundStyle(themeImg)}">
                 <span class="vibe-text">${themeName}</span>
+                ${attributionHtml(themeAttr)}
             </div>
             <div class="vibe-blend"></div> 
         </div>
@@ -469,7 +491,9 @@ async function getForYouItems(mediaType) {
                 renderVibeBox(vibeData.current_top_genre || topGenreName, 
                             vibeData.current_top_theme || topThemeName, 
                             vibeData.image_genre, 
-                            vibeData.image_theme);
+                            vibeData.image_theme,
+                            { text: vibeData.image_genre_attribution, url: vibeData.image_genre_attribution_url },
+                            { text: vibeData.image_theme_attribution, url: vibeData.image_theme_attribution_url });
             }
         }
 
