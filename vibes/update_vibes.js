@@ -12,13 +12,9 @@ const TMDB_TOKEN = configData.tmdb_token;
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY; 
 
-// Openverse: register a free app at https://api.openverse.org/v1/#tag/auth/operation/register
-// to get these. Anonymous calls work too, but have a much lower rate limit, which is risky
-// for a nightly job hitting the API twice per user.
 const OPENVERSE_CLIENT_ID = process.env.OPENVERSE_CLIENT_ID;
 const OPENVERSE_CLIENT_SECRET = process.env.OPENVERSE_CLIENT_SECRET;
 
-// Tell Supabase to use your 'ws' package
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: {
         persistSession: false
