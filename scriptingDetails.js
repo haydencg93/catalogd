@@ -1181,67 +1181,106 @@ async function clearSeasonProgress() {
 
 async function fetchWatchProviders(config) {
     if (type === 'book') return; 
-    const res = await fetch(`https://api.themoviedb.org/3/${type}/${id}/watch/providers`, { 
-        headers: { Authorization: `Bearer ${config.tmdb_token}` } 
-    }).then(r => r.json());
     
-    const results = res.results?.US || {};
-    const stream = results.flatrate || [];
-    const buy = results.buy || [];
-    const container = document.getElementById('providers-list');
-    
-    let html = '';
+    try {
+        const res = await fetch(`https://api.themoviedb.org/3/${type}/${id}/watch/providers`, { 
+            headers: { Authorization: `Bearer ${config.tmdb_token}` } 
+        }).then(r => r.json());
+        
+        const results = res.results?.US || {};
+        
+        // Grab ALL possible monetization arrays from TMDB to ensure maximum library depth
+        const flatrate = results.flatrate || [];
+        const free = results.free || [];
+        const ads = results.ads || [];
+        const buy = results.buy || [];
+        const rent = results.rent || [];
 
-    if (!stream.length && !buy.length) {
-        html += "<p class='meta' style='margin-bottom: 15px; font-size: 0.9rem;'>Not available to stream or buy.</p>";
-    } else {
-        // Streaming Group
-        if (stream.length) {
-            html += `
-                <div class="provider-group">
-                    <span class="provider-type-label">Stream</span>
-                    <div class="provider-icons">
-                        ${stream.map(p => `
-                            <img src="https://image.tmdb.org/t/p/original${p.logo_path}" 
-                                 title="${p.provider_name}" class="provider-logo">
-                        `).join('')}
-                    </div>
-                </div>`;
+        // 1. Compile the "FREE TO WATCH" category (AVOD + Completely Free models)
+        // We combine 'free' and 'ads' arrays, then de-duplicate by provider_id
+        const freeToWatchMap = new Map();
+        [...free, ...ads].forEach(p => freeToWatchMap.set(p.provider_id, p));
+        const freeToWatchList = Array.from(freeToWatchMap.values());
+
+        // 2. Compile the standard "STREAM" subscriptions (SVOD)
+        const streamList = [...flatrate];
+
+        // 3. Compile the "BUY / RENT" marketplaces (TVOD)
+        // Combine buy and rent, then de-duplicate by provider_id
+        const buyRentMap = new Map();
+        [...buy, ...rent].forEach(p => buyRentMap.set(p.provider_id, p));
+        const buyRentList = Array.from(buyRentMap.values());
+
+        // 4. Compile the "OTHER" catch-all array
+        // Check if TMDB outputs other unexpected transactional styles (like premium add-on channels)
+        const handledIds = new Set([
+            ...freeToWatchList.map(p => p.provider_id),
+            ...streamList.map(p => p.provider_id),
+            ...buyRentList.map(p => p.provider_id)
+        ]);
+        
+        const otherList = [];
+        for (const key in results) {
+            if (Array.isArray(results[key])) {
+                results[key].forEach(p => {
+                    if (!handledIds.has(p.provider_id)) {
+                        otherList.push(p);
+                        handledIds.add(p.provider_id); // Prevent self-duplication inside other
+                    }
+                });
+            }
         }
 
-        // Buy/Rent Group
-        if (buy.length) {
-            html += `
-                <div class="provider-group">
-                    <span class="provider-type-label">Buy / Rent</span>
-                    <div class="provider-icons">
-                        ${buy.map(p => `
-                            <img src="https://image.tmdb.org/t/p/original${p.logo_path}" 
-                                 title="${p.provider_name}" class="provider-logo">
-                        `).join('')}
-                    </div>
-                </div>`;
+        const container = document.getElementById('providers-list');
+        let html = '';
+
+        if (!freeToWatchList.length && !streamList.length && !buyRentList.length && !otherList.length) {
+            html += "<p class='meta' style='margin-bottom: 15px; font-size: 0.9rem;'>Not available to stream or buy.</p>";
+        } else {
+            // Helper generator to build uniform icon markup blocks cleanly
+            const generateGroupHtml = (label, providersArray) => {
+                if (!providersArray.length) return '';
+                return `
+                    <div class="provider-group">
+                        <span class="provider-type-label">${label}</span>
+                        <div class="provider-icons">
+                            ${providersArray.map(p => `
+                                <img src="https://image.tmdb.org/t/p/original${p.logo_path}" 
+                                     title="${p.provider_name}" class="provider-logo" alt="${p.provider_name}">
+                            `).join('')}
+                        </div>
+                    </div>`;
+            };
+
+            // Inject structural rows matching your prioritized design order
+            html += generateGroupHtml("Free to Watch", freeToWatchList);
+            html += generateGroupHtml("Stream", streamList);
+            html += generateGroupHtml("Buy / Rent", buyRentList);
+            html += generateGroupHtml("Other Services", otherList); // Automatically hidden if empty!
         }
+
+        // Build Dynamic Trailer Link (Appended cleanly underneath layouts)
+        let yearPart = globalData.meta.split(' • ')[0].trim();
+        if (yearPart === 'Unknown Year' || !/^\d{4}$/.test(yearPart)) yearPart = '';
+        
+        const typeStr = type === 'tv' ? 'tv show' : 'movie';
+        const query = encodeURIComponent(`${globalData.title} ${yearPart ? yearPart + ' ' : ''}${typeStr} trailer`);
+        
+        html += `
+            <div class="provider-group">
+                <span class="provider-type-label">Trailer</span>
+                <div class="provider-icons">
+                    <a href="https://www.youtube.com/results?search_query=${query}" target="_blank">
+                        <img src="https://www.youtube.com/s/desktop/40cd5ddc/img/favicon_144x144.png" class="provider-logo" title="Watch Trailer on YouTube" style="background: transparent; border: none; object-fit: contain;">
+                    </a>
+                </div>
+            </div>`;
+
+        container.innerHTML = html;
+    } catch (err) {
+        console.error("Watch providers panel failed to render:", err);
+        document.getElementById('providers-list').innerHTML = "<p class='meta'>Availability data currently updating.</p>";
     }
-
-    // Build Dynamic Trailer Link
-    let yearPart = globalData.meta.split(' • ')[0].trim();
-    if (yearPart === 'Unknown Year' || !/^\d{4}$/.test(yearPart)) yearPart = '';
-    
-    const typeStr = type === 'tv' ? 'tv show' : 'movie';
-    const query = encodeURIComponent(`${globalData.title} ${yearPart ? yearPart + ' ' : ''}${typeStr} trailer`);
-    
-    html += `
-        <div class="provider-group">
-            <span class="provider-type-label">Trailer</span>
-            <div class="provider-icons">
-                <a href="https://www.youtube.com/results?search_query=${query}" target="_blank">
-                    <img src="https://www.youtube.com/s/desktop/40cd5ddc/img/favicon_144x144.png" class="provider-logo" title="Watch Trailer on YouTube" style="background: transparent; border: none; object-fit: contain;">
-                </a>
-            </div>
-        </div>`;
-
-    container.innerHTML = html;
 }
 
 async function setupWatchlist(mediaId, mediaType) {

@@ -24,6 +24,9 @@ let supabaseClient = null;
 let isSignUpMode = false;
 let currentTab = 'movie';
 let customImgsMap = new Map();
+// Provider IDs (TMDB watch/providers ids, as strings) the user picked in Settings > Your Services > Streaming.
+// Populated in checkUserStatus(). Empty array = no filtering (user hasn't set services yet).
+let userStreamingProviderIds = [];
 
 /*
 * Fetches configuration variables, initializes external APIs (Supabase, TMDB, Last.fm),
@@ -96,6 +99,20 @@ async function checkUserStatus() {
             customImgs.forEach(img => {
                 customImgsMap.set(`${img.media_type}_${img.media_id}`, img);
             });
+        }
+
+        // Load the user's preferred streaming services (Settings > Your Services) so
+        // "For You" recommendations can be filtered to what they can actually watch.
+        try {
+            const { data: profileServices } = await supabaseClient
+                .from('profiles')
+                .select('services')
+                .eq('id', user.id)
+                .single();
+            userStreamingProviderIds = ((profileServices && profileServices.services && profileServices.services.streaming) || []).map(String);
+        } catch (e) {
+            console.warn("Could not load streaming services:", e);
+            userStreamingProviderIds = [];
         }
 
         loginBtn.textContent = "Sign Out";
@@ -186,6 +203,7 @@ async function loadTabContent(type) {
         // Only attempt For You if it is a Movie or TV show
         if (['movie', 'tv'].includes(type)) {
             forYouItems = await getForYouItems(type);
+            maybeShowServicesNudge();
         }
 
         let trendingItems = await getTrendingItems(type);
@@ -387,71 +405,134 @@ async function getForYouItems(mediaType) {
             
         const loggedIds = new Set((allDiary || []).map(d => String(d.media_id)));
 
-        // 6. TARGETED DISCOVERY FETCH
-        // Instead of one big OR search, we fetch 1 page SPECIFICALLY for each of your top 5 themes.
+        // 6. TARGETED DISCOVERY FETCH (+ provider filter + backfill)
+        // Instead of one big OR search, we fetch page(s) SPECIFICALLY for each of your top 5 themes.
         // This guarantees the blockbusters in theme #5 can't crowd out the niche films in theme #1.
-        const fetchPromises = topKeywords.map(keywordId => {
-            let url = `https://api.themoviedb.org/3/discover/${mediaType}?language=en-US&sort_by=popularity.desc&watch_region=US`;
+        // If the user has picked streaming services in Settings, we also constrain the discovery
+        // itself to titles available (subscription OR free/ad-supported) on one of those platforms.
+        const hasProviderFilter = userStreamingProviderIds.length > 0;
+        // Ask TMDB for subscriptions, fully free, AND free-with-ads
+        const providerParams = `&with_watch_monetization_types=flatrate|free|ads`;
+
+        const buildKeywordUrl = (keywordId, page) => {
+            let url = `https://api.themoviedb.org/3/discover/${mediaType}?language=en-US&sort_by=popularity.desc&watch_region=US&page=${page}`;
             url += `&with_genres=${topGenres.join('|')}`; // Must have a top genre
             url += `&with_keywords=${keywordId}`;          // MUST have THIS specific theme
-            return fetch(url, { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } }).then(r => r.json());
-        });
+            url += providerParams;
+            return url;
+        };
 
-        const targetedPages = await Promise.all(fetchPromises);
-        
-        // Pool all the targeted results together
-        let rawRecommendations = [];
-        targetedPages.forEach(page => {
-            if (page.results) rawRecommendations.push(...page.results);
-        });
+        const buildGenreOnlyUrl = (page) => {
+            // Relaxed fallback used only when provider-filtering shrinks the pool too much:
+            // drops the strict keyword requirement but keeps genre + provider constraints.
+            let url = `https://api.themoviedb.org/3/discover/${mediaType}?language=en-US&sort_by=popularity.desc&watch_region=US&page=${page}`;
+            url += `&with_genres=${topGenres.join('|')}`;
+            url += providerParams;
+            return url;
+        };
 
-        // De-duplicate the pool and remove logged items
-        const candidateIds = [...new Set(rawRecommendations.map(i => i.id))].filter(id => !loggedIds.has(String(id)));
-
-        // 7. THE DEEP FETCH (Get keywords for the candidates)
-        const candidatePromises = candidateIds.map(id => 
-            fetch(`https://api.themoviedb.org/3/${mediaType}/${id}?append_to_response=keywords`, {
-                headers: { Authorization: `Bearer ${TMDB_TOKEN}` }
-            }).then(r => r.json()).catch(() => null)
-        );
-        const detailedCandidates = await Promise.all(candidatePromises);
-
-        // 8. THE STRICT SCORING ENGINE
+        const TARGET_COUNT = 12;
+        const MAX_KEYWORD_PAGES = 3; // cap API usage while backfilling
+        const seenCandidateIds = new Set();
         const uniqueRecs = new Map();
-        
-        detailedCandidates.forEach(item => {
-            if (!item || !item.id) return;
-            
-            // RULE 1: Must contain a top genre
-            const hasTopGenre = (item.genres || []).some(g => topGenres.includes(String(g.id)));
-            if (!hasTopGenre) return;
 
-            let themeScore = 0;
-            let genreScore = 0;
-            
-            // Score Themes
-            const keywordsArray = item.keywords?.keywords || item.keywords?.results || [];
-            keywordsArray.forEach(k => {
-                if (topKeywords.includes(String(k.id))) {
-                    themeScore += keywordCounts[k.id];
+        // 7 & 8 combined: fetch a batch of discover URLs, deep-fetch details (+ real-time
+        // watch/providers availability in the SAME request), score, and verify availability.
+        async function processDiscoverUrls(urls, requireTheme = true) {
+            const pages = await Promise.all(
+                urls.map(u => fetch(u, { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } }).then(r => r.json()).catch(() => ({})))
+            );
+
+            let rawRecommendations = [];
+            pages.forEach(page => { if (page.results) rawRecommendations.push(...page.results); });
+
+            const newIds = [...new Set(rawRecommendations.map(i => i.id))]
+                .filter(id => !loggedIds.has(String(id)) && !seenCandidateIds.has(id));
+            newIds.forEach(id => seenCandidateIds.add(id));
+
+            if (newIds.length === 0) return;
+
+            const detailedCandidates = await Promise.all(newIds.map(id =>
+                fetch(`https://api.themoviedb.org/3/${mediaType}/${id}?append_to_response=keywords,watch/providers`, {
+                    headers: { Authorization: `Bearer ${TMDB_TOKEN}` }
+                }).then(r => r.json()).catch(() => null)
+            ));
+
+            detailedCandidates.forEach(item => {
+                if (!item || !item.id) return;
+
+                // RULE 1: Must contain a top genre
+                const hasTopGenre = (item.genres || []).some(g => topGenres.includes(String(g.id)));
+                if (!hasTopGenre) return;
+
+                // RULE 2 (only when the user has picked services): double-check the title is
+                // ACTUALLY available (subscription or free/ad-supported, e.g. Tubi/Roku Channel)
+                // on one of their chosen platforms right now, independent of the discover filter.
+                if (hasProviderFilter) {
+                    const usProviders = (item['watch/providers'] && item['watch/providers'].results && item['watch/providers'].results.US) || {};
+                    
+                    // Group availability into distinct monetization types
+                    const flatrateIds = (usProviders.flatrate || []).map(p => String(p.provider_id));
+                    const freeIds = (usProviders.free || []).map(p => String(p.provider_id));
+                    const adsIds = (usProviders.ads || []).map(p => String(p.provider_id));
+
+                    // Rule 1: Is it available on the user's selected streaming services?
+                    const isOnUserServices = [...flatrateIds, ...freeIds, ...adsIds].some(id => userStreamingProviderIds.includes(id));
+
+                    // Rule 2: If it's not on their services, is it $0 to watch somewhere else? 
+                    // (This allows fully free OR free-with-ads like Tubi/Roku)
+                    const isFreeAnywhere = freeIds.length > 0;
+                    const isFreeWithAdsAnywhere = adsIds.length > 0;
+
+                    // Enforce the rule: Must be on their services OR $0 to watch.
+                    // Drops anything that requires a new paid subscription, rental, or purchase.
+                    if (!isOnUserServices && !isFreeAnywhere && !isFreeWithAdsAnywhere) {
+                        return; 
+                    }
                 }
-            });
 
-            if (themeScore === 0) return;
+                let themeScore = 0;
+                let genreScore = 0;
 
-            // Score Genres
-            (item.genres || []).forEach(g => {
-                if (topGenres.includes(String(g.id))) {
-                    genreScore += genreCounts[g.id];
-                }
+                // Score Themes
+                const keywordsArray = item.keywords?.keywords || item.keywords?.results || [];
+                keywordsArray.forEach(k => {
+                    if (topKeywords.includes(String(k.id))) {
+                        themeScore += keywordCounts[k.id];
+                    }
+                });
+
+                if (requireTheme && themeScore === 0) return;
+
+                // Score Genres
+                (item.genres || []).forEach(g => {
+                    if (topGenres.includes(String(g.id))) {
+                        genreScore += genreCounts[g.id];
+                    }
+                });
+
+                // The Math: A movie with your #1 theme (40 pts -> 40,000) will easily beat
+                // a movie with your #5 theme (30 pts -> 30,000), even if it's less popular.
+                const finalScore = (themeScore * 1000) + genreScore + (item.popularity / 10000);
+
+                uniqueRecs.set(item.id, { ...item, _score: finalScore });
             });
-            
-            // The Math: A movie with your #1 theme (40 pts -> 40,000) will easily beat 
-            // a movie with your #5 theme (30 pts -> 30,000), even if it's less popular.
-            const finalScore = (themeScore * 1000) + genreScore + (item.popularity / 10000); 
-            
-            uniqueRecs.set(item.id, { ...item, _score: finalScore });
-        });
+        }
+
+        // Pass 1: page 1 for each top keyword (matches previous behavior)
+        await processDiscoverUrls(topKeywords.map(k => buildKeywordUrl(k, 1)));
+
+        // Backfill: only needed when provider-filtering shrinks the pool below target.
+        if (hasProviderFilter) {
+            for (let page = 2; page <= MAX_KEYWORD_PAGES && uniqueRecs.size < TARGET_COUNT; page++) {
+                await processDiscoverUrls(topKeywords.map(k => buildKeywordUrl(k, page)));
+            }
+
+            // Last resort: relax the keyword requirement, keep genre + provider constraints only.
+            for (let page = 1; page <= 2 && uniqueRecs.size < TARGET_COUNT; page++) {
+                await processDiscoverUrls([buildGenreOnlyUrl(page)], false);
+            }
+        }
 
         const topGenreName = genreNames[topGenres[0]];
         const topThemeName = keywordNames[topKeywords[0]];
@@ -514,6 +595,45 @@ async function getForYouItems(mediaType) {
         console.error("For you fetch error:", err);
         return [];
     }
+}
+
+// Shows a one-time, dismissible nudge asking the user to pick their streaming
+// services in Settings so "For You" can be filtered to what they can actually watch.
+// Only fires when: logged in, on Movies/TV tab, no streaming services saved yet,
+// and the user hasn't already dismissed it this browser (localStorage flag).
+function maybeShowServicesNudge() {
+    if (userStreamingProviderIds.length > 0) return; // already configured
+    if (localStorage.getItem('catalogd_services_nudge_dismissed') === 'true') return;
+    if (document.getElementById('services-nudge-modal')) return; // already shown once this session
+
+    supabaseClient.auth.getUser().then(({ data: { user } }) => {
+        if (!user) return; // only nudge logged-in users
+
+        const modal = document.createElement('div');
+        modal.id = 'services-nudge-modal';
+        modal.className = 'modal-overlay';
+        modal.style.display = 'flex';
+        modal.innerHTML = `
+            <div class="auth-card" style="max-width: 380px;">
+                <h2 style="margin-top:0;">Get Picks You Can Watch</h2>
+                <p class="meta" style="margin-bottom: 25px;">
+                    Add your streaming services in Settings so your "For You" recommendations
+                    only include movies and shows available on platforms you actually have.
+                </p>
+                <button id="services-nudge-goto" class="primary-btn">Go to Settings</button>
+                <p id="services-nudge-dismiss" style="color:#9ab; cursor:pointer; font-size:0.8rem; margin-top:15px;">Maybe later</p>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        document.getElementById('services-nudge-goto').onclick = () => {
+            window.location.href = 'settings.html';
+        };
+        document.getElementById('services-nudge-dismiss').onclick = () => {
+            localStorage.setItem('catalogd_services_nudge_dismissed', 'true');
+            modal.remove();
+        };
+    }).catch(() => {});
 }
 
 function renderResults(items, targetGrid = resultsGrid) {
