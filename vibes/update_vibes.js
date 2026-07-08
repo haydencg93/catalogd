@@ -33,6 +33,7 @@ function translateKeyword(query) {
     if (q.includes("coming of age")) return "youth sunset";
     if (q.includes("murder") || q.includes("serial killer")) return "dark mystery";
     if (q.includes("high school") || q.includes("teenager")) return "high school";
+    if (q.includes("space")) return "space system";
 
     // 2. Direct Overrides
     const overrides = {
