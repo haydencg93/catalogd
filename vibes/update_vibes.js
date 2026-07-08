@@ -34,6 +34,7 @@ function translateKeyword(query) {
     if (q.includes("murder") || q.includes("serial killer")) return "dark mystery";
     if (q.includes("high school") || q.includes("teenager")) return "high school";
     if (q.includes("space")) return "space system";
+    if (q.includes("friend")) return "friends";
 
     // 2. Direct Overrides
     const overrides = {
