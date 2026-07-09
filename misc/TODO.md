@@ -15,12 +15,10 @@ Get Done Today = ~
 - Maybe change ml model where I am doing the physical math and not the apis
 - YouTube vids on details page not showing playable youtube vid and only showing cover img
 - Fandom for books
-- Add in game funtionality (IGDB)
 
 <!-- ----------------------------------------------------------------------- -->
 <!-- Future Additions -->
 ## Future Additions:
 - Characters/Fandoms/ETC
     - using the Fandom api
-- Add in a feature of New that you might like
-- Add in a feature of since you watched/read this... (Next Watch/Read)
+- Add in game funtionality (IGDB)
