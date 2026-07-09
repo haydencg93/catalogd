@@ -1,0 +1,232 @@
+.picker-container {
+    width: 100% !important;
+    max-width: 600px !important;
+    margin: 0 auto;
+    text-align: left !important;
+    padding: 30px !important;
+    box-sizing: border-box;
+}
+
+.form-group {
+    margin-bottom: 25px;
+}
+
+.form-group label {
+    display: block;
+    color: #9ab;
+    margin-bottom: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 1px;
+}
+
+.picker-select {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    color: white;
+    border: 1px solid #2c3440;
+    padding: 14px 15px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 1rem;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 15px center;
+    background-size: 16px;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.picker-select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 10px rgba(67, 56, 202, 0.2);
+}
+
+.picker-select option {
+    background: #14181c;
+    color: white;
+}
+
+/* Custom Checkbox */
+.checkbox-group {
+    margin-top: 15px;
+    margin-bottom: 30px;
+}
+
+.custom-checkbox {
+    display: flex;
+    align-items: center;
+    position: relative;
+    padding-left: 32px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: #fff;
+    user-select: none;
+    text-transform: none !important;
+    font-weight: 500 !important;
+    letter-spacing: 0 !important;
+}
+
+.custom-checkbox input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.checkmark {
+    position: absolute;
+    top: -2px;
+    left: 0;
+    height: 22px;
+    width: 22px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid #2c3440;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.custom-checkbox:hover input ~ .checkmark {
+    border-color: var(--accent);
+}
+
+.custom-checkbox input:checked ~ .checkmark {
+    background-color: var(--accent);
+    border-color: var(--accent);
+}
+
+.checkmark:after {
+    content: "";
+    position: absolute;
+    display: none;
+}
+
+.custom-checkbox input:checked ~ .checkmark:after {
+    display: block;
+}
+
+.custom-checkbox .checkmark:after {
+    left: 7px;
+    top: 3px;
+    width: 5px;
+    height: 10px;
+    border: solid #000;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+/* Winner Card */
+.winner-card {
+    display: flex;
+    flex-direction: row;
+    gap: 30px;
+    max-width: 800px;
+    margin: 50px auto;
+    background: rgba(15, 20, 25, 0.6);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border: 1px solid var(--accent);
+    box-shadow: 0 15px 40px var(--accent-glow);
+    border-radius: 16px;
+    padding: 30px;
+    align-items: center;
+}
+
+.winner-poster-wrapper {
+    flex: 0 0 220px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+}
+
+.winner-poster-wrapper img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.winner-info {
+    flex: 1;
+}
+
+.winner-info h1 {
+    font-size: 2.2rem;
+    margin: 0;
+    line-height: 1.1;
+}
+
+.winner-genres {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 15px 0;
+}
+
+.genre-pill {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.winner-actions {
+    display: flex;
+    gap: 15px;
+    margin-top: 30px;
+}
+
+.winner-actions .secondary-btn {
+    flex: 1;
+    text-align: center;
+    padding: 12px;
+}
+
+/* Watchlist animation override from details */
+.secondary-btn.active {
+    background: var(--accent) !important;
+    border-color: var(--accent) !important;
+    color: #14181c !important;
+    font-weight: bold;
+}
+
+/* Provider Icons override */
+.provider-logo {
+    width: 35px;
+    height: 35px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .winner-card {
+        flex-direction: column;
+        padding: 20px;
+        text-align: center;
+    }
+
+    .winner-poster-wrapper {
+        flex: 0 0 auto;
+        width: 200px;
+        margin: 0 auto;
+    }
+
+    .winner-genres {
+        justify-content: center;
+    }
+
+    .provider-icons {
+        justify-content: center;
+    }
+
+    .winner-actions {
+        flex-direction: column;
+    }
+}

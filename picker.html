@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catalogd | Random Decider</title>
+    <link rel="icon" type="image/x-icon" href="catalogdFavicon.png" />
+    <link rel="stylesheet" href="stylingIndex.css">
+    <link rel="stylesheet" href="stylingPicker.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <div class="css-logo" onclick="window.location.href='index.html'">
+            <div class="logo-text">catalog<span>d</span></div>
+            <div class="logo-circles">
+                <div class="circle c-movie"></div>
+                <div class="circle c-tv"></div>
+                <div class="circle c-book"></div>
+                <div class="circle c-album"></div>
+                <div class="circle c-youtube"></div>
+            </div>
+        </div>
+        <div class="nav-actions">
+            <button id="login-btn" class="secondary-btn" style="display:none;">Sign In</button>
+            <div id="profile-menu" class="profile-dropdown" style="display:none;">
+                <button class="profile-trigger" onclick="toggleProfileDropdown(event)">
+                    <img src="https://ui-avatars.com/api/?name=User&background=0d0776&color=fff" id="nav-avatar" alt="Profile">
+                    <span class="dropdown-arrow"></span>
+                </button>
+                <div id="dropdown-content" class="dropdown-content">
+                    <a href="index.html">Home</a>
+                    <a href="diary.html">Diary</a>
+                    <a href="lists.html">Lists</a>
+                    <a href="watchlist.html">Watchlist</a>
+                    <a href="profile.html">Profile</a>
+                    <a href="settings.html">Settings</a>
+                    <hr>
+                    <a href="#" onclick="signOut()">Sign Out</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <h2 class="section-title">Random Decider</h2>
+        <p class="meta" style="text-align: center; margin-top: -20px; margin-bottom: 40px;">Let the algorithm cure your decision paralysis.</p>
+
+        <div class="picker-container auth-card">
+            
+            <div class="form-group">
+                <label>I want to watch a...</label>
+                <select id="media-type-select" class="picker-select">
+                    <option value="movie">Movie</option>
+                    <option value="tv">TV Show</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Pick randomly from my...</label>
+                <select id="source-select" class="picker-select">
+                    <option value="taste">Taste Profile (For You)</option>
+                    <option value="watchlist">Watchlist</option>
+                    <option value="rewatch">Re-watch Radar</option>
+                    <option value="list">Specific List</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="list-select-group" style="display: none;">
+                <label>Which list?</label>
+                <select id="specific-list-select" class="picker-select">
+                    </select>
+            </div>
+
+            <div class="form-group checkbox-group">
+                <label class="custom-checkbox">
+                    <input type="checkbox" id="services-filter-check" checked>
+                    <span class="checkmark"></span>
+                    Only pick titles available on my streaming services or for free
+                </label>
+            </div>
+
+            <button id="roll-btn" class="primary-btn pulse-btn" style="margin-top: 15px; font-size: 1.1rem; padding: 15px;">Roll the Dice</button>
+        </div>
+
+        <div id="loader" style="display: none; text-align: center; margin-top: 40px; color: #9ab;">Consulting the oracle...</div>
+        
+        <div id="error-message" style="display: none; text-align: center; margin-top: 40px; color: #ff4d4d; font-weight: bold;"></div>
+
+        <div id="result-container" class="winner-card" style="display: none;">
+            <div class="winner-poster-wrapper">
+                <img id="winner-poster" src="" alt="Poster">
+            </div>
+            <div class="winner-info">
+                <h1 id="winner-title"></h1>
+                <div class="meta" id="winner-year" style="margin: 5px 0 15px; color: var(--accent); font-weight: bold;"></div>
+                
+                <div class="winner-genres" id="winner-genres"></div>
+                
+                <div class="providers-section" style="margin-top: 20px;">
+                    <h4 style="margin-bottom: 10px; font-size: 0.85rem; color: #9ab; text-transform: uppercase;">Available On</h4>
+                    <div id="winner-providers" class="provider-icons"></div>
+                </div>
+
+                <div class="winner-actions">
+                    <button id="reroll-btn" class="secondary-btn">🎲 Re-roll</button>
+                    <button id="watch-btn" class="secondary-btn">Mark as Currently Watching</button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="scriptingPicker.js"></script>
+</body>
+</html>
