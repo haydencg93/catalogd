@@ -1,4 +1,4 @@
-name: Nightly ML Embedding Pipeline
+name: Nightly ML Embedding Pipeline Worker
 
 on:
   push:
