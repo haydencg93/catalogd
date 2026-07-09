@@ -716,6 +716,50 @@ input {
         -webkit-overflow-scrolling: touch; /* Smooth scroll for iOS */
         padding-bottom: 5px;
     }
+
+    /* --- Revisit Section Mobile Adjustments --- */
+    #revisit-section {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        max-height: none !important; /* Removes the 110px cap so content can stack */
+        padding: 15px !important;
+        gap: 12px !important;
+    }
+
+    /* 1. Header Area (Moves from left side to top) */
+    #revisit-section > div:first-child {
+        width: 100% !important;
+        height: auto !important;
+        border-right: none !important; /* Remove the vertical divider */
+        border-bottom: 1px solid var(--glass-border) !important; /* Add a horizontal divider */
+        padding-right: 0 !important;
+        padding-bottom: 12px !important;
+    }
+
+    /* Force the heading onto one line to save vertical space on mobile */
+    #revisit-section > div:first-child h3 {
+        display: flex;
+        align-items: baseline;
+    }
+    #revisit-section > div:first-child h3 br {
+        display: none; 
+    }
+    #revisit-section > div:first-child h3 span {
+        margin-left: 6px;
+    }
+
+    /* 2. Content Area (Filters & Covers stretch full width) */
+    #revisit-section > div:last-child {
+        width: 100% !important;
+        height: auto !important;
+        overflow: visible !important; 
+    }
+
+    /* Push the filters slightly further away from the covers */
+    #revisit-section .filter-nav {
+        margin-bottom: 12px !important;
+    }
+
     .tab-btn {
         flex: 0 0 auto !important; /* Prevents shrinking */
         white-space: nowrap;

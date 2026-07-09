@@ -7,6 +7,7 @@ let currentLibraryFilter = 'all';
 let isOwner = false;
 let profileUserId = null;
 let customImgsMap = new Map();
+let revisitCandidates = { movie: [], tv: [], book: [], album: [] };
 
 async function initProfile() {
     try {
@@ -318,6 +319,8 @@ async function initProfile() {
             document.getElementById('stat-count').textContent = logs.length;
             filterRecent('all'); 
 
+            calculateRevisits();
+
             if (isOwner) {
                 document.getElementById('tags-tab-btn').style.display = 'block';
                 renderProfileTags();
@@ -557,6 +560,127 @@ function setupSettingsUI() {
         }
     };
 }
+
+function calculateRevisits() {
+    const now = new Date();
+    // Millisecond thresholds
+    const thresholds = {
+        movie: 365 * 24 * 60 * 60 * 1000,     // 1 Year
+        tv: 365 * 24 * 60 * 60 * 1000,        // 1 Year
+        book: 2 * 365 * 24 * 60 * 60 * 1000,  // 2 Years
+        album: 180 * 24 * 60 * 60 * 1000      // 6 Months (1/2 Year)
+    };
+
+    const latestLogs = {};
+
+    // 1. Deduplicate: Find the absolute latest watched_on date for each media
+    allUserLogs.forEach(log => {
+        const key = `${log.media_type}_${log.media_id}`;
+        const logDate = new Date(log.watched_on || log.created_at);
+        
+        if (!latestLogs[key] || logDate > latestLogs[key].date) {
+            latestLogs[key] = { ...log, date: logDate };
+        }
+    });
+
+    // 2. Filter: Compare the latest date against thresholds AND check rating
+    Object.values(latestLogs).forEach(log => {
+        // Excludes YouTube and any unmapped types
+        if (!thresholds[log.media_type]) return; 
+        
+        // Skip the item if it has no rating or the rating is less than 4
+        if (!log.rating || log.rating < 4) return;
+
+        const timeDiff = now - log.date;
+        if (timeDiff > thresholds[log.media_type]) {
+            revisitCandidates[log.media_type].push(log);
+        }
+    });
+
+    // 3. Sort: Furthest away date to the nearest one (Ascending Order)
+    ['movie', 'tv', 'book', 'album'].forEach(type => {
+        revisitCandidates[type].sort((a, b) => a.date - b.date);
+    });
+    
+    // Initial Render
+    filterRevisit('movie'); 
+}
+
+window.filterRevisit = async (type) => {
+    // 1. Update Header Text Based on Type
+    const heading = document.getElementById('revisit-heading');
+    let action = "Re-Watch";
+    let verb = "Watched";
+    if (type === 'book') { action = "Re-Read"; verb = "Read"; }
+    if (type === 'album') { action = "Re-Listen to"; verb = "Listened to"; }
+    heading.innerHTML = `Your Next<br><span style="color: var(--accent); font-size: 1.15rem;">${action}</span>`;
+
+    // 2. Toggle Active Button Class
+    const buttons = document.querySelectorAll('#revisit-section .filter-btn');
+    buttons.forEach(btn => {
+        const matchText = type === 'album' ? 'music' : type === 'tv' ? 'tv' : type;
+        btn.classList.toggle('active', btn.textContent.toLowerCase().includes(matchText));
+    });
+
+    const container = document.getElementById('revisit-covers');
+    container.innerHTML = '<p class="meta" style="font-size: 0.75rem; margin: 0;">Loading...</p>';
+
+    const items = revisitCandidates[type] || [];
+    if (items.length === 0) {
+        container.innerHTML = `<p class="meta" style="font-size: 0.75rem; margin: 0;">Nothing to ${action.toLowerCase()} yet!</p>`;
+        return;
+    }
+
+    const config = await fetch('config.json').then(r => r.json());
+    
+    // 3. Fetch Image Data
+    const itemsWithImages = await Promise.all(items.map(async (item) => {
+        let image = item.image_url;
+        try {
+            if (!image) {
+                 if (item.media_type === 'book') {
+                    const res = await fetch(`https://openlibrary.org${item.media_id}.json`).then(r=>r.json()).catch(()=>({}));
+                    image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : '';
+                 } else if (item.media_type === 'album') {
+                    const [artist, albumName] = decodeURIComponent(item.media_id).split('|||');
+                    const res = await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(albumName)}&api_key=${config.lastfm_key}&format=json`).then(r=>r.json()).catch(()=>({}));
+                    image = res.album?.image?.[3]['#text'] || '';
+                 } else {
+                    const res = await fetch(`https://api.themoviedb.org/3/${item.media_type}/${item.media_id}?language=en-US`, {
+                        headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` }
+                    }).then(r=>r.json()).catch(()=>({}));
+                    image = res.poster_path ? `https://image.tmdb.org/t/p/w200${res.poster_path}` : '';
+                 }
+            }
+        } catch(e) {}
+        
+        const customArt = customImgsMap.get(`${item.media_type}_${item.media_id}`);
+        if (customArt && customArt.custom_poster) image = customArt.custom_poster;
+        
+        return { ...item, image: image || `https://placehold.co/100x150/1b2228/9ab?text=No+Img` };
+    }));
+
+    // 4. Render Covers
+    container.innerHTML = '';
+    itemsWithImages.forEach(item => {
+        const dateStr = item.date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+        
+        const card = document.createElement('div');
+        // Very tight formatting to keep the vertical height constrained to <= 1.25x the standard boxes
+        card.style.cssText = "flex: 0 0 45px; display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: transform 0.2s;";
+        card.onclick = () => window.location.href = `details.html?id=${encodeURIComponent(item.media_id)}&type=${item.media_type}`;
+        card.onmouseover = () => card.style.transform = 'translateY(-2px)';
+        card.onmouseout = () => card.style.transform = 'none';
+
+        card.innerHTML = `
+            <img src="${item.image}" style="width: 45px; height: 68px; object-fit: cover; border-radius: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.4); margin-bottom: 3px;">
+            <div style="font-size: 0.5rem; color: #9ab; text-align: center; line-height: 1.1; width: 55px; word-wrap: break-word;">
+                Last ${verb} on<br><span style="color: #fff; font-weight: bold;">${dateStr}</span>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+};
 
 async function renderStatusItems(items, gridId) {
     const grid = document.getElementById(gridId);
