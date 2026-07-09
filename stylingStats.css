@@ -1,0 +1,265 @@
+.stats-container {
+    max-width: 1000px;
+    margin: 40px auto;
+    padding: 0 20px;
+    text-align: center;
+}
+
+.controls-container {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.stats-dropdown {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid #2c3440;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 1rem;
+    outline: none;
+    cursor: pointer;
+}
+
+.stats-dropdown:hover {
+    border-color: var(--accent);
+}
+
+.stats-dropdown option {
+    background: var(--bg);
+    color: white;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.stats-box {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+}
+
+.stats-box-value {
+    font-size: 2rem;
+    font-weight: 900;
+    color: var(--accent);
+    margin-bottom: 5px;
+}
+
+.stats-box-label {
+    font-size: 0.8rem;
+    color: #9ab;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Stats Content specific overrides */
+.context-box {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.03) !important;
+}
+
+.context-box .meta {
+    font-size: 0.95rem;
+    margin-top: 8px;
+    font-weight: 500;
+}
+
+/* Make canvas wrapper responsive */
+.chart-container {
+    position: relative;
+    width: 100%;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+/* Milestones UI */
+.milestone-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.milestone-item {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--glass-border);
+    padding: 15px 20px;
+    border-radius: 12px;
+    transition: transform 0.2s ease, background 0.2s;
+}
+
+.milestone-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+    transform: translateX(5px);
+    border-color: var(--accent);
+}
+
+.milestone-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    font-weight: 900;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+.milestone-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.milestone-text {
+    font-size: 1rem;
+    color: var(--text);
+}
+
+.milestone-text strong {
+    color: var(--accent);
+}
+
+.milestone-title {
+    font-size: 0.9rem;
+    color: #fff;
+}
+
+/* Inherit badge colors for milestones */
+.badge-movie { background: var(--movie-tag); color: #000; }
+.badge-tv { background: var(--tv-tag); color: #fff; }
+.badge-book { background: var(--book-tag); color: #fff; }
+.badge-album { background: var(--album-tag); color: #fff; }
+.badge-youtube { background: var(--youtube-tag); color: #fff; }
+
+/* --- STATS PAGE MOBILE RESPONSIVENESS (< 768px) --- */
+@media (max-width: 768px) {
+    .stats-container {
+        margin: 20px auto;
+        padding: 0 10px;
+    }
+
+    /* 1. Depth-1 Tabs: Horizontal Scroll (Matches Profile Page) */
+    #depth-1-tabs {
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        justify-content: flex-start !important;
+        gap: 15px !important;
+        padding-bottom: 5px !important;
+        -webkit-overflow-scrolling: touch !important;
+        scrollbar-width: none !important; /* Hides scrollbar in Firefox */
+    }
+    
+    #depth-1-tabs::-webkit-scrollbar {
+        display: none !important; /* Hides scrollbar in Chrome/Safari */
+    }
+
+    #depth-1-tabs .tab-btn {
+        flex: 0 0 auto !important;
+        font-size: 0.9rem !important;
+        padding: 8px 0 !important;
+    }
+
+    /* 2. Controls: Stack Dropdowns */
+    .controls-container {
+        flex-direction: column;
+        gap: 10px;
+        margin: 15px 0;
+    }
+
+    .stats-dropdown {
+        width: 100%;
+        text-align: center;
+        padding: 12px;
+    }
+
+    /* 3. Filter Nav: Wrap to 3 per row */
+    .stats-container .filter-nav {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 10px;
+    }
+
+    .stats-container .filter-btn {
+        flex: 1 1 30%;
+        padding: 8px;
+        font-size: 0.85rem;
+    }
+
+    /* 4. Stats Render Area: Maximize space */
+    #stats-render-area {
+        padding: 20px 15px !important;
+        border-radius: 12px;
+    }
+
+    /* 5. Basic Stats Grid: Keep 2 columns, but scale text */
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .stats-box {
+        padding: 15px 10px;
+    }
+
+    .stats-box-value {
+        font-size: 1.5rem;
+    }
+    
+    .stats-box-label {
+        font-size: 0.7rem;
+    }
+
+    /* Ensure context boxes (like First/Last watch) take full width if needed, 
+       or let them stay in the 2-column flow depending on text length */
+    .context-box {
+        grid-column: 1 / -1; /* Forces text-heavy boxes to span full width */
+    }
+
+    /* 6. Chart Container: Slightly shorter */
+    .chart-container {
+        height: 220px !important; 
+        padding: 10px;
+        margin: 20px 0;
+    }
+
+    /* 7. Milestones: Tighter layout */
+    .milestone-item {
+        padding: 12px 15px;
+        gap: 15px;
+    }
+
+    .milestone-badge {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+    }
+
+    .milestone-text {
+        font-size: 0.9rem;
+    }
+    
+    .milestone-title {
+        font-size: 0.85rem;
+    }
+}

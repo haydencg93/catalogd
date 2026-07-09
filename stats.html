@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catalogd | My Stats</title>
+    <link rel="icon" type="image/x-icon" href="catalogdFavicon.png" />
+    <link rel="stylesheet" href="stylingIndex.css">
+    <link rel="stylesheet" href="stylingProfile.css">
+    <link rel="stylesheet" href="stylingStats.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header>
+        <div class="css-logo" onclick="window.location.href='index.html'">
+            <div class="logo-text">catalog<span>d</span></div>
+            <div class="logo-circles">
+                <div class="circle c-movie"></div>
+                <div class="circle c-tv"></div>
+                <div class="circle c-book"></div>
+                <div class="circle c-album"></div>
+                <div class="circle c-youtube"></div>
+            </div>
+        </div>
+        <div class="nav-actions">
+             <div id="profile-menu" class="profile-dropdown">
+                <button class="profile-trigger" onclick="toggleProfileDropdown(event)">
+                    <img src="https://ui-avatars.com/api/?name=User&background=0d0776&color=fff" id="nav-avatar" alt="Profile">
+                    <span class="dropdown-arrow"></span>
+                </button>
+                <div id="dropdown-content" class="dropdown-content">
+                    <a href="profile.html">Back to Profile</a>
+                    <a href="#" onclick="signOut()">Sign Out</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="stats-container">
+        <h2 class="section-title">Your Statistics</h2>
+
+        <div class="profile-tabs" id="depth-1-tabs" style="justify-content: center;">
+            <button class="tab-btn active" onclick="switchStatsDepth('all-time')">All-Time</button>
+            <button class="tab-btn" onclick="switchStatsDepth('by-year')">By Year</button>
+            <button class="tab-btn" onclick="switchStatsDepth('by-season')">By Season & Year</button>
+        </div>
+
+        <div id="depth-2-controls" class="controls-container">
+            </div>
+
+        <div class="filter-nav" style="margin-top: 20px;">
+            <button class="filter-btn active" onclick="filterStats('all')">All</button>
+            <button class="filter-btn" onclick="filterStats('movie')">Movies</button>
+            <button class="filter-btn" onclick="filterStats('tv')">TV</button>
+            <button class="filter-btn" onclick="filterStats('book')">Books</button>
+            <button class="filter-btn" onclick="filterStats('album')">Music</button>
+            <button class="filter-btn" onclick="filterStats('youtube')">YouTube</button>
+        </div>
+
+        <div id="stats-render-area" class="auth-card" style="width: 100%; max-width: 900px; margin: 0 auto; text-align: left; padding: 30px;">
+            <div id="stats-loader" style="text-align: center; color: #9ab;">Crunching the numbers...</div>
+            
+            <div id="stats-content" style="display: none;">
+                <div class="stats-grid" id="basic-stats-grid"></div>
+                
+                <div class="chart-container" style="margin: 40px 0; height: 300px;">
+                    <canvas id="statsChart"></canvas>
+                </div>
+
+                <div id="heavy-stats-area"></div>
+                
+                <div id="milestones-area" style="margin-top: 40px;"></div>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="scriptingStats.js"></script>
+</body>
+</html>

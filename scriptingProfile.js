@@ -332,6 +332,24 @@ async function initProfile() {
                     revisitSection.style.display = 'none';
                 }
             }
+
+            const statsNavBtn = document.getElementById('stats-nav-btn');
+            if (statsNavBtn) {
+                if (isOwner) {
+                    statsNavBtn.style.display = 'block';
+                    statsNavBtn.onclick = () => {
+                        window.location.href = 'stats.html';
+                    };
+                    
+                    // Adjust the grid layout so 4 items fit perfectly instead of 3
+                    const statsBar = document.querySelector('.stats-bar');
+                    if (statsBar) {
+                        statsBar.style.gridTemplateColumns = 'repeat(4, 1fr)';
+                    }
+                } else {
+                    statsNavBtn.style.display = 'none';
+                }
+            }
         }
 
         let libraryMap = new Map();
