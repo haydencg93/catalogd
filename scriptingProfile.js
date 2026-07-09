@@ -319,11 +319,18 @@ async function initProfile() {
             document.getElementById('stat-count').textContent = logs.length;
             filterRecent('all'); 
 
-            calculateRevisits();
-
+            // Only calculate and show revisits if the logged-in user owns the profile
             if (isOwner) {
+                calculateRevisits();
+
                 document.getElementById('tags-tab-btn').style.display = 'block';
                 renderProfileTags();
+            } else {
+                // Hide the Re-Watch section from other users
+                const revisitSection = document.getElementById('revisit-section');
+                if (revisitSection) {
+                    revisitSection.style.display = 'none';
+                }
             }
         }
 
