@@ -36,6 +36,52 @@ input {
     margin: 0 auto;
 }
 
+/* --- Desktop Layout for Profile Header Main --- */
+.profile-header-main {
+    display: flex;
+    flex: 1; /* Takes up all remaining space next to the avatar */
+    justify-content: space-between; /* Pushes info left, stats right */
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 15px;
+}
+
+.profile-social-stats {
+    display: flex;
+    gap: 12px;
+}
+
+.mini-stat-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border);
+    padding: 8px 16px;
+    border-radius: 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 75px;
+}
+
+.mini-stat-card:hover {
+    border-color: var(--accent);
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-2px);
+}
+
+.mini-stat-value {
+    display: block;
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: var(--text);
+}
+
+.mini-stat-label {
+    font-size: 0.65rem;
+    color: #9ab;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
 .media-card .poster-wrapper .review-badge {
     position: absolute;
     top: 8px;
@@ -642,29 +688,47 @@ input {
 
 /* --- PROFILE PAGE MOBILE RESPONSIVENESS (< 768px) --- */
 @media (max-width: 768px) {
-    /* 1. Nav-actions directly below logo */
-    header {
-        flex-direction: column;
-        align-items: center;
-        gap: 15px;
-        text-align: center;
-    }
-
-    /* 2. The header container itself should NEVER wrap its children to a new line */
+    /* 1. Turn the header into a Grid layout */
     .profile-header {
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
+        display: grid !important;
+        grid-template-columns: auto 1fr !important; /* Avatar gets its width, text takes the rest */
+        grid-template-areas: 
+            "avatar info"
+            "stats stats" !important; /* Stats span all the way across the bottom! */
         align-items: center;
-        padding-left: 15px !important;
         gap: 15px !important;
+        padding-left: 15px !important;
     }
 
-    /* Target ONLY the text container */
+    /* 2. Assign the Avatar to its grid slot */
+    .avatar-placeholder {
+        grid-area: avatar;
+        flex-shrink: 0 !important;
+    }
+
+    /* 3. MAGIC TRICK: This makes the wrapper "invisible" to the layout 
+          so its children can snap directly into the grid above! */
+    .profile-header-main {
+        display: contents !important;
+    }
+
+    /* 4. Assign the Text Info to its grid slot */
     .profile-info {
-        flex: 1;           /* Take up remaining space */
-        min-width: 0;       /* Allows flex-item to shrink smaller than its content */
+        grid-area: info;
+        min-width: 0;
         text-align: left;
+    }
+
+    /* 5. Assign the Stats to the bottom row and center them */
+    .profile-social-stats {
+        grid-area: stats;
+        width: 100%;
+        justify-content: center; /* Centers them horizontally */
+        margin-top: 10px;
+    }
+    
+    .mini-stat-card {
+        padding: 6px 12px;
     }
 
     /* Force the name to wrap inside the container */
@@ -707,14 +771,27 @@ input {
         box-sizing: border-box;
     }
 
-    /* 4. Profile tabs: 3 at a time with scroll bar */
+    /* 4. Profile tabs: Horizontal scroll menu (Invisible Scrollbar) */
     .profile-tabs {
-        flex-wrap: nowrap !important;
-        overflow-x: auto !important;
+        flex-wrap: nowrap !important; 
+        overflow-x: auto !important; 
         justify-content: flex-start !important;
-        gap: 10px;
-        -webkit-overflow-scrolling: touch; /* Smooth scroll for iOS */
-        padding-bottom: 5px;
+        gap: 25px !important; 
+        padding-bottom: 5px !important; /* Tighter padding to match the re-watch section */
+        -webkit-overflow-scrolling: touch !important; 
+        scrollbar-width: none !important; /* Hides scrollbar in Firefox */
+    }
+
+    /* Hides scrollbar in Chrome/Safari/Edge */
+    .profile-tabs::-webkit-scrollbar {
+        display: none !important; 
+    }
+
+    .tab-btn {
+        flex: 0 0 auto !important; 
+        white-space: nowrap !important; 
+        font-size: 0.9rem !important; 
+        padding: 8px 0 !important;
     }
 
     /* --- Revisit Section Mobile Adjustments --- */
@@ -758,12 +835,6 @@ input {
     /* Push the filters slightly further away from the covers */
     #revisit-section .filter-nav {
         margin-bottom: 12px !important;
-    }
-
-    .tab-btn {
-        flex: 0 0 auto !important; /* Prevents shrinking */
-        white-space: nowrap;
-        font-size: 1rem;
     }
 
     /* 5. Stats-bar 2-card width */

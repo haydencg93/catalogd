@@ -45,10 +45,24 @@
         <div id="profile-banner" class="profile-banner"></div>
         <div class="profile-header">
             <div id="user-avatar" class="avatar-placeholder">?</div>
-            <div class="profile-info">
-                <h1 id="user-display-name" style="margin:0;">Loading...</h1>
-                <div id="user-username" style="color: #9ab; font-size: 1.1rem; margin-top: 4px;">@username</div>
-                <p class="meta" style="margin-top: 10px;">Member since <span id="member-since">...</span></p>
+            
+            <div class="profile-header-main">
+                <div class="profile-info">
+                    <h1 id="user-display-name" style="margin:0;">Loading...</h1>
+                    <div id="user-username" style="color: #9ab; font-size: 1.1rem; margin-top: 4px;">@username</div>
+                    <p class="meta" style="margin-top: 10px;">Member since <span id="member-since">...</span></p>
+                </div>
+                
+                <div class="profile-social-stats">
+                    <div class="mini-stat-card" id="followers-stat-btn">
+                        <span id="followers-count" class="mini-stat-value">0</span>
+                        <span class="mini-stat-label">Followers</span>
+                    </div>
+                    <div class="mini-stat-card" id="following-stat-btn">
+                        <span id="following-count" class="mini-stat-value">0</span>
+                        <span class="mini-stat-label">Following</span>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -89,37 +103,31 @@
             <div class="grid" id="on-hold-grid"></div>
         </div>
 
-        <div id="revisit-section" class="stat-card" style="display: flex; padding: 12px 15px; margin-bottom: 20px; align-items: center; gap: 15px; text-align: left; overflow: hidden; max-height: 110px;">
-            <!-- 1/4 Left Side: Header -->
-            <div style="flex: 0 0 25%; min-width: 140px; border-right: 1px solid var(--glass-border); padding-right: 15px; height: 100%; display: flex; align-items: center;">
-                <h3 id="revisit-heading" style="margin: 0; font-size: 0.95rem; color: var(--text); line-height: 1.2;">Your Next<br><span style="color: var(--accent); font-size: 1.15rem;">Re-Watch</span></h3>
-            </div>
-
-            <!-- 3/4 Right Side: Filters & Covers -->
-            <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden; height: 100%; justify-content: center;">
-                <div class="filter-nav" style="margin-bottom: 6px; gap: 5px;">
-                    <button class="filter-btn active" style="padding: 2px 8px; font-size: 0.7rem;" onclick="filterRevisit('movie')">Movies</button>
-                    <button class="filter-btn" style="padding: 2px 8px; font-size: 0.7rem;" onclick="filterRevisit('tv')">TV</button>
-                    <button class="filter-btn" style="padding: 2px 8px; font-size: 0.7rem;" onclick="filterRevisit('book')">Books</button>
-                    <button class="filter-btn" style="padding: 2px 8px; font-size: 0.7rem;" onclick="filterRevisit('album')">Music</button>
-                </div>
-                
-                <div id="revisit-covers" style="display: flex; gap: 12px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; align-items: flex-end;">
-                    <!-- Covers injected via JS -->
-                </div>
-            </div>
-        </div>
-
         <div id="tab-home" class="tab-content active">
-            <div class="stats-bar">
-                <div class="stat-card" id="followers-stat-btn" style="cursor: pointer;">
-                    <span id="followers-count" class="stat-value">0</span>
-                    <span class="stat-label">Followers</span>
+            <!-- Re-Watch Section -->
+            <div id="revisit-section" class="stat-card" style="display: flex; padding: 12px 15px; margin-bottom: 20px; align-items: center; gap: 15px; text-align: left; overflow: hidden; max-height: 110px;">
+                <!-- 1/4 Left Side: Header -->
+                <div style="flex: 0 0 25%; min-width: 140px; border-right: 1px solid var(--glass-border); padding-right: 15px; height: 100%; display: flex; align-items: center;">
+                    <h3 id="revisit-heading" style="margin: 0; font-size: 0.95rem; color: var(--text); line-height: 1.2;">Your Next<br><span style="color: var(--accent); font-size: 1.15rem;">Re-Watch</span></h3>
                 </div>
-                <div class="stat-card" id="following-stat-btn" style="cursor: pointer;">
-                    <span id="following-count" class="stat-value">0</span>
-                    <span class="stat-label">Following</span>
+
+                <!-- 3/4 Right Side: Filters & Covers -->
+                <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden; height: 100%; justify-content: center;">
+                    <div class="filter-nav" style="margin-bottom: 6px; gap: 5px;">
+                        <button class="filter-btn active" style="padding: 2px 8px; font-size: 0.7rem;" onclick="filterRevisit('movie')">Movies</button>
+                        <button class="filter-btn" style="padding: 2px 8px; font-size: 0.7rem;" onclick="filterRevisit('tv')">TV</button>
+                        <button class="filter-btn" style="padding: 2px 8px; font-size: 0.7rem;" onclick="filterRevisit('book')">Books</button>
+                        <button class="filter-btn" style="padding: 2px 8px; font-size: 0.7rem;" onclick="filterRevisit('album')">Music</button>
+                    </div>
+                    
+                    <div id="revisit-covers" style="display: flex; gap: 12px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; align-items: flex-end;">
+                        <!-- Covers injected via JS -->
+                    </div>
                 </div>
+            </div>
+
+            <!-- Bottom Stats Bar: Diary, Lists, Watchlist -->
+            <div class="stats-bar" style="margin-bottom: 50px;">
                 <div class="stat-card" onclick="window.location.href='diary.html' + (typeof profileUserId !== 'undefined' ? '?id=' + profileUserId : '')" style="cursor: pointer; border-color: var(--accent);">
                     <span id="stat-count" class="stat-value">0</span>
                     <span class="stat-label">Diary →</span>
@@ -134,40 +142,41 @@
                 </div>
             </div>
 
-            <section id="favorites-section" style="margin-bottom: 50px;">
+                <section id="favorites-section" style="margin-bottom: 50px;">
+                    <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2 style="margin: 0;">Favorites</h2>
+                        <div class="filter-nav" style="margin: 0;">
+                            <button class="filter-btn active" onclick="filterFavs('all')">All</button>
+                            <button class="filter-btn" onclick="filterFavs('movie')">Movies</button>
+                            <button class="filter-btn" onclick="filterFavs('tv')">TV</button>
+                            <button class="filter-btn" onclick="filterFavs('book')">Books</button>
+                            <button class="filter-btn" onclick="filterFavs('album')">Music</button>
+                            <button class="filter-btn" onclick="filterFavs('youtube')">YouTube</button>
+                        </div>
+                    </div>
+                    <div class="grid" id="favorites-grid"></div>
+                </section>
+
+                <section id="active-tracking-section" style="margin-bottom: 50px; display: none;">
+                    <div class="section-header">
+                        <h2 style="margin: 0;">Currently Watching/Reading/Listening</h2> 
+                    </div>
+                    <div class="grid" id="active-grid"></div>
+                </section>
+
                 <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 style="margin: 0;">Favorites</h2>
+                    <h2 style="margin: 0;">Recent Activity</h2>
                     <div class="filter-nav" style="margin: 0;">
-                        <button class="filter-btn active" onclick="filterFavs('all')">All</button>
-                        <button class="filter-btn" onclick="filterFavs('movie')">Movies</button>
-                        <button class="filter-btn" onclick="filterFavs('tv')">TV</button>
-                        <button class="filter-btn" onclick="filterFavs('book')">Books</button>
-                        <button class="filter-btn" onclick="filterFavs('album')">Music</button>
-                        <button class="filter-btn" onclick="filterFavs('youtube')">YouTube</button>
+                        <button class="filter-btn active" onclick="filterRecent('all')">All</button>
+                        <button class="filter-btn" onclick="filterRecent('movie')">Movies</button>
+                        <button class="filter-btn" onclick="filterRecent('tv')">TV</button>
+                        <button class="filter-btn" onclick="filterRecent('book')">Books</button>
+                        <button class="filter-btn" onclick="filterRecent('album')">Music</button>
+                        <button class="filter-btn" onclick="filterRecent('youtube')">YouTube</button>
                     </div>
                 </div>
-                <div class="grid" id="favorites-grid"></div>
-            </section>
-
-            <section id="active-tracking-section" style="margin-bottom: 50px; display: none;">
-                <div class="section-header">
-                    <h2 style="margin: 0;">Currently Watching/Reading/Listening</h2> 
-                </div>
-                <div class="grid" id="active-grid"></div>
-            </section>
-
-            <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="margin: 0;">Recent Activity</h2>
-                <div class="filter-nav" style="margin: 0;">
-                    <button class="filter-btn active" onclick="filterRecent('all')">All</button>
-                    <button class="filter-btn" onclick="filterRecent('movie')">Movies</button>
-                    <button class="filter-btn" onclick="filterRecent('tv')">TV</button>
-                    <button class="filter-btn" onclick="filterRecent('book')">Books</button>
-                    <button class="filter-btn" onclick="filterRecent('album')">Music</button>
-                    <button class="filter-btn" onclick="filterRecent('youtube')">YouTube</button>
-                </div>
+                <div class="grid" id="recent-grid"></div>
             </div>
-            <div class="grid" id="recent-grid"></div>
         </div>
 
         <div id="tab-tags" class="tab-content">
