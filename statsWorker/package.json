@@ -1,0 +1,17 @@
+{
+  "name": "statsworker",
+  "version": "1.0.0",
+  "main": "update_stats.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.110.2",
+    "dotenv": "^17.4.2",
+    "ws": "^8.21.0"
+  }
+}

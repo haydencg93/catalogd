@@ -24,50 +24,19 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     }
 });
 
+const vibeMappings = require('./vibe_overrides.json');
+
 function translateKeyword(query) {
     if (!query) return "landscape";
     let q = query.toLowerCase().trim();
     
-    // 1. Broad Catch-Alls (Catches variations like "lgbtq+", "lgbt themes", "murderer")
-    if (q.includes("lgbt")) return "rainbow flag";
-    if (q.includes("coming of age")) return "youth sunset";
-    if (q.includes("murder") || q.includes("serial killer")) return "dark mystery";
-    if (q.includes("high school") || q.includes("teenager")) return "high school";
-    if (q.includes("space")) return "space system";
-    if (q.includes("friend")) return "friends";
+    // 1. Broad Catch-Alls
+    for (const [key, value] of Object.entries(vibeMappings.includes)) {
+        if (q.includes(key)) return value;
+    }
 
     // 2. Direct Overrides
-    const overrides = {
-        "based on novel or book": "books aesthetic",
-        "based on young adult novel": "teen reading",
-        "based on comic": "comic book",
-        "based on play or musical": "theatre stage",
-        "superhero": "superhero cinematic",
-
-        // Bare genre names are too abstract for stock-photo keyword
-        "action": "explosion",
-        "adventure": "hiking",
-        "animation": "animated character",
-        "comedy": "funny mask",
-        "crime": "police tape",
-        "documentary": "vintage film reel",
-        "drama": "heartbreak",
-        "family": "kids playing",
-        "fantasy": "fairies in forest",
-        "history": "old books",
-        "horror": "dark rainy street",
-        "music": "vinyl records",
-        "mystery": "street lamp night",
-        "romance": "sunset",
-        "science fiction": "futuristic city",
-        "sci-fi": "futuristic city",
-        "tv movie": "television static",
-        "thriller": "dark alley",
-        "war": "battlefield",
-        "western": "desert"
-    };
-    
-    if (overrides[q]) return overrides[q];
+    if (vibeMappings.exact[q]) return vibeMappings.exact[q];
     
     // 3. Fallback Cleanup
     q = q.replace(/based on/g, "");

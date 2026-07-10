@@ -73,6 +73,15 @@
                 <div id="milestones-area" style="margin-top: 40px;"></div>
             </div>
         </div>
+
+        <div style="text-align: center; margin-top: 15px;">
+            <button id="refresh-stats-btn" class="secondary-btn" onclick="requestStatsUpdate()" style="font-size: 0.85rem; padding: 8px 16px;">
+                ↻ Refresh This Period
+            </button>
+            <div id="refresh-status" class="meta" style="display: none; margin-top: 5px; font-size: 0.8rem; color: #10b981;">
+                Update queued! The server will crunch your heavy stats shortly.
+            </div>
+        </div>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

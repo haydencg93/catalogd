@@ -23,6 +23,11 @@ async function initStats() {
         }
         currentUser = user;
 
+        const avatar = document.getElementById('nav-avatar');
+        if (avatar && currentUser.user_metadata && currentUser.user_metadata.avatar_url) {
+            avatar.src = currentUser.user_metadata.avatar_url;
+        }
+
         // 1. Fetch all user logs to determine boundaries and calculate raw stats
         const { data: logs } = await supabaseClient
             .from('media_logs')
@@ -42,8 +47,32 @@ async function initStats() {
     }
 }
 
-// --- TIME & ONGOING LOGIC ---
+window.toggleProfileDropdown = function(event) {
+    if (event) event.stopPropagation();
+    const content = document.getElementById('dropdown-content');
+    const trigger = document.querySelector('.profile-trigger');
+    if (!content || !trigger) return;
+    
+    const isVisible = content.style.display === 'block';
+    content.style.display = isVisible ? 'none' : 'block';
+    trigger.classList.toggle('active', !isVisible);
+};
 
+window.onclick = function(event) {
+    const dropdown = document.getElementById('dropdown-content');
+    const trigger = document.querySelector('.profile-trigger');
+    if (dropdown && trigger && event.target !== trigger && !trigger.contains(event.target) && !dropdown.contains(event.target)) {
+        dropdown.style.display = 'none';
+        trigger.classList.remove('active');
+    }
+};
+
+window.signOut = async function() {
+    await supabaseClient.auth.signOut();
+    window.location.href = 'index.html';
+};
+
+// --- TIME & ONGOING LOGIC ---
 function checkIsOngoing(depth, period) {
     const now = new Date();
     const currentYear = now.getFullYear();
@@ -167,6 +196,15 @@ window.filterStats = (type) => {
 };
 
 // --- DATA FETCHING & RENDERING ---
+function hasRealHeavyData(heavy) {
+    if (!heavy) return false;
+    if (heavy.top_actors && heavy.top_actors.length > 0) return true;
+    if (heavy.top_directors && heavy.top_directors.length > 0) return true;
+    if (heavy.top_genres && heavy.top_genres.length > 0) return true;
+    if (heavy.top_themes && heavy.top_themes.length > 0) return true;
+    if (heavy.vibe) return true;
+    return false;
+}
 
 async function loadStatsData() {
     document.getElementById('stats-content').style.display = 'none';
@@ -174,47 +212,165 @@ async function loadStatsData() {
 
     isOngoingPeriod = checkIsOngoing(currentDepth, currentPeriod);
     
-    // 1. Filter local `allMediaLogs` by `currentPeriod` and `currentFilter`
+    // 1. Filter local logs
     const filteredLogs = filterLogsLocally();
 
-    // 2. Fetch Heavy Stats from `user_stats` IF the period is completed
-    let heavyStatsData = {};
-    if (!isOngoingPeriod && currentDepth !== 'all-time') {
-        const { data: dbStats } = await supabaseClient
-            .from('user_stats')
-            .select('heavy_stats')
-            .eq('user_id', currentUser.id)
-            .eq('stat_depth', currentDepth)
-            .eq('stat_period', currentPeriod)
-            .eq('media_type', currentFilter)
-            .maybeSingle();
-            
-        if (dbStats) heavyStatsData = dbStats.heavy_stats;
+    // 2. ALWAYS fetch Heavy Stats from `user_stats`
+    const { data: dbStats } = await supabaseClient
+        .from('user_stats')
+        .select('heavy_stats, needs_update')
+        .eq('user_id', currentUser.id)
+        .eq('stat_depth', currentDepth)
+        .eq('stat_period', currentPeriod)
+        .eq('media_type', currentFilter)
+        .maybeSingle();
+
+    let heavyStatsData = dbStats?.heavy_stats || {};
+    let isQueued = dbStats?.needs_update || false;
+
+    // Manage the Refresh Button UI
+    const refreshBtn = document.getElementById('refresh-stats-btn');
+    const refreshStatus = document.getElementById('refresh-status');
+    
+    if (isQueued) {
+        refreshBtn.style.display = 'none';
+        refreshStatus.style.display = 'block';
+    } else {
+        refreshBtn.style.display = 'inline-block';
+        refreshBtn.innerText = '↻ Refresh This Period';
+        refreshBtn.disabled = false;
+        refreshStatus.style.display = 'none';
     }
 
-    // 3. Render Basic Stats (Totals, Hours, First/Last) from `filteredLogs`
+    // 3. Render Basic Stats & Chart
     renderBasicStats(filteredLogs);
-    
-    // 4. Render Chart (By Year = bars per year; By Year tab = bars per week)
     renderChart(filteredLogs);
 
-    // 5. Render Heavy Stats / Vibes
+    // 4. Render Heavy Stats / Vibes dynamically
     const heavyArea = document.getElementById('heavy-stats-area');
-    if (isOngoingPeriod || currentDepth === 'all-time') {
-        heavyArea.innerHTML = `<p class="meta">Detailed insights (Vibes, Top Actors, Genres) are generated at the end of this time period.</p>`;
-    } else {
+    
+    if (hasRealHeavyData(heavyStatsData)) {
+        // Data actually exists inside the arrays! Render it.
         renderHeavyStats(heavyStatsData);
+    } else if (isQueued) {
+        // User clicked refresh, worker hasn't finished yet
+        heavyArea.innerHTML = `<p class="meta" style="color: #10b981; margin-top: 40px; text-align: center;">Your deep insights are currently queued for processing. Check back soon!</p>`;
+    } else if (isOngoingPeriod || currentDepth === 'all-time') {
+        // No data, and it's an ongoing period
+        heavyArea.innerHTML = `<p class="meta" style="margin-top: 40px; text-align: center;">Detailed insights (Vibes, Top Actors, Genres) are automatically generated at the end of a time period. You can generate them now by clicking Refresh below.</p>`;
+    } else {
+        // No data, past period (user just hasn't generated them yet)
+        heavyArea.innerHTML = `<p class="meta" style="margin-top: 40px; text-align: center;">No deep insights available. Click Refresh below to generate them!</p>`;
     }
 
-    // 6. Calculate & Render Milestones locally
+    // 5. Render Milestones
     renderMilestones(filteredLogs);
 
     document.getElementById('stats-loader').style.display = 'none';
     document.getElementById('stats-content').style.display = 'block';
 }
 
-// --- HELPERS ---
+function renderHeavyStats(heavyData) {
+    const area = document.getElementById('heavy-stats-area');
+    
+    if (!hasRealHeavyData(heavyData)) {
+        area.innerHTML = '';
+        return;
+    }
 
+    let html = `<h3 class="section-title" style="font-size: 1.4rem; margin-top: 50px;">Deeper Insights</h3>`;
+
+    // Only build the grid if there are actual text stats to show
+    const hasLists = (heavyData.top_actors && heavyData.top_actors.length > 0) || 
+                     (heavyData.top_directors && heavyData.top_directors.length > 0) || 
+                     (heavyData.top_genres && heavyData.top_genres.length > 0) || 
+                     (heavyData.top_themes && heavyData.top_themes.length > 0);
+
+    if (hasLists) {
+        html += `<div class="stats-grid">`;
+        if (heavyData.top_actors && heavyData.top_actors.length > 0) {
+            html += `<div class="stats-box context-box"><div class="stats-box-label">Most Watched Actors</div>
+                     <div class="meta" style="color: #fff;">${heavyData.top_actors.join('<br>')}</div></div>`;
+        }
+        if (heavyData.top_directors && heavyData.top_directors.length > 0) {
+            html += `<div class="stats-box context-box"><div class="stats-box-label">Most Watched Directors</div>
+                     <div class="meta" style="color: #fff;">${heavyData.top_directors.join('<br>')}</div></div>`;
+        }
+        if (heavyData.top_genres && heavyData.top_genres.length > 0) {
+            html += `<div class="stats-box context-box"><div class="stats-box-label">Top 3 Genres</div>
+                     <div class="meta" style="color: #fff;">${heavyData.top_genres.slice(0, 3).join('<br>')}</div></div>`;
+        }
+        if (heavyData.top_themes && heavyData.top_themes.length > 0) {
+            html += `<div class="stats-box context-box"><div class="stats-box-label">Top 3 Themes</div>
+                     <div class="meta" style="color: #fff;">${heavyData.top_themes.slice(0, 3).join('<br>')}</div></div>`;
+        }
+        html += `</div>`;
+    }
+
+    // Vibes Integration
+    if (heavyData.vibe && currentFilter !== 'youtube' && currentFilter !== 'all') {
+
+        // No more external placeholder image — if there's nothing to show yet, just
+        // fall back to a plain gradient background. (Matches renderVibeBox in scriptingIndex.js)
+        const fallbackGradient = 'linear-gradient(135deg, #2a2f3a, #1b1f27)';
+
+        function backgroundStyle(img) {
+            return img ? `background-image: url('${img}'); background-size: cover; background-position: center;`
+                        : `background: ${fallbackGradient};`;
+        }
+
+        // Builds a small, unobtrusive credit line for a CC-licensed image. Returns
+        // an empty string if there's nothing to attribute (e.g. the fallback gradient,
+        // or a public-domain image where we chose not to show a credit).
+        function attributionHtml(attr) {
+            if (!attr || !attr.text) return '';
+            const style = 'position:absolute;bottom:6px;right:8px;font-size:10px;line-height:1.2;' +
+                'color:rgba(255,255,255,0.65);background:rgba(0,0,0,0.35);padding:2px 6px;' +
+                'border-radius:4px;text-decoration:none;pointer-events:auto;z-index:2;';
+            const label = attr.url
+                ? `<a href="${attr.url}" target="_blank" rel="noopener noreferrer" class="vibe-attribution-link" style="${style}">${attr.text}</a>`
+                : `<div class="vibe-attribution" style="${style}">${attr.text}</div>`;
+            return label;
+        }
+
+        // Two separate attribution objects — one per image — instead of a single
+        // combined string. Matches the genreAttr / themeAttr split in scriptingIndex.js.
+        const genreAttr = { text: heavyData.vibe.image_genre_attribution, url: heavyData.vibe.image_genre_attribution_url };
+        const themeAttr = { text: heavyData.vibe.image_theme_attribution, url: heavyData.vibe.image_theme_attribution_url };
+
+        // Books & Music don't have a meaningful "genre" half for this feature —
+        // just show the theme, full-width, with no blend divider.
+        const themeOnly = (currentFilter === 'book' || currentFilter === 'album');
+
+        const vibeBoxInner = themeOnly
+            ? `<div class="vibe-half" style="${backgroundStyle(heavyData.vibe.image_theme)}">
+                    <span class="vibe-text">${heavyData.vibe.theme}</span>
+                    ${attributionHtml(themeAttr)}
+                </div>`
+            : `<div class="vibe-half" style="${backgroundStyle(heavyData.vibe.image_genre)}">
+                    <span class="vibe-text">${heavyData.vibe.genre}</span>
+                    ${attributionHtml(genreAttr)}
+                </div>
+                <div class="vibe-half" style="${backgroundStyle(heavyData.vibe.image_theme)}">
+                    <span class="vibe-text">${heavyData.vibe.theme}</span>
+                    ${attributionHtml(themeAttr)}
+                </div>
+                <div class="vibe-blend"></div>`;
+
+        html += `
+            <div class="vibe-container">
+                <div class="vibe-title">Your Vibe</div>
+                <div class="vibe-box">
+                    ${vibeBoxInner}
+                </div>
+            </div>
+        `;
+    }
+
+    area.innerHTML = html;
+}
+
+// --- HELPERS ---
 function getSafeDate(log) {
     let d = log.watched_on || log.created_at;
     if (d && d.length === 10) d += "T12:00:00"; // Fix timezone offset for YYYY-MM-DD
@@ -230,7 +386,6 @@ function getWeekNumber(d) {
 }
 
 // --- DATA FETCHING & RENDERING (COMPLETED) ---
-
 function filterLogsLocally() {
     return allMediaLogs.filter(log => {
         // 1. Media Type Filter
@@ -279,21 +434,45 @@ function renderBasicStats(logs) {
     const totalReviews = logs.filter(l => l.notes && l.notes.trim() !== '').length;
     const fiveStars = logs.filter(l => l.rating === 5).length;
     
-    // Sum runtimes (assuming runtime is stored in minutes)
-    const totalRuntimeMinutes = logs.reduce((sum, l) => sum + (parseInt(l.runtime) || 0), 0);
+    // Calculate Hours for Video/Audio formats
+    const totalRuntimeMinutes = logs.reduce((sum, l) => {
+        if (['movie', 'tv', 'youtube', 'album'].includes(l.media_type)) {
+            return sum + (parseInt(l.runtime) || 0);
+        }
+        return sum;
+    }, 0);
     const hoursWatched = (totalRuntimeMinutes / 60).toFixed(1);
 
-    // Sort chronologically for first/last logic
-    const sorted = [...logs].sort((a, b) => getSafeDate(a) - getSafeDate(b));
-    
+    // Calculate Pages for Books (Fallback to current_page if total_pages isn't set)
+    const totalPages = logs.reduce((sum, l) => {
+        if (l.media_type === 'book') {
+            return sum + (parseInt(l.total_pages) || parseInt(l.current_page) || 0);
+        }
+        return sum;
+    }, 0);
+
+    // Build the dynamic HTML
     let html = `
         <div class="stats-box"><div class="stats-box-value">${totalLogs}</div><div class="stats-box-label">Logs</div></div>
-        <div class="stats-box"><div class="stats-box-value">${hoursWatched}</div><div class="stats-box-label">Hours</div></div>
+    `;
+
+    // Dynamic Time/Pages blocks
+    if (currentFilter === 'book') {
+        html += `<div class="stats-box"><div class="stats-box-value">${totalPages.toLocaleString()}</div><div class="stats-box-label">Pages Read</div></div>`;
+    } else if (currentFilter === 'all') {
+        html += `<div class="stats-box"><div class="stats-box-value">${hoursWatched}</div><div class="stats-box-label">Hours</div></div>`;
+        html += `<div class="stats-box"><div class="stats-box-value">${totalPages.toLocaleString()}</div><div class="stats-box-label">Pages Read</div></div>`;
+    } else {
+        html += `<div class="stats-box"><div class="stats-box-value">${hoursWatched}</div><div class="stats-box-label">Hours</div></div>`;
+    }
+
+    html += `
         <div class="stats-box"><div class="stats-box-value">${totalReviews}</div><div class="stats-box-label">Reviews</div></div>
         <div class="stats-box"><div class="stats-box-value">${fiveStars}</div><div class="stats-box-label">5-Star Ratings</div></div>
     `;
 
     // First and Last Logic
+    const sorted = [...logs].sort((a, b) => getSafeDate(a) - getSafeDate(b));
     if (currentFilter === 'all') {
         const firstWatch = sorted.find(l => l.media_type === 'movie' || l.media_type === 'tv');
         const firstRead = sorted.find(l => l.media_type === 'book');
@@ -313,6 +492,54 @@ function renderBasicStats(logs) {
 
     grid.innerHTML = html;
 }
+
+window.requestStatsUpdate = async () => {
+    const btn = document.getElementById('refresh-stats-btn');
+    const status = document.getElementById('refresh-status');
+    
+    btn.disabled = true;
+    btn.innerText = "Queuing...";
+
+    try {
+        // 1. Check if a row already exists for this exact configuration
+        const { data: existingRow } = await supabaseClient
+            .from('user_stats')
+            .select('id')
+            .eq('user_id', currentUser.id)
+            .eq('stat_depth', currentDepth)
+            .eq('stat_period', currentPeriod)
+            .eq('media_type', currentFilter)
+            .maybeSingle();
+
+        if (existingRow) {
+            // Update existing row
+            await supabaseClient
+                .from('user_stats')
+                .update({ needs_update: true })
+                .eq('id', existingRow.id);
+        } else {
+            // Insert a new tracking row
+            await supabaseClient
+                .from('user_stats')
+                .insert({
+                    user_id: currentUser.id,
+                    stat_depth: currentDepth,
+                    stat_period: currentPeriod,
+                    media_type: currentFilter,
+                    heavy_stats: {},
+                    needs_update: true
+                });
+        }
+
+        btn.style.display = 'none';
+        status.style.display = 'block';
+
+    } catch (err) {
+        console.error("Error requesting stats update:", err);
+        btn.innerText = "Error - Try Again";
+        btn.disabled = false;
+    }
+};
 
 function renderChart(logs) {
     const ctx = document.getElementById('statsChart');
@@ -377,61 +604,6 @@ function renderChart(logs) {
             }
         }
     });
-}
-
-function renderHeavyStats(heavyData) {
-    const area = document.getElementById('heavy-stats-area');
-    
-    if (!heavyData || Object.keys(heavyData).length === 0) {
-        area.innerHTML = '';
-        return;
-    }
-
-    let html = `<h3 class="section-title" style="font-size: 1.4rem; margin-top: 50px;">Deeper Insights</h3><div class="stats-grid">`;
-
-    // Example Top Actors unpacking (assuming array of strings)
-    if (heavyData.top_actors && heavyData.top_actors.length > 0) {
-        html += `<div class="stats-box context-box"><div class="stats-box-label">Most Watched Actors</div>
-                 <div class="meta" style="color: #fff;">${heavyData.top_actors.join(', ')}</div></div>`;
-    }
-    
-    if (heavyData.top_directors && heavyData.top_directors.length > 0) {
-        html += `<div class="stats-box context-box"><div class="stats-box-label">Most Watched Directors</div>
-                 <div class="meta" style="color: #fff;">${heavyData.top_directors.join(', ')}</div></div>`;
-    }
-    
-    if (heavyData.top_genres && heavyData.top_genres.length > 0) {
-        html += `<div class="stats-box context-box"><div class="stats-box-label">Top 3 Genres</div>
-                 <div class="meta" style="color: #fff;">${heavyData.top_genres.slice(0, 3).join('<br>')}</div></div>`;
-    }
-
-    if (heavyData.top_themes && heavyData.top_themes.length > 0) {
-        html += `<div class="stats-box context-box"><div class="stats-box-label">Top 3 Themes</div>
-                 <div class="meta" style="color: #fff;">${heavyData.top_themes.slice(0, 3).join('<br>')}</div></div>`;
-    }
-
-    html += `</div>`;
-
-    // Vibes Integration (Excludes YouTube / All)
-    if (heavyData.vibe && currentFilter !== 'youtube' && currentFilter !== 'all') {
-        html += `
-            <div class="vibe-container" style="margin-top: 40px; position: relative;">
-                <div class="vibe-title">Your Vibe (${currentPeriod})</div>
-                <div class="vibe-box">
-                    <div class="vibe-half" style="background-image: url('${heavyData.vibe.image_genre}'); background-size: cover; background-position: center;">
-                        <span class="vibe-text">${heavyData.vibe.genre}</span>
-                    </div>
-                    ${heavyData.vibe.theme ? `
-                    <div class="vibe-half" style="background-image: url('${heavyData.vibe.image_theme}'); background-size: cover; background-position: center;">
-                        <span class="vibe-text">${heavyData.vibe.theme}</span>
-                    </div>` : ''}
-                    <div class="vibe-blend"></div> 
-                </div>
-            </div>
-        `;
-    }
-
-    area.innerHTML = html;
 }
 
 function renderMilestones(logs) {

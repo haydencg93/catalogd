@@ -1,0 +1,39 @@
+{
+  "includes": {
+    "lgbt": "rainbow flag",
+    "coming of age": "youth sunset",
+    "murder": "dark mystery",
+    "serial killer": "dark mystery",
+    "high school": "high school",
+    "teenager": "high school",
+    "space": "space system",
+    "friend": "friends"
+  },
+  "exact": {
+    "based on novel or book": "books aesthetic",
+    "based on young adult novel": "teen reading",
+    "based on comic": "comic book",
+    "based on play or musical": "theatre stage",
+    "superhero": "superhero cinematic",
+    "action": "explosion",
+    "adventure": "hiking",
+    "animation": "animated character",
+    "comedy": "funny mask",
+    "crime": "police tape",
+    "documentary": "vintage film reel",
+    "drama": "heartbreak",
+    "family": "kids playing",
+    "fantasy": "fairies in forest",
+    "history": "old books",
+    "horror": "dark rainy street",
+    "music": "vinyl records",
+    "mystery": "street lamp night",
+    "romance": "sunset",
+    "science fiction": "futuristic city",
+    "sci-fi": "futuristic city",
+    "tv movie": "television static",
+    "thriller": "dark alley",
+    "war": "battlefield",
+    "western": "desert"
+  }
+}
