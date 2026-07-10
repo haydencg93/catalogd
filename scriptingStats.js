@@ -112,7 +112,6 @@ function checkIsOngoing(depth, period) {
 }
 
 // --- UI ROUTING ---
-
 window.switchStatsDepth = (depth) => {
     currentDepth = depth;
     
@@ -206,16 +205,55 @@ function hasRealHeavyData(heavy) {
     return false;
 }
 
+// HELPER: This handles the actual database call to queue an update
+// separated from the UI logic so it can be called automatically
+async function queueStatsForUpdate() {
+    try {
+        // 1. Check if a row already exists for this exact configuration
+        const { data: existingRow } = await supabaseClient
+            .from('user_stats')
+            .select('id')
+            .eq('user_id', currentUser.id)
+            .eq('stat_depth', currentDepth)
+            .eq('stat_period', currentPeriod)
+            .eq('media_type', currentFilter)
+            .maybeSingle();
+
+        if (existingRow) {
+            // Update existing row
+            await supabaseClient
+                .from('user_stats')
+                .update({ needs_update: true })
+                .eq('id', existingRow.id);
+        } else {
+            // Insert a new tracking row
+            await supabaseClient
+                .from('user_stats')
+                .insert({
+                    user_id: currentUser.id,
+                    stat_depth: currentDepth,
+                    stat_period: currentPeriod,
+                    media_type: currentFilter,
+                    heavy_stats: {},
+                    needs_update: true
+                });
+        }
+        return true;
+    } catch (err) {
+        console.error("Error queuing stats update:", err);
+        return false;
+    }
+}
+
 async function loadStatsData() {
     document.getElementById('stats-content').style.display = 'none';
     document.getElementById('stats-loader').style.display = 'block';
 
     isOngoingPeriod = checkIsOngoing(currentDepth, currentPeriod);
     
-    // 1. Filter local logs
     const filteredLogs = filterLogsLocally();
 
-    // 2. ALWAYS fetch Heavy Stats from `user_stats`
+    // 2. Fetch Heavy Stats from `user_stats`
     const { data: dbStats } = await supabaseClient
         .from('user_stats')
         .select('heavy_stats, needs_update')
@@ -228,11 +266,21 @@ async function loadStatsData() {
     let heavyStatsData = dbStats?.heavy_stats || {};
     let isQueued = dbStats?.needs_update || false;
 
+    // If no row exists at all for this period, automatically queue it
+    if (!dbStats) {
+        console.log(`No stats row found for ${currentPeriod} ${currentFilter}. Auto-queuing...`);
+        const success = await queueStatsForUpdate();
+        if (success) {
+            isQueued = true;
+        }
+    }
+
     // Manage the Refresh Button UI
     const refreshBtn = document.getElementById('refresh-stats-btn');
     const refreshStatus = document.getElementById('refresh-status');
     
     if (isQueued) {
+        // If it's queued (either manually or automatically), hide button and show green text
         refreshBtn.style.display = 'none';
         refreshStatus.style.display = 'block';
     } else {
@@ -250,20 +298,15 @@ async function loadStatsData() {
     const heavyArea = document.getElementById('heavy-stats-area');
     
     if (hasRealHeavyData(heavyStatsData)) {
-        // Data actually exists inside the arrays! Render it.
         renderHeavyStats(heavyStatsData);
     } else if (isQueued) {
-        // User clicked refresh, worker hasn't finished yet
         heavyArea.innerHTML = `<p class="meta" style="color: #10b981; margin-top: 40px; text-align: center;">Your deep insights are currently queued for processing. Check back soon!</p>`;
     } else if (isOngoingPeriod || currentDepth === 'all-time') {
-        // No data, and it's an ongoing period
         heavyArea.innerHTML = `<p class="meta" style="margin-top: 40px; text-align: center;">Detailed insights (Vibes, Top Actors, Genres) are automatically generated at the end of a time period. You can generate them now by clicking Refresh below.</p>`;
     } else {
-        // No data, past period (user just hasn't generated them yet)
         heavyArea.innerHTML = `<p class="meta" style="margin-top: 40px; text-align: center;">No deep insights available. Click Refresh below to generate them!</p>`;
     }
 
-    // 5. Render Milestones
     renderMilestones(filteredLogs);
 
     document.getElementById('stats-loader').style.display = 'none';
@@ -500,42 +543,12 @@ window.requestStatsUpdate = async () => {
     btn.disabled = true;
     btn.innerText = "Queuing...";
 
-    try {
-        // 1. Check if a row already exists for this exact configuration
-        const { data: existingRow } = await supabaseClient
-            .from('user_stats')
-            .select('id')
-            .eq('user_id', currentUser.id)
-            .eq('stat_depth', currentDepth)
-            .eq('stat_period', currentPeriod)
-            .eq('media_type', currentFilter)
-            .maybeSingle();
+    const success = await queueStatsForUpdate();
 
-        if (existingRow) {
-            // Update existing row
-            await supabaseClient
-                .from('user_stats')
-                .update({ needs_update: true })
-                .eq('id', existingRow.id);
-        } else {
-            // Insert a new tracking row
-            await supabaseClient
-                .from('user_stats')
-                .insert({
-                    user_id: currentUser.id,
-                    stat_depth: currentDepth,
-                    stat_period: currentPeriod,
-                    media_type: currentFilter,
-                    heavy_stats: {},
-                    needs_update: true
-                });
-        }
-
+    if (success) {
         btn.style.display = 'none';
         status.style.display = 'block';
-
-    } catch (err) {
-        console.error("Error requesting stats update:", err);
+    } else {
         btn.innerText = "Error - Try Again";
         btn.disabled = false;
     }

@@ -254,23 +254,6 @@ input {
     transform: translateY(-3px);
 }
 
-/* Ensure all stat cards (including the one with the ID) hover the same way */
-.stat-card[onclick]:hover, 
-#stats-nav-btn:hover {
-    background: var(--accent-glow);
-    border-color: var(--accent) !important;
-    transform: translateY(-3px);
-    box-shadow: 0 10px 20px var(--accent-glow);
-}
-
-/* This ensures the 📊 icon inherits the accent color from .stat-value */
-.stat-value { 
-    display: block; 
-    font-size: 2rem; 
-    font-weight: bold; 
-    color: var(--accent); 
-}
-
 .profile-banner {
     width: 100%;
     height: 240px;

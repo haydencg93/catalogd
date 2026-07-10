@@ -341,7 +341,7 @@ async function initProfile() {
                         window.location.href = 'stats.html';
                     };
                     
-                    // Adjust the grid layout so 4 items fit perfectly instead of 3
+                    // This is the critical part that makes 4 buttons fit in one row
                     const statsBar = document.querySelector('.stats-bar');
                     if (statsBar) {
                         statsBar.style.gridTemplateColumns = 'repeat(4, 1fr)';

@@ -189,8 +189,11 @@ async function run() {
     console.log(`Found ${queue.length} row(s) queued for update.`);
 
     for (const [i, config] of queue.entries()) {
-        const label = `[${i + 1}/${queue.length}] user=${config.user_id} type=${config.media_type} depth=${config.stat_depth} period=${config.stat_period}`;
+        // CHANGED: Use 'user [number]' instead of the UUID
+        const userNum = i + 1;
+        const label = `[${userNum}/${queue.length}] user ${userNum} type=${config.media_type} depth=${config.stat_depth} period=${config.stat_period}`;
         console.log(`\n${label} — starting`);
+        
         try {
             let query = supabase.from('media_logs').select('*').eq('user_id', config.user_id);
             if (config.media_type !== 'all') query = query.eq('media_type', config.media_type);
@@ -205,17 +208,19 @@ async function run() {
             let actorTally = {}; let directorTally = {}; let genreTally = {}; let themeTally = {};
 
             for (const [j, log] of targetLogs.entries()) {
+                // CHANGED: Use 'item [number]' or '[type] [number]' instead of the ID
+                const itemNum = j + 1;
+                const itemLabel = `${log.media_type} ${itemNum}`;
+
                 if (log.media_type === 'movie' || log.media_type === 'tv') {
-                    console.log(`${label} — (${j + 1}/${targetLogs.length}) fetching TMDB data for ${log.media_type} ${log.media_id}`);
+                    console.log(`${label} — (${itemNum}/${targetLogs.length}) fetching TMDB data for ${itemLabel}`);
                     try {
-                        // FAILSafe: Check if token exists
                         if (!TMDB_TOKEN) {
                             console.error(`⚠️ TMDB_TOKEN is missing or undefined!`);
                         }
 
                         const ep = log.media_type === 'tv' ? 'aggregate_credits' : 'credits';
                         
-                        // 1. Fetch Credits
                         const creditsRes = await fetch(`https://api.themoviedb.org/3/${log.media_type}/${log.media_id}/${ep}?language=en-US`, {
                             headers: { 
                                 Authorization: `Bearer ${TMDB_TOKEN}`,
@@ -223,15 +228,13 @@ async function run() {
                             }
                         }).then(r => r.json());
 
-                        // Catch TMDB API specifically rejecting us
                         if (creditsRes.success === false) {
-                            console.error(`❌ TMDB Error for ${log.media_id}:`, creditsRes.status_message);
+                            console.error(`❌ TMDB Error for ${itemLabel}:`, creditsRes.status_message);
                         }
 
                         if (creditsRes.cast) creditsRes.cast.slice(0, 5).forEach(c => { actorTally[c.name] = (actorTally[c.name] || 0) + 1; });
                         if (creditsRes.crew) creditsRes.crew.filter(c => c.job === 'Director' || (c.job === 'Executive Producer' && log.media_type === 'tv')).forEach(d => { directorTally[d.name] = (directorTally[d.name] || 0) + 1; });
 
-                        // 2. Fetch Details (for Genres & Keywords)
                         const detailsRes = await fetch(`https://api.themoviedb.org/3/${log.media_type}/${log.media_id}?append_to_response=keywords`, {
                             headers: { 
                                 Authorization: `Bearer ${TMDB_TOKEN}`,
@@ -244,12 +247,11 @@ async function run() {
                         if (keywords) keywords.forEach(k => { themeTally[k.name] = (themeTally[k.name] || 0) + 1; });
                         
                     } catch(e) {
-                        // This catches network errors or node fetch crashes
-                        console.error(`🚨 Fatal Fetch Error for ${log.media_id}:`, e.message);
+                        console.error(`🚨 Fatal Fetch Error for ${itemLabel}:`, e.message);
                     }
                     await delay(100); 
                 } else if (log.media_type === 'book') {
-                    console.log(`${label} — (${j + 1}/${targetLogs.length}) fetching OpenLibrary data for book ${log.media_id}`);
+                    console.log(`${label} — (${itemNum}/${targetLogs.length}) fetching OpenLibrary data for ${itemLabel}`);
                     try {
                         const bookRes = await fetch(`https://openlibrary.org${log.media_id}.json`).then(r => r.json());
                         if (bookRes.subjects) bookRes.subjects.forEach(s => {
@@ -257,17 +259,16 @@ async function run() {
                             themeTally[name] = (themeTally[name] || 0) + 1;
                         });
                     } catch(e) {
-                        console.warn(`${label} — OpenLibrary lookup failed for book ${log.media_id}: ${e.message}`);
+                        console.warn(`${label} — OpenLibrary lookup failed for ${itemLabel}: ${e.message}`);
                     }
                     await delay(500); 
                 } else if (log.media_type === 'album') {
-                    console.log(`${label} — (${j + 1}/${targetLogs.length}) fetching Last.fm tags for album ${log.media_id}`);
+                    console.log(`${label} — (${itemNum}/${targetLogs.length}) fetching Last.fm tags for ${itemLabel}`);
                     try {
                         if (!LASTFM_KEY) {
                             console.error(`⚠️ LASTFM_KEY is missing or undefined!`);
                         }
 
-                        // media_id is stored as encodeURIComponent(`${artist}|||${album}`) — see getTrendingItems/search in scriptingIndex.js
                         const [artist, album] = decodeURIComponent(log.media_id).split('|||');
 
                         if (artist && album) {
@@ -275,19 +276,18 @@ async function run() {
                                 .then(r => r.json());
 
                             if (tagsRes.error) {
-                                console.error(`❌ Last.fm Error for ${artist} - ${album}:`, tagsRes.message);
+                                console.error(`❌ Last.fm Error for ${itemLabel}:`, tagsRes.message);
                             }
 
-                            // Last.fm returns a single object instead of an array when there's only one tag
                             const rawTags = tagsRes.toptags && tagsRes.toptags.tag;
                             const tags = Array.isArray(rawTags) ? rawTags : (rawTags ? [rawTags] : []);
 
                             tags.slice(0, 5).forEach(t => { themeTally[t.name] = (themeTally[t.name] || 0) + 1; });
                         } else {
-                            console.warn(`${label} — could not parse artist/album from media_id "${log.media_id}"`);
+                            console.warn(`${label} — could not parse artist/album for ${itemLabel}`);
                         }
                     } catch(e) {
-                        console.warn(`${label} — Last.fm lookup failed for album ${log.media_id}: ${e.message}`);
+                        console.warn(`${label} — Last.fm lookup failed for ${itemLabel}: ${e.message}`);
                     }
                     await delay(250);
                 }
