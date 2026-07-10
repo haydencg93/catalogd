@@ -32,13 +32,14 @@ let currentPage = 1;
 async function initAdvSearch() {
     try {
         const response = await fetch('config.json');
-        configData = await response.json(); // <-- Changed from "const config ="
+        configData = await response.json();
         
         TMDB_TOKEN = configData.tmdb_token;
         supabaseClient = supabase.createClient(configData.supabase_url, configData.supabase_key);
 
-        await setupHeaderAndProfile();
         await fetchTopProviders();
+        await setupHeaderAndProfile();
+
         await fetchCoreGenres();
 
         genreSearchInput.addEventListener('input', (e) => {
@@ -229,7 +230,6 @@ window.toggleKeywordPill = function(element) {
 // ----------------------------------------
 // Search Execution & Pagination
 // ----------------------------------------
-
 async function executeSearch(isLoadMore = false) {
     if (activeTypes.size === 0) {
         alert("Please select at least one format (Movie or TV Show).");
@@ -246,24 +246,7 @@ async function executeSearch(isLoadMore = false) {
     loader.style.display = 'block';
     loadMoreBtn.style.display = 'none';
 
-    // 1. Check for a Character Query
-    const characterQuery = document.getElementById('character-search-input') ? document.getElementById('character-search-input').value.trim() : '';
-    let characterFallbackActive = false;
-
-    // 2. The Split-Brain Routing & Fallback Catch
-    if (characterQuery && !isLoadMore) {
-        try {
-            const qdrantSuccess = await executeCharacterSearch(characterQuery);
-            if (qdrantSuccess) return; // If Qdrant worked perfectly, stop here!
-        } catch (err) {
-            // THE FALLBACK: Log the error to the console, flag it, and let the code continue to TMDB!
-            console.error("[Qdrant Fallback] Character search failed:", err.message);
-            characterFallbackActive = true; 
-        }
-    }
-
     // Fetch values for standard TMDB search
-    const providersStr = Array.from(activeProviders).join('|');
     const textQuery = document.getElementById('text-search-input').value.toLowerCase().trim(); 
     
     // Logic for Core Genres
@@ -276,6 +259,37 @@ async function executeSearch(isLoadMore = false) {
     const themeJoinChar = themeLogic === 'all' ? ',' : '|';
     const keywordsStr = Array.from(activeKeywords.keys()).join(themeJoinChar);
 
+    const includeFree = document.getElementById('include-free-checkbox') ? document.getElementById('include-free-checkbox').checked : false;
+    const providersStr = Array.from(activeProviders).join('|');
+
+    // ==========================================
+    // DEBUG LOGS: EVERY INPUT VALUE
+    // ==========================================
+    console.log("=== [DEBUG] SEARCH STARTED ===");
+    console.log("[DEBUG] INPUT - Formats:", Array.from(activeTypes));
+    console.log("[DEBUG] INPUT - Text Query:", textQuery ? `"${textQuery}"` : "(none)");
+    console.log("[DEBUG] INPUT - Movie Durations:", Array.from(activeMovieDurations));
+    console.log("[DEBUG] INPUT - TV Durations:", Array.from(activeTvDurations));
+    console.log("[DEBUG] INPUT - Providers:", Array.from(activeProviders));
+    console.log("[DEBUG] INPUT - Include Free:", includeFree);
+    console.log("[DEBUG] INPUT - Core Genres (Logic: " + coreLogic + "):", Array.from(activeCoreGenres));
+    console.log("[DEBUG] INPUT - Themes (Logic: " + themeLogic + "):", Array.from(activeKeywords.keys()));
+    // ==========================================
+
+    // 1. Check for a Character Query
+    const characterQuery = document.getElementById('character-search-input') ? document.getElementById('character-search-input').value.trim() : '';
+    let characterFallbackActive = false;
+
+    if (characterQuery && !isLoadMore) {
+        try {
+            const qdrantSuccess = await executeCharacterSearch(characterQuery);
+            if (qdrantSuccess) return; 
+        } catch (err) {
+            console.error("[Qdrant Fallback] Character search failed:", err.message);
+            characterFallbackActive = true; 
+        }
+    }
+
     // Min/Max for Movie Ranges
     let movieRuntimeMin = null, movieRuntimeMax = null;
     if (activeMovieDurations.size > 0) {
@@ -285,6 +299,7 @@ async function executeSearch(isLoadMore = false) {
         });
         movieRuntimeMin = Math.min(...durations.map(d => d.min));
         movieRuntimeMax = Math.max(...durations.map(d => d.max));
+        console.log(`[DEBUG] CALCULATED - Movie Runtime API Bounds: Min=${movieRuntimeMin}, Max=${movieRuntimeMax}`);
     }
 
     // Min/Max for TV Ranges
@@ -296,19 +311,26 @@ async function executeSearch(isLoadMore = false) {
         });
         tvRuntimeMin = Math.min(...durations.map(d => d.min));
         tvRuntimeMax = Math.max(...durations.map(d => d.max));
+        console.log(`[DEBUG] CALCULATED - TV Runtime API Bounds: Min=${tvRuntimeMin}, Max=${tvRuntimeMax}`);
     }
 
     try {
         const fetchPromises = [];
-        
-        // If a text query is present, we fetch 5 pages at once (~100 items per format) 
-        // to ensure we have a massive pool to filter words through.
         const pagesToFetch = textQuery ? [currentPage, currentPage + 1, currentPage + 2, currentPage + 3, currentPage + 4] : [currentPage];
+
+        console.log(`[DEBUG] Fetching pages:`, pagesToFetch);
 
         for (let mediaType of activeTypes) {
             let baseUrl = `https://api.themoviedb.org/3/discover/${mediaType}?language=en-US&sort_by=popularity.desc&watch_region=US`;
             
-            if (providersStr) baseUrl += `&with_watch_providers=${providersStr}`;
+            if (activeProviders.size > 0) {
+                if (includeFree) {
+                    baseUrl += `&with_watch_monetization_types=flatrate|free|ads`;
+                } else {
+                    baseUrl += `&with_watch_providers=${providersStr}&with_watch_monetization_types=flatrate|free|ads`;
+                }
+            }
+
             if (keywordsStr) baseUrl += `&with_keywords=${keywordsStr}`;
             if (coreGenresStr) baseUrl += `&with_genres=${coreGenresStr}`;
 
@@ -320,7 +342,6 @@ async function executeSearch(isLoadMore = false) {
                 if (tvRuntimeMax !== null && tvRuntimeMax < 999) baseUrl += `&with_runtime.lte=${tvRuntimeMax}`;
             }
 
-            // Fetch all calculated pages simultaneously
             pagesToFetch.forEach(page => {
                 fetchPromises.push(
                     fetch(`${baseUrl}&page=${page}`, { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } })
@@ -330,38 +351,98 @@ async function executeSearch(isLoadMore = false) {
             });
         }
 
-        // Advance pagination based on how many pages we fetched
-        if (textQuery) {
-            currentPage += 4;
-        }
+        if (textQuery) currentPage += 4;
 
         const resultsArrays = await Promise.all(fetchPromises);
         let combinedResults = resultsArrays.flat();
 
-        // Deduplicate in case TMDB pagination overlapped
         const uniqueMap = new Map();
         combinedResults.forEach(item => uniqueMap.set(item.id, item));
         combinedResults = Array.from(uniqueMap.values());
 
+        console.log(`[DEBUG] Pre-filter count from Discover API: ${combinedResults.length}`);
+
+        // --- NEW: Accurate Real-time Provider & Strict Duration Checking ---
+        console.log(`[DEBUG] Fetching detailed data for ${combinedResults.length} items to verify providers and strict duration...`);
+        const detailPromises = combinedResults.map(item => 
+            // We changed this to pull the main details AND the providers in one go!
+            fetch(`https://api.themoviedb.org/3/${item.media_type}/${item.id}?append_to_response=watch/providers`, {
+                headers: { Authorization: `Bearer ${TMDB_TOKEN}` }
+            })
+            .then(r => r.json())
+            .catch(() => null)
+        );
+        const detailsResults = await Promise.all(detailPromises);
+
+        combinedResults = combinedResults.filter((item, index) => {
+            const detailData = detailsResults[index];
+            if (!detailData) return false;
+
+            // 1. STRICT DURATION CHECK
+            if (item.media_type === 'movie' && activeMovieDurations.size > 0) {
+                const runtime = detailData.runtime || 0;
+                // Check if the exact runtime falls into AT LEAST ONE of the strictly selected duration buckets
+                const matchesDuration = Array.from(activeMovieDurations).some(id => {
+                    const el = document.querySelector(`.pill[data-id="${id}"]`);
+                    return runtime >= parseInt(el.dataset.min) && runtime <= parseInt(el.dataset.max);
+                });
+                if (!matchesDuration) return false;
+            } 
+            else if (item.media_type === 'tv' && activeTvDurations.size > 0) {
+                const runtimes = detailData.episode_run_time || [];
+                const avgRuntime = runtimes.length > 0 ? Math.round(runtimes.reduce((a,b)=>a+b,0)/runtimes.length) : 0;
+                
+                if (avgRuntime === 0) return false; // Drop if TMDB has no runtime data
+
+                const matchesDuration = Array.from(activeTvDurations).some(id => {
+                    const el = document.querySelector(`.pill[data-id="${id}"]`);
+                    return avgRuntime >= parseInt(el.dataset.min) && avgRuntime <= parseInt(el.dataset.max);
+                });
+                if (!matchesDuration) return false;
+            }
+
+            // 2. PROVIDER CHECK
+            const usProviders = (detailData['watch/providers'] && detailData['watch/providers'].results && detailData['watch/providers'].results.US) || {};
+            
+            const flatrateIds = (usProviders.flatrate || []).map(p => String(p.provider_id));
+            const freeIds = (usProviders.free || []).map(p => String(p.provider_id));
+            const adsIds = (usProviders.ads || []).map(p => String(p.provider_id));
+
+            if (activeProviders.size > 0) {
+                const isOnSelectedServices = [...flatrateIds, ...freeIds, ...adsIds].some(id => activeProviders.has(id));
+                
+                if (includeFree) {
+                    const isFreeAnywhere = freeIds.length > 0;
+                    const isFreeWithAdsAnywhere = adsIds.length > 0;
+                    return isOnSelectedServices || isFreeAnywhere || isFreeWithAdsAnywhere;
+                }
+                
+                return isOnSelectedServices;
+            }
+            
+            return true; 
+        });
+
+        console.log(`[DEBUG] Post-filter count (Providers + Strict Duration): ${combinedResults.length}`);
+
         // --- Client-side Text Filtering and Custom Sort ---
         if (textQuery) {
-            // 1. Filter out items that do not contain the word in title OR description
             combinedResults = combinedResults.filter(item => {
                 const title = (item.title || item.name || '').toLowerCase();
                 const overview = (item.overview || '').toLowerCase();
                 return title.includes(textQuery) || overview.includes(textQuery);
             });
 
-            // 2. Sort: Title matches first, then description matches, then by popularity
             combinedResults.sort((a, b) => {
                 const aTitleMatch = (a.title || a.name || '').toLowerCase().includes(textQuery);
                 const bTitleMatch = (b.title || b.name || '').toLowerCase().includes(textQuery);
 
-                if (aTitleMatch && !bTitleMatch) return -1; // A gets prioritized
-                if (!aTitleMatch && bTitleMatch) return 1;  // B gets prioritized
+                if (aTitleMatch && !bTitleMatch) return -1;
+                if (!aTitleMatch && bTitleMatch) return 1;
 
-                return b.popularity - a.popularity; // Tie-breaker
+                return b.popularity - a.popularity;
             });
+            console.log(`[DEBUG] Count after Text Query ("${textQuery}") filter: ${combinedResults.length}`);
         } else {
             combinedResults.sort((a, b) => b.popularity - a.popularity);
         }
@@ -371,14 +452,14 @@ async function executeSearch(isLoadMore = false) {
         } else if (combinedResults.length > 0) {
             renderResults(combinedResults);
             
-            // Show load more button based on the pool size left
             if (combinedResults.length >= (textQuery ? 5 : 10)) loadMoreBtn.style.display = 'inline-block';
         }
     } catch (err) {
         if (!isLoadMore) resultsGrid.innerHTML = '<p class="meta" style="grid-column: 1/-1; text-align:center;">Search failed.</p>';
-        console.error(err);
+        console.error("=== [DEBUG] SEARCH FAILED ===", err);
     } finally {
         loader.style.display = 'none';
+        console.log("=== [DEBUG] SEARCH COMPLETED ===");
         
         if (!isLoadMore) {
             document.getElementById('results-grid').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -432,7 +513,7 @@ async function setupHeaderAndProfile() {
             document.getElementById('nav-avatar').src = user.user_metadata.avatar_url;
         }
 
-        // NEW: Fetch the user's saved services
+        // Fetch the user's saved services
         const { data: profile } = await supabaseClient
             .from('profiles')
             .select('services')
@@ -440,14 +521,24 @@ async function setupHeaderAndProfile() {
             .single();
 
         if (profile && profile.services) {
-            // Merge both streaming and buying preferences
+            // Merge both streaming and buying preferences into string IDs
             const savedProviders = [
                 ...(profile.services.streaming || []), 
                 ...(profile.services.buying || [])
-            ];
+            ].map(String);
             
-            // Auto-populate the activeProviders Set
-            savedProviders.forEach(id => activeProviders.add(String(id)));
+            // Create an array of strictly the IDs that are currently visible on the UI
+            const visibleProviderIds = allProviders.map(p => String(p.provider_id));
+            
+            // INTERSECTION: Only keep saved providers that are ALSO in the visible top 25
+            const validActiveProviders = savedProviders.filter(id => visibleProviderIds.includes(id));
+            
+            // Auto-populate the activeProviders Set AND manually update the UI pills
+            validActiveProviders.forEach(id => {
+                activeProviders.add(id);
+                const pillEl = document.querySelector(`.pill[data-id="${id}"]`);
+                if (pillEl) pillEl.classList.add('active');
+            });
         }
 
     } else {
