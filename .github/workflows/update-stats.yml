@@ -19,7 +19,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          cd stats_worker
+          cd statsWorker
           npm install
 
       - name: Run Stats Updater Script
@@ -30,5 +30,5 @@ jobs:
           OPENVERSE_CLIENT_ID: ${{ secrets.OPENVERSE_CLIENT_ID }}
           OPENVERSE_CLIENT_SECRET: ${{ secrets.OPENVERSE_CLIENT_SECRET }}
         run: |
-          cd stats_worker
+          cd statsWorker
           node update_stats.js
