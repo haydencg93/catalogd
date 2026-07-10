@@ -550,32 +550,75 @@ async function startFullAccountExport(user, rangeType, startDate, endDate, typeF
 
     const rangeFilters = { type: rangeType, start: startDate, end: endDate };
 
+    // --- Build a real step-by-step progress tracker ---
+    // Each media type contributes 4 discrete units of work inside
+    // generateMediaData (Diary, Watchlist, Statuses) + generateListFiles (Lists).
+    const selectedTypes = typeFilter === 'all'
+        ? ['movie', 'tv', 'book', 'album', 'youtube']
+        : [typeFilter];
+    const STEPS_PER_TYPE = 4;
+    const totalSteps =
+        1 +                                  // fetching custom images/maps (already done above, counted for smoothness)
+        1 +                                  // account settings
+        1 +                                  // list details
+        (selectedTypes.length * STEPS_PER_TYPE) +
+        1 +                                  // zipping
+        1;                                   // finalizing download
+
+    let completedSteps = 1; // the custom image/map fetch above already happened
+    const progress = {
+        step(label) {
+            completedSteps++;
+            const pct = Math.min(100, Math.round((completedSteps / totalSteps) * 100));
+            progressText.textContent = label;
+            progressBar.style.width = `${pct}%`;
+        },
+        set(pct, label) {
+            progressBar.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+            if (label) progressText.textContent = label;
+        }
+    };
+    // Reflect the already-completed image/map fetch on the bar immediately.
+    progressBar.style.width = `${Math.round((completedSteps / totalSteps) * 100)}%`;
+
     try {
         // 1. Account Settings & Details
         await exportAccountSettings(zip, user, customImgMap);
+        progress.step("Exported Account Settings...");
+
         await exportListDetails(zip, user);
+        progress.step("Exported List Details...");
 
         // 2. Media Specific Exports based on filters
         if (typeFilter === 'all' || typeFilter === 'movie') {
-            await exportMovies(zip, user, rangeFilters, customImgMap, progressText);
+            await exportMovies(zip, user, rangeFilters, customImgMap, progress);
         }
         if (typeFilter === 'all' || typeFilter === 'tv') {
-            await exportTV(zip, user, rangeFilters, customImgMap, progressText);
+            await exportTV(zip, user, rangeFilters, customImgMap, progress);
         }
         if (typeFilter === 'all' || typeFilter === 'book') {
-            await exportBooks(zip, user, rangeFilters, customImgMap, progressText);
+            await exportBooks(zip, user, rangeFilters, customImgMap, progress);
         }
         if (typeFilter === 'all' || typeFilter === 'album') {
-            await exportMusic(zip, user, rangeFilters, customImgMap, progressText);
+            await exportMusic(zip, user, rangeFilters, customImgMap, progress);
         }
         if (typeFilter === 'all' || typeFilter === 'youtube') {
-            await exportYouTube(zip, user, rangeFilters, customImgMap, progressText);
+            await exportYouTube(zip, user, rangeFilters, customImgMap, progress);
         }
 
-        progressText.textContent = "Zipping files...";
-        const content = await zip.generateAsync({ type: "blob" });
+        const content = await zip.generateAsync({ type: "blob" }, (metadata) => {
+            // JSZip reports its own internal 0-100% while compressing; blend that
+            // into the remaining slice of the bar reserved for "Zipping files...".
+            const zipStartPct = Math.round((completedSteps / totalSteps) * 100);
+            const zipEndPct = Math.round(((completedSteps + 1) / totalSteps) * 100);
+            const blended = zipStartPct + ((zipEndPct - zipStartPct) * (metadata.percent / 100));
+            progress.set(blended, `Zipping files... ${Math.round(metadata.percent)}%`);
+        });
         const url = URL.createObjectURL(content);
-        
+
+        completedSteps++; // zipping step is now fully complete
+        progress.step("Finalizing download...");
+
         const now = new Date();
         const dateStr = `${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}${now.getFullYear()}`;
         const filename = `Catalogd_${user.user_metadata?.username || 'user'}_${dateStr}.zip`;
@@ -585,8 +628,7 @@ async function startFullAccountExport(user, rangeType, startDate, endDate, typeF
         link.download = filename;
         link.click();
 
-        progressText.textContent = "Export Complete!";
-        progressBar.style.width = "100%";
+        progress.set(100, "Export Complete!");
 
     } catch (e) {
         console.error(e);
@@ -642,13 +684,13 @@ async function exportListDetails(zip, user) {
 }
 
 // --- SPECIFIC EXPORT FUNCTIONS ---
-async function exportMovies(zip, user, filters, customImgMap, progressText) {
+async function exportMovies(zip, user, filters, customImgMap, progress) {
     console.log("[Export] Starting Movies Export...");
     try {
         const folder = zip.folder("Movies");
         
-        await generateMediaData(folder, user, ['movie'], filters, customImgMap, progressText, true);
-        await generateListFiles(folder, user, ['movie'], customImgMap, progressText);
+        await generateMediaData(folder, user, ['movie'], filters, customImgMap, progress, true);
+        await generateListFiles(folder, user, ['movie'], customImgMap, progress);
         console.log("[Export] Movies Export Complete.");
     } catch (e) {
         console.error("[Export Error] Failed in exportMovies:", e);
@@ -656,13 +698,13 @@ async function exportMovies(zip, user, filters, customImgMap, progressText) {
     }
 }
 
-async function exportTV(zip, user, filters, customImgMap, progressText) {
+async function exportTV(zip, user, filters, customImgMap, progress) {
     console.log("[Export] Starting TV Export...");
     try {
         const folder = zip.folder("TV Shows");
         
-        await generateMediaData(folder, user, ['tv'], filters, customImgMap, progressText, true);
-        await generateListFiles(folder, user, ['tv'], customImgMap, progressText);
+        await generateMediaData(folder, user, ['tv'], filters, customImgMap, progress, true);
+        await generateListFiles(folder, user, ['tv'], customImgMap, progress);
         console.log("[Export] TV Export Complete.");
     } catch (e) {
         console.error("[Export Error] Failed in exportTV:", e);
@@ -670,40 +712,40 @@ async function exportTV(zip, user, filters, customImgMap, progressText) {
     }
 }
 
-async function exportBooks(zip, user, filters, customImgMap, progressText) {
+async function exportBooks(zip, user, filters, customImgMap, progress) {
     try {
         const folder = zip.folder("Books");
-        await generateMediaData(folder, user, ['book'], filters, customImgMap, progressText, false);
-        await generateListFiles(folder, user, ['book'], customImgMap, progressText);
+        await generateMediaData(folder, user, ['book'], filters, customImgMap, progress, false);
+        await generateListFiles(folder, user, ['book'], customImgMap, progress);
     } catch (e) { console.error("Books Error:", e); }
 }
 
-async function exportMusic(zip, user, filters, customImgMap, progressText) {
+async function exportMusic(zip, user, filters, customImgMap, progress) {
     try {
         const folder = zip.folder("Music");
-        await generateMediaData(folder, user, ['album'], filters, customImgMap, progressText, false);
-        await generateListFiles(folder, user, ['album'], customImgMap, progressText);
+        await generateMediaData(folder, user, ['album'], filters, customImgMap, progress, false);
+        await generateListFiles(folder, user, ['album'], customImgMap, progress);
     } catch (e) { console.error("Music Error:", e); }
 }
 
-async function exportYouTube(zip, user, filters, customImgMap, progressText) {
+async function exportYouTube(zip, user, filters, customImgMap, progress) {
     try {
         const folder = zip.folder("YouTube");
-        await generateMediaData(folder, user, ['youtube'], filters, customImgMap, progressText, false);
-        await generateListFiles(folder, user, ['youtube'], customImgMap, progressText);
+        await generateMediaData(folder, user, ['youtube'], filters, customImgMap, progress, false);
+        await generateListFiles(folder, user, ['youtube'], customImgMap, progress);
     } catch (e) { console.error("YouTube Error:", e); }
 }
 
 // --- UTILITY DATA GENERATORS ---
 
-async function generateMediaData(folder, user, typesArray, filters, customImgMap, progressText, isLetterboxd) {
+async function generateMediaData(folder, user, typesArray, filters, customImgMap, progress, isLetterboxd) {
     const typeLabel = typesArray.join('/');
     console.log(`[Export] Generating Data for: ${typeLabel}`);
     
     try {
         // 1. DIARY
         console.log(`[Export] Fetching Diary for ${typeLabel}`);
-        progressText.textContent = `Exporting ${typeLabel} Diary...`;
+        progress.step(`Exporting ${typeLabel} Diary...`);
         const diaryHeaders = isLetterboxd 
             ? ["tmdbID", "Title", "Year", "Rating", "WatchedDate", "Rewatch", "Tags", "Review", "Custom Poster", "Custom Background"]
             : ["ID", "Title", "Rating", "Date", "Rewatch", "Tags", "Notes", "Custom Poster", "Custom Background"];
@@ -723,7 +765,9 @@ async function generateMediaData(folder, user, typesArray, filters, customImgMap
             console.log(`[Export] Processing Diary Log ID: ${log.id}`);
             const title = log.media_title || "Unknown Title";
             const custom = customImgMap.get(`${log.media_type}_${log.media_id}`) || { poster: "", bg: "" };
-            const tags = log.tags ? log.tags.join(', ') : "";
+            // Every exported Diary log gets an additional "catalogd" tag appended,
+            // regardless of media type (movie/tv/book/album/youtube).
+            const tags = [...(log.tags || []), "catalogd"].join(', ');
             
             // Safe date fallback
             let date = log.watched_on;
@@ -740,7 +784,7 @@ async function generateMediaData(folder, user, typesArray, filters, customImgMap
 
         // 2. WATCHLIST
         console.log(`[Export] Fetching Watchlist for ${typeLabel}`);
-        progressText.textContent = `Exporting ${typeLabel} Watchlist...`;
+        progress.step(`Exporting ${typeLabel} Watchlist...`);
         const wlHeaders = isLetterboxd 
             ? ["tmdbID", "Title", "Date", "Custom Poster", "Custom Background"] 
             : ["ID", "Title", "Date Added", "Custom Poster", "Custom Background"];
@@ -759,7 +803,7 @@ async function generateMediaData(folder, user, typesArray, filters, customImgMap
 
         // 3. STATUSES
         console.log(`[Export] Fetching Statuses for ${typeLabel}`);
-        progressText.textContent = `Exporting ${typeLabel} Statuses...`;
+        progress.step(`Exporting ${typeLabel} Statuses...`);
         const statHeaders = isLetterboxd 
             ? ["tmdbID", "Title", "Status", "Date", "Custom Poster", "Custom Background"] 
             : ["ID", "Title", "Status", "Last Updated", "Custom Poster", "Custom Background"];
@@ -783,10 +827,10 @@ async function generateMediaData(folder, user, typesArray, filters, customImgMap
     }
 }
 
-async function generateListFiles(parentFolder, user, typesArray, customImgMap, progressText) {
+async function generateListFiles(parentFolder, user, typesArray, customImgMap, progress) {
     try {
         console.log(`[Export] Processing Lists for ${typesArray}`);
-        progressText.textContent = `Processing Custom Lists for ${typesArray.join('/')}...`;
+        progress.step(`Processing Custom Lists for ${typesArray.join('/')}...`);
         
         const { data: lists, error: listError } = await supabaseClient.from('media_lists').select('*').eq('user_id', user.id);
         if (listError) throw new Error(`List Query Error: ${listError.message}`);
