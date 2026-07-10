@@ -1,4 +1,4 @@
-name: Queue Processor - User Stats
+name: Nightly User Stats Queue Processor
 
 on:
   schedule:
