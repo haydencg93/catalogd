@@ -93,6 +93,8 @@ async function initSettings() {
         // Safely set checkboxes
         setCheck('toggle-active-status', profile.show_active_status !== false); 
         setCheck('toggle-paused-status', profile.show_paused_dropped_status !== false);
+        setCheck('toggle-fandoms-status', profile.show_fandoms === true);
+        setCheck('toggle-characters-status', profile.show_characters === true);
 
         // Ensure album is in the fallback object
         currentFavs = profile.favorites || { movie: [], tv: [], book: [], youtube: [], album: [], all: [] };
@@ -428,6 +430,8 @@ async function saveAllProfileData() {
 
     const showActive = document.getElementById('toggle-active-status')?.checked ?? true;
     const showPaused = document.getElementById('toggle-paused-status')?.checked ?? true;
+    const showFandoms = document.getElementById('toggle-fandoms-status')?.checked ?? false;
+    const showCharacters = document.getElementById('toggle-characters-status')?.checked ?? false;
 
     // 2. Update Auth Metadata (Keep this for session consistency)
     const { error: authError } = await supabaseClient.auth.updateUser({
@@ -457,7 +461,9 @@ async function saveAllProfileData() {
             favorites: currentFavs,
             services: currentServices,
             show_active_status: showActive,
-            show_paused_dropped_status: showPaused
+            show_paused_dropped_status: showPaused,
+            show_fandoms: showFandoms,
+            show_characters: showCharacters
         })
         .eq('id', user.id);
 

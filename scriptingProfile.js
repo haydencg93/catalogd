@@ -1,6 +1,7 @@
 let supabaseClient = null;
 let allUserLogs = [];
 let allLibraryItems = [];
+let allTrackedPeople = [];
 let currentLibraryPage = 1;
 const LIBRARY_PAGE_SIZE = 50;
 let currentLibraryFilter = 'all';
@@ -8,6 +9,13 @@ let isOwner = false;
 let profileUserId = null;
 let customImgsMap = new Map();
 let revisitCandidates = { movie: [], tv: [], book: [], album: [] };
+let allFandoms = [];
+let isManagingPeople = false;
+let isManagingFandoms = false;
+let peopleSortableInstance = null;
+let fandomsSortableInstance = null;
+let currentPeopleCategory = 'character';
+let currentFandomsCategory = 'movie';
 
 async function initProfile() {
     try {
@@ -134,6 +142,69 @@ async function initProfile() {
             holdGrid.innerHTML = `<p class="meta" style="grid-column: 1/-1; text-align: center;">Status tracking is private.</p>`;
         }
 
+        const charactersGrid = document.getElementById('characters-grid');
+        const fandomsGrid = document.getElementById('fandoms-grid');
+        
+        // 1. Check Privacy Flags
+        const canViewCharacters = isOwner || (profile.show_characters === true);
+        const canViewFandoms = isOwner || (profile.show_fandoms === true);
+
+        // 2. Load People
+        const peopleGrid = document.getElementById('people-grid');
+        const canViewPeople = isOwner || (profile.show_characters === true);
+
+        // Show ranking instructions + reorder button if owner
+        const rankInstructions = document.getElementById('people-rank-instructions');
+        if (rankInstructions && isOwner) rankInstructions.style.display = 'block';
+        const managePeopleBtn = document.getElementById('manage-people-order-btn');
+        if (managePeopleBtn && isOwner) managePeopleBtn.style.display = 'inline-block';
+
+        if (canViewPeople) {
+            const { data: people, error: peopleError } = await supabaseClient
+                .from('user_characters')
+                .select('*')
+                .eq('user_id', profileUserId)
+                .order('rank', { ascending: true }) // NEW: Order by rank
+                .order('created_at', { ascending: false });
+                
+            if (peopleError) console.error("People Fetch Error:", peopleError);
+
+            if (people && people.length > 0) {
+                allTrackedPeople = people;
+                filterPeople('character'); // NEW: Default to character instead of all
+            } else {
+                if (peopleGrid) peopleGrid.innerHTML = `<p class="meta">No people tracked yet.</p>`;
+            }
+        } else {
+            if (peopleGrid) peopleGrid.innerHTML = `<p class="meta" style="grid-column: 1/-1; text-align: center;">People tracking is private.</p>`;
+        }
+
+        // 3. Load Fandoms
+        const fandomsRankInstructions = document.getElementById('fandoms-rank-instructions');
+        if (fandomsRankInstructions && isOwner) fandomsRankInstructions.style.display = 'block';
+        const manageFandomsBtn = document.getElementById('manage-fandoms-order-btn');
+        if (manageFandomsBtn && isOwner) manageFandomsBtn.style.display = 'inline-block';
+
+        if (canViewFandoms) {
+            const { data: fandoms, error: fandomsError } = await supabaseClient
+                .from('user_fandoms')
+                .select('*')
+                .eq('user_id', profileUserId)
+                .order('rank', { ascending: true })
+                .order('created_at', { ascending: false });
+                
+            if (fandomsError) console.error("Fandoms Fetch Error:", fandomsError);
+
+            if (fandoms && fandoms.length > 0) {
+                allFandoms = fandoms;
+                filterFandoms('movie');
+            } else {
+                if (fandomsGrid) fandomsGrid.innerHTML = `<p class="meta">No fandoms followed yet.</p>`;
+            }
+        } else {
+            if (fandomsGrid) fandomsGrid.innerHTML = `<p class="meta" style="grid-column: 1/-1; text-align: center;">Fandom tracking is private.</p>`;
+        }
+
         console.log("1. Targeting User ID:", profileUserId);
         console.log("2. Am I the owner?", isOwner);
         if (profileError) console.error("3. Supabase Error:", profileError);
@@ -144,7 +215,6 @@ async function initProfile() {
         } else {
             console.warn("4. No profile found in database for this ID.");
         }
-        // --------------------------------
 
         const diaryNavBtn = document.querySelector('button[onclick*="diary.html"]');
         const listsNavBtn = document.querySelector('button[onclick*="lists.html"]');
@@ -851,6 +921,321 @@ window.filterRecent = (type) => {
     const filtered = type === 'all' ? allUserLogs : allUserLogs.filter(l => l.media_type === type);
     renderRecent(filtered);
 };
+
+window.filterPeople = (type) => {
+    currentPeopleCategory = type;
+    const peopleSection = document.getElementById('tab-people');
+    if (!peopleSection) return;
+    
+    const buttons = peopleSection.querySelectorAll('.filter-btn');
+    buttons.forEach(btn => {
+        btn.classList.remove('active');
+        const btnText = btn.textContent.toLowerCase();
+        // Handle exact matching since "crew" doesn't have an "s"
+        if (btnText === type + 's' || (type === 'crew' && btnText === 'crew')) {
+            btn.classList.add('active');
+        }
+    });
+
+    const grid = document.getElementById('people-grid');
+    if (!grid) return;
+
+    // Destroy any previous Sortable instance before re-rendering
+    if (peopleSortableInstance) {
+        peopleSortableInstance.destroy();
+        peopleSortableInstance = null;
+    }
+
+    // Filter by specific category (No 'all' option anymore)
+    const filtered = allTrackedPeople.filter(p => p.person_category === type);
+    
+    // Sort array locally to ensure rank is respected
+    filtered.sort((a, b) => (a.rank || 0) - (b.rank || 0));
+
+    if (filtered.length === 0) {
+        const typeLabel = type === 'crew' ? 'crew members' : type + 's';
+        grid.innerHTML = `<p class="meta">No ${typeLabel} tracked yet.</p>`;
+        return;
+    }
+
+    grid.innerHTML = '';
+    
+    filtered.forEach((p, index) => {
+        let route = `cast.html?personId=${p.character_id}`; 
+        if (p.person_category === 'character') {
+            route = `cast.html?characterWiki=${encodeURIComponent(p.character_id)}&mediaId=${p.media_id || ''}&mediaType=${p.media_type || ''}`;
+        } else if (p.person_category === 'author') {
+            route = `cast.html?authorId=${p.character_id}`;
+        } else if (p.person_category === 'artist') {
+            route = `cast.html?artist=${p.character_id}`;
+        }
+
+        const label = p.person_category ? (p.person_category.charAt(0).toUpperCase() + p.person_category.slice(1)) : 'Person';
+
+        // --- CUSTOM ART LOGIC ---
+        let finalImg = p.image_url || 'https://placehold.co/500x750/1b2228/9ab?text=No+Image';
+        const customArt = customImgsMap.get(`${p.person_category}_${p.character_id}`);
+        if (customArt && customArt.custom_poster) {
+            finalImg = customArt.custom_poster;
+        }
+
+        const card = document.createElement('div');
+        card.className = `media-card ${isManagingPeople ? 'managing' : ''}`;
+        card.setAttribute('data-dbid', p.id);
+        
+        // Show rank badge only for owner
+        const rankBadge = isOwner ? `<div class="rank-badge" style="position:absolute; top:8px; left:8px; background: rgba(0,0,0,0.8); padding: 4px 8px; border-radius: 4px; font-weight: bold; z-index: 10;">#${index + 1}</div>` : '';
+
+        card.innerHTML = `
+            <div class="poster-wrapper">
+                ${rankBadge}
+                <img src="${finalImg}" 
+                     alt="${p.character_name}" 
+                     onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
+                <span class="badge badge-movie" style="background: #456; color: #fff;">${label}</span>
+            </div>
+            <div class="media-info">
+                <div class="title" style="font-weight: bold; margin-bottom: 5px;">${p.character_name}</div>
+                <div class="meta" style="font-size: 0.8rem; color: #9ab;">${label}</div>
+            </div>
+        `;
+
+        if (isManagingPeople) {
+            // While reordering, clicks don't navigate - only dragging is active
+            card.style.cursor = 'grab';
+        } else {
+            card.onclick = () => window.location.href = route;
+        }
+
+        grid.appendChild(card);
+    });
+
+    // Enable drag-to-reorder ONLY while in manage mode (and only for the owner)
+    if (isOwner && isManagingPeople) {
+        peopleSortableInstance = new Sortable(grid, {
+            animation: 150,
+            onEnd: () => {
+                document.querySelectorAll('#people-grid .rank-badge').forEach((badge, i) => {
+                    badge.textContent = `#${i + 1}`;
+                });
+            }
+        });
+    }
+};
+
+// Background Database Saver
+async function savePeopleRank() {
+    const grid = document.getElementById('people-grid');
+    const cards = grid.querySelectorAll('.media-card');
+
+    const updates = [];
+    cards.forEach((card, index) => {
+        const dbId = card.getAttribute('data-dbid');
+        const rank = index + 1;
+
+        // Visually update the # UI instantly
+        const badge = card.querySelector('.rank-badge');
+        if (badge) badge.textContent = `#${rank}`;
+
+        // Update the global array so filtering doesn't scramble it back
+        const person = allTrackedPeople.find(p => p.id === dbId);
+        if (person) person.rank = rank;
+
+        updates.push({ id: dbId, rank: rank });
+    });
+
+    // Persist each row's new rank to the DB
+    for (const u of updates) {
+        const { error } = await supabaseClient.from('user_characters')
+            .update({ rank: u.rank })
+            .eq('id', u.id);
+        if (error) {
+            console.error('Error saving person rank:', error);
+            throw new Error(error.message || 'Failed to save one or more rows. Check that you are allowed to update this data.');
+        }
+    }
+}
+
+window.filterFandoms = (type) => {
+    currentFandomsCategory = type;
+    const fandomsSection = document.getElementById('tab-fandoms');
+    if (!fandomsSection) return;
+
+    const buttons = fandomsSection.querySelectorAll('.filter-btn');
+    buttons.forEach(btn => {
+        btn.classList.remove('active');
+        const btnText = btn.textContent.toLowerCase();
+        if ((type === 'movie' && btnText === 'movies') ||
+            (type === 'tv' && btnText === 'tv') ||
+            (type === 'book' && btnText === 'books') ||
+            (type === 'album' && btnText === 'music') ||
+            (type === 'youtube' && btnText === 'youtube')) {
+            btn.classList.add('active');
+        }
+    });
+
+    const grid = document.getElementById('fandoms-grid');
+    if (!grid) return;
+
+    // Destroy any previous Sortable instance before re-rendering
+    if (fandomsSortableInstance) {
+        fandomsSortableInstance.destroy();
+        fandomsSortableInstance = null;
+    }
+
+    const filtered = allFandoms.filter(f => f.media_type === type);
+    filtered.sort((a, b) => (a.rank || 0) - (b.rank || 0));
+
+    if (filtered.length === 0) {
+        const typeLabel = type === 'album' ? 'music' : type;
+        grid.innerHTML = `<p class="meta">No ${typeLabel} fandoms followed yet.</p>`;
+        return;
+    }
+
+    grid.innerHTML = '';
+
+    filtered.forEach((f, index) => {
+        const card = document.createElement('div');
+        card.className = `media-card ${isManagingFandoms ? 'managing' : ''}`;
+        card.setAttribute('data-dbid', f.id);
+
+        const rankBadge = isOwner ? `<div class="rank-badge" style="position:absolute; top:8px; left:8px; background: rgba(0,0,0,0.8); padding: 4px 8px; border-radius: 4px; font-weight: bold; z-index: 10;">#${index + 1}</div>` : '';
+
+        card.innerHTML = `
+            <div class="poster-wrapper">
+                ${rankBadge}
+                <img src="${f.image_url || 'https://placehold.co/500x750/1b2228/9ab?text=No+Image'}" 
+                     alt="${f.title}" 
+                     onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
+                <span class="badge badge-${f.media_type}">${f.media_type}</span>
+            </div>
+            <div class="media-info">
+                <div class="title" style="font-weight: bold; margin-bottom: 5px;">${f.title}</div>
+                <div class="meta" style="font-size: 0.8rem; color: #9ab;">Fandom</div>
+            </div>
+        `;
+
+        if (isManagingFandoms) {
+            card.style.cursor = 'grab';
+        } else {
+            card.onclick = () => window.location.href = `fandom.html?id=${f.media_id}&type=${f.media_type}`;
+        }
+
+        grid.appendChild(card);
+    });
+
+    if (isOwner && isManagingFandoms) {
+        fandomsSortableInstance = new Sortable(grid, {
+            animation: 150,
+            onEnd: () => {
+                document.querySelectorAll('#fandoms-grid .rank-badge').forEach((badge, i) => {
+                    badge.textContent = `#${i + 1}`;
+                });
+            }
+        });
+    }
+};
+
+async function saveFandomsRank() {
+    const grid = document.getElementById('fandoms-grid');
+    const cards = grid.querySelectorAll('.media-card');
+
+    const updates = [];
+    cards.forEach((card, index) => {
+        const dbId = card.getAttribute('data-dbid');
+        const rank = index + 1;
+
+        const badge = card.querySelector('.rank-badge');
+        if (badge) badge.textContent = `#${rank}`;
+
+        const fandom = allFandoms.find(f => f.id === dbId);
+        if (fandom) fandom.rank = rank;
+
+        updates.push({ id: dbId, rank: rank });
+    });
+
+    for (const u of updates) {
+        const { error } = await supabaseClient.from('user_fandoms')
+            .update({ rank: u.rank })
+            .eq('id', u.id);
+        if (error) {
+            console.error('Error saving fandom rank:', error);
+            throw new Error(error.message || 'Failed to save one or more rows. Check that you are allowed to update this data.');
+        }
+    }
+}
+
+// --- Reorder button wiring (People) ---
+const managePeopleOrderBtn = document.getElementById('manage-people-order-btn');
+const savePeopleOrderBtn = document.getElementById('save-people-order-btn');
+
+if (managePeopleOrderBtn) {
+    managePeopleOrderBtn.onclick = () => {
+        isManagingPeople = true;
+        managePeopleOrderBtn.style.display = 'none';
+        savePeopleOrderBtn.style.display = 'inline-block';
+        filterPeople(currentPeopleCategory);
+    };
+}
+
+if (savePeopleOrderBtn) {
+    savePeopleOrderBtn.onclick = async () => {
+        savePeopleOrderBtn.textContent = 'Saving...';
+        savePeopleOrderBtn.disabled = true;
+        try {
+            await savePeopleRank();
+        } catch (err) {
+            alert('Error saving order: ' + err.message);
+        } finally {
+            isManagingPeople = false;
+            if (peopleSortableInstance) {
+                peopleSortableInstance.destroy();
+                peopleSortableInstance = null;
+            }
+            savePeopleOrderBtn.style.display = 'none';
+            managePeopleOrderBtn.style.display = 'inline-block';
+            savePeopleOrderBtn.textContent = 'Save Order';
+            savePeopleOrderBtn.disabled = false;
+            filterPeople(currentPeopleCategory);
+        }
+    };
+}
+
+// --- Reorder button wiring (Fandoms) ---
+const manageFandomsOrderBtn = document.getElementById('manage-fandoms-order-btn');
+const saveFandomsOrderBtn = document.getElementById('save-fandoms-order-btn');
+
+if (manageFandomsOrderBtn) {
+    manageFandomsOrderBtn.onclick = () => {
+        isManagingFandoms = true;
+        manageFandomsOrderBtn.style.display = 'none';
+        saveFandomsOrderBtn.style.display = 'inline-block';
+        filterFandoms(currentFandomsCategory);
+    };
+}
+
+if (saveFandomsOrderBtn) {
+    saveFandomsOrderBtn.onclick = async () => {
+        saveFandomsOrderBtn.textContent = 'Saving...';
+        saveFandomsOrderBtn.disabled = true;
+        try {
+            await saveFandomsRank();
+        } catch (err) {
+            alert('Error saving order: ' + err.message);
+        } finally {
+            isManagingFandoms = false;
+            if (fandomsSortableInstance) {
+                fandomsSortableInstance.destroy();
+                fandomsSortableInstance = null;
+            }
+            saveFandomsOrderBtn.style.display = 'none';
+            manageFandomsOrderBtn.style.display = 'inline-block';
+            saveFandomsOrderBtn.textContent = 'Save Order';
+            saveFandomsOrderBtn.disabled = false;
+            filterFandoms(currentFandomsCategory);
+        }
+    };
+}
 
 function renderProfileTags() {
     const container = document.getElementById('tags-grid');

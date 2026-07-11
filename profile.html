@@ -76,6 +76,8 @@
         <div class="profile-tabs">
             <button class="tab-btn active" onclick="switchTab('home')">Home</button>
             <button class="tab-btn" onclick="switchTab('library')">Library</button>
+            <button class="tab-btn" onclick="switchTab('people')">People</button>
+            <button class="tab-btn" onclick="switchTab('fandoms')">Fandoms</button>
             <button class="tab-btn" onclick="switchTab('on-hold')">On Hold / Dropped</button>
             <button id="tags-tab-btn" class="tab-btn" onclick="switchTab('tags')" style="display: none;">Tags</button>
         </div>
@@ -95,6 +97,42 @@
             <div class="grid" id="library-grid"></div>
             
             <div id="library-pagination" style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 40px; margin-bottom: 20px;"></div>
+        </div>
+
+        <div id="tab-people" class="tab-content">
+            <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+                <h2 style="margin: 0;">Tracked People</h2>
+                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <div class="filter-nav" style="margin: 0;">
+                        <button class="filter-btn active" onclick="filterPeople('character')">Characters</button>
+                        <button class="filter-btn" onclick="filterPeople('actor')">Actors</button>
+                        <button class="filter-btn" onclick="filterPeople('crew')">Crew</button>
+                        <button class="filter-btn" onclick="filterPeople('author')">Authors</button>
+                        <button class="filter-btn" onclick="filterPeople('artist')">Artists</button>
+                    </div>
+                </div>
+            </div>
+            <p class="meta" id="people-rank-instructions" style="display: none; margin-top: -15px; margin-bottom: 20px;">Click "Reorder" to drag and drop your favorites into a new order.</p>
+            <button id="manage-people-order-btn" class="secondary-btn" style="display:none; width:auto; padding: 8px 16px;">Reorder</button>
+                    <button id="save-people-order-btn" class="primary-btn" style="display:none; width:auto; padding: 8px 16px;">Save Order</button>
+            <div class="grid" id="people-grid"></div>
+        </div>
+
+        <div id="tab-fandoms" class="tab-content">
+            <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+                <h2 style="margin: 0;">Followed Fandoms</h2>
+                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <div class="filter-nav" style="margin: 0;">
+                        <button class="filter-btn active" onclick="filterFandoms('movie')">Movies</button>
+                        <button class="filter-btn" onclick="filterFandoms('tv')">TV</button>
+                        <button class="filter-btn" onclick="filterFandoms('book')">Books</button>
+                    </div>
+                </div>
+            </div>
+            <p class="meta" id="fandoms-rank-instructions" style="display: none; margin-top: -15px; margin-bottom: 20px;">Click "Reorder" to drag and drop your fandoms into a new order.</p>
+            <button id="manage-fandoms-order-btn" class="secondary-btn" style="display:none; width:auto; padding: 8px 16px;">Reorder</button>
+                    <button id="save-fandoms-order-btn" class="primary-btn" style="display:none; width:auto; padding: 8px 16px;">Save Order</button>
+            <div class="grid" id="fandoms-grid"></div>
         </div>
 
         <div id="tab-on-hold" class="tab-content">
@@ -217,6 +255,7 @@
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <script src="scriptingProfile.js"></script>
 
     <div class="settings-section" style="margin-top: 50px; border-top: 1px solid var(--glass-border); padding-top: 20px;">

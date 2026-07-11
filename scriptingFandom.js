@@ -2,6 +2,7 @@ const params = new URLSearchParams(window.location.search);
 let mediaId = params.get('id');
 const mediaType = params.get('type');
 let supabaseClient = null;
+let currentUser = null;
 
 // Unblockable Inline SVG Placeholders
 const FALLBACK_POSTER = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='500' height='750'><rect width='500' height='750' fill='%2314181c'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='24' fill='%239ab'>No Image</text></svg>`;
@@ -22,7 +23,7 @@ async function initFandomPage() {
 
     const config = await fetch('config.json').then(r => r.json());
     supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
-    setupHeader();
+    await setupHeader();
 
     const propertyId = propertyMap[mediaType];
     
@@ -39,21 +40,29 @@ async function initFandomPage() {
         // 2. Fetch Characters from Structured JSON APIs (TMDB)
         await fetchStructuredCharacters(mediaId, mediaType);
 
+        // 3. Setup Fandom Follow Button
+        const fandomTitle = document.getElementById('fandom-title').textContent;
+        const fandomImage = document.getElementById('fandom-image').src;
+        // Prevent saving massive SVG data URIs to the database if it falls back
+        const dbImage = fandomImage.startsWith('data:image') ? '' : fandomImage;
+        await setupFandomFollowBtn(fandomTitle, dbImage);
+
     } catch (error) {
         console.error("Fandom Fetch Error:", error);
         showError("Failed to load Wikipedia lore.");
     }
 }
 
-// --- NEW HEADER & AUTH LOGIC ---
-
+// --- HEADER & AUTH LOGIC ---
 async function setupHeader() {
     const loginBtn = document.getElementById('login-btn');
     const profileMenu = document.getElementById('profile-menu');
 
     const { data: { user } } = await supabaseClient.auth.getUser();
+    currentUser = user; // Save to global variable
+
     if (user) {
-        loginBtn.style.display = 'none'; 
+        loginBtn.style.display = 'none';
         profileMenu.style.display = 'inline-block';
         
         const avatar = document.getElementById('nav-avatar');
@@ -219,6 +228,21 @@ async function fetchStructuredCharacters(externalId, type) {
             return;
         }
 
+        // --- FETCH CURRENT USER FOLLOWED CHARACTERS ---
+        let followedCharacterIds = new Set();
+        if (currentUser) {
+            const { data: userChars } = await supabaseClient
+                .from('user_characters')
+                .select('character_id')
+                .eq('user_id', currentUser.id)
+                .eq('media_id', String(externalId))
+                .eq('media_type', type);
+            
+            if (userChars) {
+                userChars.forEach(c => followedCharacterIds.add(c.character_id));
+            }
+        }
+
         const characters = res.cast.slice(0, 24).map(c => {
             let cleanName = c.character ? c.character.replace(/\(voice\)/gi, '').trim() : "Unknown";
             cleanName = cleanName.split('/')[0].trim();
@@ -235,14 +259,25 @@ async function fetchStructuredCharacters(externalId, type) {
         characters.forEach((char, index) => {
             const imgId = `fandom-img-${index}`;
             const fallbackImg = char.tmdbImage || FALLBACK_AVATAR;
+            const safeDbImage = char.tmdbImage || ''; // Don't save SVGs to DB
+            
+            const isFollowingChar = followedCharacterIds.has(char.wikiId);
+            const btnClass = isFollowingChar ? 'secondary-btn' : 'primary-btn';
+            const btnText = isFollowingChar ? 'Unfollow' : 'Follow';
+            const escapedName = char.name.replace(/'/g, "\\'"); // Prevent breaking the HTML string
 
             gridHtml += `
-                <div class="fandom-character-card" style="cursor: default;">
+                <div class="fandom-character-card" style="cursor: pointer; flex-direction: column;" onclick="routeToCharacter('${char.wikiId}')">
                     <div class="fandom-char-img-wrapper">
                         <img id="${imgId}" src="${fallbackImg}" class="fandom-char-img" loading="lazy">
                     </div>
-                    <div class="fandom-char-info">
+                    <div class="fandom-char-info" style="gap: 10px;">
                         <p class="fandom-char-text" style="font-weight: bold; font-size: 1rem; color: #fff;">${char.name}</p>
+                        <button class="${btnClass} char-follow-btn" 
+                            style="width: 100%; padding: 6px; font-size: 0.8rem; border-radius: 6px; margin-top: auto;"
+                            onclick="event.stopPropagation(); toggleCharacterFollow(this, '${char.wikiId}', '${escapedName}', '${safeDbImage}')">
+                            ${btnText}
+                        </button>
                     </div>
                 </div>
             `;
@@ -274,6 +309,122 @@ async function fetchCharacterPreviewImage(wikiTitle, imgElementId) {
 window.routeToCharacter = function(wikiId) {
     if (!wikiId) return;
     window.location.href = `cast.html?characterWiki=${encodeURIComponent(wikiId)}&mediaId=${mediaId}&mediaType=${mediaType}`;
+};
+
+async function setupFandomFollowBtn(title, imageUrl) {
+    const btn = document.getElementById('follow-fandom-btn');
+    if (!currentUser) {
+        btn.textContent = "Sign in to Follow Fandom";
+        btn.onclick = () => window.location.href = 'index.html';
+        return;
+    }
+
+    // Check if already following
+    const { data } = await supabaseClient
+        .from('user_fandoms')
+        .select('id')
+        .eq('user_id', currentUser.id)
+        .eq('media_id', String(mediaId))
+        .eq('media_type', mediaType)
+        .maybeSingle();
+
+    let isFollowing = !!data;
+    
+    const updateBtnUI = (following) => {
+        btn.textContent = following ? 'Unfollow Fandom' : 'Follow Fandom';
+        if (following) {
+            btn.classList.remove('primary-btn');
+            btn.classList.add('secondary-btn');
+        } else {
+            btn.classList.remove('secondary-btn');
+            btn.classList.add('primary-btn');
+        }
+    };
+
+    updateBtnUI(isFollowing);
+
+    btn.onclick = async () => {
+        btn.disabled = true; // Prevent spam clicks
+        
+        if (isFollowing) {
+            const { error } = await supabaseClient
+                .from('user_fandoms')
+                .delete()
+                .eq('user_id', currentUser.id)
+                .eq('media_id', String(mediaId))
+                .eq('media_type', mediaType);
+            
+            if (!error) {
+                isFollowing = false;
+                updateBtnUI(isFollowing);
+            }
+        } else {
+            const { error } = await supabaseClient
+                .from('user_fandoms')
+                .insert({
+                    user_id: currentUser.id,
+                    media_id: String(mediaId),
+                    media_type: mediaType,
+                    title: title,
+                    image_url: imageUrl
+                });
+            
+            if (!error) {
+                isFollowing = true;
+                updateBtnUI(isFollowing);
+            }
+        }
+        btn.disabled = false;
+    };
+}
+
+window.toggleCharacterFollow = async function(btn, charId, charName, imageUrl) {
+    if (!currentUser) {
+        window.location.href = 'index.html';
+        return;
+    }
+
+    const isFollowing = btn.textContent.trim() === 'Unfollow';
+
+    // Disable briefly while updating DB
+    btn.disabled = true; 
+    btn.style.opacity = '0.5';
+
+    if (isFollowing) {
+        const { error } = await supabaseClient
+            .from('user_characters')
+            .delete()
+            .eq('user_id', currentUser.id)
+            .eq('character_id', charId)
+            .eq('media_id', String(mediaId))
+            .eq('media_type', mediaType);
+        
+        if (!error) {
+            btn.textContent = 'Follow';
+            btn.classList.remove('secondary-btn');
+            btn.classList.add('primary-btn');
+        }
+    } else {
+        const { error } = await supabaseClient
+            .from('user_characters')
+            .insert({
+                user_id: currentUser.id,
+                character_id: charId,
+                character_name: charName,
+                media_id: String(mediaId),
+                media_type: mediaType,
+                image_url: imageUrl
+            });
+        
+        if (!error) {
+            btn.textContent = 'Unfollow';
+            btn.classList.remove('primary-btn');
+            btn.classList.add('secondary-btn');
+        }
+    }
+    
+    btn.disabled = false;
+    btn.style.opacity = '1';
 };
 
 function showError(message) {

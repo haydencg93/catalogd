@@ -2,7 +2,12 @@ const params = new URLSearchParams(window.location.search);
 const personId = params.get('personId');
 const authorId = params.get('authorId');
 const artistName = params.get('artist');
+const characterWiki = params.get('characterWiki');
+const mediaId = params.get('mediaId');
+const mediaType = params.get('mediaType');
+
 let supabaseClient = null;
+let currentUser = null; // Track the logged-in user
 
 async function initCastPage() {
     try {
@@ -10,9 +15,11 @@ async function initCastPage() {
         const config = await configResponse.json();
         
         supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
-        setupHeader();
+        await setupHeader();
 
-        if (authorId) {
+        if (characterWiki) {
+            await initCharacterPage(characterWiki, mediaId, mediaType);
+        } else if (authorId) {
             await initAuthorPage(authorId);
         } else if (personId) {
             await initPersonPage(personId, config.tmdb_token);
@@ -27,15 +34,58 @@ async function initCastPage() {
     }
 }
 
+// --- NEW: CHARACTER PAGE LOGIC ---
+async function initCharacterPage(wikiId, mId, mType) {
+    let name = wikiId.replace(/_/g, ' ');
+    document.getElementById('person-name').textContent = name;
+    
+    // Characters don't have filmographies or "Known For" sections
+    document.getElementById('filmography').style.display = 'none';
+
+    let bioText = "";
+    let imageUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=1b2228&color=9ab&size=300`;
+
+    // 1. Try to fetch rich data from Wikipedia
+    try {
+        const wikiRes = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(wikiId)}?redirects=1`).then(r => r.json());
+        if (wikiRes.extract) bioText = wikiRes.extract;
+        if (wikiRes.thumbnail?.source) imageUrl = wikiRes.thumbnail.source;
+        if (wikiRes.title) {
+            name = wikiRes.title;
+            document.getElementById('person-name').textContent = name;
+        }
+    } catch (e) {
+        console.log("Wiki fetch fallback triggered for character");
+    }
+
+    // 2. Fallback to TMDB Media Title if Wikipedia fails
+    if (!bioText && mId && mType) {
+        try {
+            const config = await fetch('config.json').then(r=>r.json());
+            const mediaRes = await fetch(`https://api.themoviedb.org/3/${mType}/${mId}?language=en-US`, {
+                headers: { Authorization: `Bearer ${config.tmdb_token}` }
+            }).then(r=>r.json());
+            
+            const mediaTitle = mediaRes.title || mediaRes.name;
+            bioText = `A character from the ${mType === 'tv' ? 'TV show' : 'movie'} ${mediaTitle}.`;
+        } catch(e) {
+            bioText = `A character from a ${mType}.`;
+        }
+    } else if (!bioText) {
+        bioText = "No biography available.";
+    }
+
+    document.getElementById('person-biography').textContent = bioText;
+
+    // 3. Setup Universal UI
+    await setupPersonImage(wikiId, 'character', imageUrl, name);
+    setupFollowBtn(wikiId, name, 'character', imageUrl, mId, mType);
+}
+
 // Robust year extraction from various Open Library data shapes
 function extractYear(item) {
     if (!item) return null;
-    const dateSources = [
-        item.first_publish_date,
-        item.publish_date,
-        item.created?.value,
-        item.last_modified?.value
-    ];
+    const dateSources = [item.first_publish_date, item.publish_date, item.created?.value, item.last_modified?.value];
     for (let dateStr of dateSources) {
         if (dateStr) {
             const match = String(dateStr).match(/\d{4}/);
@@ -58,45 +108,35 @@ async function initAuthorPage(id) {
     const filmographyHeader = document.querySelector('#filmography h3');
     if (filmographyHeader) filmographyHeader.textContent = "Bibliography";
 
-    // Author Photo
-    const imageContainer = document.getElementById('person-image-container');
-    if (author.photos && author.photos.length > 0) {
-        imageContainer.innerHTML = `<img src="https://covers.openlibrary.org/a/id/${author.photos[0]}-L.jpg" alt="${author.name}" class="person-img">`;
-    } else {
-        const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(author.name)}&background=1b2228&color=9ab&size=300`;
-        imageContainer.innerHTML = `<img src="${fallback}" class="person-img">`;
-    }
+    // Setup Image & Follow Button
+    let defaultImg = author.photos && author.photos.length > 0 
+        ? `https://covers.openlibrary.org/a/id/${author.photos[0]}-L.jpg` 
+        : `https://ui-avatars.com/api/?name=${encodeURIComponent(author.name)}&background=1b2228&color=9ab&size=300`;
+    
+    await setupPersonImage(id, 'author', defaultImg, author.name);
+    setupFollowBtn(id, author.name, 'author', defaultImg, null, null);
 
-    // Increased limit to 1000 to ensure even the most prolific authors (King, Patterson, etc.) are fully captured
     const worksData = await fetch(`https://openlibrary.org/authors/${id}/works.json?limit=1000`).then(r => r.json());
     let rawWorks = worksData.entries || [];
 
-    // Filter and Deduplicate
     const titleMap = new Map();
     const noiseKeywords = ["sparknotes", "literature guide", "summary of", "study guide", "cliffsnote", "workbook"];
     
     rawWorks.forEach(item => {
         const titleLower = item.title.toLowerCase().trim();
-        
-        // Skip noise
         if (noiseKeywords.some(keyword => titleLower.includes(keyword))) return;
-        
-        // Smart Deduplication: If we see the same title, keep the one that has a cover
         if (!titleMap.has(titleLower) || (!titleMap.get(titleLower).covers && item.covers)) {
             titleMap.set(titleLower, item);
         }
     });
 
     let works = Array.from(titleMap.values());
-
-    // Sort by year descending
     works.sort((a, b) => {
         const yearA = extractYear(a) || '0000';
         const yearB = extractYear(b) || '0000';
         return yearB.localeCompare(yearA);
     });
 
-    // Best Known Works Section
     const knownFor = works.filter(w => w.covers && w.covers.length > 0).slice(0, 4);
     if (knownFor.length > 0) {
         const knownForHtml = `
@@ -124,17 +164,14 @@ async function initAuthorPage(id) {
         document.getElementById('person-bio-area').insertAdjacentHTML('beforeend', knownForHtml);
     }
 
-    // Full Bibliography List
     const list = document.getElementById('film-list');
-    list.innerHTML = ''; // Clear previous
+    list.innerHTML = ''; 
 
     const bookPlaceholder = `data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI2MCIgdmlld0JveD0iMCAwIDQwIDYwIj48cmVjdCB3aWR0aD0iNDAiIGhlaWdodD0iNjAiIGZpbGw9IiMxYjIyMjgiLz48cGF0aCBkPSJNMTAgMTBoMjB2NDBIMTB6IiBmaWxsPSJub25lIiBzdHJva2U9IiM5YWIiIHN0cm9rZS13aWR0aD0iMiIvPjxsaW5lIHgxPSIxNSIgeTE9IjIwIiB4Mj0iMjUiIHkyPSIyMCIgc3Ryb2tlPSIjOWFiIiBzdHJva2Utd2lkdGg9IjIiLz48bGluZSB4MT0iMTUiIHkxPSIzMCIgeDI9IjI1IiB5Mj0iMzAiIHN0cm9rZT0iIzlhYiIgc3Ryb2tlLXdpZHRoPSIyIi8+PC9zdmc+`;
 
     works.forEach(item => {
         const yearDisplay = extractYear(item) || '----';
-        const poster = item.covers 
-            ? `https://covers.openlibrary.org/b/id/${item.covers[0]}-S.jpg` 
-            : bookPlaceholder;
+        const poster = item.covers ? `https://covers.openlibrary.org/b/id/${item.covers[0]}-S.jpg` : bookPlaceholder;
 
         const row = document.createElement('div');
         row.className = 'film-row';
@@ -158,18 +195,26 @@ async function initPersonPage(id, token) {
     document.getElementById('person-name').textContent = person.name;
     document.getElementById('person-biography').textContent = person.biography || "No biography available.";
     
-    if (person.profile_path) {
-        document.getElementById('person-image-container').innerHTML = `
-            <img src="https://image.tmdb.org/t/p/w300${person.profile_path}" alt="${person.name}" class="person-img">
-        `;
-    }
+    // Setup Image & Follow Button
+    let defaultImg = person.profile_path 
+        ? `https://image.tmdb.org/t/p/w300${person.profile_path}` 
+        : `https://ui-avatars.com/api/?name=${encodeURIComponent(person.name)}&background=1b2228&color=9ab&size=300`;
+    
+    const category = person.known_for_department === 'Acting' ? 'actor' : 'crew';
+
+    await setupPersonImage(id, category, defaultImg, person.name);
+    setupFollowBtn(id, person.name, category, defaultImg, null, null);
 
     const credits = await fetch(`https://api.themoviedb.org/3/person/${id}/combined_credits`, { headers }).then(r => r.json());
-    const actingCredits = (credits.cast || []).filter(item => item.poster_path);
+    
+    // For Crew members, use the crew array instead of cast for the known-for/filmography
+    const creditArray = category === 'actor' ? (credits.cast || []) : (credits.crew || []);
+    
+    const validCredits = creditArray.filter(item => item.poster_path);
     const uniqueCredits = [];
     const seenIds = new Set();
     
-    actingCredits.forEach(item => {
+    validCredits.forEach(item => {
         if (!seenIds.has(item.id)) {
             uniqueCredits.push(item);
             seenIds.add(item.id);
@@ -184,31 +229,33 @@ async function initPersonPage(id, token) {
         return scoreB - scoreA;
     }).slice(0, 4);
 
-    const knownForHtml = `
-        <div class="known-for-section">
-            <h3>Known For</h3>
-            <div class="known-for-grid">
-                ${knownFor.map(item => `
-                    <div class="media-card" onclick="window.location.href='details.html?id=${item.id}&type=${item.media_type}'">
-                        <div class="poster-wrapper">
-                            <img src="${item.poster_path ? 'https://image.tmdb.org/t/p/w300' + item.poster_path : 'placeholder.png'}" alt="${item.title || item.name}">
-                        </div>
-                        <div class="media-info">
-                            <div class="title" style="font-size: 0.9rem; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                                ${item.title || item.name}
+    if (knownFor.length > 0) {
+        const knownForHtml = `
+            <div class="known-for-section">
+                <h3>Known For</h3>
+                <div class="known-for-grid">
+                    ${knownFor.map(item => `
+                        <div class="media-card" onclick="window.location.href='details.html?id=${item.id}&type=${item.media_type}'">
+                            <div class="poster-wrapper">
+                                <img src="${item.poster_path ? 'https://image.tmdb.org/t/p/w300' + item.poster_path : 'placeholder.png'}" alt="${item.title || item.name}">
                             </div>
-                            <div class="meta" style="font-size: 0.8rem; color: #9ab;">
-                                ${(item.release_date || item.first_air_date || '').split('-')[0] || '----'}
+                            <div class="media-info">
+                                <div class="title" style="font-size: 0.9rem; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                    ${item.title || item.name}
+                                </div>
+                                <div class="meta" style="font-size: 0.8rem; color: #9ab;">
+                                    ${(item.release_date || item.first_air_date || '').split('-')[0] || '----'}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                `).join('')}
+                    `).join('')}
+                </div>
             </div>
-        </div>
-    `;
-    document.getElementById('person-bio-area').insertAdjacentHTML('beforeend', knownForHtml);
+        `;
+        document.getElementById('person-bio-area').insertAdjacentHTML('beforeend', knownForHtml);
+    }
 
-    const sorted = credits.cast.sort((a, b) => {
+    const sorted = creditArray.sort((a, b) => {
         const dateA = a.release_date || a.first_air_date || '0000';
         const dateB = b.release_date || b.first_air_date || '0000';
         return dateB.localeCompare(dateA);
@@ -220,6 +267,8 @@ async function initPersonPage(id, token) {
         const poster = item.poster_path 
             ? `https://image.tmdb.org/t/p/w92${item.poster_path}` 
             : 'https://via.placeholder.com/40x60?text=?';
+            
+        const role = category === 'actor' ? (item.character ? 'as ' + item.character : '') : (item.job || '');
 
         return `
             <div class="film-row" onclick="window.location.href='details.html?id=${item.id}&type=${item.media_type}'">
@@ -227,24 +276,21 @@ async function initPersonPage(id, token) {
                 <img src="${poster}" class="mini-poster" alt="poster">
                 <div class="film-info">
                     <span class="film-title"><strong>${item.title || item.name}</strong></span>
-                    <span class="film-role">${item.character ? 'as ' + item.character : ''}</span>
+                    <span class="film-role">${role}</span>
                 </div>
             </div>
         `;
     }).join('');
 }
 
-// --- NEW: LAST.FM ARTIST PAGE LOGIC ---
 async function initArtistPage(name, apiKey) {
     try {
-        // 1. Fetch Artist Bio & Top Albums
         const infoRes = await fetch(`https://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist=${encodeURIComponent(name)}&api_key=${apiKey}&format=json`).then(r => r.json());
         const albumsRes = await fetch(`https://ws.audioscrobbler.com/2.0/?method=artist.gettopalbums&artist=${encodeURIComponent(name)}&api_key=${apiKey}&format=json&limit=50`).then(r => r.json());
 
         const artist = infoRes.artist;
         const albums = albumsRes.topalbums?.album || [];
 
-        // 2. Set Header Info
         document.getElementById('person-name').textContent = artist.name;
         
         let rawSummary = artist.bio?.summary || "No biography available.";
@@ -253,14 +299,15 @@ async function initArtistPage(name, apiKey) {
         const filmographyHeader = document.querySelector('#filmography h3');
         if (filmographyHeader) filmographyHeader.textContent = "Discography";
 
-        // 3. Workaround: Use Top Album Cover as Profile Picture
-        let photoUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(artist.name)}&background=1b2228&color=9ab&size=512`;
+        // Setup Image & Follow Button
+        let defaultImg = `https://ui-avatars.com/api/?name=${encodeURIComponent(artist.name)}&background=1b2228&color=9ab&size=512`;
         if (albums.length > 0 && albums[0].image && albums[0].image.length > 3 && albums[0].image[3]['#text']) {
-            photoUrl = albums[0].image[3]['#text'];
+            defaultImg = albums[0].image[3]['#text'];
         }
-        document.getElementById('person-image-container').innerHTML = `<img src="${photoUrl}" alt="${artist.name}" class="person-img">`;
+        
+        await setupPersonImage(encodeURIComponent(artist.name), 'artist', defaultImg, artist.name);
+        setupFollowBtn(encodeURIComponent(artist.name), artist.name, 'artist', defaultImg, null, null);
 
-        // 4. Best Known Works (Top 4 Albums)
         const knownFor = albums.slice(0, 4);
         if (knownFor.length > 0) {
             const knownForHtml = `
@@ -292,16 +339,13 @@ async function initArtistPage(name, apiKey) {
             document.getElementById('person-bio-area').insertAdjacentHTML('beforeend', knownForHtml);
         }
 
-        // 5. Full Discography List
         const list = document.getElementById('film-list');
         list.innerHTML = '';
         
-        // A cool custom SVG placeholder that looks like a vinyl record
         const albumPlaceholder = `data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI2MCIgdmlld0JveD0iMCAwIDQwIDYwIj48cmVjdCB3aWR0aD0iNDAiIGhlaWdodD0iNjAiIGZpbGw9IiMxYjIyMjgiLz48Y2lyY2xlIGN4PSIyMCIgY3k9IjMwIiByPSIxMiIgc3Ryb2tlPSIjOWFiIiBzdHJva2Utd2lkdGg9IjIiIGZpbGw9Im5vbmUiLz48Y2lyY2xlIGN4PSIyMCIgY3k9IjMwIiByPSI0IiBmaWxsPSIjOWFiIi8+PC9zdmc+`;
 
         albums.forEach(item => {
             let img = albumPlaceholder;
-            // Grab the medium sized image for the list rows
             if (item.image && item.image.length > 1 && item.image[1]['#text']) img = item.image[1]['#text']; 
             
             const compositeId = encodeURIComponent(`${artist.name}|||${item.name}`);
@@ -328,7 +372,147 @@ async function initArtistPage(name, apiKey) {
     }
 }
 
-// Helper to format playcounts cleanly (e.g. 1.2M plays)
+// --- UNIVERSAL PERSON UI LOGIC ---
+async function setupPersonImage(id, category, defaultUrl, name) {
+    let finalUrl = defaultUrl;
+    
+    // Check if the user has a custom override saved
+    if (currentUser) {
+        const { data } = await supabaseClient.from('custom_imgs')
+            .select('custom_poster')
+            .eq('user_id', currentUser.id)
+            .eq('media_id', String(id))
+            .eq('media_type', category)
+            .maybeSingle();
+            
+        if (data && data.custom_poster) finalUrl = data.custom_poster;
+    }
+
+    document.getElementById('person-image-container').innerHTML = `<img src="${finalUrl}" alt="${name}" class="person-img" id="current-person-img">`;
+    setupCustomArt(id, category);
+}
+
+async function setupFollowBtn(charId, charName, category, imageUrl, mediaId, mediaType) {
+    const btn = document.getElementById('follow-person-btn');
+    btn.style.display = 'block'; // Make it visible now that we have data
+    
+    if (!currentUser) {
+        btn.textContent = "Sign in to Follow";
+        btn.onclick = () => window.location.href = 'index.html';
+        return;
+    }
+
+    const { data } = await supabaseClient
+        .from('user_characters')
+        .select('id')
+        .eq('user_id', currentUser.id)
+        .eq('character_id', String(charId))
+        .eq('person_category', category)
+        .maybeSingle();
+
+    let isFollowing = !!data;
+    
+    const updateBtnUI = (following) => {
+        btn.textContent = following ? 'Unfollow' : 'Follow';
+        if (following) {
+            btn.classList.remove('primary-btn');
+            btn.classList.add('secondary-btn');
+        } else {
+            btn.classList.remove('secondary-btn');
+            btn.classList.add('primary-btn');
+        }
+    };
+
+    updateBtnUI(isFollowing);
+
+    btn.onclick = async () => {
+        btn.disabled = true;
+        if (isFollowing) {
+            const { error } = await supabaseClient
+                .from('user_characters')
+                .delete()
+                .eq('user_id', currentUser.id)
+                .eq('character_id', String(charId))
+                .eq('person_category', category);
+            
+            if (!error) {
+                isFollowing = false;
+                updateBtnUI(isFollowing);
+            }
+        } else {
+            const { error } = await supabaseClient
+                .from('user_characters')
+                .insert({
+                    user_id: currentUser.id,
+                    character_id: String(charId),
+                    character_name: charName,
+                    person_category: category,
+                    media_id: mediaId ? String(mediaId) : null,
+                    media_type: mediaType || null,
+                    image_url: imageUrl
+                });
+            
+            if (!error) {
+                isFollowing = true;
+                updateBtnUI(isFollowing);
+            }
+        }
+        btn.disabled = false;
+    };
+}
+
+async function setupCustomArt(personId, category) {
+    const editBtn = document.getElementById('edit-art-btn');
+    const modal = document.getElementById('custom-art-modal');
+    const closeBtn = document.getElementById('close-art-modal');
+    const saveBtn = document.getElementById('save-art-btn');
+    const posterInput = document.getElementById('custom-poster-input');
+
+    if (!currentUser) return; // Keep hidden if not signed in
+    editBtn.style.display = 'block';
+
+    const { data: existingArt } = await supabaseClient
+        .from('custom_imgs')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .eq('media_id', String(personId))
+        .eq('media_type', category)
+        .maybeSingle();
+
+    editBtn.onclick = () => {
+        posterInput.value = existingArt?.custom_poster || '';
+        modal.style.display = 'flex';
+    };
+
+    closeBtn.onclick = () => modal.style.display = 'none';
+    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+
+    saveBtn.onclick = async () => {
+        saveBtn.textContent = "Saving...";
+        saveBtn.disabled = true;
+
+        const customPoster = posterInput.value.trim() || null;
+
+        const { error } = await supabaseClient
+            .from('custom_imgs')
+            .upsert({
+                user_id: currentUser.id,
+                media_id: String(personId),
+                media_type: category,
+                custom_poster: customPoster
+            }, { onConflict: 'user_id,media_id,media_type' });
+
+        if (!error) {
+            location.reload(); 
+        } else {
+            alert("Error saving art: " + error.message);
+            saveBtn.textContent = "Save Art";
+            saveBtn.disabled = false;
+        }
+    };
+}
+
+// --- HELPER LOGIC ---
 function formatPlays(numStr) {
     const num = parseInt(numStr);
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
@@ -348,18 +532,17 @@ async function setupHeader() {
     });
 
     const { data: { user } } = await supabaseClient.auth.getUser();
+    currentUser = user;
+
     if (user) {
-        // User is logged in: Hide Sign In, Show Profile Menu
         loginBtn.style.display = 'none'; 
         profileMenu.style.display = 'inline-block';
         
-        // Optional: Set avatar if you use them
         const avatar = document.getElementById('nav-avatar');
         if (user.user_metadata && user.user_metadata.avatar_url) {
             avatar.src = user.user_metadata.avatar_url;
         }
     } else {
-        // Not logged in: Show Sign In, Hide Profile Menu
         loginBtn.style.display = 'inline-block';
         profileMenu.style.display = 'none';
         loginBtn.onclick = () => window.location.href = 'index.html';
@@ -368,10 +551,8 @@ async function setupHeader() {
 
 function toggleProfileDropdown(event) {
     if (event) event.stopPropagation();
-    
     const content = document.getElementById('dropdown-content');
     const trigger = document.querySelector('.profile-trigger');
-    
     const isVisible = content.style.display === 'block';
     content.style.display = isVisible ? 'none' : 'block';
     trigger.classList.toggle('active', !isVisible);
@@ -380,7 +561,6 @@ function toggleProfileDropdown(event) {
 window.onclick = function(event) {
     const dropdown = document.getElementById('dropdown-content');
     const trigger = document.querySelector('.profile-trigger');
-    
     if (dropdown && trigger && event.target !== trigger && !trigger.contains(event.target) && !dropdown.contains(event.target)) {
         dropdown.style.display = 'none';
         trigger.classList.remove('active');
