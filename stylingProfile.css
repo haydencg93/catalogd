@@ -910,7 +910,7 @@ input {
 
     /* Force the buttons to exactly 50% width to override the 30% rule */
     #tab-fandoms .filter-btn {
-        flex: 1 1 50% !important;
+        width: 50% !important;
     }
 
     /* General mobile adjustments for the main container */
