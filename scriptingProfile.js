@@ -973,18 +973,19 @@ window.filterPeople = (type) => {
         const label = p.person_category ? (p.person_category.charAt(0).toUpperCase() + p.person_category.slice(1)) : 'Person';
 
         // --- CUSTOM ART LOGIC ---
-        let finalImg = p.image_url || 'https://placehold.co/500x750/1b2228/9ab?text=No+Image';
-        const customArt = customImgsMap.get(`${p.person_category}_${p.character_id}`);
-        if (customArt && customArt.custom_poster) {
-            finalImg = customArt.custom_poster;
-        }
+        // Ensure character_id is treated as a string for the map lookup
+let finalImg = p.image_url || 'https://placehold.co/500x750/1b2228/9ab?text=No+Image';
+const customArt = customImgsMap.get(`${p.person_category}_${String(p.character_id)}`);
+if (customArt && customArt.custom_poster) {
+    finalImg = customArt.custom_poster;
+}
 
-        const card = document.createElement('div');
-        card.className = `media-card ${isManagingPeople ? 'managing' : ''}`;
-        card.setAttribute('data-dbid', p.id);
-        
-        // Show rank badge only for owner
-        const rankBadge = isOwner ? `<div class="rank-badge" style="position:absolute; top:8px; left:8px; background: rgba(0,0,0,0.8); padding: 4px 8px; border-radius: 4px; font-weight: bold; z-index: 10;">#${index + 1}</div>` : '';
+const card = document.createElement('div');
+card.className = `media-card ${isManagingPeople ? 'managing' : ''}`;
+card.setAttribute('data-dbid', p.id);
+
+// Show rank badge for EVERYONE, not just the owner
+const rankBadge = `<div class="rank-badge" style="position:absolute; top:8px; left:8px; background: rgba(0,0,0,0.8); padding: 4px 8px; border-radius: 4px; font-weight: bold; z-index: 10;">#${index + 1}</div>`;
 
         card.innerHTML = `
             <div class="poster-wrapper">
@@ -1095,18 +1096,26 @@ window.filterFandoms = (type) => {
     grid.innerHTML = '';
 
     filtered.forEach((f, index) => {
+        // Add Custom Image Logic for Fandoms
+        let finalImg = f.image_url || 'https://placehold.co/500x750/1b2228/9ab?text=No+Image';
+        const customArt = customImgsMap.get(`${f.media_type}_${String(f.media_id)}`);
+        if (customArt && customArt.custom_poster) {
+            finalImg = customArt.custom_poster;
+        }
+
         const card = document.createElement('div');
         card.className = `media-card ${isManagingFandoms ? 'managing' : ''}`;
         card.setAttribute('data-dbid', f.id);
 
-        const rankBadge = isOwner ? `<div class="rank-badge" style="position:absolute; top:8px; left:8px; background: rgba(0,0,0,0.8); padding: 4px 8px; border-radius: 4px; font-weight: bold; z-index: 10;">#${index + 1}</div>` : '';
+        // Show rank badge for EVERYONE
+        const rankBadge = `<div class="rank-badge" style="position:absolute; top:8px; left:8px; background: rgba(0,0,0,0.8); padding: 4px 8px; border-radius: 4px; font-weight: bold; z-index: 10;">#${index + 1}</div>`;
 
         card.innerHTML = `
             <div class="poster-wrapper">
                 ${rankBadge}
-                <img src="${f.image_url || 'https://placehold.co/500x750/1b2228/9ab?text=No+Image'}" 
-                     alt="${f.title}" 
-                     onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
+                <img src="${finalImg}" 
+                    alt="${f.title}" 
+                    onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
                 <span class="badge badge-${f.media_type}">${f.media_type}</span>
             </div>
             <div class="media-info">

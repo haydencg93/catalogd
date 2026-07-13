@@ -859,31 +859,58 @@ input {
         grid-template-columns: repeat(2, 1fr) !important;
     }
 
-    /* 6. Favorites, Active, Recent, and On Hold: 2 media cards width */
+    /* 6 & 7. Combine ALL grids to be 4 media cards wide */
     #favorites-grid, 
     #active-grid, 
     #recent-grid, 
-    #on-hold-grid {
-        grid-template-columns: repeat(2, 1fr) !important;
-        gap: 15px;
-    }
-
-    /* 7. Library: 4 media cards width */
+    #on-hold-grid,
+    #people-grid,
+    #fandoms-grid,
     #library-grid {
         grid-template-columns: repeat(4, 1fr) !important;
         gap: 10px;
     }
 
-    /* 8. Tags: At least 50% window size (Larger pills) */
+    /* 8. Tags: Force exactly 2 columns using Grid */
     .tags-cloud-container {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
         width: 100% !important;
-        justify-content: center;
+        gap: 10px !important;
     }
+    
     .profile-tag-pill {
-        flex: 0 1 45%; /* Makes tags roughly half the screen width */
+        width: 100%;
         justify-content: center;
         text-align: center;
         font-size: 0.85rem;
+        box-sizing: border-box;
+    }
+
+    /* 9. Hide the category badges and labels on tracked people to save space */
+    #people-grid .badge,
+    #people-grid .meta {
+        display: none !important;
+    }
+
+    /* 10. Only show 8 Recent Activity cards instead of 10 on mobile */
+    #recent-grid .media-card:nth-child(n+9) {
+        display: none !important;
+    }
+
+    /* 11. Force Fandom filters to evenly split the 100% width on mobile */
+    #tab-fandoms .section-header > div {
+        width: 100% !important;
+    }
+
+    #tab-fandoms .filter-nav {
+        width: 100% !important;
+        display: flex !important;
+    }
+
+    /* Force the buttons to exactly 50% width to override the 30% rule */
+    #tab-fandoms .filter-btn {
+        flex: 1 1 50% !important;
     }
 
     /* General mobile adjustments for the main container */
