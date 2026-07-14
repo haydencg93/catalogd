@@ -1,6 +1,6 @@
 const params = new URLSearchParams(window.location.search);
 let mediaId = params.get('id');
-const mediaType = params.get('type');
+let mediaType = params.get('type');
 let supabaseClient = null;
 let currentUser = null;
 
@@ -15,35 +15,63 @@ const propertyMap = {
     'album': 'P3192'    
 };
 
-async function initFandomPage() {
-    if (!mediaId || !mediaType || !propertyMap[mediaType]) {
-        showError("Fandom exploration is currently only available for Movies, TV Shows, and Albums.");
-        return;
-    }
+// Add a global array for the full character list
+let allFandomCharacters = [];
 
+async function initFandomPage() {
     const config = await fetch('config.json').then(r => r.json());
     supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
     await setupHeader();
 
+        // INTERCEPT URL FOR TVDB LIST RENDERING
+    const listId = params.get('listId');
+    if (listId) {
+        mediaId = `list_${listId}`;
+        mediaType = 'collection'; // Changed from 'list' to 'collection' to match profile filters
+        
+        try {
+            await fetchListFandom(listId, config);
+        } catch (e) {
+            showError("Failed to load list details.");
+        }
+        return;
+    }
+
+        // Allow the page to proceed if it's a standard media type OR a collection
+    if (!mediaId || !mediaType || (!propertyMap[mediaType] && mediaType !== 'collection')) {
+        showError("Fandom exploration is currently only available for Movies, TV Shows, and Albums.");
+        return;
+    }
+
     const propertyId = propertyMap[mediaType];
     
     try {
+        // 1. Pre-fetch Official Cover Image from TMDB
+        if (mediaType === 'movie' || mediaType === 'tv') {
+            try {
+                const tmdbRes = await fetch(`https://api.themoviedb.org/3/${mediaType}/${mediaId}?language=en-US`, {
+                    headers: { Authorization: `Bearer ${config.tmdb_token}` }
+                }).then(r => r.json());
+                
+                if (tmdbRes.poster_path) {
+                    document.getElementById('fandom-image').src = `https://image.tmdb.org/t/p/w500${tmdbRes.poster_path}`;
+                }
+            } catch (e) { console.warn("TMDB image fetch failed."); }
+        }
+
         const wikiTitle = await getWikipediaTitle(propertyId, mediaId);
         
-        // 1. Fetch Plot and Summaries from Wikipedia (IF IT EXISTS)
         if (wikiTitle) {
             await fetchWikipediaLore(wikiTitle);
         } else {
             showError("No Wikipedia lore found for this item in Wikidata.");
         }
         
-        // 2. Fetch Characters from Structured JSON APIs (TMDB)
         await fetchStructuredCharacters(mediaId, mediaType);
+        await fetchTVDBLists(mediaId, mediaType, config);
 
-        // 3. Setup Fandom Follow Button
         const fandomTitle = document.getElementById('fandom-title').textContent;
         const fandomImage = document.getElementById('fandom-image').src;
-        // Prevent saving massive SVG data URIs to the database if it falls back
         const dbImage = fandomImage.startsWith('data:image') ? '' : fandomImage;
         await setupFandomFollowBtn(fandomTitle, dbImage);
 
@@ -51,6 +79,231 @@ async function initFandomPage() {
         console.error("Fandom Fetch Error:", error);
         showError("Failed to load Wikipedia lore.");
     }
+}
+
+// Ask TMDB to find a record by an external id (imdb_id or tvdb_id).
+async function tmdbFindByExternalId(externalId, source, mediaKind, tmdbToken) {
+    if (!externalId || !tmdbToken) return null;
+    try {
+        const res = await fetch(`https://api.themoviedb.org/3/find/${externalId}?external_source=${source}`, {
+            headers: { Authorization: `Bearer ${tmdbToken}` }
+        }).then(r => r.json());
+
+        if (mediaKind === 'movie' && res.movie_results && res.movie_results.length > 0) {
+            return res.movie_results[0].id;
+        }
+        if (mediaKind === 'tv' && res.tv_results && res.tv_results.length > 0) {
+            return res.tv_results[0].id;
+        }
+    } catch (e) {
+        console.warn(`TMDB find failed for ${source}=${externalId}`, e);
+    }
+    return null;
+}
+
+// Resolve a TVDB movie/series entity to its matching TMDB id, so collection cards
+// can deep-link into this app's own (TMDB-id-keyed) details pages.
+//
+// IMPORTANT: TMDB's /find endpoint only supports external_source=tvdb_id for TV/season/episode
+// lookups - it does NOT support tvdb_id for movies at all (movies on TMDB only cross-reference
+// imdb_id, wikidata_id, facebook_id, instagram_id, twitter_id). That's why movie items were
+// never linking: every /find?external_source=tvdb_id call for a movie silently returns an
+// empty movie_results array, with no error to catch. So for movies we go two hops instead:
+// pull the IMDB id off TVDB's own 'remoteIds' (only present on the /extended movie record),
+// then ask TMDB to find it via imdb_id, which movies DO support.
+async function resolveTmdbId(entData, tvdbAuthHeaders, tmdbToken) {
+    if (!tmdbToken || !entData.id) return null;
+
+    if (entData.__type === 'series') {
+        return await tmdbFindByExternalId(entData.id, 'tvdb_id', 'tv', tmdbToken);
+    }
+
+    // Movie path: make sure we have remoteIds (present if this item came from a /movies/{id}/extended
+    // fetch already; fetch it now as a fallback for items that were embedded directly on the list).
+    let remoteIds = entData.remoteIds;
+    if (!remoteIds) {
+        try {
+            const res = await fetch(`https://api4.thetvdb.com/v4/movies/${entData.id}/extended`, {
+                headers: tvdbAuthHeaders
+            }).then(r => r.json());
+            remoteIds = res && res.data && res.data.remoteIds;
+        } catch (e) {
+            console.warn(`Failed to fetch remoteIds for movie ${entData.id}`, e);
+        }
+    }
+
+    const imdbEntry = Array.isArray(remoteIds)
+        ? remoteIds.find(r => typeof r.id === 'string' && /^tt\d+$/.test(r.id))
+        : null;
+
+    if (!imdbEntry) return null;
+    return await tmdbFindByExternalId(imdbEntry.id, 'imdb_id', 'movie', tmdbToken);
+}
+
+// Fetch & Render Official TVDB Lists
+async function fetchListFandom(listId, config) {
+    // Hide standard media sections
+    document.getElementById('fandom-cast-section').style.display = 'none';
+    document.getElementById('fandom-plot-section').style.display = 'none';
+    document.getElementById('fandom-meta').textContent = "Official Collection";
+    
+    // Login to TVDB v4
+    const loginRes = await fetch('https://api4.thetvdb.com/v4/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apikey: config.tvdb_key, pin: config.tvdb_pin || "" })
+    }).then(r => r.json());
+    
+    if (!loginRes.data || !loginRes.data.token) throw new Error("TVDB auth failed");
+    const tvdbToken = loginRes.data.token;
+    const tvdbAuthHeaders = { Authorization: `Bearer ${tvdbToken}` };
+    
+    // Fetch Extended List Details
+    const listRes = await fetch(`https://api4.thetvdb.com/v4/lists/${listId}/extended`, {
+        headers: tvdbAuthHeaders
+    }).then(r => r.json());
+    
+    if (!listRes.data) throw new Error("List not found");
+    const list = listRes.data;
+    
+    // Bind Details to UI
+    document.getElementById('fandom-title').textContent = list.name || "Unknown Collection";
+    document.getElementById('fandom-overview').innerHTML = list.overview || "No description provided for this collection.";
+    
+    // TVDB v4's ListExtendedRecord only exposes 'image' (no 'poster' field exists on lists).
+    // CRITICAL: TVDB also exposes 'imageIsFallback'. When true, TVDB is NOT giving us the list's
+    // own curated artwork - it silently substitutes the FIRST ENTITY'S OWN POSTER instead. That's
+    // exactly why the banner was showing the "Star Wars (1977)" poster instead of the Skywalker
+    // Saga collection art: TVDB's API was reporting the fallback, not lying to us about the field name.
+    let listImage = list.image || list.poster || list.image_url;
+    const tvdbImageIsFallback = list.imageIsFallback === true;
+    if (tvdbImageIsFallback) {
+        console.warn(`TVDB list ${listId}: 'image' is a fallback to an entity poster, not curated list art.`, listImage);
+    }
+    if (listImage && !tvdbImageIsFallback) {
+        document.getElementById('fandom-image').src = listImage;
+    }
+    
+    // Some payloads embed full movie/series objects directly under .movies/.series - use them if present.
+    let collectionItems = [];
+    if (list.movies && Array.isArray(list.movies)) {
+        collectionItems.push(...list.movies.map(m => ({ ...m, __type: 'movie' })));
+    }
+    if (list.series && Array.isArray(list.series)) {
+        collectionItems.push(...list.series.map(s => ({ ...s, __type: 'series' })));
+    }
+    
+    // The documented TVDB v4 shape only puts BARE STUBS ({movieId, seriesId, order}) in .entities -
+    // no name, no image. That's why titles/images were failing to load before: entData.name/entData.poster
+    // simply don't exist on those stubs. We have to resolve each stub against the movie/series endpoints.
+    // We use the /extended endpoints (not the base ones) specifically so we ALSO get 'remoteIds' back
+    // in the same call - that's what the TMDB movie-linking step above needs.
+    if (collectionItems.length === 0 && list.entities && Array.isArray(list.entities)) {
+        const toResolve = [];
+        list.entities.forEach(ent => {
+            // Defensive: some accounts/proxies do embed the full object - use it directly if it's there.
+            const embedded = ent.movie || ent.series;
+            if (embedded && (embedded.name || embedded.title)) {
+                collectionItems.push({ ...embedded, __type: ent.movie ? 'movie' : 'series' });
+                return;
+            }
+            if (ent.movieId) {
+                toResolve.push({ id: ent.movieId, type: 'movie' });
+            } else if (ent.seriesId) {
+                toResolve.push({ id: ent.seriesId, type: 'series' });
+            }
+        });
+        
+        if (toResolve.length > 0) {
+            const resolved = await Promise.all(toResolve.map(async (stub) => {
+                try {
+                    const endpoint = stub.type === 'movie'
+                        ? `https://api4.thetvdb.com/v4/movies/${stub.id}/extended`
+                        : `https://api4.thetvdb.com/v4/series/${stub.id}/extended`;
+                    const res = await fetch(endpoint, { headers: tvdbAuthHeaders }).then(r => r.json());
+                    if (res && res.data) {
+                        return { ...res.data, __type: stub.type };
+                    }
+                } catch (e) {
+                    console.warn(`Failed to resolve list ${stub.type} ${stub.id}`, e);
+                }
+                return null;
+            }));
+            collectionItems.push(...resolved.filter(Boolean));
+        }
+    }
+
+    // Sort items logically by Year to keep order consistent (String cast protects against raw integers)
+    collectionItems.sort((a, b) => {
+        const yearA = parseInt(String(a.year || a.firstAired || a.releaseDate || '9999').split('-')[0]) || 9999;
+        const yearB = parseInt(String(b.year || b.firstAired || b.releaseDate || '9999').split('-')[0]) || 9999;
+        if (yearA !== yearB) return yearA - yearB;
+        return (a.id || 0) - (b.id || 0);
+    });
+
+    // Cross-reference every item's TVDB id against TMDB so each card can link to its
+    // own details page using the TMDB id (the app's details/fandom pages are keyed off TMDB ids,
+    // not TVDB ids - see propertyMap/mediaId usage above).
+    if (collectionItems.length > 0) {
+        await Promise.all(collectionItems.map(async (entData) => {
+            entData.__linkType = entData.__type === 'series' ? 'tv' : 'movie';
+            entData.__tmdbId = await resolveTmdbId(entData, tvdbAuthHeaders, config.tmdb_token);
+        }));
+    }
+
+    // If TVDB only gave us a fallback poster (or nothing at all), source a real banner from TMDB's
+    // "Collection" artwork instead - a dedicated, curated saga/franchise poster that's completely
+    // independent of TVDB's fallback bug - using the TMDB id of the first movie we just resolved.
+    if ((tvdbImageIsFallback || !listImage) && config.tmdb_token) {
+        const firstMovie = collectionItems.find(i => i.__linkType === 'movie' && i.__tmdbId);
+        if (firstMovie) {
+            try {
+                const movieRes = await fetch(`https://api.themoviedb.org/3/movie/${firstMovie.__tmdbId}?language=en-US`, {
+                    headers: { Authorization: `Bearer ${config.tmdb_token}` }
+                }).then(r => r.json());
+                const collectionPoster = movieRes.belongs_to_collection && movieRes.belongs_to_collection.poster_path;
+                if (collectionPoster) {
+                    listImage = `https://image.tmdb.org/t/p/w780${collectionPoster}`;
+                }
+            } catch (e) {
+                console.warn('TMDB collection poster lookup failed', e);
+            }
+        }
+        // Still nothing better than TVDB's fallback? Use it anyway rather than showing a blank placeholder.
+        document.getElementById('fandom-image').src = listImage || document.getElementById('fandom-image').src;
+    }
+
+    // Render the items
+    if (collectionItems.length > 0) {
+        const entitiesHtml = `
+            <div class="rating-section" style="margin-top: 20px;">
+                <h3>Items in this Collection</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; margin-top: 15px;">
+                    ${collectionItems.map(entData => {
+                        const title = entData.name || entData.title || 'Unknown Title';
+                        const rawImg = entData.image || entData.poster || entData.image_url;
+                        const img = rawImg ? rawImg : 'https://placehold.co/300x450/1b2228/9ab?text=No+Image';
+                        const isClickable = !!entData.__tmdbId;
+                        const cardStyle = "text-align: center; background: rgba(255,255,255,0.03); padding: 10px; border-radius: 12px; border: 1px solid #2c3440; display: block; text-decoration: none;" + (isClickable ? " cursor: pointer;" : " cursor: default;");
+                        const href = isClickable ? `details.html?id=${entData.__tmdbId}&type=${entData.__linkType}` : '#';
+                        const tag = isClickable ? 'a' : 'div';
+                        const hrefAttr = isClickable ? `href="${href}"` : '';
+                        
+                        return `
+                            <${tag} class="cast-card" ${hrefAttr} style="${cardStyle}">
+                                <img src="${img}" style="width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: 8px; margin-bottom: 10px;" loading="lazy">
+                                <span style="font-weight: bold; color: #fff; font-size: 0.9rem; display: block; overflow-wrap: break-word;">${title}</span>
+                            </${tag}>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+        document.querySelector('.info-pane').insertAdjacentHTML('beforeend', entitiesHtml);
+    }
+    
+    const dbImage = listImage || '';
+    await setupFandomFollowBtn(list.name || "Collection", dbImage);
 }
 
 // --- HEADER & AUTH LOGIC ---
@@ -164,13 +417,6 @@ async function fetchWikipediaLore(title) {
         
         const meta = document.getElementById('fandom-meta');
         if (summaryRes.description) meta.textContent = summaryRes.description;
-        
-        const imageEl = document.getElementById('fandom-image');
-        if (summaryRes.thumbnail && summaryRes.thumbnail.source) {
-            imageEl.src = summaryRes.thumbnail.source; 
-        } else {
-            imageEl.src = FALLBACK_POSTER;
-        }
 
         const wikiLink = document.getElementById('wiki-link');
         if (summaryRes.content_urls) {
@@ -209,6 +455,145 @@ async function fetchWikipediaLore(title) {
     }
 }
 
+async function fetchTVDBLists(mId, mType, config) {
+    if (mType !== 'movie' && mType !== 'tv') return;
+
+    try {
+        // 1. Authorize with TVDB v4
+        const loginRes = await fetch('https://api4.thetvdb.com/v4/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ apikey: config.tvdb_key, pin: config.tvdb_pin || "" })
+        }).then(r => r.json());
+        
+        if (!loginRes.data || !loginRes.data.token) return;
+        const tvdbToken = loginRes.data.token;
+        const tvdbHeaders = { Authorization: `Bearer ${tvdbToken}` };
+
+        // 2. Get External IDs from TMDB
+        const tmdbHeaders = { Authorization: `Bearer ${config.tmdb_token}` };
+        const extIds = await fetch(`https://api.themoviedb.org/3/${mType}/${mId}/external_ids`, { headers: tmdbHeaders }).then(r => r.json()).catch(() => ({}));
+
+        let tvdbId = null;
+
+        // ATTEMPT 1: Direct TMDB to TVDB ID Match (If TMDB provides it)
+        if (extIds.tvdb_id) {
+            tvdbId = extIds.tvdb_id;
+        }
+
+        // ATTEMPT 2: Search TVDB using the IMDB ID
+        if (!tvdbId && extIds.imdb_id) {
+            const imdbSearch = await fetch(`https://api4.thetvdb.com/v4/search/remoteid/${extIds.imdb_id}`, { headers: tvdbHeaders }).then(r => r.json()).catch(()=>({}));
+            if (imdbSearch.data && imdbSearch.data.length > 0) {
+                // Safely extract from TVDB's nested remote ID structure
+                const item = imdbSearch.data[0];
+                tvdbId = item.movie?.id || item.series?.id || item.tvdb_id || item.id;
+            }
+        }
+
+        // ATTEMPT 3: Search TVDB natively using the TMDB ID
+        if (!tvdbId) {
+            const tmdbSearch = await fetch(`https://api4.thetvdb.com/v4/search/remoteid/${mId}`, { headers: tvdbHeaders }).then(r => r.json()).catch(()=>({}));
+            if (tmdbSearch.data && tmdbSearch.data.length > 0) {
+                // Find matching media type to avoid crossing Movie/TV wires
+                const validMatch = tmdbSearch.data.find(d => (mType === 'movie' && d.movie) || (mType === 'tv' && d.series));
+                if (validMatch) {
+                    tvdbId = validMatch.movie?.id || validMatch.series?.id || validMatch.tvdb_id || validMatch.id;
+                } else {
+                    const item = tmdbSearch.data[0];
+                    tvdbId = item.movie?.id || item.series?.id || item.tvdb_id || item.id;
+                }
+            }
+        }
+
+        // ATTEMPT 4: Fallback Text Search (Using the Title)
+        if (!tvdbId) {
+            const titleToSearch = document.getElementById('fandom-title').textContent;
+            if (titleToSearch && titleToSearch !== "Loading Wikipedia Lore...") {
+                const typeFilter = mType === 'tv' ? 'series' : 'movie';
+                const textSearch = await fetch(`https://api4.thetvdb.com/v4/search?query=${encodeURIComponent(titleToSearch)}&type=${typeFilter}`, { headers: tvdbHeaders }).then(r=>r.json()).catch(()=>({}));
+                if (textSearch.data && textSearch.data.length > 0) {
+                    tvdbId = textSearch.data[0].tvdb_id || textSearch.data[0].id;
+                }
+            }
+        }
+
+        if (!tvdbId) {
+            console.log("Could not resolve a TVDB ID for this media.");
+            return;
+        }
+
+        // 3. Fetch TVDB extended details using the resolved ID
+        const endpointType = mType === 'tv' ? 'series' : 'movies';
+        const extendedRes = await fetch(`https://api4.thetvdb.com/v4/${endpointType}/${tvdbId}/extended`, { headers: tvdbHeaders }).then(r => r.json());
+
+        if (extendedRes.data && extendedRes.data.lists && extendedRes.data.lists.length > 0) {
+            
+            // 1. STRICT FILTER: Only allow official lists or lists containing major keywords
+            const validLists = extendedRes.data.lists.filter(l => {
+                const name = l.name.toLowerCase();
+                return l.isOfficial || 
+                       name.includes('franchise') || 
+                       name.includes('saga') || 
+                       name.includes('universe') || 
+                       name.includes('collection');
+            });
+
+            // 2. DEDUPLICATE: Prevent multiple lists with the exact same name
+            const uniqueListsMap = new Map();
+            validLists.forEach(l => {
+                const nameKey = l.name.toLowerCase().trim();
+                const existing = uniqueListsMap.get(nameKey);
+                // Overwrite only if the new one is 'Official' and the stored one isn't
+                if (!existing || (l.isOfficial && !existing.isOfficial)) {
+                    uniqueListsMap.set(nameKey, l);
+                }
+            });
+            const uniqueLists = Array.from(uniqueListsMap.values());
+
+            // 3. SORT: Prioritize Franchises, Sagas, and Universes to float to the very top
+            const sortedLists = uniqueLists.sort((a, b) => {
+                const getScore = (l) => {
+                    let score = 0;
+                    if (l.isOfficial) score += 10;
+                    const name = l.name.toLowerCase();
+                    if (name.includes('franchise')) score += 5;
+                    if (name.includes('saga')) score += 5;
+                    if (name.includes('universe')) score += 5;
+                    if (name.includes('collection')) score += 3;
+                    return score;
+                };
+                return getScore(b) - getScore(a);
+            });
+            
+            // Render Top 5
+            const listsToShow = sortedLists.slice(0, 5);
+
+            if (listsToShow.length > 0) {
+                const listHtml = `
+                    <div id="part-of-section" class="history-section" style="margin-top: 15px; border-color: var(--accent);">
+                        <h4 style="color: var(--accent); border-bottom-color: var(--accent);">Part Of</h4>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            ${listsToShow.map(list => `
+                                <button class="secondary-btn" style="width: 100%; text-align: left; padding: 12px; font-size: 0.85rem; border-color: #2c3440; background: rgba(255,255,255,0.02);" 
+                                        onclick="window.location.href='fandom.html?listId=${list.id}'"
+                                        onmouseover="this.style.background='rgba(255,255,255,0.1)'; this.style.borderColor='var(--accent)';"
+                                        onmouseout="this.style.background='rgba(255,255,255,0.02)'; this.style.borderColor='#2c3440';">
+                                    • ${list.name}
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+                // Inject the list underneath the follow button
+                document.getElementById('follow-fandom-btn').insertAdjacentHTML('afterend', listHtml);
+            }
+        }
+    } catch (err) {
+        console.warn("TVDB List Fetch Error:", err);
+    }
+}
+
 async function fetchStructuredCharacters(externalId, type) {
     if (type !== 'movie' && type !== 'tv') return;
 
@@ -228,7 +613,6 @@ async function fetchStructuredCharacters(externalId, type) {
             return;
         }
 
-        // --- FETCH CURRENT USER FOLLOWED CHARACTERS ---
         let followedCharacterIds = new Set();
         if (currentUser) {
             const { data: userChars } = await supabaseClient
@@ -243,7 +627,7 @@ async function fetchStructuredCharacters(externalId, type) {
             }
         }
 
-        const characters = res.cast.slice(0, 24).map(c => {
+        const characters = res.cast.map(c => {
             let cleanName = c.character ? c.character.replace(/\(voice\)/gi, '').trim() : "Unknown";
             cleanName = cleanName.split('/')[0].trim();
             
@@ -254,44 +638,107 @@ async function fetchStructuredCharacters(externalId, type) {
             };
         }).filter(c => c.name !== "Unknown" && c.name.length > 1);
 
-        let gridHtml = `<div class="fandom-character-grid">`;
+        allFandomCharacters = characters; 
+        const displayChars = characters.slice(0, 24);
+
+        // Uses the Cast-Grid to perfectly align with your Details page CSS
+        let gridHtml = `<div class="cast-grid" style="margin-top: 20px;">`;
         
-        characters.forEach((char, index) => {
-            const imgId = `fandom-img-${index}`;
+        displayChars.forEach((char, index) => {
             const fallbackImg = char.tmdbImage || FALLBACK_AVATAR;
-            const safeDbImage = char.tmdbImage || ''; // Don't save SVGs to DB
+            const safeDbImage = char.tmdbImage || ''; 
             
             const isFollowingChar = followedCharacterIds.has(char.wikiId);
             const btnClass = isFollowingChar ? 'secondary-btn' : 'primary-btn';
             const btnText = isFollowingChar ? 'Unfollow' : 'Follow';
-            const escapedName = char.name.replace(/'/g, "\\'"); // Prevent breaking the HTML string
+            const escapedName = char.name.replace(/'/g, "\\'"); 
 
             gridHtml += `
-                <div class="fandom-character-card" style="cursor: pointer; flex-direction: column;" onclick="routeToCharacter('${char.wikiId}')">
-                    <div class="fandom-char-img-wrapper">
-                        <img id="${imgId}" src="${fallbackImg}" class="fandom-char-img" loading="lazy">
-                    </div>
-                    <div class="fandom-char-info" style="gap: 10px;">
-                        <p class="fandom-char-text" style="font-weight: bold; font-size: 1rem; color: #fff;">${char.name}</p>
-                        <button class="${btnClass} char-follow-btn" 
-                            style="width: 100%; padding: 6px; font-size: 0.8rem; border-radius: 6px; margin-top: auto;"
-                            onclick="event.stopPropagation(); toggleCharacterFollow(this, '${char.wikiId}', '${escapedName}', '${safeDbImage}')">
-                            ${btnText}
-                        </button>
-                    </div>
+                <div class="cast-card" style="cursor: pointer; text-align: center; background: rgba(255,255,255,0.03); padding: 10px; border-radius: 12px; border: 1px solid #2c3440;" onclick="routeToCharacter('${char.wikiId}')">
+                    <img src="${fallbackImg}" style="width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: 8px; margin-bottom: 10px;" loading="lazy">
+                    <span style="font-weight: bold; color: #fff; font-size: 0.95rem; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${char.name}</span>
+                    <button class="${btnClass}" 
+                        style="width: 100%; padding: 6px; font-size: 0.8rem; border-radius: 6px; margin-top: 10px;"
+                        onclick="event.stopPropagation(); toggleCharacterFollow(this, '${char.wikiId}', '${escapedName}', '${safeDbImage}')">
+                        ${btnText}
+                    </button>
                 </div>
             `;
-
-            fetchCharacterPreviewImage(char.wikiId, imgId);
         });
 
         gridHtml += `</div>`;
         gridContainer.innerHTML = gridHtml;
 
+        if (characters.length > 24) {
+            const viewAllBtn = document.createElement('button');
+            viewAllBtn.id = 'view-all-chars-btn';
+            viewAllBtn.textContent = 'View All Characters';
+            viewAllBtn.style.cssText = `
+                background: rgba(255, 255, 255, 0.05); border: 1px solid #2c3440;
+                color: #9ab; padding: 12px; border-radius: 8px; cursor: pointer;
+                transition: all 0.2s ease; width: 100%; margin-top: 20px; font-weight: bold; font-size: 0.9rem;
+            `;
+            viewAllBtn.onmouseover = () => { viewAllBtn.style.color = '#fff'; viewAllBtn.style.background = 'rgba(255, 255, 255, 0.1)'; viewAllBtn.style.borderColor = 'var(--accent)'; };
+            viewAllBtn.onmouseout = () => { viewAllBtn.style.color = '#9ab'; viewAllBtn.style.background = 'rgba(255, 255, 255, 0.05)'; viewAllBtn.style.borderColor = '#2c3440'; };
+            viewAllBtn.onclick = () => openCharacterModal(followedCharacterIds);
+            
+            document.getElementById('fandom-cast-section').appendChild(viewAllBtn);
+        }
+
     } catch (err) {
         console.error("Structured Character Error:", err);
         gridContainer.innerHTML = `<p class="meta">Failed to load structured character data.</p>`;
     }
+}
+
+function openCharacterModal(followedCharacterIds) {
+    const modal = document.getElementById('character-modal');
+    const closeBtn = document.getElementById('close-character-modal');
+    const searchInput = document.getElementById('character-search-input');
+    const grid = document.getElementById('full-character-grid');
+
+    const renderGrid = (filterText = '') => {
+        const lowerFilter = filterText.toLowerCase();
+        
+        const filtered = allFandomCharacters.filter(char => 
+            char.name.toLowerCase().includes(lowerFilter)
+        );
+
+        if (filtered.length === 0) {
+            grid.innerHTML = `<p class="meta" style="grid-column: 1/-1; text-align: center;">No characters found matching "${filterText}".</p>`;
+            return;
+        }
+
+        // Bypassing Wikipedia API inside the loop to drastically improve performance 
+        grid.innerHTML = filtered.map((char) => {
+            const fallbackImg = char.tmdbImage || FALLBACK_AVATAR;
+            const safeDbImage = char.tmdbImage || '';
+            const isFollowingChar = followedCharacterIds.has(char.wikiId);
+            const btnClass = isFollowingChar ? 'secondary-btn' : 'primary-btn';
+            const btnText = isFollowingChar ? 'Unfollow' : 'Follow';
+            const escapedName = char.name.replace(/'/g, "\\'");
+
+            return `
+                <div class="cast-card" style="cursor: pointer; text-align: center; background: rgba(255,255,255,0.03); padding: 10px; border-radius: 12px; border: 1px solid #2c3440;" onclick="routeToCharacter('${char.wikiId}')">
+                    <img src="${fallbackImg}" style="width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: 8px; margin-bottom: 10px;" loading="lazy">
+                    <span style="font-weight: bold; color: #fff; font-size: 0.95rem; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${char.name}</span>
+                    <button class="${btnClass}" 
+                        style="width: 100%; padding: 6px; font-size: 0.8rem; border-radius: 6px; margin-top: 10px;"
+                        onclick="event.stopPropagation(); toggleCharacterFollow(this, '${char.wikiId}', '${escapedName}', '${safeDbImage}')">
+                        ${btnText}
+                    </button>
+                </div>
+            `;
+        }).join('');
+    };
+
+    searchInput.value = '';
+    renderGrid();
+    searchInput.oninput = (e) => renderGrid(e.target.value);
+
+    modal.style.display = 'flex';
+    closeBtn.onclick = () => modal.style.display = 'none';
+    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
 }
 
 async function fetchCharacterPreviewImage(wikiTitle, imgElementId) {
@@ -330,8 +777,11 @@ async function setupFandomFollowBtn(title, imageUrl) {
 
     let isFollowing = !!data;
     
-    const updateBtnUI = (following) => {
-        btn.textContent = following ? 'Unfollow Fandom' : 'Follow Fandom';
+        const updateBtnUI = (following) => {
+        // Determine the label based on whether this is a standard fandom or a collection
+        const label = mediaType === 'collection' ? 'Collection' : 'Fandom';
+        btn.textContent = following ? `Unfollow ${label}` : `Follow ${label}`;
+        
         if (following) {
             btn.classList.remove('primary-btn');
             btn.classList.add('secondary-btn');

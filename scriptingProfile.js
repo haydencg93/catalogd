@@ -1066,8 +1066,11 @@ window.filterFandoms = (type) => {
     buttons.forEach(btn => {
         btn.classList.remove('active');
         const btnText = btn.textContent.toLowerCase();
+        
+        // Match the button based on the passed type
         if ((type === 'movie' && btnText === 'movies') ||
             (type === 'tv' && btnText === 'tv') ||
+            (type === 'collection' && btnText === 'collections') || // Added Collection match
             (type === 'book' && btnText === 'books') ||
             (type === 'album' && btnText === 'music') ||
             (type === 'youtube' && btnText === 'youtube')) {
@@ -1084,12 +1087,13 @@ window.filterFandoms = (type) => {
         fandomsSortableInstance = null;
     }
 
+    // FILTER LOGIC: Specifically isolate the media_type
     const filtered = allFandoms.filter(f => f.media_type === type);
     filtered.sort((a, b) => (a.rank || 0) - (b.rank || 0));
 
     if (filtered.length === 0) {
-        const typeLabel = type === 'album' ? 'music' : type;
-        grid.innerHTML = `<p class="meta">No ${typeLabel} fandoms followed yet.</p>`;
+        const typeLabel = type === 'collection' ? 'collections' : (type === 'album' ? 'music' : type);
+        grid.innerHTML = `<p class="meta">No ${typeLabel} followed yet.</p>`;
         return;
     }
 
@@ -1107,8 +1111,11 @@ window.filterFandoms = (type) => {
         card.className = `media-card ${isManagingFandoms ? 'managing' : ''}`;
         card.setAttribute('data-dbid', f.id);
 
-        // Show rank badge for EVERYONE
         const rankBadge = `<div class="rank-badge" style="position:absolute; top:8px; left:8px; background: rgba(0,0,0,0.8); padding: 4px 8px; border-radius: 4px; font-weight: bold; z-index: 10;">#${index + 1}</div>`;
+
+        // Adjust badge style for collections specifically if desired
+        const badgeClass = f.media_type === 'collection' ? 'badge-collection' : `badge-${f.media_type}`;
+        const label = f.media_type === 'collection' ? 'Collection' : 'Fandom';
 
         card.innerHTML = `
             <div class="poster-wrapper">
@@ -1116,11 +1123,11 @@ window.filterFandoms = (type) => {
                 <img src="${finalImg}" 
                     alt="${f.title}" 
                     onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
-                <span class="badge badge-${f.media_type}">${f.media_type}</span>
+                <span class="badge ${badgeClass}">${f.media_type}</span>
             </div>
             <div class="media-info">
                 <div class="title" style="font-weight: bold; margin-bottom: 5px;">${f.title}</div>
-                <div class="meta" style="font-size: 0.8rem; color: #9ab;">Fandom</div>
+                <div class="meta" style="font-size: 0.8rem; color: #9ab;">${label}</div>
             </div>
         `;
 

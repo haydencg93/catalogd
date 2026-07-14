@@ -1,3 +1,11 @@
+#fandom-image {
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+    display: block;
+    margin: 0 auto;
+}
+
 /* Make sure Wikipedia's injected HTML respects our app's theme */
 .wiki-content {
     line-height: 1.7;
