@@ -197,12 +197,10 @@ async function initProfile() {
 
             if (fandoms && fandoms.length > 0) {
                 allFandoms = fandoms;
-                filterFandoms('movie');
+                filterFandoms('collection');
             } else {
                 if (fandomsGrid) fandomsGrid.innerHTML = `<p class="meta">No fandoms followed yet.</p>`;
             }
-        } else {
-            if (fandomsGrid) fandomsGrid.innerHTML = `<p class="meta" style="grid-column: 1/-1; text-align: center;">Fandom tracking is private.</p>`;
         }
 
         console.log("1. Targeting User ID:", profileUserId);
@@ -1070,7 +1068,7 @@ window.filterFandoms = (type) => {
         // Match the button based on the passed type
         if ((type === 'movie' && btnText === 'movies') ||
             (type === 'tv' && btnText === 'tv') ||
-            (type === 'collection' && btnText === 'collections') || // Added Collection match
+            (type === 'collection' && btnText === 'collections') ||
             (type === 'book' && btnText === 'books') ||
             (type === 'album' && btnText === 'music') ||
             (type === 'youtube' && btnText === 'youtube')) {
@@ -1099,46 +1097,51 @@ window.filterFandoms = (type) => {
 
     grid.innerHTML = '';
 
-    filtered.forEach((f, index) => {
-        // Add Custom Image Logic for Fandoms
-        let finalImg = f.image_url || 'https://placehold.co/500x750/1b2228/9ab?text=No+Image';
-        const customArt = customImgsMap.get(`${f.media_type}_${String(f.media_id)}`);
-        if (customArt && customArt.custom_poster) {
-            finalImg = customArt.custom_poster;
-        }
+        filtered.forEach((f, index) => {
+            // 1. Start with the default image from the user_fandoms table
+            let finalImg = f.image_url || 'https://placehold.co/500x750/1b2228/9ab?text=No+Image';
+            
+            // 2. Check the Map for a custom override
+            // This uses the key "collection_list_xxx" which matches the insert in scriptingFandom.js
+            const customArtKey = `${f.media_type}_${String(f.media_id)}`;
+            const customArt = customImgsMap.get(customArtKey);
+            
+            if (customArt && customArt.custom_poster) {
+                finalImg = customArt.custom_poster;
+            }
 
-        const card = document.createElement('div');
-        card.className = `media-card ${isManagingFandoms ? 'managing' : ''}`;
-        card.setAttribute('data-dbid', f.id);
+            const card = document.createElement('div');
+            card.className = `media-card ${isManagingFandoms ? 'managing' : ''}`;
+            card.setAttribute('data-dbid', f.id);
 
-        const rankBadge = `<div class="rank-badge" style="position:absolute; top:8px; left:8px; background: rgba(0,0,0,0.8); padding: 4px 8px; border-radius: 4px; font-weight: bold; z-index: 10;">#${index + 1}</div>`;
+            const rankBadge = `<div class="rank-badge" style="position:absolute; top:8px; left:8px; background: rgba(0,0,0,0.8); padding: 4px 8px; border-radius: 4px; font-weight: bold; z-index: 10;">#${index + 1}</div>`;
 
-        // Adjust badge style for collections specifically if desired
-        const badgeClass = f.media_type === 'collection' ? 'badge-collection' : `badge-${f.media_type}`;
-        const label = f.media_type === 'collection' ? 'Collection' : 'Fandom';
+            // Adjust badge style for collections specifically if desired
+            const badgeClass = f.media_type === 'collection' ? 'badge-collection' : `badge-${f.media_type}`;
+            const label = f.media_type === 'collection' ? 'Collection' : 'Fandom';
 
-        card.innerHTML = `
-            <div class="poster-wrapper">
-                ${rankBadge}
-                <img src="${finalImg}" 
-                    alt="${f.title}" 
-                    onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
-                <span class="badge ${badgeClass}">${f.media_type}</span>
-            </div>
-            <div class="media-info">
-                <div class="title" style="font-weight: bold; margin-bottom: 5px;">${f.title}</div>
-                <div class="meta" style="font-size: 0.8rem; color: #9ab;">${label}</div>
-            </div>
-        `;
+            card.innerHTML = `
+                <div class="poster-wrapper">
+                    ${rankBadge}
+                    <img src="${finalImg}" 
+                        alt="${f.title}" 
+                        onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
+                    <span class="badge badge-movie" style="background: #456; color: #fff;">${label}</span>
+                </div>
+                <div class="media-info">
+                    <div class="title" style="font-weight: bold; margin-bottom: 5px;">${f.title}</div>
+                    <div class="meta" style="font-size: 0.8rem; color: #9ab;">${f.media_type === 'collection' ? 'Official Collection' : 'Fandom'}</div>
+                </div>
+            `;
 
-        if (isManagingFandoms) {
-            card.style.cursor = 'grab';
-        } else {
-            card.onclick = () => window.location.href = `fandom.html?id=${f.media_id}&type=${f.media_type}`;
-        }
+            if (isManagingFandoms) {
+                card.style.cursor = 'grab';
+            } else {
+                card.onclick = () => window.location.href = `fandom.html?id=${f.media_id}&type=${f.media_type}`;
+            }
 
-        grid.appendChild(card);
-    });
+            grid.appendChild(card);
+        });
 
     if (isOwner && isManagingFandoms) {
         fandomsSortableInstance = new Sortable(grid, {

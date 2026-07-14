@@ -23,22 +23,33 @@ async function initFandomPage() {
     supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
     await setupHeader();
 
-        // INTERCEPT URL FOR TVDB LIST RENDERING
-    const listId = params.get('listId');
-    if (listId) {
-        mediaId = `list_${listId}`;
-        mediaType = 'collection'; // Changed from 'list' to 'collection' to match profile filters
-        
+    const urlListId = params.get('listId');
+    const isCollection = (mediaType === 'collection' || !!urlListId);
+
+    if (isCollection) {
+        const rawId = urlListId || mediaId; 
+        const numericListId = rawId.replace('list_', '');
+        mediaId = `list_${numericListId}`;
+        mediaType = 'collection';
+
         try {
-            await fetchListFandom(listId, config);
+            await fetchListFandom(numericListId, config);
         } catch (e) {
-            showError("Failed to load list details.");
+            showError("Failed to load collection details.");
         }
-        return;
+        
+        // RUN THESE LAST: Art overrides and follow button
+        await setupFandomCustomArt();
+        await applyCustomFandomArt(); // Apply custom image AFTER TVDB finishes
+        
+        const fandomTitle = document.getElementById('fandom-title').textContent;
+        const fandomImage = document.getElementById('fandom-image').src;
+        const dbImage = fandomImage.startsWith('data:image') ? '' : fandomImage;
+        await setupFandomFollowBtn(fandomTitle, dbImage);
+        return; 
     }
 
-        // Allow the page to proceed if it's a standard media type OR a collection
-    if (!mediaId || !mediaType || (!propertyMap[mediaType] && mediaType !== 'collection')) {
+    if (!mediaId || !mediaType || !propertyMap[mediaType]) {
         showError("Fandom exploration is currently only available for Movies, TV Shows, and Albums.");
         return;
     }
@@ -46,13 +57,11 @@ async function initFandomPage() {
     const propertyId = propertyMap[mediaType];
     
     try {
-        // 1. Pre-fetch Official Cover Image from TMDB
         if (mediaType === 'movie' || mediaType === 'tv') {
             try {
                 const tmdbRes = await fetch(`https://api.themoviedb.org/3/${mediaType}/${mediaId}?language=en-US`, {
                     headers: { Authorization: `Bearer ${config.tmdb_token}` }
                 }).then(r => r.json());
-                
                 if (tmdbRes.poster_path) {
                     document.getElementById('fandom-image').src = `https://image.tmdb.org/t/p/w500${tmdbRes.poster_path}`;
                 }
@@ -60,7 +69,6 @@ async function initFandomPage() {
         }
 
         const wikiTitle = await getWikipediaTitle(propertyId, mediaId);
-        
         if (wikiTitle) {
             await fetchWikipediaLore(wikiTitle);
         } else {
@@ -69,6 +77,10 @@ async function initFandomPage() {
         
         await fetchStructuredCharacters(mediaId, mediaType);
         await fetchTVDBLists(mediaId, mediaType, config);
+        
+        // RUN THESE LAST: Art overrides and follow button
+        await setupFandomCustomArt();
+        await applyCustomFandomArt(); // Apply custom image AFTER TMDB/Wiki finishes
 
         const fandomTitle = document.getElementById('fandom-title').textContent;
         const fandomImage = document.getElementById('fandom-image').src;
@@ -452,6 +464,123 @@ async function fetchWikipediaLore(title) {
     } catch (err) {
         console.error("Wikipedia API Error:", err);
         showError("Failed to load detailed Wikipedia lore. See console for details.");
+    }
+}
+
+async function setupFandomCustomArt() {
+    // Only show for logged-in users
+    if (!currentUser) return;
+
+    // 1. REPLICATE DETAILS PAGE STRUCTURE: Create the controls wrapper
+    const leftCol = document.getElementById('left-col');
+    const posterArea = document.getElementById('fandom-poster-area');
+    const followBtn = document.getElementById('follow-fandom-btn');
+
+    // Create the wrapper (exactly like #poster-controls-wrapper in details.html)
+    const controlsWrapper = document.createElement('div');
+    controlsWrapper.id = 'fandom-poster-controls-wrapper';
+    
+    // Move poster and follow button into the wrapper to maintain the same DOM hierarchy as Details
+    posterArea.parentNode.insertBefore(controlsWrapper, posterArea);
+    controlsWrapper.appendChild(posterArea);
+    
+    // 2. CREATE EDIT ART BUTTON (Same styles as details.html)
+    const editArtBtn = document.createElement('button');
+    editArtBtn.id = 'edit-art-btn';
+    editArtBtn.className = 'secondary-btn';
+    editArtBtn.textContent = 'Edit Art';
+    editArtBtn.style.cssText = 'width: 100%; margin-top: 10px; display: block;';
+    
+    // 3. WRAP FOLLOW BUTTON (Same as the div wrapper around #fandom-btn in details.html)
+    const followBtnWrapper = document.createElement('div');
+    followBtnWrapper.style.marginTop = '10px';
+    followBtn.style.marginTop = '0px'; // Remove the 15px margin from the HTML to prevent choppiness
+    followBtnWrapper.appendChild(followBtn);
+
+    // Assemble the wrapper in the EXACT order of details.html:
+    // Poster Area -> Edit Art Button -> Follow Button Wrapper
+    controlsWrapper.appendChild(editArtBtn);
+    controlsWrapper.appendChild(followBtnWrapper);
+
+    // 4. CREATE THE MODAL (Exact copy of #custom-art-modal from details.html)
+    const modalHtml = `
+        <div id="fandom-custom-art-modal" class="modal-overlay" style="display:none;">
+            <div class="auth-card">
+                <button class="close-btn" id="close-fandom-art-modal">×</button>
+                <h3>Custom Art</h3>
+                <p class="meta" style="margin-bottom: 15px; font-size: 0.85rem;">Paste image URLs to override the default art. Leave blank to use defaults.</p>
+                <input type="text" id="fandom-custom-poster-input" placeholder="Custom Poster URL" style="width: 100%; box-sizing: border-box; margin-bottom: 10px;">
+                <button id="save-fandom-art-btn" class="primary-btn" style="margin-top: 10px; width: 100%;">Save Art</button>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    const modal = document.getElementById('fandom-custom-art-modal');
+    const closeBtn = document.getElementById('close-fandom-art-modal');
+    const saveBtn = document.getElementById('save-fandom-art-btn');
+    const input = document.getElementById('fandom-custom-poster-input');
+
+    // 5. LOGIC (Mirroring setupCustomArt in scriptingDetails.js)
+    editArtBtn.onclick = async () => {
+        const { data: existingArt } = await supabaseClient
+            .from('custom_imgs')
+            .select('*')
+            .eq('user_id', currentUser.id)
+            .eq('media_id', String(mediaId))
+            .eq('media_type', mediaType)
+            .maybeSingle();
+        
+        input.value = existingArt?.custom_poster || '';
+        modal.style.display = 'flex';
+    };
+
+    closeBtn.onclick = () => modal.style.display = 'none';
+    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+
+    saveBtn.onclick = async () => {
+        saveBtn.textContent = "Saving...";
+        saveBtn.disabled = true;
+
+        const customPoster = input.value.trim() || null;
+
+        const { error } = await supabaseClient
+            .from('custom_imgs')
+            .upsert({
+                user_id: currentUser.id,
+                media_id: String(mediaId),
+                media_type: mediaType,
+                custom_poster: customPoster
+            }, { onConflict: 'user_id,media_id,media_type' });
+
+        if (!error) {
+            // Mirroring the Details page reload behavior
+            location.reload(); 
+        } else {
+            alert("Error saving art: " + error.message);
+            saveBtn.textContent = "Save Art";
+            saveBtn.disabled = false;
+        }
+    };
+}
+
+async function applyCustomFandomArt() {
+    if (!currentUser) return;
+
+    try {
+        const { data: customArt } = await supabaseClient
+            .from('custom_imgs')
+            .select('custom_poster')
+            .eq('user_id', currentUser.id)
+            .eq('media_id', String(mediaId))
+            .eq('media_type', mediaType)
+            .maybeSingle();
+
+        if (customArt && customArt.custom_poster) {
+            document.getElementById('fandom-image').src = customArt.custom_poster;
+        }
+    } catch (e) {
+        console.warn("Error applying custom art:", e);
     }
 }
 
