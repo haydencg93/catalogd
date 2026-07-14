@@ -3,6 +3,7 @@ const id = params.get('id');
 const type = params.get('type');
 let supabaseClient = null;
 let globalData = null;
+let tvmazeEpisodesMap = {};
 let fullCastData = [];
 let fullCrewData = [];
 let directorData = null;
@@ -135,12 +136,32 @@ async function initDetails() {
         // --- 3. MOVIE & TV FETCH ---
         else {
             const res = await fetch(`https://api.themoviedb.org/3/${type}/${id}`, tmdbOptions).then(r => r.json());
+            
+            // ISO Language name mapper
+            let mainLanguageName = res.original_language ? res.original_language.toUpperCase() : 'Unknown';
+            try {
+                const langRes = await fetch(`https://api.themoviedb.org/3/configuration/languages`, tmdbOptions).then(r => r.json());
+                const matchedLang = langRes.find(l => l.iso_639_1 === res.original_language);
+                if (matchedLang) mainLanguageName = matchedLang.english_name;
+            } catch(e) { console.warn("Language config error", e); }
+
+            // Fetch Translations dynamically
+            let translationArray = [];
+            try {
+                const transRes = await fetch(`https://api.themoviedb.org/3/${type}/${id}/translations`, tmdbOptions).then(r => r.json());
+                if (transRes.translations) {
+                    // Extract just the english names and sort them alphabetically
+                    translationArray = transRes.translations.map(t => t.english_name).sort();
+                }
+            } catch(e) { console.warn("Translations config error", e); }
+
             data = {
                 title: res.title || res.name,
-                overview: res.overview,
+                overview: res.overview, // Reverted to just the standard description
                 poster_path: `https://image.tmdb.org/t/p/w500${res.poster_path}`,
                 backdrop: res.backdrop_path ? `https://image.tmdb.org/t/p/original${res.backdrop_path}` : null,
-                meta: `${(res.release_date || res.first_air_date || '').split('-')[0]} • ${res.genres?.map(g => g.name).join(', ')}`
+                meta: `${(res.release_date || res.first_air_date || '').split('-')[0]} • ${res.genres?.map(g => g.name).join(', ')} • ${mainLanguageName}`,
+                translations: translationArray // Pass to our global data object
             };
         }
 
@@ -162,6 +183,26 @@ async function initDetails() {
         document.getElementById('media-title').textContent = data.title;
         document.getElementById('media-overview').textContent = data.overview;
         document.getElementById('media-meta').textContent = data.meta;
+        
+        // INJECT TRANSLATIONS SECTION ---
+        if (data.translations && data.translations.length > 0) {
+            const pillStyle = `background: rgba(255,255,255,0.05); border: 1px solid #2c3440; color: #ccd6e0; padding: 4px 10px; border-radius: 8px; font-size: 0.8rem; cursor: default; transition: all 0.2s ease; display: inline-block;`;
+            const hoverEvents = `onmouseover="this.style.background='rgba(255,255,255,0.1)'; this.style.color='#fff'; this.style.borderColor='var(--accent)';" onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.color='#ccd6e0'; this.style.borderColor='#2c3440';"`;
+
+            const transHtml = `
+            <div id="translations-section" class="history-section" style="margin-top: 20px;">
+                <h4>Translations</h4>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                    ${data.translations.map(lang => `<span style="${pillStyle}" ${hoverEvents}>${lang}</span>`).join('')}
+                </div>
+            </div>`;
+            
+            // Insert cleanly right below the Fandom button wrapper
+            const fandomContainer = document.getElementById('fandom-btn').parentElement;
+            if (fandomContainer) {
+                fandomContainer.insertAdjacentHTML('afterend', transHtml);
+            }
+        }
         
         if (globalData.backdrop) {
             document.getElementById('backdrop-overlay').style.backgroundImage = `url(${globalData.backdrop})`;
@@ -945,30 +986,84 @@ async function setupTVTracker(config, seriesId) {
     const markBtn = document.getElementById('mark-season-btn');
     const clearBtn = document.getElementById('clear-season-btn');
     
+    // Inject dynamic season description container if it doesn't exist yet
+    let seasonDescEl = document.getElementById('season-description');
+    if (!seasonDescEl) {
+        seasonDescEl = document.createElement('p');
+        seasonDescEl.id = 'season-description';
+        seasonDescEl.className = 'meta';
+        seasonDescEl.style.cssText = 'margin: 10px 0 20px 0; font-style: italic; font-size: 0.95rem; line-height: 1.5; color: #ccd6e0;';
+        seasonSelector.parentNode.insertAdjacentElement('afterend', seasonDescEl);
+    }
+    
     try {
-        // --- ?language=en-US ---
         const response = await fetch(`https://api.themoviedb.org/3/tv/${seriesId}?language=en-US`, {
             headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` }
         });
-        
-        const text = await response.text();
-        if (text.startsWith('\x1F\x8B')) throw new Error("Raw GZIP data");
-        const res = JSON.parse(text);
+        const res = await response.json();
+
+        // 1. Fetch TVMaze data matching via external IMDB or TMDB ID mappings
+        let tvmazeId = null;
+        try {
+            const extRes = await fetch(`https://api.themoviedb.org/3/tv/${seriesId}/external_ids`, {
+                headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` }
+            }).then(r => r.json());
+
+            let lookupUrl = '';
+            if (extRes.imdb_id) lookupUrl = `https://api.tvmaze.com/lookup/shows?imdb=${extRes.imdb_id}`;
+            else lookupUrl = `https://api.tvmaze.com/lookup/shows?thetvdb=${extRes.thetvdb_id}`;
+
+            const tvmazeShow = await fetch(lookupUrl).then(r => r.json());
+            if (tvmazeShow && tvmazeShow.id) tvmazeId = tvmazeShow.id;
+        } catch(e) { console.warn("TVMaze show link unavailable, falling back.", e); }
 
         seasonSelector.innerHTML = res.seasons.map(s => `<option value="${s.season_number}">${s.name}</option>`).join('');
-        seasonSelector.onchange = () => loadEpisodes(config, seriesId, seasonSelector.value);
         
-        // --- Default to Season 1 instead of Specials (Season 0) if possible ---
+        // Define clean event handler wrapper
+        const onSeasonChange = () => {
+            const currentSeason = seasonSelector.value;
+            loadEpisodes(config, seriesId, currentSeason, tvmazeId);
+            updateSeasonDescription(tvmazeId, currentSeason);
+        };
+        
+        seasonSelector.onchange = onSeasonChange;
+        
         const defaultSeason = res.seasons.find(s => s.season_number === 1) || res.seasons[0];
         if (defaultSeason) {
             seasonSelector.value = defaultSeason.season_number;
-            loadEpisodes(config, seriesId, defaultSeason.season_number);
+            onSeasonChange();
         }
 
         markBtn.onclick = () => markSeasonAsWatched();
         clearBtn.onclick = () => clearSeasonProgress();
     } catch (err) {
-        trackerSection.innerHTML = `<h3>Episode Tracker</h3><p class="meta">Error connecting to TMDB tracker.</p>`;
+        trackerSection.innerHTML = `<h3>Episode Tracker</h3><p class="meta">Error connecting to tracker pipeline.</p>`;
+    }
+}
+
+async function updateSeasonDescription(tvmazeId, seasonNum) {
+    const descEl = document.getElementById('season-description');
+    if (!descEl) return;
+    descEl.textContent = "Loading season context...";
+    
+    if (!tvmazeId) {
+        descEl.textContent = "Description unavailable for this season mapping.";
+        return;
+    }
+
+    try {
+        const seasons = await fetch(`https://api.tvmaze.com/shows/${tvmazeId}/seasons`).then(r => r.json());
+        const currentSeasonData = seasons.find(s => String(s.number) === String(seasonNum));
+        if (currentSeasonData && currentSeasonData.summary) {
+            // Clean up html tags injected inside summaries safely via standard text content DOM injections
+            const tmp = document.createElement('div');
+            tmp.innerHTML = currentSeasonData.summary;
+            descEl.textContent = tmp.textContent || tmp.innerText;
+        } else {
+            descEl.textContent = "No description description provided for this season.";
+        }
+    } catch(e) {
+        descEl.textContent = "Description unavailable.";
     }
 }
 
@@ -1051,10 +1146,9 @@ function renderLogs(logsToRender) {
             </div>` : '';
         
         const stars = '★'.repeat(Math.floor(log.rating)) + (log.rating % 1 !== 0 ? '½' : '');
-        const logDateTime = new Date(log.created_at).toLocaleString([], { 
-            year: 'numeric', month: 'numeric', day: 'numeric', 
-            hour: '2-digit', minute: '2-digit' 
-        });
+
+        const targetDate = log.watched_on ? log.watched_on : log.created_at.split('T')[0];
+        const logDate = new Date(targetDate + 'T00:00:00').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
 
         const reviewPreview = log.notes ? `<div class="history-notes">"${log.notes}"</div>` : '';
         
@@ -1076,7 +1170,7 @@ function renderLogs(logsToRender) {
                     </div>
                 </div>
                 ${badgeRow}
-                <div class="history-date">${logDateTime}</div>
+                <div class="history-date">Watched on ${logDateTime}</div>
                 ${reviewPreview}
                 ${tagsHtml}
             </div>
@@ -1084,19 +1178,28 @@ function renderLogs(logsToRender) {
     }).join('');
 }
 
-async function loadEpisodes(config, seriesId, seasonNum) {
+async function loadEpisodes(config, seriesId, seasonNum, tvmazeId) {
     const list = document.getElementById('episode-list');
-    list.innerHTML = 'Loading...';
+    list.innerHTML = 'Loading episodes...';
+    tvmazeEpisodesMap = {}; // Reset local cache frame
+    
     try {
-        // --- ?language=en-US to bypass TMDB cache ---
         const response = await fetch(`https://api.themoviedb.org/3/tv/${seriesId}/season/${seasonNum}?language=en-US`, {
             headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` }
         });
-        
-        // --- Read as text first to catch GZIP errors ---
-        const text = await response.text();
-        if (text.startsWith('\x1F\x8B')) throw new Error("Raw GZIP data");
-        const res = JSON.parse(text);
+        const res = await response.json();
+
+        // Populate TVMaze episode data cache framework asynchronously
+        if (tvmazeId) {
+            try {
+                const tvmazeEps = await fetch(`https://api.tvmaze.com/shows/${tvmazeId}/episodes?special=1`).then(r => r.json());
+                tvmazeEps.forEach(ep => {
+                    if (String(ep.season) === String(seasonNum)) {
+                        tvmazeEpisodesMap[String(ep.number)] = ep;
+                    }
+                });
+            } catch(e) { console.warn("Failed caching TVMaze episode metadata structures.", e); }
+        }
 
         const { data: { user } } = await supabaseClient.auth.getUser();
         let watchedSet = new Set();
@@ -1107,10 +1210,15 @@ async function loadEpisodes(config, seriesId, seasonNum) {
         }
 
         list.innerHTML = res.episodes.map(ep => `
-            <div class="episode-item">
-                <input type="checkbox" id="ep-${ep.episode_number}" ${watchedSet.has(ep.episode_number) ? 'checked' : ''} 
-                    onclick="toggleEpisode('${seriesId}', ${seasonNum}, ${ep.episode_number})">
-                <label for="ep-${ep.episode_number}">E${ep.episode_number}: ${ep.name}</label>
+            <div class="episode-item" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px;">
+                <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0;">
+                    <input type="checkbox" id="ep-${ep.episode_number}" ${watchedSet.has(ep.episode_number) ? 'checked' : ''} 
+                        onclick="event.stopPropagation(); toggleEpisode('${seriesId}', ${seasonNum}, ${ep.episode_number})">
+                    <label style="cursor: pointer; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" 
+                           onclick="openEpisodeModal('${ep.episode_number}', '${(ep.name || 'Untitled').replace(/'/g, "\\'")}', '${seasonNum}')">
+                        E${ep.episode_number}: <span style="text-decoration: underline; color: var(--accent);">${ep.name || 'Untitled'}</span>
+                    </label>
+                </div>
             </div>
         `).join('');
         updateUnifiedProgress(watchedSet.size, res.episodes.length, "episodes watched");
@@ -1118,6 +1226,71 @@ async function loadEpisodes(config, seriesId, seasonNum) {
         console.error("Episode load error:", err);
         list.innerHTML = "<p class='meta'>Error loading episodes.</p>"; 
     }
+}
+
+async function openEpisodeModal(epNum, fallbackTitle, seasonNum) {
+    const modal = document.getElementById('episode-modal');
+    const closeBtn = document.getElementById('close-episode-modal');
+    
+    const imgEl = document.getElementById('modal-episode-img');
+    const titleEl = document.getElementById('modal-episode-title');
+    const metaEl = document.getElementById('modal-episode-meta');
+    const overviewEl = document.getElementById('modal-episode-overview');
+    const castContainer = document.getElementById('modal-episode-cast');
+
+    titleEl.textContent = fallbackTitle;
+    metaEl.textContent = `Episode ${epNum}`;
+    overviewEl.textContent = "No overview description available.";
+    castContainer.innerHTML = '';
+    imgEl.src = 'https://via.placeholder.com/320x180/1b2228/9ab?text=No+Image';
+
+    const localData = tvmazeEpisodesMap[String(epNum)];
+    if (localData) {
+        if (localData.name) titleEl.textContent = localData.name;
+        if (localData.image && localData.image.medium) imgEl.src = localData.image.medium;
+        if (localData.airdate) metaEl.textContent = `Episode ${epNum} • Aired ${localData.airdate}`;
+        
+        if (localData.summary) {
+            const div = document.createElement('div');
+            div.innerHTML = localData.summary;
+            overviewEl.textContent = div.textContent || div.innerText;
+        }
+
+        // Deep-fetch Guest Cast structure directly from TMDB natively to ensure flawless Actor Cast routing
+        try {
+            const config = await fetch('config.json').then(r => r.json());
+            const tmdbRes = await fetch(`https://api.themoviedb.org/3/tv/${id}/season/${seasonNum}/episode/${epNum}/credits?language=en-US`, {
+                headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` }
+            }).then(r => r.json());
+            
+            if (tmdbRes && tmdbRes.guest_stars && tmdbRes.guest_stars.length > 0) {
+                castContainer.innerHTML = tmdbRes.guest_stars.map(g => {
+                    const img = g.profile_path ? `https://image.tmdb.org/t/p/w185${g.profile_path}` : 'https://via.placeholder.com/60x60/1b2228/9ab?text=No+Photo';
+                    
+                    // Route using personId (TMDB ID) instead of characterWiki!
+                    return `
+                        <div onclick="window.location.href='cast.html?personId=${g.id}'" 
+                            style="cursor: pointer; background: rgba(255,255,255,0.03); padding: 8px; border-radius: 6px; font-size: 0.8rem; display: flex; flex-direction: column; align-items: center; text-align: center; transition: background 0.2s, transform 0.2s;"
+                            onmouseover="this.style.background='rgba(255,255,255,0.08)'; this.style.transform='scale(1.03)';"
+                            onmouseout="this.style.background='rgba(255,255,255,0.03)'; this.style.transform='scale(1)';">
+                            <img src="${img}" style="width: 45px; height: 45px; object-fit: cover; border-radius: 50%; margin-bottom: 6px; border: 1px solid #2c3440;">
+                            <span style="font-weight: bold; color: #fff; display: block; overflow: hidden; text-overflow: ellipsis; max-width: 100%; white-space: nowrap;">${g.name}</span>
+                            <span style="color: #9ab; font-size: 0.7rem; display: block; overflow: hidden; text-overflow: ellipsis; max-width: 100%; white-space: nowrap; margin-top: 2px;">${g.character || 'Guest'}</span>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                castContainer.innerHTML = '<p class="meta" style="font-size: 0.8rem; margin: 0;">No guest cast recorded.</p>';
+            }
+        } catch(e) { 
+            console.error(e);
+            castContainer.innerHTML = '<p class="meta" style="font-size: 0.8rem; margin: 0;">Guest cast lookups failed.</p>'; 
+        }
+    }
+
+    modal.style.display = 'flex';
+    closeBtn.onclick = () => modal.style.display = 'none';
+    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
 }
 
 async function toggleEpisode(seriesId, seasonNum, epNum) {

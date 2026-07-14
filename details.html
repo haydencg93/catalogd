@@ -244,5 +244,26 @@
                 </div>
         </div>
     </div>
+
+    <div id="episode-modal" class="modal-overlay">
+        <div class="auth-card filler-card" style="text-align: left; max-width: 600px !important;">
+            <button class="close-btn" id="close-episode-modal">×</button>
+            <div style="display: flex; gap: 20px; align-items: flex-start; margin-top: 15px;">
+                <img id="modal-episode-img" src="" style="width: 200px; aspect-ratio: 16/9; object-fit: cover; border-radius: 8px; background: #14181c; border: 1px solid #2c3440;">
+                <div style="flex: 1;">
+                    <h2 id="modal-episode-title" style="margin: 0; font-size: 1.5rem;"></h2>
+                    <p id="modal-episode-meta" class="meta" style="margin: 5px 0 10px 0; font-size: 0.9rem; color: var(--accent); font-weight: bold;"></p>
+                </div>
+            </div>
+            <div style="margin-top: 20px;">
+                <h4 style="color: #9ab; margin-bottom: 8px; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 1px;">Overview</h4>
+                <p id="modal-episode-overview" style="line-height: 1.6; margin: 0; color: #ccd6e0;"></p>
+            </div>
+            <div style="margin-top: 25px;">
+                <h4 style="color: #9ab; margin-bottom: 12px; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 1px;">Guest Cast</h4>
+                <div id="modal-episode-cast" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 15px; max-height: 180px; overflow-y: auto; padding-right: 5px;"></div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
