@@ -1,0 +1,1471 @@
+{
+  "anime": "boruto-naruto-next-generations",
+  "total_episodes": 293,
+  "episodes": [
+    {
+      "number": "1",
+      "title": "Boruto Uzumaki!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "2",
+      "title": "The Hokage's Son!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "3",
+      "title": "Metal Lee Goes Wild!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "4",
+      "title": "A Ninjutsu Battle of the Sexes!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "5",
+      "title": "The Mysterious Transfer Student!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "6",
+      "title": "The Final Lesson!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "7",
+      "title": "Love and Potato Chips!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "8",
+      "title": "The Dream's Revelation",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "9",
+      "title": "Proof of Oneself",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "10",
+      "title": "The Ghost Incident: The Investigation Begins!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "11",
+      "title": "The Shadow of the Mastermind",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "12",
+      "title": "Boruto and Mitsuki",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "13",
+      "title": "The Demon Beast Appears!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "14",
+      "title": "The Path That Boruto Can See",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "15",
+      "title": "A New Path",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "16",
+      "title": "Crisis: The Threat of Failing!",
+      "type": "Filler"
+    },
+    {
+      "number": "17",
+      "title": "Run, Sarada!",
+      "type": "Filler"
+    },
+    {
+      "number": "18",
+      "title": "A Day in the Life of the Uzumaki Family",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "19",
+      "title": "Sarada Uchiha",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "20",
+      "title": "The Boy With the Sharingan",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "21",
+      "title": "Sasuke and Sarada",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "22",
+      "title": "Connected Feelings",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "23",
+      "title": "Bonds Come in All Shapes",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "24",
+      "title": "Boruto and Sarada",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "25",
+      "title": "The Turbulent Field Trip",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "26",
+      "title": "The Mizukage's Successor",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "27",
+      "title": "A Shinobi Bout of Friendship",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "28",
+      "title": "Declaration of War",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "29",
+      "title": "The New Seven Ninja Swordsmen!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "30",
+      "title": "The Sharingan vs. the Lightning Blade, Kiba the Fang!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "31",
+      "title": "Boruto and Kagura",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "32",
+      "title": "The Quest for Souvenirs",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "33",
+      "title": "The Super Beast Scroll Slump!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "34",
+      "title": "The Night of the Shooting Stars",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "35",
+      "title": "The Parent Teacher Conference!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "36",
+      "title": "The Graduation Exam Begins!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "37",
+      "title": "A Shinobi's Resolve",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "38",
+      "title": "Formation of the Three-Man Squad?",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "39",
+      "title": "The Path Lit by the Full Moon",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "40",
+      "title": "Team 7: The First Mission!",
+      "type": "Filler"
+    },
+    {
+      "number": "41",
+      "title": "Strength in Unity",
+      "type": "Filler"
+    },
+    {
+      "number": "42",
+      "title": "A Ninja's Job",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "43",
+      "title": "The Byakuya Gang Surfaces!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "44",
+      "title": "Shikadai’s Doubts",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "45",
+      "title": "Memories From the Day of Snow",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "46",
+      "title": "Go! The Crest of Night Strategy",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "47",
+      "title": "The Figure I Want To Be",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "48",
+      "title": "The Genin Documentary!",
+      "type": "Filler"
+    },
+    {
+      "number": "49",
+      "title": "Wasabi and Namida",
+      "type": "Filler"
+    },
+    {
+      "number": "50",
+      "title": "The Chunin Exams: The Recommendation Meeting",
+      "type": "Filler"
+    },
+    {
+      "number": "51",
+      "title": "Boruto's Birthday",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "52",
+      "title": "Sasuke's Shadow",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "53",
+      "title": "Himawari's Birthday",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "54",
+      "title": "Sasuke and Boruto",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "55",
+      "title": "The Scientific Ninja Tool",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "56",
+      "title": "Rivals, Gather!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "57",
+      "title": "The Reason I Can't Lose",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "58",
+      "title": "The Tournament Begins!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "59",
+      "title": "Boruto vs. Shikadai",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "60",
+      "title": "The Hidden Leaf vs. the Hidden Sand",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "61",
+      "title": "The Iron Sand User: Shinki",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "62",
+      "title": "The Otsutsuki Invasion",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "63",
+      "title": "Sasuke's Secret Weapon",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "64",
+      "title": "Rescuing Naruto!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "65",
+      "title": "Father and Child",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "66",
+      "title": "My Story!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "67",
+      "title": "Super Cho-Cho Butterfly Mode!",
+      "type": "Filler"
+    },
+    {
+      "number": "68",
+      "title": "Super Cho-Cho Kiss Mode!",
+      "type": "Filler"
+    },
+    {
+      "number": "69",
+      "title": "Super Cho-Cho Love Upheaval!",
+      "type": "Filler"
+    },
+    {
+      "number": "70",
+      "title": "The Other Side of Anxiety",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "71",
+      "title": "The Hardest Rock in the World",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "72",
+      "title": "Mitsuki’s Will",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "73",
+      "title": "The Other Side of the Moon",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "74",
+      "title": "The Enemy, Ino-Shika-Cho!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "75",
+      "title": "The Trials of Ryuchi Cave",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "76",
+      "title": "Incurring Wrath",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "77",
+      "title": "A Fierce Enemy: Garaga’s Ferocious Attack!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "78",
+      "title": "Everyone’s Motives",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "79",
+      "title": "Reunion With Mitsuki",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "80",
+      "title": "Mitsuki’s Friend",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "81",
+      "title": "Boruto's Wish",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "82",
+      "title": "Infiltrating the Hidden Stone Village",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "83",
+      "title": "Ohnoki’s Justice",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "84",
+      "title": "Ohnoki's Thoughts, Ku's Thoughts",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "85",
+      "title": "The Heart Stone",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "86",
+      "title": "Kozuchi's Will",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "87",
+      "title": "The Sensation of Living",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "88",
+      "title": "Clash: Kokuyou!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "89",
+      "title": "A Piercing Heart",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "90",
+      "title": "Mitsuki and Sekiei",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "91",
+      "title": "Ohnoki's Will",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "92",
+      "title": "A New Ordinary",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "93",
+      "title": "Family Day",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "94",
+      "title": "A Heaping Helping! The Eating Contest!",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "95",
+      "title": "Tactics for Getting Along With Your Daughter",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "96",
+      "title": "Blood, Sweat and Namida",
+      "type": "Filler"
+    },
+    {
+      "number": "97",
+      "title": "Shikadai's Decision",
+      "type": "Filler"
+    },
+    {
+      "number": "98",
+      "title": "The Cursed Forest",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "99",
+      "title": "Jugo and the Curse Mark",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "100",
+      "title": "The Predestined Path",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "101",
+      "title": "Jugo’s Reinforcements",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "102",
+      "title": "Melee!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "103",
+      "title": "Migration Season",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "104",
+      "title": "The Little Roommate",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "105",
+      "title": "A Wound on the Heart",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "106",
+      "title": "The Steam Ninja Scrolls: The S-Rank Mission!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "107",
+      "title": "The Steam Ninja Scrolls: The Dog and Cat War!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "108",
+      "title": "The Steam Ninja Scrolls: The Haunted Inn!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "109",
+      "title": "The Steam Ninja Scrolls: Potato Chips and the Giant Boulder!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "110",
+      "title": "The Steam Ninja Scrolls: The Resurrection Hot Springs!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "111",
+      "title": "The Steam Ninja Scrolls: Mirai's King!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "112",
+      "title": "The Chunin Selection Conference",
+      "type": "Filler"
+    },
+    {
+      "number": "113",
+      "title": "The Qualities of a Captain",
+      "type": "Filler"
+    },
+    {
+      "number": "114",
+      "title": "X Cards Proxy War!",
+      "type": "Filler"
+    },
+    {
+      "number": "115",
+      "title": "Team 25",
+      "type": "Filler"
+    },
+    {
+      "number": "116",
+      "title": "Konohamaru and Remon",
+      "type": "Filler"
+    },
+    {
+      "number": "117",
+      "title": "Remon’s Secret",
+      "type": "Filler"
+    },
+    {
+      "number": "118",
+      "title": "Something That Steals Memories",
+      "type": "Filler"
+    },
+    {
+      "number": "119",
+      "title": "Konohamaru’s Ninja Way",
+      "type": "Filler"
+    },
+    {
+      "number": "120",
+      "title": "With Sasuke as the Goal",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "121",
+      "title": "The Entrusted Mission: Protect the One Tails!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "122",
+      "title": "The Puppet Battle!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "123",
+      "title": "Urashiki Returns",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "124",
+      "title": "Decision Time",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "125",
+      "title": "Boruto and Shinki",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "126",
+      "title": "Shukaku's Trick",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "127",
+      "title": "Make-Out Tactics",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "128",
+      "title": "Urashiki’s Target",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "129",
+      "title": "The Village Hidden in the Leaves",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "130",
+      "title": "Genin, Assemble!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "131",
+      "title": "The Power of the Nine Tails",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "132",
+      "title": "Jiraiya's Assignment",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "133",
+      "title": "A Village Without Sasuke",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "134",
+      "title": "The Power To See the Future",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "135",
+      "title": "The Last Battle, Urashiki",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "136",
+      "title": "Crossing Time!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "137",
+      "title": "The Samurai Exchange Student",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "138",
+      "title": "Hiashi's Birthday",
+      "type": "Filler"
+    },
+    {
+      "number": "139",
+      "title": "The Terror! Enko Onikuma",
+      "type": "Filler"
+    },
+    {
+      "number": "140",
+      "title": "The Mind Transfer Jutsu That Lost to Potato Chips",
+      "type": "Filler"
+    },
+    {
+      "number": "141",
+      "title": "The Shinobi Prison: Hozuki Castle",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "142",
+      "title": "A Test of Willpower",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "143",
+      "title": "The Criminal Targeting Kokuri",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "144",
+      "title": "Kokuri's Secret",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "145",
+      "title": "Breaking Out of Hozuki Castle",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "146",
+      "title": "Executing the Prison Break!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "147",
+      "title": "The Fateful Moonlit Battle",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "148",
+      "title": "A New Mission!!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "149",
+      "title": "Friends!!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "150",
+      "title": "The Value of a Hidden Ace",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "151",
+      "title": "Boruto and Tento",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "152",
+      "title": "Developing One's Medical Ninjutsu",
+      "type": "Filler"
+    },
+    {
+      "number": "153",
+      "title": "Harmony in Gold",
+      "type": "Filler"
+    },
+    {
+      "number": "154",
+      "title": "Himawari's Ninja Trial Session",
+      "type": "Filler"
+    },
+    {
+      "number": "155",
+      "title": "Mitsuki's Rainy Day",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "156",
+      "title": "I Can't Stay in My Slim Form",
+      "type": "Filler"
+    },
+    {
+      "number": "157",
+      "title": "Kara's Footprints",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "158",
+      "title": "The Man Who Disappeared",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "159",
+      "title": "The Hashirama Cell",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "160",
+      "title": "To the Land of Silence",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "161",
+      "title": "The Castle of Nightmares",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "162",
+      "title": "Escaping the Tightening Net",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "163",
+      "title": "The Pursuers",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "164",
+      "title": "The Forbidden Jutsu of Death",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "165",
+      "title": "The Quadruplets' Duty",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "166",
+      "title": "Death Match",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "167",
+      "title": "Their Decision",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "168",
+      "title": "Training Begins!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "169",
+      "title": "A Joint Mission With the Sand",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "170",
+      "title": "A New Rasengan",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "171",
+      "title": "The Results of Training",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "172",
+      "title": "A Signature of Fear",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "173",
+      "title": "The Secret Behind the Underground Room",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "174",
+      "title": "The Revival of the Divine Tree",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "175",
+      "title": "Beyond the Limits!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "176",
+      "title": "Blockade the A-Un Gate!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "177",
+      "title": "The Iron Wall's Sensing System",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "178",
+      "title": "Our Fathers' Example",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "179",
+      "title": "Victor's Scheme",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "180",
+      "title": "The Assassin, Mugino",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "181",
+      "title": "The Vessel",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "182",
+      "title": "Ao",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "183",
+      "title": "The Hand",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "184",
+      "title": "Puppets",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "185",
+      "title": "Tools",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "186",
+      "title": "How You Use It",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "187",
+      "title": "Karma",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "188",
+      "title": "Awakening",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "189",
+      "title": "Resonance",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "190",
+      "title": "Escape",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "191",
+      "title": "Stray Dog",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "192",
+      "title": "The Past",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "193",
+      "title": "Coexistence",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "194",
+      "title": "The Uzumaki Household",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "195",
+      "title": "A Vase",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "196",
+      "title": "A Binding Force",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "197",
+      "title": "Delta",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "198",
+      "title": "Monsters",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "199",
+      "title": "Overload",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "200",
+      "title": "Becoming a Student",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "201",
+      "title": "Empty Tears",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "202",
+      "title": "The Cult",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "203",
+      "title": "Suprise Attack!",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "204",
+      "title": "He's Bad News",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "205",
+      "title": "Proof",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "206",
+      "title": "The New Team Seven",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "207",
+      "title": "Regeneration",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "208",
+      "title": "Momoshiki's Manifestation",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "209",
+      "title": "The Outcast",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "210",
+      "title": "Clues to Kara",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "211",
+      "title": "The Chase",
+      "type": "Mixed Canon/Filler"
+    },
+    {
+      "number": "212",
+      "title": "Amado's Defection",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "213",
+      "title": "True Identity",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "214",
+      "title": "Predestined Fate",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "215",
+      "title": "Prepared",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "216",
+      "title": "Sacrifice",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "217",
+      "title": "Decision",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "218",
+      "title": "Partner",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "219",
+      "title": "Return",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "220",
+      "title": "Remaining Time",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "221",
+      "title": "The Chunin Exams Resume",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "222",
+      "title": "The Night Before the Final Round",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "223",
+      "title": "Inojin vs. Houki",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "224",
+      "title": "The Legend of the Monster Cat",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "225",
+      "title": "Showdown Between Best Friends",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "226",
+      "title": "Samurai vs. Science",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "227",
+      "title": "Team 7's Last Mission?!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "228",
+      "title": "Kawaki's Path To Becoming a Ninja",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "229",
+      "title": "Breach of Orders",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "230",
+      "title": "A Wish",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "231",
+      "title": "The Rusty Sword",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "232",
+      "title": "Captain Denki's First Mission",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "233",
+      "title": "The New Team 7 Jumps Into Action",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "234",
+      "title": "The Unleashed Villian",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "235",
+      "title": "Infiltrating Dotou Island",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "236",
+      "title": "Cut and Run",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "237",
+      "title": "The Mobile Fortress",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "238",
+      "title": "A Killer on the Ship",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "239",
+      "title": "The Boy From the Isle of Shipbuilders",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "240",
+      "title": "Ikada's Dream",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "241",
+      "title": "Ikada's Secret",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "242",
+      "title": "Seiren",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "243",
+      "title": "Where I Belong",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "244",
+      "title": "Rift",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "245",
+      "title": "Funamushi's Tenacity",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "246",
+      "title": "A Heavy Loss",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "247",
+      "title": "For Kagura",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "248",
+      "title": "Another Fierce Battle",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "249",
+      "title": "Burgeoning Hatred",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "250",
+      "title": "The Blood of the Funato",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "251",
+      "title": "Their Resolve",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "252",
+      "title": "The Desire to Believe",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "253",
+      "title": "Conflicting Feelings",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "254",
+      "title": "The Spiral of Revenge",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "255",
+      "title": "A Tricky Assignment",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "256",
+      "title": "The Ultimate Recipe",
+      "type": "Filler"
+    },
+    {
+      "number": "257",
+      "title": "Konohamaru Becomes the Hokage?!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "258",
+      "title": "The Uzumaki Family's Hot Springs Vacation",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "259",
+      "title": "A Wound That Never Heals",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "260",
+      "title": "Fireworks of Love",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "261",
+      "title": "Kawaki Enters the Ninja Academy!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "262",
+      "title": "The Princess’ Tea Party",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "263",
+      "title": "Bloom, Hana! The Teacher's Gifts",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "264",
+      "title": "The Seven Mysteries Investigative Team Forms!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "265",
+      "title": "Team Rivalry: Practical Skills Training!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "266",
+      "title": "Himawari Kidnapped!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "267",
+      "title": "Kawaki's Cover Blown?!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "268",
+      "title": "Target: The School Festival",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "269",
+      "title": "The Sneaking Shadow",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "270",
+      "title": "Two Sides of the Same Coin",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "271",
+      "title": "The Island of Treachery",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "272",
+      "title": "Students Unite!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "273",
+      "title": "Farewell, Academy!",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "274",
+      "title": "A Flightless Hawk",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "275",
+      "title": "Into the Sky Again",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "276",
+      "title": "Welcome to the Maze",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "277",
+      "title": "Disappearing Lives",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "278",
+      "title": "Musical Chairs",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "279",
+      "title": "The Obstacle: Seven",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "280",
+      "title": "Breakthrough",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "281",
+      "title": "The Eighth Truth",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "282",
+      "title": "Sasuke's Story: Infiltration",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "283",
+      "title": "Sasuke's Story: Star Lines",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "284",
+      "title": "Sasuke's Story: The Secret in the Cellar",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "285",
+      "title": "Sasuke's Story: The Sky That Fell to the Earth",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "286",
+      "title": "Sasuke's Story: The Ring",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "287",
+      "title": "Claw Marks",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "288",
+      "title": "Captives",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "289",
+      "title": "Qualification",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "290",
+      "title": "Presence",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "291",
+      "title": "Control",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "292",
+      "title": "Hunger",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "293",
+      "title": "Farewell",
+      "type": "Manga Canon"
+    }
+  ]
+}
