@@ -3,9 +3,12 @@ const listId = params.get('id');
 let supabaseClient = null;
 let tmdbToken = "";
 let isRanked = false;
+let isTiered = false;
+let tierColors = {};
 let isManaging = false;
 let currentItems = [];
 let sortableInstance = null;
+let sortableInstances = [];
 let isOwner = false;
 let lastfmKey = "";
 let customImgsMap = new Map();
@@ -42,6 +45,8 @@ async function initListDetails() {
 
     const list = fetchedList; 
     isRanked = list.is_ranked;
+    isTiered = list.is_tiered || false;
+    tierColors = list.tier_colors || {"S": "#ff7f7f", "A": "#ffbf7f", "B": "#ffff7f", "C": "#7fff7f", "D": "#7fbfff", "F": "#ff7fff"};
 
     // 4. Determine Permissions (Owner vs Collaborator vs Visitor)
     const isActualOwner = currentUserId === list.user_id;
@@ -123,6 +128,21 @@ async function initListDetails() {
             document.getElementById('edit-list-desc').value = list.description || "";
             document.getElementById('edit-visibility-select').value = String(list.is_public);
             document.getElementById('edit-ranked-toggle').checked = isRanked;
+            
+            const tierSection = document.getElementById('edit-tier-colors-section');
+            const tierColorsContainer = document.getElementById('tier-colors-container');
+            if (isTiered) {
+                tierSection.style.display = 'block';
+                tierColorsContainer.innerHTML = Object.keys(tierColors).map(tier => `
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <label style="color: white; width: 25px; font-weight: bold;">${tier}</label>
+                        <input type="color" id="color-${tier}" value="${tierColors[tier]}" style="background: none; border: none; cursor: pointer; height: 30px; width: 50px; padding: 0;">
+                    </div>
+                `).join('');
+            } else {
+                tierSection.style.display = 'none';
+            }
+
             editModal.style.display = 'block';
         };
 
@@ -136,6 +156,14 @@ async function initListDetails() {
             const newDesc = document.getElementById('edit-list-desc').value.trim();
             const isNowPublic = document.getElementById('edit-visibility-select').value === 'true';
             const isNowRanked = document.getElementById('edit-ranked-toggle').checked;
+
+            let updatedColors = tierColors;
+            if (isTiered) {
+                Object.keys(tierColors).forEach(tier => {
+                    const colorInput = document.getElementById(`color-${tier}`);
+                    if (colorInput) updatedColors[tier] = colorInput.value;
+                });
+            }
 
             if (!newName) return alert("List name cannot be empty.");
 
@@ -151,7 +179,8 @@ async function initListDetails() {
                         name: newName,
                         description: newDesc,
                         is_public: isNowPublic,
-                        is_ranked: isNowRanked 
+                        is_ranked: isNowRanked,
+                        tier_colors: updatedColors
                     })
                     .eq('id', listId);
                 
@@ -173,6 +202,7 @@ async function initListDetails() {
                 list.description = newDesc;
                 list.is_public = isNowPublic;
                 isRanked = isNowRanked;
+                tierColors = updatedColors;
 
                 document.getElementById('list-name').textContent = list.name;
                 document.getElementById('list-desc').textContent = list.description || "Collection";
@@ -191,9 +221,33 @@ async function initListDetails() {
 
         // --- Split Owner vs Collaborator Logic for the Modal/Invites ---
         if (isActualOwner) {
-            // OWNER ONLY: Can invite collaborators
+            // OWNER ONLY: Can invite collaborators and delete list
             setupCollabModal();
             collabBtn.style.display = 'inline-block';
+            
+            const deleteBtn = document.getElementById('delete-list-btn');
+            if (deleteBtn) {
+                deleteBtn.style.display = 'block';
+                deleteBtn.onclick = async () => {
+                    if (confirm("Are you sure you want to permanently delete this list? This cannot be undone.")) {
+                        deleteBtn.textContent = "Deleting...";
+                        deleteBtn.disabled = true;
+                        
+                        // Delete items and collabs first to avoid foreign key constraint errors
+                        await supabaseClient.from('list_items').delete().eq('list_id', listId);
+                        await supabaseClient.from('list_collaborators').delete().eq('list_id', listId);
+                        const { error } = await supabaseClient.from('media_lists').delete().eq('id', listId);
+                        
+                        if (error) {
+                            alert("Error deleting list: " + error.message);
+                            deleteBtn.textContent = "Delete List";
+                            deleteBtn.disabled = false;
+                        } else {
+                            window.location.href = `lists.html?id=${currentUserId}`;
+                        }
+                    }
+                };
+            }
         } else {
             // COLLABORATOR ONLY: Change Collab button to "Leave List"
             collabBtn.textContent = "Leave List";
@@ -235,7 +289,10 @@ async function initListDetails() {
     document.getElementById('list-desc').textContent = list.description || "Collection";
     
     await fetchListItems();
-    if (isOwner) setupSearch();
+    if (isOwner) {
+        setupSearch();
+        setupCustomCardModal();
+    }
     setupHeader()
 }
 
@@ -295,7 +352,9 @@ async function fetchListItems() {
         .select('*')
         .eq('list_id', listId);
     
-    if (isRanked) {
+    if (isTiered) {
+        query = query.order('rank', { ascending: true }); // We'll group locally by tier
+    } else if (isRanked) {
         query = query.order('rank', { ascending: true });
     } else {
         query = query.order('added_at', { ascending: false });
@@ -312,10 +371,9 @@ async function renderList() {
     const container = document.getElementById('list-content');
     container.innerHTML = '';
 
-    if (sortableInstance) {
-        sortableInstance.destroy();
-        sortableInstance = null;
-    }
+    if (sortableInstance) { sortableInstance.destroy(); sortableInstance = null; }
+    sortableInstances.forEach(inst => inst.destroy());
+    sortableInstances = [];
 
     if (currentItems.length === 0) {
         container.innerHTML = "<p class='meta'>No items in this list yet.</p>";
@@ -323,11 +381,26 @@ async function renderList() {
     }
 
     container.innerHTML = '<p class="meta">Loading items...</p>';
+    
+    if (isTiered) {
+        await renderTieredList(container);
+    } else {
+        await renderStandardList(container);
+    }
+}
+
+async function renderStandardList(container) {
+    container.innerHTML = '';
+    container.classList.add('list-items-grid');
+    container.classList.remove('tiered-list-container');
+    
     const fragment = document.createDocumentFragment();
 
     for (let i = 0; i < currentItems.length; i++) {
         const item = currentItems[i];
-        const details = await fetchMediaDetails(item.media_id, item.media_type);
+        const details = item.is_custom 
+            ? { title: item.custom_name, poster: item.custom_image_url || 'https://placehold.co/500x750/1b2228/9ab?text=Custom' }
+            : await fetchMediaDetails(item);
 
         const customArt = customImgsMap.get(`${item.media_type}_${String(item.media_id)}`);
         if (customArt && customArt.custom_poster) {
@@ -355,27 +428,108 @@ async function renderList() {
         `;
         
         card.onclick = () => {
-            if (!isManaging) {
-                window.location.href = `details.html?id=${item.media_id}&type=${item.media_type}`;
+            if (!isManaging && !item.is_custom) {
+                if (['character', 'author', 'artist'].includes(item.media_type)) {
+                    const param = item.media_type === 'character' ? 'characterWiki' : (item.media_type === 'author' ? 'authorId' : 'artist');
+                    window.location.href = `cast.html?${param}=${encodeURIComponent(item.media_id)}`;
+                } else if (item.media_type === 'person' || item.media_type === 'actor' || item.media_type === 'crew') {
+                    window.location.href = `cast.html?personId=${item.media_id}`;
+                } else {
+                    window.location.href = `details.html?id=${item.media_id}&type=${item.media_type}`;
+                }
             }
         };
 
         fragment.appendChild(card);
-    }
+    }   
 
-    container.innerHTML = '';
     container.appendChild(fragment);
 
-    // Initialize drag-and-drop if managing order
     if (isManaging && isRanked) {
         sortableInstance = new Sortable(container, { 
             animation: 150,
             disabled: !isManaging || !isRanked,
-            onEnd: (evt) => {
-                // Instantly update the visual numbers on the posters when dropped!
-                updateRankBadges();
-            }
+            onEnd: (evt) => { updateRankBadges(); }
         });
+    }
+}
+
+async function renderTieredList(container) {
+    container.innerHTML = '';
+    container.classList.remove('list-items-grid');
+    container.classList.add('tiered-list-container');
+
+    const tiers = ['S', 'A', 'B', 'C', 'D', 'F', 'NS'];
+    
+    for (const tier of tiers) {
+        const tierItems = currentItems.filter(item => item.tier_rank === tier).sort((a, b) => (a.rank || 0) - (b.rank || 0));
+        const tierColor = tierColors[tier] || '#444'; 
+        const tierLabel = tier === 'NS' ? 'N/A' : tier;
+
+        const tierRow = document.createElement('div');
+        tierRow.className = 'tier-row';
+        
+        tierRow.innerHTML = `
+            <div class="tier-label" style="background-color: ${tierColor}; color: ${tier === 'NS' ? '#fff' : '#000'};">${tierLabel}</div>
+            <div class="tier-content" data-tier="${tier}" id="tier-content-${tier}"></div>
+        `;
+        container.appendChild(tierRow);
+
+        const contentDiv = tierRow.querySelector('.tier-content');
+        
+        for (let i = 0; i < tierItems.length; i++) {
+            const item = tierItems[i];
+            const details = item.is_custom 
+                ? { title: item.custom_name, poster: item.custom_image_url || 'https://placehold.co/500x750/1b2228/9ab?text=Custom' }
+                : await fetchMediaDetails(item);
+
+            const customArt = customImgsMap.get(`${item.media_type}_${String(item.media_id)}`);
+            if (customArt && customArt.custom_poster) {
+                details.poster = customArt.custom_poster;
+            }
+
+            const card = document.createElement('div');
+            card.className = `media-card ${isManaging ? 'managing' : ''}`;
+            card.setAttribute('data-type', item.media_type);
+            card.setAttribute('data-id', item.id);
+
+            const removeBtn = isOwner ? `<button class="remove-btn" onclick="removeItem('${item.id}', event)">✕</button>` : '';
+            
+            card.innerHTML = `
+                ${removeBtn}
+                <div class="poster-wrapper">
+                    <img src="${details.poster}" alt="${details.title}" onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
+                    <span class="badge badge-${item.media_type}">${item.media_type}</span>
+                </div>
+                <div class="media-info">
+                    <div class="title" style="font-weight:bold; font-size: 0.9rem; margin-bottom: 5px;">${details.title}</div>
+                </div>
+            `;
+            
+            card.onclick = () => {
+                if (!isManaging && !item.is_custom) {
+                    if (['character', 'author', 'artist'].includes(item.media_type)) {
+                        const param = item.media_type === 'character' ? 'characterWiki' : (item.media_type === 'author' ? 'authorId' : 'artist');
+                        window.location.href = `cast.html?${param}=${encodeURIComponent(item.media_id)}`;
+                    } else if (item.media_type === 'person' || item.media_type === 'actor' || item.media_type === 'crew') {
+                        window.location.href = `cast.html?personId=${item.media_id}`;
+                    } else {
+                        window.location.href = `details.html?id=${item.media_id}&type=${item.media_type}`;
+                    }
+                }
+            };
+            contentDiv.appendChild(card);
+        }
+
+        if (isManaging) {
+            const sortable = new Sortable(contentDiv, {
+                group: 'shared-tiers',
+                animation: 150,
+                disabled: !isManaging,
+                ghostClass: 'sortable-ghost'
+            });
+            sortableInstances.push(sortable);
+        }
     }
 }
 
@@ -398,25 +552,42 @@ document.getElementById('save-order-btn').onclick = async () => {
     btn.disabled = true;
 
     try {
-        // Grab the physical cards directly from the screen in their new dropped order
-        const container = document.getElementById('list-content');
-        const cards = container.querySelectorAll('.media-card');
-        
-        // Loop through the cards and update Supabase row by row
-        for (let i = 0; i < cards.length; i++) {
-            const dbId = cards[i].getAttribute('data-id');
-            const newRank = i + 1;
+        if (isTiered) {
+            const tiers = ['S', 'A', 'B', 'C', 'D', 'F', 'NS'];
+            for (const tier of tiers) {
+                const contentDiv = document.getElementById(`tier-content-${tier}`);
+                if (!contentDiv) continue;
+                const cards = contentDiv.querySelectorAll('.media-card');
+                
+                for (let i = 0; i < cards.length; i++) {
+                    const dbId = cards[i].getAttribute('data-id');
+                    const newRank = i + 1;
+                    if (!dbId) continue;
 
-            if (!dbId) continue;
-
-            const { error } = await supabaseClient
-                .from('list_items')
-                .update({ rank: newRank })
-                .eq('id', dbId);
+                    const { error } = await supabaseClient
+                        .from('list_items')
+                        .update({ rank: newRank, tier_rank: tier })
+                        .eq('id', dbId);
+                    
+                    if (error) throw new Error(`Database error on rank ${newRank}.`);
+                }
+            }
+        } else {
+            const container = document.getElementById('list-content');
+            const cards = container.querySelectorAll('.media-card');
             
-            if (error) {
-                console.error(`Error updating rank for item ${dbId}:`, error);
-                throw new Error(`Permission denied or database error on rank ${newRank}.`);
+            for (let i = 0; i < cards.length; i++) {
+                const dbId = cards[i].getAttribute('data-id');
+                const newRank = i + 1;
+
+                if (!dbId) continue;
+
+                const { error } = await supabaseClient
+                    .from('list_items')
+                    .update({ rank: newRank })
+                    .eq('id', dbId);
+                
+                if (error) throw new Error(`Permission denied or database error on rank ${newRank}.`);
             }
         }
 
@@ -494,11 +665,12 @@ function renderSearchResults(tmdb, books, albums) {
     resultsDiv.innerHTML = '';
     resultsDiv.style.display = 'block';
 
-    tmdb?.filter(item => item.media_type !== 'person').slice(0, 5).forEach(item => {
+    tmdb?.filter(item => isTiered || item.media_type !== 'person').slice(0, 5).forEach(item => {
         const div = document.createElement('div');
+        const imgPath = item.poster_path || item.profile_path;
         div.className = 'search-result-item';
         div.innerHTML = `
-            <img src="https://image.tmdb.org/t/p/w92${item.poster_path}" onerror="this.src='placeholder.png'">
+            <img src="https://image.tmdb.org/t/p/w92${imgPath}" onerror="this.src='placeholder.png'">
             <div>
                 <strong>${item.title || item.name}</strong>
                 <div class="meta">${item.media_type.toUpperCase()}</div>
@@ -540,7 +712,8 @@ function renderSearchResults(tmdb, books, albums) {
 }
 
 async function addItem(mediaId, mediaType, mediaTitle) {
-    const newRank = isRanked ? currentItems.length + 1 : null;
+    const newRank = isRanked || isTiered ? currentItems.length + 1 : null;
+    const newTierRank = isTiered ? 'NS' : 'NS';
     
     const { error } = await supabaseClient
         .from('list_items')
@@ -549,7 +722,8 @@ async function addItem(mediaId, mediaType, mediaTitle) {
             media_id: String(mediaId), 
             media_type: mediaType,
             media_title: mediaTitle,
-            rank: newRank
+            rank: newRank,
+            tier_rank: newTierRank
         });
 
     if (error) {
@@ -561,9 +735,16 @@ async function addItem(mediaId, mediaType, mediaTitle) {
     }
 }
 
-async function fetchMediaDetails(id, type) {
+async function fetchMediaDetails(item) {
+    const id = item.media_id;
+    const type = item.media_type;
     try {
-        if (type === 'youtube') {
+        if (['character', 'author', 'artist', 'actor', 'crew'].includes(type) || (type === 'person' && !/^\d+$/.test(id))) {
+            return {
+                title: item.media_title || item.custom_name || id,
+                poster: item.custom_image_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.media_title || id)}&background=1b2228&color=9ab&size=300`
+            };
+        } else if (type === 'youtube') {
             const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${id}`).then(r => r.json());
             return {
                 title: res.title || 'YouTube Video',
@@ -582,6 +763,14 @@ async function fetchMediaDetails(id, type) {
             return {
                 title: res.album?.name || albumName,
                 poster: res.album?.image?.[3]['#text'] || `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`
+            };
+        } else if (type === 'person') {
+            const res = await fetch(`https://api.themoviedb.org/3/person/${id}`, {
+                headers: { Authorization: `Bearer ${tmdbToken}` }
+            }).then(r => r.json());
+            return {
+                title: res.name,
+                poster: res.profile_path ? `https://image.tmdb.org/t/p/w500${res.profile_path}` : 'https://placehold.co/500x750/1b2228/9ab?text=No+Photo'
             };
         } else {
             const res = await fetch(`https://api.themoviedb.org/3/${type}/${id}`, {
@@ -605,6 +794,56 @@ window.removeItem = async (itemId, event) => {
     if (error) alert("Error removing item: " + error.message);
     else fetchListItems();
 };
+
+function setupCustomCardModal() {
+    const openBtn = document.getElementById('open-custom-card-modal');
+    const modal = document.getElementById('custom-card-modal');
+    const closeBtn = document.getElementById('close-custom-card-modal');
+    const submitBtn = document.getElementById('submit-custom-card');
+
+    openBtn.onclick = () => modal.style.display = 'flex';
+    closeBtn.onclick = () => modal.style.display = 'none';
+    window.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
+
+    submitBtn.onclick = async () => {
+        const name = document.getElementById('custom-card-name').value.trim();
+        const img = document.getElementById('custom-card-img').value.trim() || null;
+        const type = document.getElementById('custom-card-type').value;
+
+        if (!name) return alert("Name is required for custom cards.");
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Adding...";
+
+        const newRank = isRanked || isTiered ? currentItems.length + 1 : null;
+        const newTierRank = isTiered ? 'NS' : 'NS';
+
+        const { error } = await supabaseClient
+            .from('list_items')
+            .insert({ 
+                list_id: listId, 
+                media_id: 'custom_' + Date.now(), 
+                media_type: type,
+                media_title: name,
+                rank: newRank,
+                tier_rank: newTierRank,
+                is_custom: true,
+                custom_name: name,
+                custom_image_url: img
+            });
+
+        if (error) alert("Error adding custom card: " + error.message);
+        else {
+            document.getElementById('custom-card-name').value = '';
+            document.getElementById('custom-card-img').value = '';
+            modal.style.display = 'none';
+            fetchListItems();
+        }
+        
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Add Card";
+    };
+}
 
 async function setupCollabModal() {
     const modal = document.getElementById('collab-modal');

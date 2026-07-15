@@ -1487,6 +1487,7 @@ async function setupListManager(mediaId, mediaType) {
     const modal = document.getElementById('list-modal');
     const close = document.getElementById('close-list-modal');
     const container = document.getElementById('user-lists-selection');
+    const filterBtns = modal.querySelectorAll('.filter-btn');
     
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) { 
@@ -1494,48 +1495,27 @@ async function setupListManager(mediaId, mediaType) {
         return; 
     }
 
-    btn.onclick = async () => {
-        modal.style.display = 'flex';
-        container.innerHTML = '<p class="meta">Loading your lists...</p>';
+    let allAvailableLists = [];
+    let itemsInLists = new Set();
+    let currentDetailsListTab = 'owned';
 
-        // STEP 1: Fetch lists the user owns
-        const { data: owned } = await supabaseClient
-            .from('media_lists')
-            .select('id, name')
-            .eq('user_id', user.id);
+    const renderDetailsListModal = () => {
+        let filtered = [];
+        if (currentDetailsListTab === 'owned') {
+            filtered = allAvailableLists.filter(l => l.user_id === user.id && !l.is_tiered);
+        } else if (currentDetailsListTab === 'shared') {
+            filtered = allAvailableLists.filter(l => l.user_id !== user.id && !l.is_tiered);
+        } else if (currentDetailsListTab === 'tier') {
+            filtered = allAvailableLists.filter(l => l.is_tiered);
+        }
 
-        // STEP 2: Fetch lists where the user is a collaborator
-        const { data: collabEntries } = await supabaseClient
-            .from('list_collaborators')
-            .select('list_id, media_lists(id, name)')
-            .eq('user_id', user.id);
-
-        const collaborative = collabEntries?.map(e => e.media_lists).filter(Boolean) || [];
-
-        // STEP 3: Merge and de-duplicate
-        const listMap = new Map();
-        [...(owned || []), ...collaborative].forEach(l => listMap.set(l.id, l));
-        const finalLists = Array.from(listMap.values());
-
-        if (finalLists.length === 0) {
-            container.innerHTML = '<p class="meta">No editable lists found.</p>';
+        if (filtered.length === 0) {
+            container.innerHTML = '<p class="meta">No lists found in this category.</p>';
             return;
         }
 
-        // STEP 4: Check which lists already contain this item
-        const listIds = finalLists.map(l => l.id);
-        const { data: currentItems } = await supabaseClient
-            .from('list_items')
-            .select('list_id')
-            .in('list_id', listIds)
-            .eq('media_id', String(mediaId));
-            
-        // Create a Set of list IDs that already have the item for quick lookup
-        const addedListIds = new Set(currentItems?.map(item => item.list_id) || []);
-
-        // STEP 5: Render the buttons dynamically
-        container.innerHTML = finalLists.map(l => {
-            const isAdded = addedListIds.has(l.id);
+        container.innerHTML = filtered.map(l => {
+            const isAdded = itemsInLists.has(l.id);
             const btnClass = isAdded ? 'danger-btn' : 'primary-btn';
             const btnText = isAdded ? 'Remove' : 'Add';
             
@@ -1548,9 +1528,58 @@ async function setupListManager(mediaId, mediaType) {
         }).join('');
     };
 
+    filterBtns.forEach(fBtn => {
+        fBtn.onclick = () => {
+            filterBtns.forEach(b => b.classList.remove('active'));
+            fBtn.classList.add('active');
+            currentDetailsListTab = fBtn.getAttribute('data-filter');
+            if (allAvailableLists.length > 0) renderDetailsListModal();
+        };
+    });
+
+    btn.onclick = async () => {
+        modal.style.display = 'flex';
+        container.innerHTML = '<p class="meta">Loading your lists...</p>';
+
+        // STEP 1: Fetch lists the user owns
+        const { data: owned } = await supabaseClient
+            .from('media_lists')
+            .select('id, name, is_tiered, user_id')
+            .eq('user_id', user.id);
+
+        // STEP 2: Fetch lists where the user is a collaborator
+        const { data: collabEntries } = await supabaseClient
+            .from('list_collaborators')
+            .select('list_id, media_lists(id, name, is_tiered, user_id)')
+            .eq('user_id', user.id);
+
+        const collaborative = collabEntries?.map(e => e.media_lists).filter(Boolean) || [];
+
+        // STEP 3: Merge and de-duplicate
+        const listMap = new Map();
+        [...(owned || []), ...collaborative].forEach(l => listMap.set(l.id, l));
+        allAvailableLists = Array.from(listMap.values());
+
+        if (allAvailableLists.length === 0) {
+            container.innerHTML = '<p class="meta">No editable lists found.</p>';
+            return;
+        }
+
+        // STEP 4: Check which lists already contain this item
+        const listIds = allAvailableLists.map(l => l.id);
+        const { data: currentItems } = await supabaseClient
+            .from('list_items')
+            .select('list_id')
+            .in('list_id', listIds)
+            .eq('media_id', String(mediaId));
+            
+        itemsInLists = new Set(currentItems?.map(item => item.list_id) || []);
+
+        // STEP 5: Render
+        renderDetailsListModal();
+    };
+
     close.onclick = () => modal.style.display = 'none';
-    
-    // Close on backdrop click
     modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
 }
 

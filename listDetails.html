@@ -116,13 +116,22 @@
                         <div style="font-size: 0.8rem; color: #9ab; margin-top: 3px;">Display numbers on posters and allow manual sorting.</div>
                     </div>
                 </div>
+
+                <div id="edit-tier-colors-section" style="display: none; margin-top: 20px; background: rgba(255,255,255,0.03); padding: 15px; border-radius: 8px;">
+                    <label style="color:#9ab; font-size:0.9rem; display:block; margin-bottom:10px; font-weight:bold;">Tier Colors</label>
+                    <div id="tier-colors-container" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                </div>
                 
-                <button id="save-list-edits-btn" class="primary-btn" style="margin-top: 25px;">Save Changes</button>
+                <button id="save-list-edits-btn" class="primary-btn" style="margin-top: 25px; width: 100%;">Save Changes</button>
+                <button id="delete-list-btn" class="danger-btn" style="margin-top: 10px; width: 100%; display: none;">Delete List</button>
             </div>
         </div>
 
         <section class="search-container">
-            <h3>Add to List</h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h3 style="margin: 0;">Add to List</h3>
+                <button id="open-custom-card-modal" class="secondary-btn" style="padding: 6px 12px; font-size: 0.85rem; width: auto; margin: 0;">+ Custom Card</button>
+            </div>
             <input type="text" id="list-search-input" placeholder="Search for something to add...">
             <div id="search-results" class="search-results-dropdown"></div>
         </section>
@@ -130,6 +139,29 @@
         <h2>Items in this List</h2>
         <div id="list-content" class="list-items-grid">
             <p class="meta">No items in this list yet.</p>
+        </div>
+
+        <div id="custom-card-modal" class="modal">
+            <div class="modal-content social-modal-content" style="max-width: 400px;">
+                <div class="modal-header">
+                    <h2>Add Custom Card</h2>
+                    <button class="close-btn" id="close-custom-card-modal">×</button>
+                </div>
+                <div class="input-group">
+                    <input type="text" id="custom-card-name" placeholder="Name" style="width: 100%; box-sizing: border-box; margin-bottom: 10px;">
+                    <input type="text" id="custom-card-img" placeholder="Image URL (Optional)" style="width: 100%; box-sizing: border-box; margin-bottom: 10px;">
+                    <label style="color:#9ab; font-size:0.9rem; display:block; margin-bottom:5px;">Type</label>
+                    <select id="custom-card-type" style="width: 100%; box-sizing: border-box; background: #14181c; border: 1px solid #2c3440; border-radius: 8px; color: white; padding: 12px; margin-bottom: 20px;">
+                        <option value="movie">Movie</option>
+                        <option value="tv">TV Show</option>
+                        <option value="book">Book</option>
+                        <option value="album">Music</option>
+                        <option value="youtube">YouTube</option>
+                        <option value="person">Person (Cast/Crew)</option>
+                    </select>
+                    <button id="submit-custom-card" class="primary-btn" style="width: 100%;">Add Card</button>
+                </div>
+            </div>
         </div>
     </main>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

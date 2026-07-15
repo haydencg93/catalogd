@@ -49,17 +49,38 @@
         
         <section class="create-list-section">
             <h3>Create New List</h3>
-            <div class="input-group">
+            <div class="input-group" style="align-items: center; gap: 15px;">
                 <input type="text" id="list-name-input" placeholder="List Name (e.g., Best Sci-Fi 2024)">
-                <button id="create-list-btn" class="primary-btn" style="width: auto;">Create List</button>
+                
+                <div class="tiered-toggle-wrapper" style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="create-tiered-toggle" style="width: 18px; height: 18px; accent-color: var(--accent); margin: 0; cursor: pointer;">
+                    <label for="create-tiered-toggle" style="color: white; font-size: 0.9rem; font-weight: bold; cursor: pointer; white-space: nowrap;">Tiered List</label>
+                </div>
+
+                <button id="create-list-btn" class="primary-btn" style="width: auto; white-space: nowrap;">Create List</button>
             </div>
         </section>
+
+        <!-- Centered Filter Tabs & Reorder Controls -->
+        <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 20px;">
+            <div class="filter-nav" id="lists-filter-nav" style="justify-content: center; flex-wrap: wrap;">
+                <button class="filter-btn active" onclick="filterLists('owned')">Owned</button>
+                <button class="filter-btn" onclick="filterLists('shared')">Shared with Me</button>
+                <button class="filter-btn" onclick="filterLists('tier')">Tier Lists</button>
+            </div>
+
+            <div style="margin-top: 15px; display: flex; gap: 10px;">
+                <button id="manage-lists-btn" class="secondary-btn" style="display:none; width:auto; padding: 8px 16px;">Reorder Lists</button>
+                <button id="save-lists-order-btn" class="primary-btn" style="display:none; width:auto; padding: 8px 16px;">Save Order</button>
+            </div>
+        </div>
 
         <div id="lists-container" class="list-grid">
             <p class="meta">Loading your lists...</p>
         </div>
     </main>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <script src="scriptingLists.js"></script>
 </body>
 </html>

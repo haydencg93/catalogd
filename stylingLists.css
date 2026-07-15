@@ -121,23 +121,118 @@
     font-weight: bold;
 }
 
+/* Styling for dragged elements while sorting lists */
+.list-card.managing {
+    cursor: grab;
+}
+.list-card.managing:active {
+    cursor: grabbing;
+}
+.sortable-ghost {
+    opacity: 0.4;
+    background: #2c3440 !important;
+    border: 2px dashed var(--accent) !important;
+}
+
+/* Ensure the create new list inputs don't overflow on any screen */
+.create-list-section .input-group {
+    display: flex;
+    width: 100%;
+    box-sizing: border-box;
+}
+
 /* --- LISTS PAGE MOBILE RESPONSIVENESS (< 768px) --- */
 @media (max-width: 768px) {
     .create-list-section {
-        padding: 20px 15px;
-    }
-
-    .input-group {
-        flex-direction: column; /* Stack input and create button */
+        padding: 20px 15px !important;
         width: 100%;
+        box-sizing: border-box;
     }
 
-    .input-group button {
+    /* Force the create new list elements to fit in the box */
+    .create-list-section .input-group {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 12px !important;
+    }
+
+    .create-list-section input[type="text"] {
         width: 100% !important;
+        box-sizing: border-box !important;
     }
 
+    .tiered-toggle-wrapper {
+        justify-content: flex-start;
+        padding-left: 5px;
+    }
+
+    .create-list-section button {
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Force the width of the lists to be 3 horizontally instead of 1 */
     .list-grid {
-        grid-template-columns: 1fr; /* 1 list card per row */
-        gap: 15px;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 10px !important;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* Shrink the card paddings and text sizes so 3 fit elegantly */
+    .list-card {
+        padding: 8px !important;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .list-poster-preview {
+        height: 70px !important;
+        padding: 5px !important;
+        margin-bottom: 8px !important;
+    }
+    
+    .preview-poster {
+        width: 40px !important;
+        height: 60px !important;
+        margin-left: -20px !important;
+        border-width: 1px !important; /* Thinner border for smaller images */
+    }
+
+    .preview-poster:first-child {
+        margin-left: 0 !important;
+    }
+
+    /* Wrap the title elegantly and shrink text */
+    .list-card-content h3 {
+        font-size: 0.8rem !important;
+        margin: 0 0 5px 0 !important;
+        word-wrap: break-word;
+        white-space: normal;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    /* Shrink badges so they don't overpower the tiny cards */
+    .collab-badge {
+        font-size: 0.5rem !important;
+        padding: 2px 4px !important;
+        display: inline-block;
+    }
+
+    .list-card-content .meta {
+        font-size: 0.7rem !important;
+    }
+
+    /* Ensure tabs wrap nicely if screen is ultra-narrow */
+    .filter-nav {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .filter-btn {
+        font-size: 0.85rem;
+        padding: 6px 12px;
     }
 }

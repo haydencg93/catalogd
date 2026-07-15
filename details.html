@@ -198,10 +198,15 @@
     </div>
 
     <div id="list-modal" class="modal-overlay">
-        <div class="auth-card">
+        <div class="auth-card" style="max-height: 80vh; display: flex; flex-direction: column; padding: 25px;">
             <button class="close-btn" id="close-list-modal">×</button>
-            <h3>Add to List</h3>
-            <div id="user-lists-selection"></div>
+            <h3 style="margin-top: 0; margin-bottom: 15px;">Add to List</h3>
+            <div class="filter-nav" id="details-list-filter-nav" style="justify-content: center; flex-wrap: wrap; margin-bottom: 15px;">
+                <button class="filter-btn active" data-filter="owned">Owned</button>
+                <button class="filter-btn" data-filter="shared">Shared</button>
+                <button class="filter-btn" data-filter="tier">Tier Lists</button>
+            </div>
+            <div id="user-lists-selection" style="overflow-y: auto; flex-grow: 1;"></div>
         </div>
     </div>
 

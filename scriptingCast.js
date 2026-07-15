@@ -459,7 +459,117 @@ async function setupFollowBtn(charId, charName, category, imageUrl, mediaId, med
         }
         btn.disabled = false;
     };
+
+    setupTierListManager(charId, charName, category, imageUrl);
 }
+
+async function setupTierListManager(personId, personName, category, imageUrl) {
+    const btn = document.getElementById('add-to-tier-list-btn');
+    const modal = document.getElementById('tier-list-modal');
+    const close = document.getElementById('close-tier-list-modal');
+    const container = document.getElementById('user-tier-lists-selection');
+    
+    if (!currentUser) { 
+        btn.style.display = 'none'; 
+        return; 
+    }
+
+    btn.style.display = 'block';
+
+    btn.onclick = async () => {
+        modal.style.display = 'flex';
+        container.innerHTML = '<p class="meta">Loading tiered lists...</p>';
+
+        // Fetch tiered lists the user owns
+        const { data: owned } = await supabaseClient
+            .from('media_lists')
+            .select('id, name')
+            .eq('user_id', currentUser.id)
+            .eq('is_tiered', true);
+
+        // Fetch tiered lists where the user is a collaborator
+        const { data: collabEntries } = await supabaseClient
+            .from('list_collaborators')
+            .select('list_id, media_lists(id, name, is_tiered)')
+            .eq('user_id', currentUser.id);
+
+        const collaborative = collabEntries?.map(e => e.media_lists).filter(l => l && l.is_tiered) || [];
+
+        const listMap = new Map();
+        [...(owned || []), ...collaborative].forEach(l => listMap.set(l.id, l));
+        const finalLists = Array.from(listMap.values());
+
+        if (finalLists.length === 0) {
+            container.innerHTML = '<p class="meta">No tiered lists found. Create one on your Lists page!</p>';
+            return;
+        }
+
+        const listIds = finalLists.map(l => l.id);
+        const { data: currentItems } = await supabaseClient
+            .from('list_items')
+            .select('list_id')
+            .in('list_id', listIds)
+            .eq('media_id', String(personId));
+            
+        const addedListIds = new Set(currentItems?.map(item => item.list_id) || []);
+
+        container.innerHTML = finalLists.map(l => {
+            const isAdded = addedListIds.has(l.id);
+            const btnClass = isAdded ? 'danger-btn' : 'primary-btn';
+            const btnText = isAdded ? 'Remove' : 'Add';
+            
+            return `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #2c3440;">
+                    <span style="font-weight: 600; color: #fff; font-size: 1rem;">${l.name}</span>
+                    <button onclick="toggleTierListItem('${l.id}', '${personId}', '${category}', '${personName.replace(/'/g, "\\'")}', '${imageUrl}', this)" class="${btnClass}" style="padding: 4px 10px; font-size: 0.75rem; border-radius: 14px; width: auto; min-width: 60px;">${btnText}</button>
+                </div>
+            `;
+        }).join('');
+    };
+
+    close.onclick = () => modal.style.display = 'none';
+    window.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
+}
+
+window.toggleTierListItem = async (listId, mediaId, mediaType, title, imageUrl, btnElement) => {
+    const isAdding = btnElement.textContent === 'Add';
+    btnElement.textContent = '...'; 
+
+    if (isAdding) {
+        const { error } = await supabaseClient
+            .from('list_items')
+            .insert({ 
+                list_id: listId, 
+                media_id: String(mediaId), 
+                media_type: mediaType,
+                media_title: title,
+                custom_image_url: imageUrl,
+                tier_rank: 'NS'
+            });
+        
+        if (!error) {
+            btnElement.textContent = 'Remove';
+            btnElement.className = 'danger-btn'; 
+        } else {
+            alert("Failed to add to list.");
+            btnElement.textContent = 'Add';
+        }
+    } else {
+        const { error } = await supabaseClient
+            .from('list_items')
+            .delete()
+            .eq('list_id', listId)
+            .eq('media_id', String(mediaId));
+        
+        if (!error) {
+            btnElement.textContent = 'Add';
+            btnElement.className = 'primary-btn'; 
+        } else {
+            alert("Failed to remove from list.");
+            btnElement.textContent = 'Remove';
+        }
+    }
+};
 
 async function setupCustomArt(personId, category) {
     const editBtn = document.getElementById('edit-art-btn');
