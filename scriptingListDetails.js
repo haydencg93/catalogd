@@ -91,7 +91,8 @@ async function initListDetails() {
 
     if (!isOwner) {
         // Visitor mode: Hide editing UI
-        document.querySelector('.search-container').style.display = 'none';
+        const addSection = document.getElementById('add-to-list-section');
+        if (addSection) addSection.style.display = 'none';
         document.querySelector('.list-controls').style.display = 'none';
         if (list.is_public === false) {
             alert("This list is private.");
@@ -143,7 +144,7 @@ async function initListDetails() {
                 tierSection.style.display = 'none';
             }
 
-            editModal.style.display = 'block';
+            editModal.style.display = 'flex';
         };
 
         closeEditModal.onclick = () => editModal.style.display = 'none';
@@ -407,6 +408,14 @@ async function renderStandardList(container) {
             details.poster = customArt.custom_poster;
         }
 
+        let badgeHtml = `<span class="badge badge-${item.media_type}">${item.media_type}</span>`;
+        if (['character', 'author', 'artist', 'actor', 'crew', 'person', 'other'].includes(item.media_type)) {
+            let displayLabel = item.media_type === 'actor' ? 'Cast' : 
+                               item.media_type === 'person' ? 'Person' :
+                               item.media_type.charAt(0).toUpperCase() + item.media_type.slice(1);
+            badgeHtml = `<span class="badge badge-movie" style="background: #456; color: #fff;">${displayLabel}</span>`;
+        }
+
         const card = document.createElement('div');
         card.className = `media-card ${isManaging ? 'managing' : ''} ${isRanked ? 'ranked-card' : ''}`;
         card.setAttribute('data-type', item.media_type);
@@ -420,7 +429,7 @@ async function renderStandardList(container) {
             ${removeBtn}
             <div class="poster-wrapper">
                 <img src="${details.poster}" alt="${details.title}" onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
-                <span class="badge badge-${item.media_type}">${item.media_type}</span>
+                ${badgeHtml}
             </div>
             <div class="media-info">
                 <div class="title" style="font-weight:bold; font-size: 0.9rem; margin-bottom: 5px;">${details.title}</div>
@@ -488,6 +497,14 @@ async function renderTieredList(container) {
                 details.poster = customArt.custom_poster;
             }
 
+            let badgeHtml = `<span class="badge badge-${item.media_type}">${item.media_type}</span>`;
+            if (['character', 'author', 'artist', 'actor', 'crew', 'person', 'other'].includes(item.media_type)) {
+                let displayLabel = item.media_type === 'actor' ? 'Cast' : 
+                                   item.media_type === 'person' ? 'Person' :
+                                   item.media_type.charAt(0).toUpperCase() + item.media_type.slice(1);
+                badgeHtml = `<span class="badge badge-movie" style="background: #456; color: #fff;">${displayLabel}</span>`;
+            }
+
             const card = document.createElement('div');
             card.className = `media-card ${isManaging ? 'managing' : ''}`;
             card.setAttribute('data-type', item.media_type);
@@ -499,7 +516,7 @@ async function renderTieredList(container) {
                 ${removeBtn}
                 <div class="poster-wrapper">
                     <img src="${details.poster}" alt="${details.title}" onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
-                    <span class="badge badge-${item.media_type}">${item.media_type}</span>
+                    ${badgeHtml}
                 </div>
                 <div class="media-info">
                     <div class="title" style="font-weight:bold; font-size: 0.9rem; margin-bottom: 5px;">${details.title}</div>
@@ -739,7 +756,7 @@ async function fetchMediaDetails(item) {
     const id = item.media_id;
     const type = item.media_type;
     try {
-        if (['character', 'author', 'artist', 'actor', 'crew'].includes(type) || (type === 'person' && !/^\d+$/.test(id))) {
+        if (['character', 'author', 'artist', 'actor', 'crew', 'other'].includes(type) || (type === 'person' && !/^\d+$/.test(id))) {
             return {
                 title: item.media_title || item.custom_name || id,
                 poster: item.custom_image_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.media_title || id)}&background=1b2228&color=9ab&size=300`
@@ -881,7 +898,7 @@ async function setupCollabModal() {
         });
     };
 
-    openBtn.onclick = () => { modal.style.display = 'block'; refreshCollabList(); };
+    openBtn.onclick = () => { modal.style.display = 'flex'; refreshCollabList(); };
     closeBtn.onclick = () => modal.style.display = 'none';
     window.removeCollaborator = async (id) => {
         if (confirm("Remove collaborator?")) {
