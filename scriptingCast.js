@@ -5,6 +5,7 @@ const artistName = params.get('artist');
 const characterWiki = params.get('characterWiki');
 const mediaId = params.get('mediaId');
 const mediaType = params.get('mediaType');
+const mediaTitle = params.get('mediaTitle');
 
 let supabaseClient = null;
 let currentUser = null; // Track the logged-in user
@@ -45,32 +46,67 @@ async function initCharacterPage(wikiId, mId, mType) {
     let bioText = "";
     let imageUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=1b2228&color=9ab&size=300`;
 
-    // 1. Try to fetch rich data from Wikipedia
+    // 1. Try to fetch rich data from Wikipedia (Idea 2 Cascade)
     try {
-        const wikiRes = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(wikiId)}?redirects=1`).then(r => r.json());
-        if (wikiRes.extract) bioText = wikiRes.extract;
-        if (wikiRes.thumbnail?.source) imageUrl = wikiRes.thumbnail.source;
-        if (wikiRes.title) {
-            name = wikiRes.title;
-            document.getElementById('person-name').textContent = name;
+        // Reverse the order so we try the most specific queries FIRST
+        const attempts = [
+            `${encodeURIComponent(wikiId)}_(${encodeURIComponent(mediaTitle || '')}_character)`,
+            `${encodeURIComponent(wikiId)}_(character)`,
+            encodeURIComponent(wikiId)
+        ];
+        
+        let wikiRes = null;
+        for (let query of attempts) {
+            // Safely prevent bad queries from running if parameters are missing
+            if (!query || query.startsWith('_')) continue; 
+            
+            const tempRes = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${query}?redirects=1`);
+            
+            if (tempRes.ok) {
+                const data = await tempRes.json();
+                
+                // Disambiguation Check: Discard Wikipedia directory pages
+                if (data.type === 'disambiguation' || (data.extract && data.extract.includes("may refer to:"))) {
+                    continue;
+                }
+                
+                // Sanity Check: If we fall back to the generic single-word attempt, ensure it's actually about a character
+                if (query === encodeURIComponent(wikiId)) {
+                    const desc = (data.description || "").toLowerCase();
+                    const extract = (data.extract || "").toLowerCase();
+                    const media = (mediaTitle || "").toLowerCase();
+                    
+                    // If it doesn't mention "character", "fictional", or the media title, skip the false positive
+                    if (!desc.includes('character') && !desc.includes('fictional') && (!media || !extract.includes(media))) {
+                        continue; 
+                    }
+                }
+                
+                wikiRes = data;
+                break;
+            }
+        }
+
+        if (wikiRes && wikiRes.title && wikiRes.title.toLowerCase().includes("list of")) {
+            // Ignore the Wikipedia summary if it redirected us to a "List of..." page
+            bioText = ""; 
+        } else if (wikiRes) {
+            if (wikiRes.extract) bioText = wikiRes.extract;
+            if (wikiRes.thumbnail?.source) imageUrl = wikiRes.thumbnail.source;
+            if (wikiRes.title) {
+                // Strip out the "(character)" suffix from the display name if it exists
+                name = wikiRes.title.replace(/\s\(.*?\)$/, ''); 
+                document.getElementById('person-name').textContent = name;
+            }
         }
     } catch (e) {
         console.log("Wiki fetch fallback triggered for character");
     }
 
-    // 2. Fallback to TMDB Media Title if Wikipedia fails
-    if (!bioText && mId && mType) {
-        try {
-            const config = await fetch('config.json').then(r=>r.json());
-            const mediaRes = await fetch(`https://api.themoviedb.org/3/${mType}/${mId}?language=en-US`, {
-                headers: { Authorization: `Bearer ${config.tmdb_token}` }
-            }).then(r=>r.json());
-            
-            const mediaTitle = mediaRes.title || mediaRes.name;
-            bioText = `A character from the ${mType === 'tv' ? 'TV show' : 'movie'} ${mediaTitle}.`;
-        } catch(e) {
-            bioText = `A character from a ${mType}.`;
-        }
+    // 2. Fallback if Wikipedia failed or was a "List of..." page
+    if (!bioText && mediaTitle) {
+        const displayType = mType === 'tv' ? 'TV show' : 'movie';
+        bioText = `${name} is a character in the ${displayType} ${mediaTitle}.`;
     } else if (!bioText) {
         bioText = "No biography available.";
     }

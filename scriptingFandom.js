@@ -733,7 +733,8 @@ async function fetchStructuredCharacters(externalId, type) {
 
     try {
         const config = await fetch('config.json').then(r => r.json());
-        const res = await fetch(`https://api.themoviedb.org/3/${type}/${externalId}/credits?language=en-US`, {
+        const endpoint = type === 'tv' ? 'aggregate_credits' : 'credits';
+        const res = await fetch(`https://api.themoviedb.org/3/${type}/${externalId}/${endpoint}?language=en-US`, {
             headers: { Authorization: `Bearer ${config.tmdb_token}` }
         }).then(r => r.json());
         
@@ -757,7 +758,9 @@ async function fetchStructuredCharacters(externalId, type) {
         }
 
         const characters = res.cast.map(c => {
-            let cleanName = c.character ? c.character.replace(/\(voice\)/gi, '').trim() : "Unknown";
+            let charName = c.character;
+            if (type === 'tv' && c.roles && c.roles.length > 0) { charName = c.roles[0].character; }
+            let cleanName = charName ? charName.replace(/\(voice\)/gi, '').trim() : "Unknown";
             cleanName = cleanName.split('/')[0].trim();
             
             return {
@@ -825,21 +828,29 @@ function openCharacterModal(followedCharacterIds) {
     const closeBtn = document.getElementById('close-character-modal');
     const searchInput = document.getElementById('character-search-input');
     const grid = document.getElementById('full-character-grid');
+    const loadMoreBtn = document.getElementById('load-more-chars-btn');
 
-    const renderGrid = (filterText = '') => {
-        const lowerFilter = filterText.toLowerCase();
+    let currentPage = 1;
+    const pageSize = 24;
+    let currentFiltered = [];
+
+    const renderGrid = (append = false) => {
+        if (!append) {
+            grid.innerHTML = '';
+            currentPage = 1;
+        }
         
-        const filtered = allFandomCharacters.filter(char => 
-            char.name.toLowerCase().includes(lowerFilter)
-        );
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = startIndex + pageSize;
+        const slice = currentFiltered.slice(startIndex, endIndex);
 
-        if (filtered.length === 0) {
-            grid.innerHTML = `<p class="meta" style="grid-column: 1/-1; text-align: center;">No characters found matching "${filterText}".</p>`;
+        if (currentFiltered.length === 0) {
+            grid.innerHTML = `<p class="meta" style="grid-column: 1/-1; text-align: center;">No characters found matching "${searchInput.value}".</p>`;
+            loadMoreBtn.style.display = 'none';
             return;
         }
 
-        // Bypassing Wikipedia API inside the loop to drastically improve performance 
-        grid.innerHTML = filtered.map((char) => {
+        const html = slice.map((char) => {
             const fallbackImg = char.tmdbImage || FALLBACK_AVATAR;
             const safeDbImage = char.tmdbImage || '';
             const isFollowingChar = followedCharacterIds.has(char.wikiId);
@@ -859,11 +870,36 @@ function openCharacterModal(followedCharacterIds) {
                 </div>
             `;
         }).join('');
+
+        if (append) {
+            grid.insertAdjacentHTML('beforeend', html);
+        } else {
+            grid.innerHTML = html;
+        }
+
+        if (endIndex < currentFiltered.length) {
+            loadMoreBtn.style.display = 'block';
+        } else {
+            loadMoreBtn.style.display = 'none';
+        }
+    };
+
+    const applySearch = () => {
+        const filterText = searchInput.value.toLowerCase();
+        currentFiltered = allFandomCharacters.filter(char => 
+            char.name.toLowerCase().includes(filterText)
+        );
+        renderGrid(false);
     };
 
     searchInput.value = '';
-    renderGrid();
-    searchInput.oninput = (e) => renderGrid(e.target.value);
+    applySearch();
+    searchInput.oninput = applySearch;
+
+    loadMoreBtn.onclick = () => {
+        currentPage++;
+        renderGrid(true);
+    };
 
     modal.style.display = 'flex';
     closeBtn.onclick = () => modal.style.display = 'none';
@@ -884,7 +920,8 @@ async function fetchCharacterPreviewImage(wikiTitle, imgElementId) {
 
 window.routeToCharacter = function(wikiId) {
     if (!wikiId) return;
-    window.location.href = `cast.html?characterWiki=${encodeURIComponent(wikiId)}&mediaId=${mediaId}&mediaType=${mediaType}`;
+    const currentMediaTitle = document.getElementById('fandom-title').textContent || '';
+    window.location.href = `cast.html?characterWiki=${encodeURIComponent(wikiId)}&mediaId=${mediaId}&mediaType=${mediaType}&mediaTitle=${encodeURIComponent(currentMediaTitle)}`;
 };
 
 async function setupFandomFollowBtn(title, imageUrl) {
