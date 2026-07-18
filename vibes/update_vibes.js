@@ -189,25 +189,54 @@ async function run() {
 
     console.log(`Found ${usersToUpdate.length} users to update.`);
 
+    const mediaTypes = ['movie', 'tv', 'book', 'album'];
+
     for (const vibe of usersToUpdate) {
-        const targetGenre = vibe.new_top_genre || vibe.current_top_genre;
-        const targetTheme = vibe.new_top_theme || vibe.current_top_theme;
+        // Initialize working objects from the existing DB data
+        let updatedCurrentGenre = vibe.current_top_genre || {};
+        let updatedCurrentTheme = vibe.current_top_theme || {};
+        let updatedImageGenre = vibe.image_genre || {};
+        let updatedImageTheme = vibe.image_theme || {};
+        let updatedAttrGenre = vibe.image_genre_attribution || {};
+        let updatedAttrGenreUrl = vibe.image_genre_attribution_url || {};
+        let updatedAttrTheme = vibe.image_theme_attribution || {};
+        let updatedAttrThemeUrl = vibe.image_theme_attribution_url || {};
 
-        const genreResult = await fetchImage(targetGenre);
-        const themeResult = await fetchImage(targetTheme);
+        for (const type of mediaTypes) {
+            // Check if there is a new queued target for this specific media type
+            const targetGenre = (vibe.new_top_genre || {})[type];
+            const targetTheme = (vibe.new_top_theme || {})[type];
 
+            if (targetGenre) {
+                const genreResult = await fetchImage(targetGenre);
+                updatedCurrentGenre[type] = targetGenre;
+                updatedImageGenre[type] = genreResult.url;
+                updatedAttrGenre[type] = genreResult.attribution ? genreResult.attribution.text : null;
+                updatedAttrGenreUrl[type] = genreResult.attribution ? genreResult.attribution.url : null;
+            }
+
+            if (targetTheme) {
+                const themeResult = await fetchImage(targetTheme);
+                updatedCurrentTheme[type] = targetTheme;
+                updatedImageTheme[type] = themeResult.url;
+                updatedAttrTheme[type] = themeResult.attribution ? themeResult.attribution.text : null;
+                updatedAttrThemeUrl[type] = themeResult.attribution ? themeResult.attribution.url : null;
+            }
+        }
+
+        // Save the merged JSON objects back to Supabase
         await supabase.from('vibes_control').update({
-            current_top_genre: targetGenre,
-            current_top_theme: targetTheme,
-            image_genre: genreResult.url,
-            image_genre_attribution: genreResult.attribution ? genreResult.attribution.text : null,
-            image_genre_attribution_url: genreResult.attribution ? genreResult.attribution.url : null,
-            image_theme: themeResult.url,
-            image_theme_attribution: themeResult.attribution ? themeResult.attribution.text : null,
-            image_theme_attribution_url: themeResult.attribution ? themeResult.attribution.url : null,
+            current_top_genre: updatedCurrentGenre,
+            current_top_theme: updatedCurrentTheme,
+            image_genre: updatedImageGenre,
+            image_theme: updatedImageTheme,
+            image_genre_attribution: updatedAttrGenre,
+            image_genre_attribution_url: updatedAttrGenreUrl,
+            image_theme_attribution: updatedAttrTheme,
+            image_theme_attribution_url: updatedAttrThemeUrl,
             needs_update: false,
-            new_top_genre: null,
-            new_top_theme: null,
+            new_top_genre: {}, // Clear the queue 
+            new_top_theme: {}, // Clear the queue
             updated_at: new Date().toISOString()
         }).eq('id', vibe.id);
 

@@ -44,7 +44,6 @@ async function loadConfig() {
         TMDB_TOKEN = config.tmdb_token;
         LASTFM_KEY = config.lastfm_key;
         supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
-        UNSPLASH_KEY = config.unsplash_key;
         
         await checkUserStatus(); 
 
@@ -193,12 +192,17 @@ function toggleAuthMode() {
 async function loadTabContent(type) {
     const sectionTitle = document.getElementById('section-title');
     if (sectionTitle) sectionTitle.style.display = 'none'; // Hide headers for normal browsing
-
     resultsGrid.innerHTML = '';
     loader.style.display = 'block';
     loader.textContent = `Fetching ${type}s...`;
-
     try {
+        if (type === 'youtube' || type === 'user' || type === 'person' || type === 'author') {
+            const existingVibe = document.querySelector('.vibe-container');
+            if (existingVibe) existingVibe.remove();
+        } else {
+            calculateAndRenderVibe(type);
+        }
+
         let forYouItems = [];
         // Only attempt For You if it is a Movie or TV show
         if (['movie', 'tv'].includes(type)) {
@@ -276,56 +280,260 @@ async function getTrendingItems(type) {
 }
 
 function renderVibeBox(genreName, themeName, genreImg, themeImg, genreAttr, themeAttr) {
-    // No more external placeholder image — if there's nothing to show yet (e.g. brand new
-    // user waiting on tonight's job), just fall back to a plain gradient background.
     const fallbackGradient = 'linear-gradient(135deg, #2a2f3a, #1b1f27)';
-
     function backgroundStyle(img) {
         return img ? `background-image: url('${img}'); background-size: cover; background-position: center;`
                     : `background: ${fallbackGradient};`;
     }
-
-    // Builds a small, unobtrusive credit line for a CC-licensed image. Returns
-    // an empty string if there's nothing to attribute (e.g. the fallback gradient,
-    // or a public-domain image where we chose not to show a credit).
     function attributionHtml(attr) {
         if (!attr || !attr.text) return '';
         const style = 'position:absolute;bottom:6px;right:8px;font-size:10px;line-height:1.2;' +
             'color:rgba(255,255,255,0.65);background:rgba(0,0,0,0.35);padding:2px 6px;' +
             'border-radius:4px;text-decoration:none;pointer-events:auto;z-index:2;';
-        const label = attr.url
+        return attr.url
             ? `<a href="${attr.url}" target="_blank" rel="noopener noreferrer" class="vibe-attribution-link" style="${style}">${attr.text}</a>`
             : `<div class="vibe-attribution" style="${style}">${attr.text}</div>`;
-        return label;
     }
-
+    
     const vibeContainer = document.createElement('div');
     vibeContainer.className = 'vibe-container';
-    vibeContainer.innerHTML = `
-        <div class="vibe-title">Your Vibe</div>
-        <div class="vibe-box">
-            <div class="vibe-half" style="${backgroundStyle(genreImg)}">
-                <span class="vibe-text">${genreName}</span>
-                ${attributionHtml(genreAttr)}
-            </div>
-            <div class="vibe-half" style="${backgroundStyle(themeImg)}">
-                <span class="vibe-text">${themeName}</span>
-                ${attributionHtml(themeAttr)}
-            </div>
-            <div class="vibe-blend"></div> 
-        </div>
-    `;
-
-    // 1. Remove any existing vibe box so they don't duplicate when switching tabs
+    
+    if (themeName) {
+        vibeContainer.innerHTML = `
+            <div class="vibe-title">Your Vibe</div>
+            <div class="vibe-box">
+                <div class="vibe-half" style="${backgroundStyle(genreImg)}">
+                    <span class="vibe-text">${genreName}</span>
+                    ${attributionHtml(genreAttr)}
+                </div>
+                <div class="vibe-half" style="${backgroundStyle(themeImg)}">
+                    <span class="vibe-text">${themeName}</span>
+                    ${attributionHtml(themeAttr)}
+                </div>
+                <div class="vibe-blend"></div> 
+             </div>
+        `;
+    } else {
+        vibeContainer.innerHTML = `
+            <div class="vibe-title">Your Vibe</div>
+            <div class="vibe-box">
+                <div class="vibe-half" style="${backgroundStyle(genreImg)}; flex: 100%;">
+                    <span class="vibe-text">${genreName}</span>
+                    ${attributionHtml(genreAttr)}
+                </div>
+             </div>
+        `;
+    }
+    
     const existingVibe = document.querySelector('.vibe-container');
-    if (existingVibe) {
-        existingVibe.remove();
+    if (existingVibe) existingVibe.remove();
+    const filterNav = document.querySelector('.filter-nav');
+    if (filterNav) filterNav.parentNode.insertBefore(vibeContainer, filterNav.nextSibling);
+}
+
+async function updateAndRenderVibeFromDB(mediaType, genreName, themeName) {
+    if (!genreName) {
+        const existingVibe = document.querySelector('.vibe-container');
+        if (existingVibe) existingVibe.remove();
+        return;
     }
 
-    // 2. Insert it exactly where you requested: above the filter nav
-    const filterNav = document.querySelector('.filter-nav');
-    if (filterNav) {
-        filterNav.parentNode.insertBefore(vibeContainer, filterNav);
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) return;
+
+    const cleanGenre = genreName.replace(/\b\w/g, l => l.toUpperCase());
+    const cleanTheme = themeName ? themeName.replace(/\b\w/g, l => l.toUpperCase()) : '';
+
+    try {
+        const { data: vibeData } = await supabaseClient
+            .from('vibes_control')
+            .select('*')
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+        let genreImg = '', themeImg = '';
+        let genreAttr = null, themeAttr = null;
+
+        if (!vibeData) {
+            // First time user! Insert a blank row with JSON structured for this media type
+            await supabaseClient.from('vibes_control').insert({
+                user_id: user.id,
+                needs_update: true,
+                new_top_genre: { [mediaType]: cleanGenre },
+                new_top_theme: { [mediaType]: cleanTheme },
+                current_top_genre: {},
+                current_top_theme: {},
+                image_genre: {},
+                image_theme: {},
+                image_genre_attribution: {},
+                image_genre_attribution_url: {},
+                image_theme_attribution: {},
+                image_theme_attribution_url: {}
+            });
+        } else {
+            const currentStoredGenre = (vibeData.current_top_genre || {})[mediaType] || '';
+            const currentStoredTheme = (vibeData.current_top_theme || {})[mediaType] || '';
+            
+            const queuedGenre = (vibeData.new_top_genre || {})[mediaType] || '';
+            const queuedTheme = (vibeData.new_top_theme || {})[mediaType] || '';
+
+            // Check if the newly calculated vibe differs from BOTH the active vibe AND what is currently waiting in the queue
+            const needsGenreQueue = (cleanGenre !== currentStoredGenre) && (cleanGenre !== queuedGenre);
+            const needsThemeQueue = (cleanTheme !== currentStoredTheme) && (cleanTheme !== queuedTheme);
+            
+            if (needsGenreQueue || needsThemeQueue) {
+                // Pull the existing queued JSON objects so we don't overwrite other tabs
+                const updatedNewGenre = { ...(vibeData.new_top_genre || {}) };
+                const updatedNewTheme = { ...(vibeData.new_top_theme || {}) };
+
+                if (needsGenreQueue) updatedNewGenre[mediaType] = cleanGenre;
+                if (needsThemeQueue) updatedNewTheme[mediaType] = cleanTheme;
+
+                // Send the merged queue back to Supabase
+                await supabaseClient.from('vibes_control').update({
+                    needs_update: true,
+                    new_top_genre: updatedNewGenre,
+                    new_top_theme: updatedNewTheme
+                }).eq('id', vibeData.id);
+            }
+
+            // Grab the images from the DB JSON if they exist for this media type
+            genreImg = (vibeData.image_genre || {})[mediaType] || '';
+            themeImg = (vibeData.image_theme || {})[mediaType] || '';
+            
+            const genreAttrText = (vibeData.image_genre_attribution || {})[mediaType];
+            const genreAttrUrl = (vibeData.image_genre_attribution_url || {})[mediaType];
+            if (genreAttrText) {
+                genreAttr = { text: genreAttrText, url: genreAttrUrl || null };
+            }
+
+            const themeAttrText = (vibeData.image_theme_attribution || {})[mediaType];
+            const themeAttrUrl = (vibeData.image_theme_attribution_url || {})[mediaType];
+            if (themeAttrText) {
+                themeAttr = { text: themeAttrText, url: themeAttrUrl || null };
+            }
+        }
+
+        renderVibeBox(cleanGenre, cleanTheme, genreImg, themeImg, genreAttr, themeAttr);
+    } catch (e) {
+        console.error("Failed to fetch vibe from DB:", e);
+    }
+}
+
+async function calculateAndRenderVibe(mediaType) {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) return;
+
+    try {
+        const { data: logs } = await supabaseClient
+            .from('media_logs')
+            .select('media_id, rating')
+            .eq('user_id', user.id)
+            .eq('media_type', mediaType)
+            .gte('rating', 4)
+            .order('rating', { ascending: false })
+            .order('created_at', { ascending: false })
+            .limit(25);
+
+        if (!logs || logs.length === 0) {
+            const existingVibe = document.querySelector('.vibe-container');
+            if (existingVibe) existingVibe.remove();
+            return;
+        }
+
+        let topGenre = '';
+        let topTheme = '';
+
+        if (mediaType === 'movie' || mediaType === 'tv') {
+            let genreCounts = {}, keywordCounts = {}, genreNames = {}, keywordNames = {};
+            const analyzePromises = logs.slice(0, 15).map(item => 
+                fetch(`https://api.themoviedb.org/3/${mediaType}/${item.media_id}?append_to_response=keywords`, {
+                    headers: { Authorization: `Bearer ${TMDB_TOKEN}` }
+                }).then(r => r.json()).catch(() => null)
+            );
+            
+            const analyzedItems = await Promise.all(analyzePromises);
+            
+            analyzedItems.forEach((res, index) => {
+                if (!res) return;
+                const r = logs[index].rating;
+                let w = r === 5 ? 5 : (r >= 4.5 ? 2.5 : 1);
+                
+                (res.genres || []).forEach(g => {
+                    genreCounts[g.id] = (genreCounts[g.id] || 0) + w;
+                    genreNames[g.id] = g.name;
+                });
+                
+                const kw = mediaType === 'tv' ? (res.keywords?.results || []) : (res.keywords?.keywords || []);
+                kw.forEach(k => {
+                    keywordCounts[k.id] = (keywordCounts[k.id] || 0) + w;
+                    keywordNames[k.id] = k.name;
+                });
+            });
+            
+            const topGenres = Object.keys(genreCounts).sort((a, b) => genreCounts[b] - genreCounts[a]);
+            const topKeywords = Object.keys(keywordCounts).sort((a, b) => keywordCounts[b] - keywordCounts[a]);
+            
+            if (topGenres.length > 0) topGenre = genreNames[topGenres[0]];
+            if (topKeywords.length > 0) topTheme = keywordNames[topKeywords[0]];
+            
+            console.log(`🎬 Top ${mediaType.toUpperCase()} Genre: ${topGenre}`);
+            console.log(`🎬 Top ${mediaType.toUpperCase()} Theme: ${topTheme}`);
+
+        } else if (mediaType === 'book') {
+            let bookCounts = {};
+            const bookPromises = logs.map(log => 
+                fetch(`https://openlibrary.org${log.media_id}.json`).then(r => r.json()).catch(() => null)
+            );
+            const booksData = await Promise.all(bookPromises);
+            
+            booksData.forEach((book, index) => {
+                if (book && book.subjects) {
+                    const r = logs[index].rating;
+                    let w = r === 5 ? 5 : (r >= 4.5 ? 2.5 : 1);
+                    book.subjects.forEach(s => {
+                        const subjectName = typeof s === 'string' ? s : (s.name || '');
+                        if (subjectName) {
+                            const cleanName = subjectName.toLowerCase().trim();
+                            bookCounts[cleanName] = (bookCounts[cleanName] || 0) + w;
+                        }
+                    });
+                }
+            });
+            const sortedBooks = Object.keys(bookCounts).sort((a, b) => bookCounts[b] - bookCounts[a]);
+            if (sortedBooks.length > 0) topGenre = sortedBooks[0];
+            console.log(`📚 Top Book Genre: ${topGenre}`);
+
+        } else if (mediaType === 'album') {
+            let musicCounts = {};
+            const musicPromises = logs.map(log => {
+                const decodedId = decodeURIComponent(log.media_id);
+                const [artist, album] = decodedId.split('|||');
+                return fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}&api_key=${LASTFM_KEY}&format=json`)
+                    .then(r => r.json()).catch(() => null);
+            });
+            const musicData = await Promise.all(musicPromises);
+            
+            musicData.forEach((res, index) => {
+                if (res && res.album && res.album.tags && res.album.tags.tag) {
+                    const r = logs[index].rating;
+                    let w = r === 5 ? 5 : (r >= 4.5 ? 2.5 : 1);
+                    res.album.tags.tag.forEach(t => {
+                        if (t.name) {
+                            const cleanName = t.name.toLowerCase().trim();
+                            musicCounts[cleanName] = (musicCounts[cleanName] || 0) + w;
+                        }
+                    });
+                }
+            });
+            const sortedMusic = Object.keys(musicCounts).sort((a, b) => musicCounts[b] - musicCounts[a]);
+            if (sortedMusic.length > 0) topGenre = sortedMusic[0];
+            console.log(`🎵 Top Music Genre: ${topGenre}`);
+        }
+
+        updateAndRenderVibeFromDB(mediaType, topGenre, topTheme);
+    } catch (e) {
+        console.error("Vibe rendering failed:", e);
     }
 }
 
@@ -527,62 +735,13 @@ async function getForYouItems(mediaType) {
             for (let page = 2; page <= MAX_KEYWORD_PAGES && uniqueRecs.size < TARGET_COUNT; page++) {
                 await processDiscoverUrls(topKeywords.map(k => buildKeywordUrl(k, page)));
             }
-
-            // Last resort: relax the keyword requirement, keep genre + provider constraints only.
             for (let page = 1; page <= 2 && uniqueRecs.size < TARGET_COUNT; page++) {
                 await processDiscoverUrls([buildGenreOnlyUrl(page)], false);
             }
         }
-
-        const topGenreName = genreNames[topGenres[0]];
-        const topThemeName = keywordNames[topKeywords[0]];
-
-        if (topGenreName && topThemeName) {
-            // 1. Fetch current vibe from DB
-            const { data: vibeData } = await supabaseClient
-                .from('vibes_control')
-                .select('*')
-                .eq('user_id', user.id)
-                .maybeSingle();
-
-            if (!vibeData) {
-                // First time user! Insert a blank row and flag it for tonight's update.
-                await supabaseClient.from('vibes_control').insert({
-                    user_id: user.id,
-                    needs_update: true,
-                    new_top_genre: topGenreName,
-                    new_top_theme: topThemeName
-                });
-                // Render a placeholder UI while they wait for tonight
-                renderVibeBox(topGenreName, topThemeName, '', ''); 
-            } else {
-                // Compare calculated vibe to stored vibe
-                const hasChanged = (vibeData.current_top_genre !== topGenreName) || (vibeData.current_top_theme !== topThemeName);
-                
-                if (hasChanged && !vibeData.needs_update) {
-                    // Flag for update tonight
-                    await supabaseClient.from('vibes_control').update({
-                        needs_update: true,
-                        new_top_genre: topGenreName,
-                        new_top_theme: topThemeName
-                    }).eq('id', vibeData.id);
-                }
-
-                // Render with whatever images we currently have in the database
-                renderVibeBox(vibeData.current_top_genre || topGenreName, 
-                            vibeData.current_top_theme || topThemeName, 
-                            vibeData.image_genre, 
-                            vibeData.image_theme,
-                            { text: vibeData.image_genre_attribution, url: vibeData.image_genre_attribution_url },
-                            { text: vibeData.image_theme_attribution, url: vibeData.image_theme_attribution_url });
-            }
-        }
-
-        // 9. Sort and take the best 12
         const finalRecs = Array.from(uniqueRecs.values())
             .sort((a, b) => b._score - a._score)
             .slice(0, 12);
-
         return finalRecs.map(item => ({
             title: item.title || item.name,
             year: (item.release_date || item.first_air_date || '').split('-')[0],
@@ -695,6 +854,11 @@ window.switchTab = function(type) {
             sectionTitle.textContent = "Add a YouTube Video";
         }
         document.getElementById('results-grid').innerHTML = '<p class="meta" style="grid-column: 1/-1; text-align: center;">Paste a valid YouTube URL in the search bar above to log it!</p>';
+        
+        // Ensure the vibe box is removed since YouTube skips loadTabContent()
+        const existingVibe = document.querySelector('.vibe-container');
+        if (existingVibe) existingVibe.remove();
+
     } else if (type === 'album') {
         searchInput.placeholder = "Search for albums or artists...";
         loadTabContent(type);
