@@ -887,9 +887,10 @@ input {
         box-sizing: border-box;
     }
 
-    /* 9. Hide the category badges and labels on tracked people to save space */
+    /* 9. Hide the category badges and labels on tracked people & fandoms to save space */
     #people-grid .badge,
-    #people-grid .meta {
+    #people-grid .meta,
+    #fandoms-grid .badge {
         display: none !important;
     }
 

@@ -390,6 +390,71 @@ async function renderList() {
     }
 }
 
+async function createListCard(item, index, listType) {
+    const details = item.is_custom 
+        ? { title: item.custom_name, poster: item.custom_image_url || 'https://placehold.co/500x750/1b2228/9ab?text=Custom' }
+        : await fetchMediaDetails(item);
+
+    const customArt = customImgsMap.get(`${item.media_type}_${String(item.media_id)}`);
+    if (customArt && customArt.custom_poster) {
+        details.poster = customArt.custom_poster;
+    }
+
+    let badgeHtml = `<span class="badge badge-${item.media_type}">${item.media_type}</span>`;
+    let metaHtml = '';
+
+    if (['character', 'author', 'artist', 'actor', 'crew', 'person', 'other', 'fandom', 'collection'].includes(item.media_type)) {
+        badgeHtml = ''; 
+        
+        if (item.media_type === 'character' && item.source_media_title) {
+            metaHtml = `<div class="meta" style="font-size: 0.8rem; color: #9ab; margin-top: -2px;">Character from ${item.source_media_title}</div>`;
+        }
+    }
+
+    const card = document.createElement('div');
+    
+    // Apply proper classes based on list type
+    if (listType === 'standard') {
+        card.className = `media-card ${isManaging ? 'managing' : ''} ${isRanked ? 'ranked-card' : ''}`;
+    } else {
+        card.className = `media-card ${isManaging ? 'managing' : ''}`;
+    }
+    
+    card.setAttribute('data-type', item.media_type);
+    card.setAttribute('data-id', item.id);
+
+    const rankBadge = (listType === 'standard' && isRanked) ? `<div class="rank-badge">${index + 1}</div>` : '';
+    const removeBtn = isOwner ? `<button class="remove-btn" onclick="removeItem('${item.id}', event)">✕</button>` : '';
+    
+    card.innerHTML = `
+        ${rankBadge}
+        ${removeBtn}
+        <div class="poster-wrapper">
+            <img src="${details.poster}" alt="${details.title}" onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
+            ${badgeHtml}
+        </div>
+        <div class="media-info">
+            <div class="title" style="font-weight:bold; font-size: 0.9rem; margin-bottom: 5px;">${details.title}</div>
+            ${metaHtml}
+        </div>
+    `;
+    
+    card.onclick = () => {
+        if (!isManaging && !item.is_custom) {
+            if (['character', 'author', 'artist'].includes(item.media_type)) {
+                const param = item.media_type === 'character' ? 'characterWiki' : (item.media_type === 'author' ? 'authorId' : 'artist');
+                window.location.href = `cast.html?${param}=${encodeURIComponent(item.media_id)}`;
+            } else if (item.media_type === 'person' || item.media_type === 'actor' || item.media_type === 'crew') {
+                window.location.href = `cast.html?personId=${item.media_id}`;
+            } else {
+                window.location.href = `details.html?id=${item.media_id}&type=${item.media_type}`;
+            }
+        }
+    };
+
+    return card;
+}
+
 async function renderStandardList(container) {
     container.innerHTML = '';
     container.classList.add('list-items-grid');
@@ -398,57 +463,7 @@ async function renderStandardList(container) {
     const fragment = document.createDocumentFragment();
 
     for (let i = 0; i < currentItems.length; i++) {
-        const item = currentItems[i];
-        const details = item.is_custom 
-            ? { title: item.custom_name, poster: item.custom_image_url || 'https://placehold.co/500x750/1b2228/9ab?text=Custom' }
-            : await fetchMediaDetails(item);
-
-        const customArt = customImgsMap.get(`${item.media_type}_${String(item.media_id)}`);
-        if (customArt && customArt.custom_poster) {
-            details.poster = customArt.custom_poster;
-        }
-
-        let badgeHtml = `<span class="badge badge-${item.media_type}">${item.media_type}</span>`;
-        if (['character', 'author', 'artist', 'actor', 'crew', 'person', 'other'].includes(item.media_type)) {
-            let displayLabel = item.media_type === 'actor' ? 'Cast' : 
-                               item.media_type === 'person' ? 'Person' :
-                               item.media_type.charAt(0).toUpperCase() + item.media_type.slice(1);
-            badgeHtml = `<span class="badge badge-movie" style="background: #456; color: #fff;">${displayLabel}</span>`;
-        }
-
-        const card = document.createElement('div');
-        card.className = `media-card ${isManaging ? 'managing' : ''} ${isRanked ? 'ranked-card' : ''}`;
-        card.setAttribute('data-type', item.media_type);
-        card.setAttribute('data-id', item.id);
-
-        const rankBadge = isRanked ? `<div class="rank-badge">${i + 1}</div>` : '';
-        const removeBtn = isOwner ? `<button class="remove-btn" onclick="removeItem('${item.id}', event)">✕</button>` : '';
-        
-        card.innerHTML = `
-            ${rankBadge}
-            ${removeBtn}
-            <div class="poster-wrapper">
-                <img src="${details.poster}" alt="${details.title}" onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
-                ${badgeHtml}
-            </div>
-            <div class="media-info">
-                <div class="title" style="font-weight:bold; font-size: 0.9rem; margin-bottom: 5px;">${details.title}</div>
-            </div>
-        `;
-        
-        card.onclick = () => {
-            if (!isManaging && !item.is_custom) {
-                if (['character', 'author', 'artist'].includes(item.media_type)) {
-                    const param = item.media_type === 'character' ? 'characterWiki' : (item.media_type === 'author' ? 'authorId' : 'artist');
-                    window.location.href = `cast.html?${param}=${encodeURIComponent(item.media_id)}`;
-                } else if (item.media_type === 'person' || item.media_type === 'actor' || item.media_type === 'crew') {
-                    window.location.href = `cast.html?personId=${item.media_id}`;
-                } else {
-                    window.location.href = `details.html?id=${item.media_id}&type=${item.media_type}`;
-                }
-            }
-        };
-
+        const card = await createListCard(currentItems[i], i, 'standard');
         fragment.appendChild(card);
     }   
 
@@ -487,54 +502,7 @@ async function renderTieredList(container) {
         const contentDiv = tierRow.querySelector('.tier-content');
         
         for (let i = 0; i < tierItems.length; i++) {
-            const item = tierItems[i];
-            const details = item.is_custom 
-                ? { title: item.custom_name, poster: item.custom_image_url || 'https://placehold.co/500x750/1b2228/9ab?text=Custom' }
-                : await fetchMediaDetails(item);
-
-            const customArt = customImgsMap.get(`${item.media_type}_${String(item.media_id)}`);
-            if (customArt && customArt.custom_poster) {
-                details.poster = customArt.custom_poster;
-            }
-
-            let badgeHtml = `<span class="badge badge-${item.media_type}">${item.media_type}</span>`;
-            if (['character', 'author', 'artist', 'actor', 'crew', 'person', 'other'].includes(item.media_type)) {
-                let displayLabel = item.media_type === 'actor' ? 'Cast' : 
-                                   item.media_type === 'person' ? 'Person' :
-                                   item.media_type.charAt(0).toUpperCase() + item.media_type.slice(1);
-                badgeHtml = `<span class="badge badge-movie" style="background: #456; color: #fff;">${displayLabel}</span>`;
-            }
-
-            const card = document.createElement('div');
-            card.className = `media-card ${isManaging ? 'managing' : ''}`;
-            card.setAttribute('data-type', item.media_type);
-            card.setAttribute('data-id', item.id);
-
-            const removeBtn = isOwner ? `<button class="remove-btn" onclick="removeItem('${item.id}', event)">✕</button>` : '';
-            
-            card.innerHTML = `
-                ${removeBtn}
-                <div class="poster-wrapper">
-                    <img src="${details.poster}" alt="${details.title}" onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
-                    ${badgeHtml}
-                </div>
-                <div class="media-info">
-                    <div class="title" style="font-weight:bold; font-size: 0.9rem; margin-bottom: 5px;">${details.title}</div>
-                </div>
-            `;
-            
-            card.onclick = () => {
-                if (!isManaging && !item.is_custom) {
-                    if (['character', 'author', 'artist'].includes(item.media_type)) {
-                        const param = item.media_type === 'character' ? 'characterWiki' : (item.media_type === 'author' ? 'authorId' : 'artist');
-                        window.location.href = `cast.html?${param}=${encodeURIComponent(item.media_id)}`;
-                    } else if (item.media_type === 'person' || item.media_type === 'actor' || item.media_type === 'crew') {
-                        window.location.href = `cast.html?personId=${item.media_id}`;
-                    } else {
-                        window.location.href = `details.html?id=${item.media_id}&type=${item.media_type}`;
-                    }
-                }
-            };
+            const card = await createListCard(tierItems[i], i, 'tiered');
             contentDiv.appendChild(card);
         }
 

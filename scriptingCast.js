@@ -35,12 +35,10 @@ async function initCastPage() {
     }
 }
 
-// --- NEW: CHARACTER PAGE LOGIC ---
+// --- CHARACTER PAGE LOGIC ---
 async function initCharacterPage(wikiId, mId, mType) {
     let name = wikiId.replace(/_/g, ' ');
     document.getElementById('person-name').textContent = name;
-    
-    // Characters don't have filmographies or "Known For" sections
     document.getElementById('filmography').style.display = 'none';
 
     let bioText = "";
@@ -105,8 +103,8 @@ async function initCharacterPage(wikiId, mId, mType) {
 
     // 2. Fallback if Wikipedia failed or was a "List of..." page
     if (!bioText && mediaTitle) {
-        const displayType = mType === 'tv' ? 'TV show' : 'movie';
-        bioText = `${name} is a character in the ${displayType} ${mediaTitle}.`;
+        // Use the mediaTitle from the URL parameters
+        bioText = `${name} is a character in ${mediaTitle}.`;
     } else if (!bioText) {
         bioText = "No biography available.";
     }
@@ -115,7 +113,7 @@ async function initCharacterPage(wikiId, mId, mType) {
 
     // 3. Setup Universal UI
     await setupPersonImage(wikiId, 'character', imageUrl, name);
-    setupFollowBtn(wikiId, name, 'character', imageUrl, mId, mType);
+    setupFollowBtn(wikiId, name, 'character', imageUrl, mId, mType, mediaTitle);
 }
 
 // Robust year extraction from various Open Library data shapes
@@ -428,7 +426,7 @@ async function setupPersonImage(id, category, defaultUrl, name) {
     setupCustomArt(id, category);
 }
 
-async function setupFollowBtn(charId, charName, category, imageUrl, mediaId, mediaType) {
+async function setupFollowBtn(charId, charName, category, imageUrl, mediaId, mediaType, mediaTitle) {
     const btn = document.getElementById('follow-person-btn');
     btn.style.display = 'block'; // Make it visible now that we have data
     
@@ -496,10 +494,10 @@ async function setupFollowBtn(charId, charName, category, imageUrl, mediaId, med
         btn.disabled = false;
     };
 
-    setupTierListManager(charId, charName, category, imageUrl);
+    setupTierListManager(charId, charName, category, imageUrl, mediaTitle);
 }
 
-async function setupTierListManager(personId, personName, category, imageUrl) {
+async function setupTierListManager(personId, personName, category, imageUrl, mediaTitle) {
     const btn = document.getElementById('add-to-tier-list-btn');
     const modal = document.getElementById('tier-list-modal');
     const close = document.getElementById('close-tier-list-modal');
@@ -549,6 +547,8 @@ async function setupTierListManager(personId, personName, category, imageUrl) {
             
         const addedListIds = new Set(currentItems?.map(item => item.list_id) || []);
 
+        const safeMediaTitle = mediaTitle ? mediaTitle.replace(/'/g, "\\'") : '';
+
         container.innerHTML = finalLists.map(l => {
             const isAdded = addedListIds.has(l.id);
             const btnClass = isAdded ? 'danger-btn' : 'primary-btn';
@@ -557,7 +557,7 @@ async function setupTierListManager(personId, personName, category, imageUrl) {
             return `
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #2c3440;">
                     <span style="font-weight: 600; color: #fff; font-size: 1rem;">${l.name}</span>
-                    <button onclick="toggleTierListItem('${l.id}', '${personId}', '${category}', '${personName.replace(/'/g, "\\'")}', '${imageUrl}', this)" class="${btnClass}" style="padding: 4px 10px; font-size: 0.75rem; border-radius: 14px; width: auto; min-width: 60px;">${btnText}</button>
+                    <button onclick="toggleTierListItem('${l.id}', '${personId}', '${category}', '${personName.replace(/'/g, "\\'")}', '${imageUrl}', '${safeMediaTitle}', this)" class="${btnClass}" style="padding: 4px 10px; font-size: 0.75rem; border-radius: 14px; width: auto; min-width: 60px;">${btnText}</button>
                 </div>
             `;
         }).join('');
@@ -567,7 +567,7 @@ async function setupTierListManager(personId, personName, category, imageUrl) {
     window.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
 }
 
-window.toggleTierListItem = async (listId, mediaId, mediaType, title, imageUrl, btnElement) => {
+window.toggleTierListItem = async (listId, mediaId, mediaType, title, imageUrl, sourceMediaTitle, btnElement) => {
     const isAdding = btnElement.textContent === 'Add';
     btnElement.textContent = '...'; 
 
@@ -579,6 +579,7 @@ window.toggleTierListItem = async (listId, mediaId, mediaType, title, imageUrl, 
                 media_id: String(mediaId), 
                 media_type: mediaType,
                 media_title: title,
+                source_media_title: sourceMediaTitle || null,
                 custom_image_url: imageUrl,
                 tier_rank: 'NS'
             });

@@ -1,7 +1,17 @@
 {
   "dependencies": {
-    "@supabase/supabase-js": "^2.110.0",
+    "@supabase/supabase-js": "^2.110.7",
     "dotenv": "^17.4.2",
     "ws": "^8.21.0"
-  }
+  },
+  "name": "misc",
+  "version": "1.0.0",
+  "main": "migrate.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
 }

@@ -57,20 +57,24 @@ async function initFandomPage() {
     const propertyId = propertyMap[mediaType];
     
     try {
+        let overrideTitle = null; // Store the official TMDB title
         if (mediaType === 'movie' || mediaType === 'tv') {
             try {
                 const tmdbRes = await fetch(`https://api.themoviedb.org/3/${mediaType}/${mediaId}?language=en-US`, {
                     headers: { Authorization: `Bearer ${config.tmdb_token}` }
                 }).then(r => r.json());
+                
                 if (tmdbRes.poster_path) {
                     document.getElementById('fandom-image').src = `https://image.tmdb.org/t/p/w500${tmdbRes.poster_path}`;
                 }
-            } catch (e) { console.warn("TMDB image fetch failed."); }
+                // Capture the real title
+                overrideTitle = tmdbRes.title || tmdbRes.name;
+            } catch (e) { console.warn("TMDB fetch failed."); }
         }
 
         const wikiTitle = await getWikipediaTitle(propertyId, mediaId);
         if (wikiTitle) {
-            await fetchWikipediaLore(wikiTitle);
+            await fetchWikipediaLore(wikiTitle, overrideTitle); // Pass it down
         } else {
             showError("No Wikipedia lore found for this item in Wikidata.");
         }
@@ -416,13 +420,13 @@ function scrubWikipediaHeaders(htmlString) {
     return tempDiv.innerHTML;
 }
 
-async function fetchWikipediaLore(title) {
+async function fetchWikipediaLore(title, overrideTitle = null) {
     try {
-        // Fetch Top Level Summary
         const summaryUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}?redirects=1`;
         const summaryRes = await fetch(summaryUrl).then(r => r.json());
 
-        const activeTitle = summaryRes.title || title;
+        // Use the TMDB title if available, otherwise fallback to Wiki title
+        const activeTitle = overrideTitle || summaryRes.title || title;
 
         document.getElementById('fandom-title').textContent = activeTitle;
         document.getElementById('fandom-overview').innerHTML = summaryRes.extract_html || summaryRes.extract;
@@ -784,14 +788,16 @@ async function fetchStructuredCharacters(externalId, type) {
             const btnClass = isFollowingChar ? 'secondary-btn' : 'primary-btn';
             const btnText = isFollowingChar ? 'Unfollow' : 'Follow';
             const escapedName = char.name.replace(/'/g, "\\'"); 
+            const escapedWikiId = char.wikiId.replace(/'/g, "\\'"); // Fix the click bug
+            const currentMediaTitle = document.getElementById('fandom-title').textContent.replace(/'/g, "\\'");
 
             gridHtml += `
-                <div class="cast-card" style="cursor: pointer; text-align: center; background: rgba(255,255,255,0.03); padding: 10px; border-radius: 12px; border: 1px solid #2c3440;" onclick="routeToCharacter('${char.wikiId}')">
+                <div class="cast-card" style="cursor: pointer; text-align: center; background: rgba(255,255,255,0.03); padding: 10px; border-radius: 12px; border: 1px solid #2c3440;" onclick="routeToCharacter('${escapedWikiId}')">
                     <img src="${fallbackImg}" style="width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: 8px; margin-bottom: 10px;" loading="lazy">
                     <span style="font-weight: bold; color: #fff; font-size: 0.95rem; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${char.name}</span>
                     <button class="${btnClass}" 
                         style="width: 100%; padding: 6px; font-size: 0.8rem; border-radius: 6px; margin-top: 10px;"
-                        onclick="event.stopPropagation(); toggleCharacterFollow(this, '${char.wikiId}', '${escapedName}', '${safeDbImage}')">
+                        onclick="event.stopPropagation(); toggleCharacterFollow(this, '${escapedWikiId}', '${escapedName}', '${safeDbImage}', '${currentMediaTitle}')">
                         ${btnText}
                     </button>
                 </div>
@@ -994,7 +1000,7 @@ async function setupFandomFollowBtn(title, imageUrl) {
     };
 }
 
-window.toggleCharacterFollow = async function(btn, charId, charName, imageUrl) {
+window.toggleCharacterFollow = async function(btn, charId, charName, imageUrl, mediaTitle) {
     if (!currentUser) {
         window.location.href = 'index.html';
         return;
@@ -1029,6 +1035,7 @@ window.toggleCharacterFollow = async function(btn, charId, charName, imageUrl) {
                 character_name: charName,
                 media_id: String(mediaId),
                 media_type: mediaType,
+                media_title: mediaTitle,
                 image_url: imageUrl
             });
         

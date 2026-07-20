@@ -959,7 +959,7 @@ window.filterPeople = (type) => {
     grid.innerHTML = '';
     
     filtered.forEach((p, index) => {
-        let route = `cast.html?personId=${p.character_id}`; 
+        let route = `cast.html?personId=${p.character_id}`;
         if (p.person_category === 'character') {
             route = `cast.html?characterWiki=${encodeURIComponent(p.character_id)}&mediaId=${p.media_id || ''}&mediaType=${p.media_type || ''}`;
         } else if (p.person_category === 'author') {
@@ -969,21 +969,24 @@ window.filterPeople = (type) => {
         }
 
         const label = p.person_category ? (p.person_category.charAt(0).toUpperCase() + p.person_category.slice(1)) : 'Person';
+        
+        // Handle the description text under the title
+        let subText = label;
+        if (p.person_category === 'character' && p.media_title) {
+            subText = `Character from ${p.media_title}`;
+        }
 
-        // --- CUSTOM ART LOGIC ---
-        // Ensure character_id is treated as a string for the map lookup
-let finalImg = p.image_url || 'https://placehold.co/500x750/1b2228/9ab?text=No+Image';
-const customArt = customImgsMap.get(`${p.person_category}_${String(p.character_id)}`);
-if (customArt && customArt.custom_poster) {
-    finalImg = customArt.custom_poster;
-}
+        let finalImg = p.image_url || 'https://placehold.co/500x750/1b2228/9ab?text=No+Image';
+        const customArt = customImgsMap.get(`${p.person_category}_${String(p.character_id)}`);
+        if (customArt && customArt.custom_poster) {
+            finalImg = customArt.custom_poster;
+        }
 
-const card = document.createElement('div');
-card.className = `media-card ${isManagingPeople ? 'managing' : ''}`;
-card.setAttribute('data-dbid', p.id);
+        const card = document.createElement('div');
+        card.className = `media-card ${isManagingPeople ? 'managing' : ''}`;
+        card.setAttribute('data-dbid', p.id);
 
-// Show rank badge for EVERYONE, not just the owner
-const rankBadge = `<div class="rank-badge" style="position:absolute; top:8px; left:8px; background: rgba(0,0,0,0.8); padding: 4px 8px; border-radius: 4px; font-weight: bold; z-index: 10;">#${index + 1}</div>`;
+        const rankBadge = `<div class="rank-badge" style="position:absolute; top:8px; left:8px; background: rgba(0,0,0,0.8); padding: 4px 8px; border-radius: 4px; font-weight: bold; z-index: 10;">#${index + 1}</div>`;
 
         card.innerHTML = `
             <div class="poster-wrapper">
@@ -995,7 +998,8 @@ const rankBadge = `<div class="rank-badge" style="position:absolute; top:8px; le
             </div>
             <div class="media-info">
                 <div class="title" style="font-weight: bold; margin-bottom: 5px;">${p.character_name}</div>
-                <div class="meta" style="font-size: 0.8rem; color: #9ab;">${label}</div>
+                <!-- Inject the subText here -->
+                <div class="meta" style="font-size: 0.8rem; color: #9ab;">${subText}</div>
             </div>
         `;
 
