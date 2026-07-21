@@ -1,0 +1,376 @@
+{
+  "anime": "monster",
+  "total_episodes": 74,
+  "episodes": [
+    {
+      "number": "1",
+      "title": "Herr Dr. Tenma",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "2",
+      "title": "Downfall",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "3",
+      "title": "Murder Case",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "4",
+      "title": "The Night of Execution",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "5",
+      "title": "The Girl From Heidelberg",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "6",
+      "title": "Disappearance Report",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "7",
+      "title": "Mansion of Tragedy",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "8",
+      "title": "The Fugitive",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "9",
+      "title": "The Girl and the Seasoned Soldier",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "10",
+      "title": "A Past Erased",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "11",
+      "title": "511 Kinderheim",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "12",
+      "title": "A Little Experiment",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "13",
+      "title": "Petra and Schumann",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "14",
+      "title": "The Abandoned Man・The Abandoned Woman",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "15",
+      "title": "Be My Baby",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "16",
+      "title": "Wolf's Confession",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "17",
+      "title": "Reunion",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "18",
+      "title": "The Fifth Spoonful of Sugar",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "19",
+      "title": "The Monster's Abyss",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "20",
+      "title": "Journey to Freiham",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "21",
+      "title": "A Wonderful Holiday",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "22",
+      "title": "Lunge's Trap",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "23",
+      "title": "Eva's Confession",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "24",
+      "title": "The Men's Dining Table",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "25",
+      "title": "The Thursday Boy",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "26",
+      "title": "The Secret Woods",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "27",
+      "title": "Pieces of Evidence",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "28",
+      "title": "Just One Case",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "29",
+      "title": "Execution",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "30",
+      "title": "A Certain Decision",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "31",
+      "title": "Under Broad Daylight",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "32",
+      "title": "Sanctuary",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "33",
+      "title": "Scene of a Child",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "34",
+      "title": "At the End of the Darkness",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "35",
+      "title": "A Hero With No Name",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "36",
+      "title": "A Monster of Chaos",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "37",
+      "title": "A Monster Without a Name",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "38",
+      "title": "The Demon in Our Eyes",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "39",
+      "title": "The Hell in His Eyes",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "40",
+      "title": "Grimmer",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "41",
+      "title": "The Ghost of 511",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "42",
+      "title": "The Adventures of the Magnificent Steiner",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "43",
+      "title": "Detective Suk",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "44",
+      "title": "The Two Darkness",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "45",
+      "title": "The Afterimage of a Monster",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "46",
+      "title": "The Point of Contact",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "47",
+      "title": "The Door to a Nightmare",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "48",
+      "title": "The Most Frightening Thing",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "49",
+      "title": "The Cruelest Thing",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "50",
+      "title": "The Rose Mansion",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "51",
+      "title": "A Monster's Love Letter",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "52",
+      "title": "Lawyer",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "53",
+      "title": "Determination",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "54",
+      "title": "Escape",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "55",
+      "title": "Room Number 402",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "56",
+      "title": "The Unending Journey",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "57",
+      "title": "That Night",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "58",
+      "title": "Unwanted Job",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "59",
+      "title": "The Man Who Saw the Devil",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "60",
+      "title": "The Man Who Knew Too Much",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "61",
+      "title": "The Door of Memory",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "62",
+      "title": "A Fun Dining Table",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "63",
+      "title": "An Unrelated Murder",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "64",
+      "title": "The Baby's Depression",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "65",
+      "title": "Johan's Footprints",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "66",
+      "title": "Welcome Back",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "67",
+      "title": "I'm Home",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "68",
+      "title": "Ruhenheim",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "69",
+      "title": "A Peaceful Home",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "70",
+      "title": "The Town of Slaughter",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "71",
+      "title": "The Magnificent Steiner's Rage",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "72",
+      "title": "Man Without a Name",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "73",
+      "title": "The Landscape of the End",
+      "type": "Manga Canon"
+    },
+    {
+      "number": "74",
+      "title": "The Real Monster",
+      "type": "Manga Canon"
+    }
+  ]
+}
