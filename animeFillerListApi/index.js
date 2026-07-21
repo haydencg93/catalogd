@@ -1,6 +1,10 @@
-require('dotenv').config();
 const path = require('path');
-const fs = require('fs');
+require('dotenv').config({ path: path.join(__dirname, '../misc/.env') });
+console.log("--- DEBUG ENV ---");
+console.log("URL:", process.env.SUPABASE_URL);
+console.log("KEY:", process.env.SUPABASE_SERVICE_ROLE_KEY ? "Found" : "Missing");
+console.log("-----------------");
+
 const { createClient } = require('@supabase/supabase-js');
 const { getFillerData } = require('./scraper');
 const { slugify } = require('./utils');
@@ -18,7 +22,7 @@ if (!supabaseUrl || !supabaseServiceKey) {
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 /**
- * Main function to scrape data and update both local files and Supabase
+ * Main function to scrape data and update Supabase
  */
 async function saveAnimeData(originalName, requestId = null) {
     console.log(`--- Processing: ${originalName} ---`);
@@ -42,24 +46,13 @@ async function saveAnimeData(originalName, requestId = null) {
     // This is the slug that actually worked on animefillerlist.com (e.g., "jujutsu-kaisen")
     const successSlug = fillerResult.anime;
 
-    // Success: Ensure data directory exists
-    const dir = './data';
-    if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-    }
-
-    // 3. Save the JSON file using the SUCCESSFUL slug
-    // This ensures your frontend fetch(`.../${successSlug}.json`) will work!
-    const filePath = path.join(dir, `${successSlug}.json`);
-    fs.writeFileSync(filePath, JSON.stringify(fillerResult, null, 2));
-    console.log(`File Saved: ${filePath}`);
-
-    // 4. Update Supabase using the successful slug
+    // 3. Update Supabase using the successful slug AND save the JSON content
     await supabase
         .from('filler_list_mgnt')
         .upsert({ 
             name: successSlug, 
             filler_exists: true, 
+            filler_content: fillerResult, // <-- Saves the scraped JSON directly to the DB!
             notes: 'Successfully scraped' 
         }, { onConflict: 'name' });
 

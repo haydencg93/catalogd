@@ -2,7 +2,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.110.7",
     "dotenv": "^17.4.2",
-    "ws": "^8.21.0"
+    "ws": "^8.21.1"
   },
   "name": "misc",
   "version": "1.0.0",

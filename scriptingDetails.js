@@ -401,6 +401,7 @@ async function initDetails() {
         }
 
         // If it is an Anime, handle the Filler Logic
+        // If it is an Anime, handle the Filler Logic
         if (isAnime) {
             const slug = slugify(data.title);
             const fillerContainer = document.getElementById('filler-status-container');
@@ -411,25 +412,32 @@ async function initDetails() {
             fillerInfo.textContent = ""; // Clear default text
 
             try {
-                // 1. Check if we have the file locally
-                const fillerFile = await fetch(`animeFillerListApi/data/${slug}.json`);
-                let hasFiller = false;
-                let fillerData = null;
-                
-                if (fillerFile.ok) {
-                    fillerData = await fillerFile.json();
-                    if (!fillerData.error) hasFiller = true;
-                }
-
-                // 2. Check DB for pending requests
+                // 1. Check DB for pending requests AND content
                 const { data: existingRequest } = await supabaseClient
                     .from('filler_list_mgnt')
-                    .select('filler_exists, notes')
+                    .select('filler_exists, notes, filler_content')
                     .eq('name', slug)
                     .maybeSingle();
 
-                // 3. Build UI
-                // 3. Build UI
+                let hasFiller = false;
+                let fillerData = null;
+
+                // 2. Prioritize Database Content
+                if (existingRequest && existingRequest.filler_content) {
+                    fillerData = existingRequest.filler_content;
+                    hasFiller = true;
+                } else {
+                    // 3. Fallback to check local file (Legacy support)
+                    try {
+                        const fillerFile = await fetch(`animeFillerListApi/data/${slug}.json`);
+                        if (fillerFile.ok) {
+                            fillerData = await fillerFile.json();
+                            if (!fillerData.error) hasFiller = true;
+                        }
+                    } catch(e) {}
+                }
+
+                // 4. Build UI
                 let html = '';
                 
                 // View Button (if exists)
@@ -444,7 +452,7 @@ async function initDetails() {
                 }
 
                 // Check if there is an active pending request (a record exists, but no notes yet)
-                const isPending = existingRequest && !existingRequest.notes;
+                const isPending = existingRequest && !existingRequest.notes && !hasFiller;
 
                 if (isPending) {
                     html += `<div class="meta" style="font-size: 0.85rem; color: #ff9800;">${hasFiller ? 'Update' : 'List'} request pending... check back soon!</div>`;
