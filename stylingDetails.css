@@ -861,6 +861,20 @@
         margin-bottom: 10px;
     }
 
+    .info-pane > div:first-child {
+        grid-row: 1 !important; 
+        grid-column: 1 / -1 !important; 
+        justify-content: center !important; /* This centers the title and heart together */
+        width: 100%;
+        margin-bottom: 10px;
+    }
+
+    #media-title {
+        text-align: center;
+        font-size: 1.8rem;
+        margin: 0 !important;
+    }
+
     /* ROW 2: Poster Wrapper (Left) and Info Wrapper (Right) */
     #poster-controls-wrapper {
         grid-row: 2 !important;
