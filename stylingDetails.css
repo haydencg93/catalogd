@@ -968,6 +968,35 @@
     .quick-update-row { display: flex !important; flex-direction: column !important; gap: 10px !important; }
     #quick-page-input { width: 100% !important; box-sizing: border-box; }
 
+    /* Mobile Episode Modal Restyling */
+    #episode-modal .filler-card > div:nth-of-type(1) {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 15px !important;
+        width: 100% !important;
+    }
+
+    #modal-episode-img {
+        width: 100% !important;
+        max-width: 100% !important;
+        height: auto !important;
+        aspect-ratio: 16 / 9;
+        margin: 0 !important;
+    }
+
+    /* Target the text container next to the image to ensure it spans full width */
+    #episode-modal .filler-card > div:nth-of-type(1) > div {
+        width: 100% !important;
+        flex: none !important;
+    }
+
+    /* Ensure long episode titles wrap properly */
+    #modal-episode-title {
+        white-space: normal !important;
+        word-wrap: break-word !important;
+    }
+
     /* ROW 6: Logs and Rating buttons */
     .history-split-row {
         grid-row: 7 !important;

@@ -65,12 +65,20 @@ async function initDetails() {
             // 3. Extract tags
             const tags = albumData.tags?.tag?.map(t => t.name).join(', ') || 'Music';
 
-            // 4. Now initialize the data object
+            // 3. Calculate total duration
+            let totalDuration = 0;
+            if (albumData.tracks && albumData.tracks.track) {
+                const trackList = Array.isArray(albumData.tracks.track) ? albumData.tracks.track : [albumData.tracks.track];
+                totalDuration = trackList.reduce((acc, curr) => acc + (parseInt(curr.duration) || 0), 0);
+            }
+            const durationStr = totalDuration > 0 ? `${Math.floor(totalDuration / 60)}m • ` : '';
+
+            // 5. Now initialize the data object
             data = {
                 title: albumData.name,
-                overview: cleanSummary, // Now it is initialized and safe to use
+                overview: cleanSummary,
                 poster_path: img,
-                meta: `${albumData.artist} • ${tags}`,
+                meta: `${albumData.artist} • ${durationStr}${tags}`,
                 tracks: albumData.tracks?.track || [],
                 artistName: albumData.artist
             };
@@ -155,13 +163,29 @@ async function initDetails() {
                 }
             } catch(e) { console.warn("Translations config error", e); }
 
+            // Calculate runtime/duration
+            let runtimeStr = '';
+            if (type === 'movie' && res.runtime) {
+                runtimeStr = `${res.runtime}m • `;
+            } else if (type === 'tv') {
+                if (res.episode_run_time && res.episode_run_time.length > 0) {
+                    // TMDB returns an array of runtimes for TV shows, calculate the average
+                    const sum = res.episode_run_time.reduce((a, b) => a + b, 0);
+                    const avg = Math.round(sum / res.episode_run_time.length);
+                    runtimeStr = `${avg}m • `; 
+                } else if (res.last_episode_to_air && res.last_episode_to_air.runtime) {
+                    // Fallback since TMDB sometimes omits the main array
+                    runtimeStr = `${res.last_episode_to_air.runtime}m • `;
+                }
+            }
+
             data = {
                 title: res.title || res.name,
-                overview: res.overview, // Reverted to just the standard description
+                overview: res.overview,
                 poster_path: `https://image.tmdb.org/t/p/w500${res.poster_path}`,
                 backdrop: res.backdrop_path ? `https://image.tmdb.org/t/p/original${res.backdrop_path}` : null,
-                meta: `${(res.release_date || res.first_air_date || '').split('-')[0]} • ${res.genres?.map(g => g.name).join(', ')} • ${mainLanguageName}`,
-                translations: translationArray // Pass to our global data object
+                meta: `${(res.release_date || res.first_air_date || '').split('-')[0]} • ${runtimeStr}${res.genres?.map(g => g.name).join(', ')} • ${mainLanguageName}`,
+                translations: translationArray
             };
         }
 
@@ -463,6 +487,7 @@ async function initDetails() {
         setupListManager(id, type);
         setupStatusManager(id, type);
         setupCustomArt(id, type);
+        setupFavoritesManager(id, type)
 
         if (['movie', 'tv', 'book'].includes(type)) {
             loadSimilar('all');
@@ -486,7 +511,7 @@ async function setupStatusManager(mediaId, mediaType) {
         return;
     }
 
-    // NEW: Dynamically set the active label based on all media types
+    // Dynamically set the active label based on all media types
     let activeLabelText = 'Currently Watching'; // Default for movies/tv/youtube
     if (mediaType === 'book') activeLabelText = 'Currently Reading';
     else if (mediaType === 'album') activeLabelText = 'Currently Listening';
@@ -644,6 +669,139 @@ async function fetchCredits(config, mediaId, mediaType) {
         console.error("Credits error:", err); 
         castList.innerHTML = `<p class="meta">Cast information is currently unavailable.</p>`;
     }
+}
+
+async function setupFavoritesManager(mediaId, mediaType) {
+    const btn = document.getElementById('favorite-heart-btn');
+    const modal = document.getElementById('favorites-modal');
+    const closeBtn = document.getElementById('close-fav-modal');
+    const container = document.getElementById('fav-slots-container');
+
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) {
+        btn.style.display = 'none';
+        return;
+    }
+
+    let userFavorites = { movie: [], tv: [], book: [], album: [], youtube: [], all: [] };
+
+    // Fetch current favorites
+    const { data: profile } = await supabaseClient.from('profiles').select('favorites').eq('id', user.id).single();
+    if (profile && profile.favorites) {
+        userFavorites = profile.favorites;
+    }
+
+    // Check if it's already a favorite to style the heart solid
+    const currentCategoryList = userFavorites[mediaType] || [];
+    const isAlreadyFav = currentCategoryList.some(fav => String(fav.id) === String(mediaId));
+    if (isAlreadyFav) {
+        btn.textContent = '♥';
+        btn.style.color = '#ff4d4d'; // Red heart
+    }
+
+    btn.onclick = () => {
+        modal.style.display = 'flex';
+        renderFavSlots();
+    };
+
+    closeBtn.onclick = () => modal.style.display = 'none';
+    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+
+    const renderFavSlots = () => {
+        const list = userFavorites[mediaType] || [];
+        container.innerHTML = '';
+        
+        // Loop through the 5 possible slots
+        for (let i = 0; i < 5; i++) {
+            const currentItem = list[i];
+            const slotDiv = document.createElement('div');
+            slotDiv.style.cssText = "display: flex; align-items: center; justify-content: space-between; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid #2c3440; border-radius: 8px; cursor: pointer; transition: background 0.2s;";
+            
+            slotDiv.onmouseover = () => slotDiv.style.background = 'rgba(255,255,255,0.1)';
+            slotDiv.onmouseout = () => slotDiv.style.background = 'rgba(255,255,255,0.05)';
+
+            if (currentItem) {
+                // If the slot is occupied by THIS media, show "Remove" state
+                if (String(currentItem.id) === String(mediaId)) {
+                    slotDiv.style.borderColor = '#ff4d4d';
+                    slotDiv.innerHTML = `
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-weight: bold; color: #ff4d4d;">#${i + 1}</span>
+                            <span style="color: #fff; font-weight: 500;">${currentItem.title}</span>
+                        </div>
+                        <span style="color: #ff4d4d; font-size: 0.8rem; font-weight: bold;">REMOVE</span>
+                    `;
+                    slotDiv.onclick = () => updateFavorite(i, null);
+                } else {
+                    // Show existing media and "Replace" state
+                    slotDiv.innerHTML = `
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-weight: bold; color: #9ab;">#${i + 1}</span>
+                            <span style="color: #ccd6e0; font-size: 0.95rem;">${currentItem.title}</span>
+                        </div>
+                        <span style="color: var(--accent); font-size: 0.8rem; font-weight: bold;">REPLACE</span>
+                    `;
+                    slotDiv.onclick = () => updateFavorite(i, mediaId);
+                }
+            } else {
+                // Empty slot
+                slotDiv.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-weight: bold; color: #9ab;">#${i + 1}</span>
+                        <span style="color: #678; font-style: italic; font-size: 0.95rem;">Empty Slot</span>
+                    </div>
+                    <span style="color: #00e054; font-size: 0.8rem; font-weight: bold;">ADD HERE</span>
+                `;
+                slotDiv.onclick = () => updateFavorite(i, mediaId);
+            }
+            container.appendChild(slotDiv);
+        }
+    };
+
+    const updateFavorite = async (index, newMediaId) => {
+        if (!userFavorites[mediaType]) userFavorites[mediaType] = [];
+        
+        if (newMediaId === null) {
+            // Remove
+            userFavorites[mediaType].splice(index, 1);
+            btn.textContent = '♡';
+            btn.style.color = '#2c3440';
+        } else {
+            // Replace / Add
+            // Make sure to remove it from elsewhere in the list to prevent duplicates
+            userFavorites[mediaType] = userFavorites[mediaType].filter(item => String(item.id) !== String(newMediaId));
+            
+            const newFavObject = {
+                id: mediaId,
+                title: globalData.title,
+                type: mediaType,
+                image: globalData.poster_path
+            };
+
+            // Insert at specific index, or push if array is shorter
+            if (index >= userFavorites[mediaType].length) {
+                userFavorites[mediaType].push(newFavObject);
+            } else {
+                userFavorites[mediaType][index] = newFavObject;
+            }
+
+            btn.textContent = '♥';
+            btn.style.color = '#ff4d4d';
+        }
+
+        // Sync to "all" list (top 1 of each)
+        const topMovie = userFavorites.movie?.[0];
+        const topTv = userFavorites.tv?.[0];
+        const topBook = userFavorites.book?.[0];
+        const topAlbum = userFavorites.album?.[0];
+        const topYoutube = userFavorites.youtube?.[0];
+        userFavorites.all = [topMovie, topTv, topBook, topAlbum, topYoutube].filter(Boolean);
+
+        // Save to DB
+        await supabaseClient.from('profiles').update({ favorites: userFavorites }).eq('id', user.id);
+        
+        renderFavSlots(); // Re-render visually to confirm change
+    };
 }
 
 function renderMainPageCast() {
@@ -1170,7 +1328,7 @@ function renderLogs(logsToRender) {
                     </div>
                 </div>
                 ${badgeRow}
-                <div class="history-date">Watched on ${logDateTime}</div>
+                <div class="history-date">Watched on ${logDate}</div>
                 ${reviewPreview}
                 ${tagsHtml}
             </div>
@@ -1320,7 +1478,16 @@ async function markSeasonAsWatched() {
         const res = JSON.parse(text);
         
         const logs = res.episodes.map(ep => ({ user_id: user.id, series_id: String(id), season_number: seasonNum, episode_number: ep.episode_number }));
-        await supabaseClient.from('episode_logs').upsert(logs);
+        
+        // Delete existing logs for this specific season to prevent duplicates/errors
+        await supabaseClient.from('episode_logs').delete()
+            .eq('user_id', user.id)
+            .eq('series_id', String(id))
+            .eq('season_number', seasonNum);
+            
+        // Insert the fresh, complete list
+        await supabaseClient.from('episode_logs').insert(logs);
+        
         loadEpisodes(config, id, seasonNum);
     } catch (err) {
         alert("Error marking season as watched.");
@@ -2035,10 +2202,18 @@ async function fetchFollowingLogs() {
             const avatar = profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=1b2228&color=9ab`;
             
             const stars = '★'.repeat(Math.floor(log.rating || 0)) + ((log.rating || 0) % 1 !== 0 ? '½' : '');
-            const logDate = new Date(log.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+            
+            // Use watched_on if available, otherwise fallback to created_at
+            const targetDate = log.watched_on ? log.watched_on : log.created_at.split('T')[0];
+            const logDate = new Date(targetDate + 'T00:00:00').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
             
             const reviewPreview = log.notes ? `<div class="history-notes">"${log.notes}"</div>` : '';
-            const heartBadge = log.is_liked ? `<span title="Liked" style="font-size: 0.85rem;">❤️</span>` : '';
+            const heartBadge = log.is_liked ? `<span title="Liked" style="font-size: 0.85rem; margin-right: 5px;">❤️</span>` : '';
+            
+            let rewatchText = 'Rewatch';
+            if (type === 'book') rewatchText = 'Reread';
+            else if (type === 'album') rewatchText = 'Relisten';
+            const rewatchBadge = log.is_rewatch ? `<span title="${rewatchText}" style="font-size: 0.85rem;">🔁</span>` : '';
 
             return `
                 <div class="history-item following-log-item" style="cursor: pointer; transition: background 0.2s; padding: 10px; border-radius: 8px; margin: 0 -10px 10px -10px;" onclick="window.location.href='profile.html?userId=${log.user_id}'">
@@ -2049,7 +2224,10 @@ async function fetchFollowingLogs() {
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span class="history-stars">${stars}</span>
-                        ${heartBadge}
+                        <div>
+                            ${heartBadge}
+                            ${rewatchBadge}
+                        </div>
                     </div>
                     ${reviewPreview}
                 </div>

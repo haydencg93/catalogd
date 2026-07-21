@@ -82,7 +82,10 @@
         
         <!-- Column 2: Info and Interaction -->
         <div class="info-pane">
-            <h1 id="media-title"></h1>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <h1 id="media-title" style="margin: 0;"></h1>
+                <button id="favorite-heart-btn" style="background: none; border: none; font-size: 2.2rem; cursor: pointer; color: #2c3440; transition: color 0.2s;" title="Manage Favorites">♡</button>
+            </div>
             
             <div id="media-info-right">
                 <div id="media-meta" class="meta"></div>
@@ -207,6 +210,17 @@
                 <button class="filter-btn" data-filter="tier">Tier Lists</button>
             </div>
             <div id="user-lists-selection" style="overflow-y: auto; flex-grow: 1;"></div>
+        </div>
+    </div>
+
+    <div id="favorites-modal" class="modal-overlay">
+        <div class="auth-card" style="width: 400px; text-align: left;">
+            <button class="close-btn" id="close-fav-modal">×</button>
+            <h3 style="margin-top: 0;">Manage Favorites</h3>
+            <p class="meta">Select an empty slot to add this item, or click an existing favorite to replace it.</p>
+            <div id="fav-slots-container" style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
+                <!-- Slots injected via JS -->
+            </div>
         </div>
     </div>
 
