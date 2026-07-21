@@ -1134,7 +1134,7 @@ window.onclick = function(event) {
 
 async function signOut() {
     await supabaseClient.auth.signOut();
-    location.reload();
+    setTimeout(() => window.location.reload(), 100);
 }
 
 async function setupTVTracker(config, seriesId) {
@@ -1794,7 +1794,7 @@ async function requestFiller(slug, isUpdate) {
 
     if (!error) {
         alert(isUpdate ? "Update request sent! We'll check for new episodes." : "Request sent! Our scraper will look for this soon.");
-        location.reload();
+        setTimeout(() => window.location.reload(), 100);
     } else {
         console.error(error);
         alert("There was an error sending your request.");
@@ -1942,7 +1942,7 @@ async function setupCustomArt(mediaId, mediaType) {
 
         if (!error) {
             // Reload the page to cleanly fetch and apply defaults/customs across all elements
-            location.reload(); 
+            setTimeout(() => window.location.reload(), 100);
         } else {
             alert("Error saving art: " + error.message);
             saveBtn.textContent = "Save Art";
