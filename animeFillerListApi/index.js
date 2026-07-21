@@ -1,9 +1,5 @@
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../misc/.env') });
-console.log("--- DEBUG ENV ---");
-console.log("URL:", process.env.SUPABASE_URL);
-console.log("KEY:", process.env.SUPABASE_SERVICE_ROLE_KEY ? "Found" : "Missing");
-console.log("-----------------");
 
 const { createClient } = require('@supabase/supabase-js');
 const { getFillerData } = require('./scraper');
