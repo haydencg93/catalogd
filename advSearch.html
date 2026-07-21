@@ -103,6 +103,24 @@
             </div>
 
             <div class="adv-search-section">
+                <span class="adv-search-label">Languages</span>
+                
+                <div class="match-toggle-container" style="margin-top: -5px; margin-bottom: 15px;">
+                    <span style="font-size: 0.85rem; color: #fff; font-weight: 500;">Filter Rule:</span>
+                    <div class="segmented-control">
+                        <input type="radio" id="lang-rule-both" name="lang-rule" value="both" checked>
+                        <label for="lang-rule-both">Original Language & Translations</label>
+                        <input type="radio" id="lang-rule-original" name="lang-rule" value="original">
+                        <label for="lang-rule-original">Original Language Only</label>
+                    </div>
+                </div>
+
+                <div id="languages-container" class="pill-grid">
+                    <p class="meta" style="margin:0;">Loading languages...</p>
+                </div>
+            </div>
+
+            <div class="adv-search-section">
                 <span class="adv-search-label">Core Genres</span>
                 
                 <div class="match-toggle-container" style="margin-top: -5px; margin-bottom: 15px;">

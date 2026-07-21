@@ -128,9 +128,10 @@
         </section>
 
         <section class="settings-card">
-            <h3>Your Services</h3>
-            <p class="meta">Select your preferred platforms. We'll use these to auto-filter your searches and recommendations.</p>
+            <h3>Your Preferences</h3>
+            <p class="meta">Select your preferred platforms and languages. We'll use these to auto-filter your searches and recommendations.</p>
 
+            <h4 style="color: #9ab; margin-top: 20px; margin-bottom: 10px;">Services</h4>
             <div class="input-group">
                 <label>Streaming Providers (Movies/TV)</label>
                 <div id="settings-streaming-container" class="pill-grid" style="margin-top: 10px;">
@@ -155,8 +156,16 @@
                     <div class="pill" data-id="amazonmusic" onclick="toggleServicePill(this, 'listening')">Amazon Music</div>
                 </div>
             </div>
+
+            <h4 style="color: #9ab; margin-top: 35px; margin-bottom: 10px;">Languages</h4>
+            <div class="input-group">
+                <label>Preferred Languages</label>
+                <div id="settings-languages-container" class="pill-grid" style="margin-top: 10px;">
+                    <p class="meta" style="margin:0;">Loading languages...</p>
+                </div>
+            </div>
             
-            <button id="save-services-btn" class="primary-btn" style="margin-top: 20px;">Save Services</button>
+            <button id="save-services-btn" class="primary-btn" style="margin-top: 20px;">Save Preferences</button>
         </section>
 
         <section class="settings-card">

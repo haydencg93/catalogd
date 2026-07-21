@@ -3,7 +3,7 @@ let tmdbToken = null;
 let lastfmKey = null;
 
 let currentFavs = { movie: [], tv: [], book: [], album: [], youtube: [], all: [] };
-let currentServices = { streaming: [], buying: [], listening: [] };
+let currentServices = { streaming: [], buying: [], listening: [], languages: [] };
 
 // --- GLOBAL EXPORT CACHE ---
 const exportTitleCache = new Map();
@@ -100,8 +100,11 @@ async function initSettings() {
         currentFavs = profile.favorites || { movie: [], tv: [], book: [], youtube: [], album: [], all: [] };
         renderFavManager();
         
-        currentServices = profile.services || { streaming: [], buying: [], listening: [] };
+        currentServices = profile.services || { streaming: [], buying: [], listening: [], languages: [] };
+        if (!currentServices.languages) currentServices.languages = [];
+
         await fetchAndRenderProviders();
+        await fetchAndRenderLanguages();
         renderActiveServicePills();
     }
 
@@ -381,6 +384,28 @@ async function fetchAndRenderProviders() {
     } catch (e) {
         document.getElementById('settings-streaming-container').innerHTML = '<p class="meta">Failed to load streaming providers.</p>';
         document.getElementById('settings-buying-container').innerHTML = '<p class="meta">Failed to load buying providers.</p>';
+    }
+}
+
+async function fetchAndRenderLanguages() {
+    try {
+        const langRes = await fetch(`https://api.themoviedb.org/3/configuration/languages`, { 
+            headers: { Authorization: `Bearer ${tmdbToken}` } 
+        }).then(r => r.json());
+
+        // Sort alphabetically by English name
+        const sortedLangs = langRes.sort((a, b) => a.english_name.localeCompare(b.english_name));
+
+        document.getElementById('settings-languages-container').innerHTML = sortedLangs.map(lang => {
+            const isActive = currentServices.languages && currentServices.languages.includes(lang.english_name) ? 'active' : '';
+            return `
+                <div class="pill ${isActive}" data-id="${lang.english_name}" onclick="toggleServicePill(this, 'languages')">
+                    ${lang.english_name}
+                </div>
+            `;
+        }).join('');
+    } catch (e) {
+        document.getElementById('settings-languages-container').innerHTML = '<p class="meta">Failed to load languages.</p>';
     }
 }
 

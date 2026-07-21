@@ -208,23 +208,52 @@ async function initDetails() {
         document.getElementById('media-overview').textContent = data.overview;
         document.getElementById('media-meta').textContent = data.meta;
         
+        // FETCH USER'S PREFERRED LANGUAGES FOR TRANSLATION FILTERING
+        let userPreferredLangs = [];
+        if (session?.user) {
+            const { data: profile } = await supabaseClient.from('profiles').select('services').eq('id', session.user.id).single();
+            if (profile && profile.services && profile.services.languages) {
+                userPreferredLangs = profile.services.languages;
+            }
+        }
+
         // INJECT TRANSLATIONS SECTION ---
         if (data.translations && data.translations.length > 0) {
-            const pillStyle = `background: rgba(255,255,255,0.05); border: 1px solid #2c3440; color: #ccd6e0; padding: 4px 10px; border-radius: 8px; font-size: 0.8rem; cursor: default; transition: all 0.2s ease; display: inline-block;`;
-            const hoverEvents = `onmouseover="this.style.background='rgba(255,255,255,0.1)'; this.style.color='#fff'; this.style.borderColor='var(--accent)';" onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.color='#ccd6e0'; this.style.borderColor='#2c3440';"`;
+            let displayedLangs = data.translations;
+            let hiddenCount = 0;
 
-            const transHtml = `
-            <div id="translations-section" class="history-section" style="margin-top: 20px;">
-                <h4>Translations</h4>
-                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                    ${data.translations.map(lang => `<span style="${pillStyle}" ${hoverEvents}>${lang}</span>`).join('')}
-                </div>
-            </div>`;
-            
-            // Insert cleanly right below the Fandom button wrapper
-            const fandomContainer = document.getElementById('fandom-btn').parentElement;
-            if (fandomContainer) {
-                fandomContainer.insertAdjacentHTML('afterend', transHtml);
+            // If the user has saved preferences, filter the array
+            if (userPreferredLangs.length > 0) {
+                displayedLangs = data.translations.filter(lang => userPreferredLangs.includes(lang));
+                hiddenCount = data.translations.length - displayedLangs.length;
+            }
+
+            // Only render if there are languages to show (either preferred or hidden)
+            if (displayedLangs.length > 0 || hiddenCount > 0) {
+                const pillStyle = `background: rgba(255,255,255,0.05); border: 1px solid #2c3440; color: #ccd6e0; padding: 4px 10px; border-radius: 8px; font-size: 0.8rem; cursor: default; transition: all 0.2s ease; display: inline-block;`;
+                const hoverEvents = `onmouseover="this.style.background='rgba(255,255,255,0.1)'; this.style.color='#fff'; this.style.borderColor='var(--accent)';" onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.color='#ccd6e0'; this.style.borderColor='#2c3440';"`;
+
+                let transHtmlContent = displayedLangs.map(lang => `<span style="${pillStyle}" ${hoverEvents}>${lang}</span>`).join('');
+                
+                // Add the "+X more" clickable button if there are translations outside their preferences
+                if (hiddenCount > 0) {
+                    const btnStyle = `background: rgba(255,255,255,0.05); border: 1px dashed #2c3440; color: #ccd6e0; padding: 4px 10px; border-radius: 8px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s ease; display: inline-block;`;
+                    transHtmlContent += `<button onclick="expandTranslations()" style="${btnStyle}" ${hoverEvents}>+${hiddenCount} more</button>`;
+                }
+
+                const transHtml = `
+                <div id="translations-section" class="history-section" style="margin-top: 20px;">
+                    <h4>Translations</h4>
+                    <div id="translations-container" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                        ${transHtmlContent}
+                    </div>
+                </div>`;
+                
+                // Insert cleanly right below the Fandom button wrapper
+                const fandomContainer = document.getElementById('fandom-btn').parentElement;
+                if (fandomContainer) {
+                    fandomContainer.insertAdjacentHTML('afterend', transHtml);
+                }
             }
         }
         
@@ -1630,6 +1659,19 @@ async function fetchWatchProviders(config) {
         document.getElementById('providers-list').innerHTML = "<p class='meta'>Availability data currently updating.</p>";
     }
 }
+
+window.expandTranslations = function() {
+    const container = document.getElementById('translations-container');
+    if (!container || !globalData || !globalData.translations) return;
+
+    const pillStyle = `background: rgba(255,255,255,0.05); border: 1px solid #2c3440; color: #ccd6e0; padding: 4px 10px; border-radius: 8px; font-size: 0.8rem; cursor: default; transition: all 0.2s ease; display: inline-block;`;
+    const hoverEvents = `onmouseover="this.style.background='rgba(255,255,255,0.1)'; this.style.color='#fff'; this.style.borderColor='var(--accent)';" onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.color='#ccd6e0'; this.style.borderColor='#2c3440';"`;
+    
+    // Re-render the container with ALL translations
+    container.innerHTML = globalData.translations.map(lang => 
+        `<span style="${pillStyle}" ${hoverEvents}>${lang}</span>`
+    ).join('');
+};
 
 async function setupWatchlist(mediaId, mediaType) {
     const btn = document.getElementById('watchlist-btn');

@@ -23,6 +23,8 @@ let activeProviders = new Set();
 let activeKeywords = new Map();
 let activeCoreGenres = new Set();
 let allCoreGenres = [];
+let activeLanguages = new Set();
+let languageIsoMap = {}; // Maps 'English' -> 'en'
 
 // Global Data & Pagination
 let allProviders = [];
@@ -38,9 +40,10 @@ async function initAdvSearch() {
         supabaseClient = supabase.createClient(configData.supabase_url, configData.supabase_key);
 
         await fetchTopProviders();
-        await setupHeaderAndProfile();
-
         await fetchCoreGenres();
+        await fetchLanguages(); // THIS MUST BE ABOVE SETUPHEADERANDPROFILE!
+
+        await setupHeaderAndProfile();
 
         genreSearchInput.addEventListener('input', (e) => {
             const query = e.target.value.trim();
@@ -94,6 +97,28 @@ async function fetchTopProviders() {
 
     } catch (e) {
         providersContainer.innerHTML = '<p class="meta">Failed to load providers.</p>';
+    }
+}
+
+async function fetchLanguages() {
+    try {
+        const langRes = await fetch(`https://api.themoviedb.org/3/configuration/languages`, { 
+            headers: { Authorization: `Bearer ${TMDB_TOKEN}` } 
+        }).then(r => r.json());
+
+        const sortedLangs = langRes.sort((a, b) => a.english_name.localeCompare(b.english_name));
+        
+        sortedLangs.forEach(lang => {
+            languageIsoMap[lang.english_name] = lang.iso_639_1;
+        });
+
+        document.getElementById('languages-container').innerHTML = sortedLangs.map(lang => `
+            <div class="pill" data-id="${lang.english_name}" onclick="togglePill(this, 'language')">
+                ${lang.english_name}
+            </div>
+        `).join('');
+    } catch(e) {
+        document.getElementById('languages-container').innerHTML = '<p class="meta">Failed to load languages.</p>';
     }
 }
 
@@ -177,7 +202,8 @@ window.togglePill = function(element, type) {
     else if (type === 'movie-duration') set = activeMovieDurations;
     else if (type === 'tv-duration') set = activeTvDurations;
     else if (type === 'provider') set = activeProviders;
-    else if (type === 'core-genre') set = activeCoreGenres; // NEW LINE
+    else if (type === 'core-genre') set = activeCoreGenres; 
+    else if (type === 'language') set = activeLanguages; // <-- CRITICAL: This was missing!
 
     if (set.has(id)) {
         set.delete(id);
@@ -314,6 +340,9 @@ async function executeSearch(isLoadMore = false) {
         console.log(`[DEBUG] CALCULATED - TV Runtime API Bounds: Min=${tvRuntimeMin}, Max=${tvRuntimeMax}`);
     }
 
+    const langRule = document.querySelector('input[name="lang-rule"]:checked').value;
+    const selectedIsos = Array.from(activeLanguages).map(name => languageIsoMap[name]);
+
     try {
         const fetchPromises = [];
         const pagesToFetch = textQuery ? [currentPage, currentPage + 1, currentPage + 2, currentPage + 3, currentPage + 4] : [currentPage];
@@ -342,6 +371,11 @@ async function executeSearch(isLoadMore = false) {
                 if (tvRuntimeMax !== null && tvRuntimeMax < 999) baseUrl += `&with_runtime.lte=${tvRuntimeMax}`;
             }
 
+            if (activeLanguages.size > 0 && langRule === 'original') {
+                // If strict original language, offload the work straight to TMDB
+                baseUrl += `&with_original_language=${selectedIsos.join('|')}`;
+            }
+
             pagesToFetch.forEach(page => {
                 fetchPromises.push(
                     fetch(`${baseUrl}&page=${page}`, { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } })
@@ -362,11 +396,11 @@ async function executeSearch(isLoadMore = false) {
 
         console.log(`[DEBUG] Pre-filter count from Discover API: ${combinedResults.length}`);
 
-        // --- NEW: Accurate Real-time Provider & Strict Duration Checking ---
-        console.log(`[DEBUG] Fetching detailed data for ${combinedResults.length} items to verify providers and strict duration...`);
+        // --- Accurate Real-time Provider, Duration & Language Checking ---
+        console.log(`[DEBUG] Fetching detailed data for ${combinedResults.length} items...`);
         const detailPromises = combinedResults.map(item => 
-            // We changed this to pull the main details AND the providers in one go!
-            fetch(`https://api.themoviedb.org/3/${item.media_type}/${item.id}?append_to_response=watch/providers`, {
+            // Pull the main details, providers, AND translations in one go!
+            fetch(`https://api.themoviedb.org/3/${item.media_type}/${item.id}?append_to_response=watch/providers,translations`, {
                 headers: { Authorization: `Bearer ${TMDB_TOKEN}` }
             })
             .then(r => r.json())
@@ -399,6 +433,23 @@ async function executeSearch(isLoadMore = false) {
                     return avgRuntime >= parseInt(el.dataset.min) && avgRuntime <= parseInt(el.dataset.max);
                 });
                 if (!matchesDuration) return false;
+            }
+
+            if (activeLanguages.size > 0) {
+                if (langRule === 'original') {
+                    // Double check client side just to be safe
+                    if (!selectedIsos.includes(detailData.original_language)) return false;
+                } else {
+                    // Both Original AND Translations mapping
+                    const isOriginalMatch = selectedIsos.includes(detailData.original_language);
+                    let isTranslationMatch = false;
+
+                    if (detailData.translations && detailData.translations.translations) {
+                        isTranslationMatch = detailData.translations.translations.some(t => selectedIsos.includes(t.iso_639_1));
+                    }
+
+                    if (!isOriginalMatch && !isTranslationMatch) return false;
+                }
             }
 
             // 2. PROVIDER CHECK
@@ -539,6 +590,14 @@ async function setupHeaderAndProfile() {
                 const pillEl = document.querySelector(`.pill[data-id="${id}"]`);
                 if (pillEl) pillEl.classList.add('active');
             });
+
+            if (profile.services.languages) {
+                profile.services.languages.forEach(langName => {
+                    activeLanguages.add(langName);
+                    const pillEl = document.querySelector(`#languages-container .pill[data-id="${langName}"]`);
+                    if (pillEl) pillEl.classList.add('active');
+                });
+            }
         }
 
     } else {
