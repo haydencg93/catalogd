@@ -1,0 +1,21 @@
+{
+  "anime": "blue-period",
+  "total_episodes": 3,
+  "episodes": [
+    {
+      "number": "1",
+      "title": "The Movie",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "2",
+      "title": "First Inspector",
+      "type": "Anime Canon"
+    },
+    {
+      "number": "3",
+      "title": "Providence",
+      "type": "Anime Canon"
+    }
+  ]
+}
