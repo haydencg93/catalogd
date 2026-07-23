@@ -707,7 +707,7 @@
     overflow: hidden;
 }
 
-#show-more-logs {
+#show-more-logs, #show-more-following-logs {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid #2c3440;
     color: #9ab;
@@ -717,7 +717,7 @@
     transition: all 0.2s;
 }
 
-#show-more-logs:hover {
+#show-more-logs:hover, #show-more-following-logs:hover {
     color: #fff;
     background: rgba(255, 255, 255, 0.1);
     border-color: var(--accent);

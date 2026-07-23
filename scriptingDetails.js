@@ -226,6 +226,10 @@ async function initDetails() {
             if (userPreferredLangs.length > 0) {
                 displayedLangs = data.translations.filter(lang => userPreferredLangs.includes(lang));
                 hiddenCount = data.translations.length - displayedLangs.length;
+            } else {
+                // Show top 3 languages if no preferences are set
+                displayedLangs = data.translations.slice(0, 3);
+                hiddenCount = data.translations.length - displayedLangs.length;
             }
 
             // Only render if there are languages to show (either preferred or hidden)
@@ -1288,20 +1292,19 @@ async function fetchMediaHistory() {
 
     allLogsData = logs; 
 
-    // 1. Initial render of top 3
-    renderLogs(allLogsData.slice(0, 3));
+    // 1. Initial render of top 5 (Change the 3 to a 5 here!)
+    renderLogs(allLogsData.slice(0, 5));
 
     // 2. Setup the "Show More" button logic
     if (showMoreBtn) {
-        if (allLogsData.length > 3) {
+        if (allLogsData.length > 5) {
             showMoreBtn.style.display = 'block';
-            showMoreBtn.textContent = `Show More (+${allLogsData.length - 3})`;
+            showMoreBtn.textContent = `Show More (+${allLogsData.length - 5})`;
             
-            // This is the click handler that was likely missing or resetting
             showMoreBtn.onclick = (e) => {
                 e.preventDefault();
-                renderLogs(allLogsData); // Render the full list
-                showMoreBtn.style.display = 'none'; // Hide the button once expanded
+                renderLogs(allLogsData); 
+                showMoreBtn.style.display = 'none'; 
             };
         } else {
             showMoreBtn.style.display = 'none';
@@ -1313,21 +1316,19 @@ function renderLogs(logsToRender) {
     const historyList = document.getElementById('history-list');
     
     historyList.innerHTML = logsToRender.map(log => {
-        let label = type.charAt(0).toUpperCase() + type.slice(1);
-        if (type === 'tv') {
-            label = log.episode_number ? `S${log.season_number} E${log.episode_number}` : 
-                   (log.season_number ? `Season ${log.season_number}` : `Series`);
-        } else if (type === 'album') {
-            if (log.episode_number && globalData && globalData.tracks && globalData.tracks[log.episode_number - 1]) {
-                label = globalData.tracks[log.episode_number - 1].name;
-            } else {
-                label = 'Entire Album';
-            }
-        }
+        // Use the new centralized helper function
+        const label = getLogScopeLabel(log);
 
         let rewatchText = 'Rewatch';
-        if (type === 'book') rewatchText = 'Reread';
-        else if (type === 'album') rewatchText = 'Relisten';
+        let actionVerb = 'Watched';
+        
+        if (type === 'book') {
+            rewatchText = 'Reread';
+            actionVerb = 'Read';
+        } else if (type === 'album') {
+            rewatchText = 'Relisten';
+            actionVerb = 'Listened';
+        }
         
         const heartBadge = log.is_liked ? `<span title="Liked" style="display: flex; align-items: center;">❤️</span>` : '';
         const rewatchBadge = log.is_rewatch ? 
@@ -1365,12 +1366,36 @@ function renderLogs(logsToRender) {
                     </div>
                 </div>
                 ${badgeRow}
-                <div class="history-date">Watched on ${logDate}</div>
+                <div class="history-date">${actionVerb} on ${logDate}</div>
                 ${reviewPreview}
                 ${tagsHtml}
             </div>
         `;
     }).join('');
+}
+
+function getLogScopeLabel(log) {
+    let label = type.charAt(0).toUpperCase() + type.slice(1); // Default to media type
+    
+    if (type === 'tv') {
+        label = log.episode_number ? `S${log.season_number} E${log.episode_number}` : 
+               (log.season_number ? `Season ${log.season_number}` : `Entire Series`);
+    } else if (type === 'album') {
+        if (log.episode_number && globalData && globalData.tracks && globalData.tracks[log.episode_number - 1]) {
+            label = `Track ${log.episode_number}: ${globalData.tracks[log.episode_number - 1].name}`;
+        } else {
+            label = 'Entire Album';
+        }
+    } else if (type === 'book') {
+        if (log.current_page && !log.is_finished) {
+            label = `Page ${log.current_page}`;
+        } else if (log.chapter_number) {
+            label = `Chapter ${log.chapter_number}`;
+        } else {
+            label = 'Entire Book';
+        }
+    }
+    return label;
 }
 
 async function loadEpisodes(config, seriesId, seasonNum, tvmazeId) {
@@ -2218,8 +2243,7 @@ async function fetchFollowingLogs() {
             .select('*')
             .eq('media_id', String(id))
             .in('user_id', followingIds)
-            .order('created_at', { ascending: false })
-            .limit(5); // Show top 5 recent friend logs
+            .order('created_at', { ascending: false });
 
         // If friends haven't reviewed it, show the empty state
         if (logsError || !logs || logs.length === 0) {
@@ -2235,7 +2259,6 @@ async function fetchFollowingLogs() {
             .select('id, username, avatar_url')
             .in('id', logUserIds);
 
-        // Create a quick lookup dictionary for the profiles
         const profileMap = {};
         if (profiles) {
             profiles.forEach(p => {
@@ -2245,48 +2268,74 @@ async function fetchFollowingLogs() {
 
         // 4. Render the UI
         section.style.display = 'block';
-        
-        listContainer.innerHTML = logs.map(log => {
-            const profile = profileMap[log.user_id] || {};
-            const username = profile.username || 'Unknown User';
-            const avatar = profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=1b2228&color=9ab`;
-            
-            const stars = '★'.repeat(Math.floor(log.rating || 0)) + ((log.rating || 0) % 1 !== 0 ? '½' : '');
-            
-            // Use watched_on if available, otherwise fallback to created_at
-            const targetDate = log.watched_on ? log.watched_on : log.created_at.split('T')[0];
-            const logDate = new Date(targetDate + 'T00:00:00').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
-            
-            const reviewPreview = log.notes ? `<div class="history-notes">"${log.notes}"</div>` : '';
-            const heartBadge = log.is_liked ? `<span title="Liked" style="font-size: 0.85rem; margin-right: 5px;">❤️</span>` : '';
-            
-            let rewatchText = 'Rewatch';
-            if (type === 'book') rewatchText = 'Reread';
-            else if (type === 'album') rewatchText = 'Relisten';
-            const rewatchBadge = log.is_rewatch ? `<span title="${rewatchText}" style="font-size: 0.85rem;">🔁</span>` : '';
+        const showMoreFollowingBtn = document.getElementById('show-more-following-logs');
 
-            return `
-                <div class="history-item following-log-item" style="cursor: pointer; transition: background 0.2s; padding: 10px; border-radius: 8px; margin: 0 -10px 10px -10px;" onclick="window.location.href='profile.html?userId=${log.user_id}'">
-                    <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 8px;">
-                        <img src="${avatar}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1px solid #2c3440;">
-                        <span style="font-weight: bold; font-size: 0.9rem; color: #fff;">${username}</span>
-                        <span style="font-size: 0.75rem; color: #678; margin-left: auto;">${logDate}</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span class="history-stars">${stars}</span>
-                        <div>
-                            ${heartBadge}
-                            ${rewatchBadge}
+        // Wrap the rendering logic in a reusable function for pagination
+        const renderFriendLogs = (logsToRender) => {
+            listContainer.innerHTML = logsToRender.map(log => {
+                const profile = profileMap[log.user_id] || {};
+                const username = profile.username || 'Unknown User';
+                const avatar = profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=1b2228&color=9ab`;
+                
+                const stars = '★'.repeat(Math.floor(log.rating || 0)) + ((log.rating || 0) % 1 !== 0 ? '½' : '');
+                
+                const targetDate = log.watched_on ? log.watched_on : log.created_at.split('T')[0];
+                const logDate = new Date(targetDate + 'T00:00:00').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+                
+                const reviewPreview = log.notes ? `<div class="history-notes">"${log.notes}"</div>` : '';
+                const heartBadge = log.is_liked ? `<span title="Liked" style="font-size: 0.85rem; margin-right: 5px;">❤️</span>` : '';
+                
+                let rewatchText = 'Rewatch';
+                if (type === 'book') rewatchText = 'Reread';
+                else if (type === 'album') rewatchText = 'Relisten';
+                const rewatchBadge = log.is_rewatch ? `<span title="${rewatchText}" style="font-size: 0.85rem;">🔁</span>` : '';
+
+                const scopeLabel = getLogScopeLabel(log);
+
+                return `
+                    <div class="history-item following-log-item" style="cursor: pointer; transition: background 0.2s; padding: 10px; border-radius: 8px; margin: 0 -10px 10px -10px;" onclick="window.location.href='profile.html?userId=${log.user_id}'">
+                        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 8px;">
+                            <img src="${avatar}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1px solid #2c3440;">
+                            <div style="display: flex; flex-direction: column;">
+                                <span style="font-weight: bold; font-size: 0.9rem; color: #fff;">${username}</span>
+                                <span style="font-size: 0.75rem; color: var(--accent); font-weight: bold;">${scopeLabel}</span>
+                            </div>
+                            <span style="font-size: 0.75rem; color: #678; margin-left: auto;">${logDate}</span>
                         </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span class="history-stars">${stars}</span>
+                            <div>
+                                ${heartBadge}
+                                ${rewatchBadge}
+                            </div>
+                        </div>
+                        ${reviewPreview}
                     </div>
-                    ${reviewPreview}
-                </div>
-            `;
-        }).join('');
+                `;
+            }).join('');
+        };
+
+        // 5. Check if we need the "Show More" button
+        if (logs.length > 5) {
+            renderFriendLogs(logs.slice(0, 5)); // Initial top 5
+            
+            if (showMoreFollowingBtn) {
+                showMoreFollowingBtn.style.display = 'block';
+                showMoreFollowingBtn.textContent = `Show More (+${logs.length - 5})`;
+                
+                showMoreFollowingBtn.onclick = (e) => {
+                    e.preventDefault();
+                    renderFriendLogs(logs); // Render all logs when clicked
+                    showMoreFollowingBtn.style.display = 'none'; // Hide the button
+                };
+            }
+        } else {
+            renderFriendLogs(logs);
+            if (showMoreFollowingBtn) showMoreFollowingBtn.style.display = 'none';
+        }
 
     } catch (err) {
         console.error("Error fetching friend logs:", err);
-        // Fallback for random network errors
         section.style.display = 'block';
         listContainer.innerHTML = '<p class="meta">Unable to load friend reviews.</p>';
     }

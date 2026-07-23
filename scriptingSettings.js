@@ -420,6 +420,21 @@ function renderActiveServicePills() {
     });
 }
 
+window.moveFavorite = (type, index, direction) => {
+    const list = currentFavs[type];
+    // Prevent moving out of bounds
+    if (index + direction < 0 || index + direction >= list.length) return;
+    
+    // Swap the items
+    const temp = list[index];
+    list[index] = list[index + direction];
+    list[index + direction] = temp;
+    
+    // Sync changes and re-render
+    updateTopAll();
+    renderFavManager();
+};
+
 window.toggleServicePill = function(element, category) {
     const id = String(element.getAttribute('data-id'));
     
@@ -1731,11 +1746,13 @@ function renderFavManager() {
 
         list.forEach((item, index) => {
             const itemDiv = document.createElement('div');
+            // Added data-id and a grab handle for SortableJS
             itemDiv.style.cssText = "background: #14181c; padding: 5px 10px; border-radius: 6px; display: flex; align-items: center; gap: 8px; border: 1px solid #2c3440;";
             itemDiv.innerHTML = `
-                <span style="color: var(--accent); font-weight: bold;">#${index + 1}</span>
+                <span class="drag-handle" style="cursor: grab; color: #678; margin-right: 5px;" title="Drag to reorder">☰</span>
+                <span class="fav-rank" style="color: var(--accent); font-weight: bold;">#${index + 1}</span>
                 <span style="font-size: 0.9rem;">${item.title}</span>
-                <span onclick="removeFavorite('${cat}', ${index})" style="cursor: pointer; color: #ff4d4d; font-weight: bold;">×</span>
+                <span onclick="removeFavorite('${cat}', ${index})" style="cursor: pointer; color: #ff4d4d; font-weight: bold; margin-left: auto;">×</span>
             `;
             itemContainer.appendChild(itemDiv);
         });
@@ -1746,6 +1763,26 @@ function renderFavManager() {
 
         section.appendChild(itemContainer);
         container.appendChild(section);
+
+        // Initialize SortableJS on the container if there are items to sort
+        if (list.length > 0) {
+            new Sortable(itemContainer, {
+                animation: 150,
+                handle: '.drag-handle', // Only allow dragging from the hamburger icon
+                onEnd: (evt) => {
+                    // Update the underlying data array to match the new DOM order
+                    const movedItem = currentFavs[cat].splice(evt.oldIndex, 1)[0];
+                    currentFavs[cat].splice(evt.newIndex, 0, movedItem);
+                    
+                    // Visually update the #1, #2, #3 text without needing a full re-render
+                    itemContainer.querySelectorAll('.fav-rank').forEach((el, i) => {
+                        el.textContent = `#${i + 1}`;
+                    });
+                    
+                    updateTopAll();
+                }
+            });
+        }
     });
 }
 

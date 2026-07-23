@@ -74,7 +74,10 @@ async function initLog() {
         const res = await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artistName)}&album=${encodeURIComponent(albumName)}&api_key=${config.lastfm_key}&format=json`).then(r => r.json());
         
         document.getElementById('media-title').textContent = res.album.name;
-        albumTracks = res.album.tracks?.track || [];
+        
+        // FIX: Force raw track data into an array so .map() doesn't break on singles
+        const rawTracks = res.album.tracks?.track;
+        albumTracks = rawTracks ? (Array.isArray(rawTracks) ? rawTracks : [rawTracks]) : [];
         
         scope.innerHTML = `
             <option value="entire">Entire Album</option>
