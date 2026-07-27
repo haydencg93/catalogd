@@ -8,7 +8,15 @@
     "teenager": "high school",
     "space": "space system",
     "friend": "friends",
-    "198":"colorful shapes"
+    "198":"colorful shapes",
+    "latin":"spanish",
+    "rock":"drum sets",
+    "pop":"michael jackson",
+    "alternative":"drums",
+    "metal":"dark drums",
+    "hip-hop":"dj",
+    "rap":"dj",
+    "country":"cowboy"
   },
   "exact": {
     "based on novel or book": "books aesthetic",
