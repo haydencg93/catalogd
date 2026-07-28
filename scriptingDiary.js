@@ -85,7 +85,6 @@ async function initDiary() {
             .order('watched_on', { ascending: false })
             .order('created_at', { ascending: false });
 
-        // MOVE THIS LINE HERE so the array has data before building filters!
         allLogs = logs || [];
 
         // Build Year Filter (Based on Release Year)
@@ -108,7 +107,6 @@ async function initDiary() {
     }
 }
 
-// 1. Unified Filter Logic
 // 1. Unified Filter Logic
 window.applyFilters = async () => {
     const searchTerm = document.getElementById('diary-search').value.toLowerCase();
@@ -134,7 +132,6 @@ window.applyFilters = async () => {
         // Text Search
         const matchesSearch = searchTerm === '' || (log.media_title && log.media_title.toLowerCase().includes(searchTerm));
 
-        // Make sure it is included in your return statement!
         return matchesType && matchesRating && matchesYear && matchesLiked && matchesReview && matchesRewatch && matchesTag && matchesSearch;
     });
 
