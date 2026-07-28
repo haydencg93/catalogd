@@ -48,7 +48,16 @@
     padding: 15px;
     margin: 20px 0;
     resize: none;
+    box-sizing: border-box;
+    max-width: 100%; /* Ensures it physically cannot exceed parent bounds */
 }
+
+.input-group select, 
+.input-group input {
+    box-sizing: border-box;
+    max-width: 100%;
+}
+
 .tags-pill-container {
     display: flex;
     flex-wrap: wrap;
