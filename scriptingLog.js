@@ -16,7 +16,14 @@ async function initLog() {
     tmdbToken = config.tmdb_token;
 
     const dateInput = document.getElementById('watched-date');
-    if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+    if (dateInput) {
+        const today = new Date();
+        // Calculate the timezone offset in milliseconds and subtract it from the current time
+        const offset = today.getTimezoneOffset();
+        const localDate = new Date(today.getTime() - (offset * 60 * 1000)).toISOString().split('T')[0];
+        
+        dateInput.value = localDate;
+    }
 
     const scope = document.getElementById('log-scope');
     const bookGroup = document.getElementById('book-input-group');
@@ -330,15 +337,23 @@ function setupActionButtons() {
 }
 
 async function saveLog() {
+    // 1. Grab the button and disable it immediately to prevent duplicate clicks
+    const saveBtn = document.getElementById('save-log-btn');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
+
     const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) return alert("Please sign in.");
+    if (!user) {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save to Diary';
+        return alert("Please sign in.");
+    }
 
     const scopeValue = document.getElementById('log-scope').value;
     const userNotes = document.getElementById('user-notes').value;
     const watchedDate = document.getElementById('watched-date').value;
     const rating = currentRating;
     const mediaTitleStr = document.getElementById('media-title').textContent;
-    
     const parsedTags = currentTags;
 
     try {
@@ -462,16 +477,19 @@ async function saveLog() {
                     .upsert(payload); 
 
                 if (error) throw error;
-                
-                alert(logId ? "Entry updated!" : "Log saved successfully!");
-                window.location.href = `details.html?id=${id}&type=${type}`;
             } catch (err) {
                 alert("Error: " + err.message);
             }
         }
+        alert(logId ? "Entry updated!" : "Log saved successfully!");
+        window.location.href = `details.html?id=${id}&type=${type}`;
     } catch (err) {
         console.error("Save Error:", err);
         alert("Error saving log: " + err.message);
+        
+        // Re-enable the button if there was an error so the user can try again
+        saveBtn.disabled = false;
+        saveBtn.textContent = logId ? "Update Journal Entry" : "Save to Diary";
     }
 }
 
