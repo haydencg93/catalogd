@@ -9,6 +9,7 @@ let currentRating = 0;
 const logId = params.get('logId');
 let albumTracks = [];
 let currentTags = [];
+let mediaReleaseYear = null;
 
 async function initLog() {
     const config = await fetch('config.json').then(r => r.json());
@@ -45,42 +46,62 @@ async function initLog() {
         const res = await fetch(`https://openlibrary.org${id}.json`).then(r => r.json());
         document.getElementById('media-title').textContent = res.title;
         
-        // Show book inputs
+        // Capture book release year (just grabbing the first 4 characters/digits if it exists)
+        mediaReleaseYear = res.first_publish_date ? res.first_publish_date.match(/\d{4}/)?.[0] || null : null;
+
+        // Show banners and specific inputs
+        const banner = document.getElementById('stats-warning-banner');
+        if (banner) {
+            banner.style.display = 'block';
+            document.getElementById('stats-warning-text').textContent = "Note: For book stats (Total Books and Pages Read), you must log the Entire Book. Chapter/Progress logs do not count towards overall stats.";
+        }
+        
         bookGroup.style.display = 'block';
         scope.style.display = 'block'; 
         
-        // Set book-specific options
         scope.innerHTML = `
-            <option value="entire">Entire Book (Finished)</option>
+            <option value="entire">Entire Book</option>
             <option value="chapter">Specific Chapter</option>
-            <option value="progress">Reading Progress (Page #)</option>
+            <option value="progress">Specific Page</option>
         `;
-
+        
         // Add listener to toggle inputs based on selection
         scope.onchange = () => {
             const isChapter = scope.value === 'chapter';
             const isProgress = scope.value === 'progress';
+            const isEntire = scope.value === 'entire';
+            
             document.getElementById('book-chapter').style.display = isChapter ? 'block' : 'none';
             document.getElementById('book-page').style.display = isProgress ? 'block' : 'none';
+            document.getElementById('progress-label').style.display = isProgress || isChapter ? 'block' : 'none';
+            document.getElementById('book-entire-group').style.display = isEntire ? 'block' : 'none';
         };
+        
+        // Trigger onchange once to set initial state
+        scope.onchange();
         
         currentMediaRuntime = 0;
     } else if (type === 'youtube') {
-        // --- NEW YOUTUBE LOGIC ---
         const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${id}`).then(r => r.json());
         document.getElementById('media-title').textContent = res.title || 'YouTube Video';
+
+        mediaReleaseYear = null;
         
         if (youtubeGroup) youtubeGroup.style.display = 'block';
         scope.innerHTML = `<option value="entire">Entire Video</option>`;
         
         currentMediaRuntime = 0;
     } else if (type === 'album') {
-        // --- NEW ALBUM LOGIC ---
         const decodedId = decodeURIComponent(id);
         const [artistName, albumName] = decodedId.split('|||');
         const res = await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artistName)}&album=${encodeURIComponent(albumName)}&api_key=${config.lastfm_key}&format=json`).then(r => r.json());
         
         document.getElementById('media-title').textContent = res.album.name;
+
+        if (res.album?.wiki?.published) {
+            const yearMatch = res.album.wiki.published.match(/\d{4}/);
+            if (yearMatch) mediaReleaseYear = yearMatch[0];
+        }
         
         // FIX: Force raw track data into an array so .map() doesn't break on singles
         const rawTracks = res.album.tracks?.track;
@@ -93,18 +114,27 @@ async function initLog() {
         
         setupAlbumDropdowns();
     } else {
-        // Existing Movie/TV Logic
         const res = await fetch(`https://api.themoviedb.org/3/${type}/${id}`, {
             headers: { Authorization: `Bearer ${tmdbToken}` }
         }).then(r => r.json());
 
         document.getElementById('media-title').textContent = res.title || res.name;
+        
+        // Capture Movie/TV release year
+        mediaReleaseYear = (res.release_date || res.first_air_date || '').split('-')[0] || null;
+
         bookGroup.style.display = 'none';
 
         if (type === 'movie') {
             currentMediaRuntime = res.runtime || 0;
             scope.innerHTML = `<option value="entire">Entire Movie</option>`;
         } else if (type === 'tv') {
+            const banner = document.getElementById('stats-warning-banner');
+            if (banner) {
+                banner.style.display = 'block';
+                document.getElementById('stats-warning-text').textContent = "Note: For TV show stats (Total Shows, Seasons, and Episodes), you must log the Entire Show. Individual season/episode logs do not count towards the overall series stats count.";
+            }
+
             currentMediaRuntime = (res.episode_run_time && res.episode_run_time[0]) || 30;
             scope.innerHTML = `
                 <option value="entire">Entire Series</option>
@@ -369,7 +399,8 @@ async function saveLog() {
                     tags: parsedTags,
                     watched_on: watchedDate,
                     rating: rating,
-                    is_liked: isLiked
+                    is_liked: isLiked,
+                    release_year: mediaReleaseYear
                 };
 
                 if (logId) {
@@ -380,7 +411,13 @@ async function saveLog() {
                 if (error) throw error;
             } else {
                 const olRes = await fetch(`https://openlibrary.org${id}.json`).then(r => r.json());
-                const totalPages = olRes.number_of_pages || 0;
+                let totalPages = olRes.number_of_pages || 0;
+                
+                // Override with custom pages if user inputted one
+                const customPagesInput = document.getElementById('book-custom-pages').value;
+                if (customPagesInput && parseInt(customPagesInput) > 0) {
+                    totalPages = parseInt(customPagesInput);
+                }
 
                 const { data: activeLog } = await supabaseClient
                     .from('media_logs')
@@ -437,24 +474,28 @@ async function saveLog() {
             };
 
             if (type === 'tv') {
-                const seasonSelect = document.getElementById('season-select');
-                const episodeSelect = document.getElementById('episode-select');
+                // Trust the user's selected dropdown value entirely
+                currentScopeValue = document.getElementById('log-scope').value;
+                payload.log_level = currentScopeValue; 
 
-                if (logId) {
-                    if (episodeSelect && episodeSelect.value) currentScopeValue = 'episode';
-                    else if (seasonSelect && seasonSelect.value) currentScopeValue = 'season';
-                }
-
-                if (currentScopeValue === 'season' || currentScopeValue === 'episode') {
-                    if (seasonSelect && seasonSelect.value) {
-                        payload.season_number = parseInt(seasonSelect.value);
-                    }
-                }
-                
-                if (currentScopeValue === 'episode') {
-                    if (episodeSelect && episodeSelect.value) {
-                        payload.episode_number = parseInt(episodeSelect.value);
-                    }
+                if (currentScopeValue === 'entire') {
+                    // Fetch full TV details to grab total seasons and episodes
+                    const tvData = await fetch(`https://api.themoviedb.org/3/tv/${id}`, {
+                        headers: { Authorization: `Bearer ${tmdbToken}` }
+                    }).then(r => r.json());
+                    
+                    payload.ep_count_in_season = tvData.number_of_episodes || 0;
+                    payload.season_number = tvData.number_of_seasons || 0; 
+                    payload.episode_number = null; // Ensure this is clear
+                } else if (currentScopeValue === 'season') {
+                    const seasonSelect = document.getElementById('season-select');
+                    if (seasonSelect && seasonSelect.value) payload.season_number = parseInt(seasonSelect.value);
+                    payload.episode_number = null;
+                } else if (currentScopeValue === 'episode') {
+                    const seasonSelect = document.getElementById('season-select');
+                    const episodeSelect = document.getElementById('episode-select');
+                    if (seasonSelect && seasonSelect.value) payload.season_number = parseInt(seasonSelect.value);
+                    if (episodeSelect && episodeSelect.value) payload.episode_number = parseInt(episodeSelect.value);
                 }
             } else if (type === 'album') {
                 const trackSelect = document.getElementById('track-select');

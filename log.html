@@ -30,6 +30,10 @@
         <div class="log-card">
             <h1 id="media-title">Loading...</h1>
             
+            <div id="stats-warning-banner" style="display: none; background: rgba(255, 193, 7, 0.1); border: 1px solid #ffc107; color: #ffc107; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 0.9rem;">
+                <span id="stats-warning-text"></span>
+            </div>
+
             <div class="input-group">
                 <label>What are you logging?</label>
                 <select id="log-scope">
@@ -40,10 +44,15 @@
             </div>
 
             <div id="book-input-group" class="input-group" style="display:none;">
-                <label>Current Progress</label>
                 <div style="display: flex; gap: 10px;">
+                    <label id="progress-label">Current Progress</label>
                     <input type="number" id="book-chapter" placeholder="Chapter #" style="flex: 1;">
                     <input type="number" id="book-page" placeholder="Page #" style="flex: 1;">
+                </div>
+                <div id="book-entire-group" class="input-group" style="display:none; margin-top: 15px;">
+                    <label>Custom Page Count (Optional)</label>
+                    <input type="number" id="book-custom-pages" placeholder="Override API page count..." style="width: 100%; background: rgba(0,0,0,0.4); color: white; border: 1px solid var(--glass-border); padding: 12px; border-radius: 8px; box-sizing: border-box;">
+                    <small style="color: #9ab; font-size: 0.8rem; display: block; margin-top: 5px;">Leave blank to use the official book page count.</small>
                 </div>
             </div>
 

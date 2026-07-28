@@ -19,6 +19,27 @@
     padding: 10px 20px;
 }
 
+.filter-panel {
+    display: none;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    background: var(--glass-bg);
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid var(--glass-border);
+    margin-bottom: 25px;
+}
+.filter-panel.show { display: grid; }
+.filter-panel select {
+    background: rgba(0,0,0,0.4); color: white; border: 1px solid var(--glass-border); padding: 10px; border-radius: 8px; width: 100%;
+}
+.diary-tags-container {
+    display: flex; flex-wrap: wrap; gap: 4px;
+}
+.diary-tag {
+    background: rgba(255,255,255,0.1); font-size: 0.75rem; padding: 3px 8px; border-radius: 12px; color: #9ab;
+}
+
 .table-wrapper { 
     background: var(--glass-bg); 
     border-radius: 12px; 
@@ -132,15 +153,6 @@ tr:hover td {
     align-items: center;
 }
 
-#rating-filter {
-    background: var(--card);
-    color: white;
-    border: 1px solid #2c3440;
-    padding: 10px;
-    border-radius: 8px;
-    cursor: pointer;
-}
-
 .diary-meta {
     display: block;
     font-size: 0.8rem;
@@ -226,7 +238,7 @@ tr:hover td {
         width: 100%;
     }
 
-    #diary-search, #rating-filter {
+    #diary-search {
         width: 100%;
         box-sizing: border-box;
     }
@@ -315,6 +327,17 @@ tr:hover td {
         height: auto;
         border-radius: 6px;
     }
+
+    #diary-table tr {
+        grid-template-areas:
+            "poster name name"
+            "poster date year"
+            "poster rating review"
+            "poster tags tags"
+            "poster action action";
+    }
+    #diary-table td:nth-child(7) { grid-area: tags; }
+    #diary-table td:nth-child(8) { grid-area: action; }
 
     /* 5. Review Modal Sizing Fix */
     .modal-content {

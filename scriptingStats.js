@@ -476,32 +476,51 @@ function renderBasicStats(logs) {
     const totalLogs = logs.length;
     const totalReviews = logs.filter(l => l.notes && l.notes.trim() !== '').length;
     const fiveStars = logs.filter(l => l.rating === 5).length;
+    // Calculate TV Show Stats (Only from ENTIRE series logs)
+    const entireTvLogs = logs.filter(l => l.media_type === 'tv' && (l.log_level === 'entire' || (!l.season_number && !l.episode_number)));
+    const totalShows = entireTvLogs.length;
     
-    // Calculate Hours for Video/Audio formats
+    // Total episodes and seasons grabbed from the entire series log
+    const totalTvEpisodes = entireTvLogs.reduce((sum, l) => sum + (parseInt(l.ep_count_in_season) || 0), 0);
+    const totalTvSeasons = entireTvLogs.reduce((sum, l) => sum + (parseInt(l.season_number) || 0), 0);
+
+    // Calculate Pages for Books (Fallback to current_page if total_pages isn't set)
+    const totalPages = logs.reduce((sum, l) => {
+        if (l.media_type === 'book' && l.is_finished === true) {
+            return sum + (parseInt(l.total_pages) || 0);
+        }
+        return sum;
+    }, 0);
+
+    // Calculate Hours
     const totalRuntimeMinutes = logs.reduce((sum, l) => {
-        if (['movie', 'tv', 'youtube', 'album'].includes(l.media_type)) {
+        if (l.media_type === 'movie' || l.media_type === 'youtube' || l.media_type === 'album') {
             return sum + (parseInt(l.runtime) || 0);
+        } else if (l.media_type === 'tv' && (l.log_level === 'entire' || (!l.season_number && !l.episode_number))) {
+            // TV Show: multiply average episode runtime by total episodes in the show
+            const epRuntime = parseInt(l.runtime) || 30; 
+            const epCount = parseInt(l.ep_count_in_season) || 1; 
+            return sum + (epRuntime * epCount);
         }
         return sum;
     }, 0);
     const hoursWatched = (totalRuntimeMinutes / 60).toFixed(1);
-
-    // Calculate Pages for Books (Fallback to current_page if total_pages isn't set)
-    const totalPages = logs.reduce((sum, l) => {
-        if (l.media_type === 'book') {
-            return sum + (parseInt(l.total_pages) || parseInt(l.current_page) || 0);
-        }
-        return sum;
-    }, 0);
 
     // Build the dynamic HTML
     let html = `
         <div class="stats-box"><div class="stats-box-value">${totalLogs}</div><div class="stats-box-label">Logs</div></div>
     `;
 
-    // Dynamic Time/Pages blocks
+    // Dynamic blocks based on current filter
     if (currentFilter === 'book') {
+        const entireBooks = logs.filter(l => l.media_type === 'book' && l.is_finished === true).length;
+        html += `<div class="stats-box"><div class="stats-box-value">${entireBooks}</div><div class="stats-box-label">Entire Books Read</div></div>`;
         html += `<div class="stats-box"><div class="stats-box-value">${totalPages.toLocaleString()}</div><div class="stats-box-label">Pages Read</div></div>`;
+    } else if (currentFilter === 'tv') {
+        html += `<div class="stats-box"><div class="stats-box-value">${totalShows}</div><div class="stats-box-label">Complete Shows</div></div>`;
+        html += `<div class="stats-box"><div class="stats-box-value">${totalTvSeasons}</div><div class="stats-box-label">Total Seasons</div></div>`;
+        html += `<div class="stats-box"><div class="stats-box-value">${totalTvEpisodes}</div><div class="stats-box-label">Total Episodes</div></div>`;
+        html += `<div class="stats-box"><div class="stats-box-value">${hoursWatched}</div><div class="stats-box-label">Hours</div></div>`;
     } else if (currentFilter === 'all') {
         html += `<div class="stats-box"><div class="stats-box-value">${hoursWatched}</div><div class="stats-box-label">Hours</div></div>`;
         html += `<div class="stats-box"><div class="stats-box-value">${totalPages.toLocaleString()}</div><div class="stats-box-label">Pages Read</div></div>`;

@@ -81,11 +81,24 @@ async function initDiary() {
         const { data: logs } = await supabaseClient
             .from('media_logs')
             .select('*')
-            .eq('user_id', diaryOwnerId) // Filter by the target user ID
+            .eq('user_id', diaryOwnerId) 
             .order('watched_on', { ascending: false })
             .order('created_at', { ascending: false });
 
+        // MOVE THIS LINE HERE so the array has data before building filters!
         allLogs = logs || [];
+
+        // Build Year Filter (Based on Release Year)
+        const uniqueYears = [...new Set(allLogs.map(l => l.release_year).filter(y => y))].sort((a,b)=>b-a);
+        const yearSelect = document.getElementById('year-filter');
+        yearSelect.innerHTML = '<option value="all">All Release Years</option>'; // Reset first
+        uniqueYears.forEach(y => yearSelect.innerHTML += `<option value="${y}">${y}</option>`);
+
+        // Build Tag Filter
+        const allTags = [...new Set(allLogs.flatMap(l => l.tags || []))].sort();
+        const tagSelect = document.getElementById('tag-filter');
+        tagSelect.innerHTML = '<option value="all">All Tags</option>'; // Reset first
+        allTags.forEach(t => tagSelect.innerHTML += `<option value="${t}">${t}</option>`);
         
         applyFilters();
         setupLoadMore(config);
@@ -100,19 +113,34 @@ async function initDiary() {
 window.applyFilters = async () => {
     const searchTerm = document.getElementById('diary-search').value.toLowerCase();
     const ratingLimit = document.getElementById('rating-filter').value;
+    const yearLimit = document.getElementById('year-filter').value;
+    const likedLimit = document.getElementById('liked-filter').value;
+    const reviewLimit = document.getElementById('review-filter').value;
+    const rewatchLimit = document.getElementById('rewatch-filter').value;
+    const tagLimit = document.getElementById('tag-filter').value;
     
-    const configRes = await fetch('config.json');
-    const config = await configRes.json();
+    const config = await fetch('config.json').then(r => r.json());
 
     filteredLogs = allLogs.filter(log => {
         const matchesType = currentType === 'all' || log.media_type === currentType;
         const matchesRating = ratingLimit === 'all' || Math.floor(log.rating) == parseInt(ratingLimit);
-        return matchesType && matchesRating;
+        
+        const matchesLiked = likedLimit === 'all' || (likedLimit === 'liked' ? log.is_liked : !log.is_liked);
+        const matchesReview = reviewLimit === 'all' || (reviewLimit === 'reviewed' ? (log.notes && log.notes.trim() !== '') : (!log.notes || log.notes.trim() === ''));
+        const matchesRewatch = rewatchLimit === 'all' || (rewatchLimit === 'rewatch' ? log.is_rewatch : !log.is_rewatch);
+        const matchesTag = tagLimit === 'all' || (log.tags && log.tags.includes(tagLimit));
+        const matchesYear = yearLimit === 'all' || log.release_year === yearLimit;
+
+        // Text Search
+        const matchesSearch = searchTerm === '' || (log.media_title && log.media_title.toLowerCase().includes(searchTerm));
+
+        // Make sure it is included in your return statement!
+        return matchesType && matchesRating && matchesYear && matchesLiked && matchesReview && matchesRewatch && matchesTag && matchesSearch;
     });
 
     currentPage = 1;
     await renderDiary(config); 
-    updateStatsDisplay(config); // NEW: We now pass the config to the stats display
+    updateStatsDisplay(config);
 };
 
 const albumTrackCache = {}; // NEW: Caches track counts so your diary stays lightning fast
@@ -122,7 +150,7 @@ async function updateStatsDisplay(config) {
     const totalRatingSum = filteredLogs.reduce((acc, log) => acc + (log.rating || 0), 0);
     const avgRating = totalLogs > 0 ? (totalRatingSum / totalLogs).toFixed(1) : "0.0";
     const totalMovies = filteredLogs.filter(l => l.media_type === 'movie').length;
-    const totalBooks = filteredLogs.filter(l => l.media_type === 'book').length;
+    const totalBooks = filteredLogs.filter(l => l.media_type === 'book' && l.is_finished === true).length;
     
     // Split Albums and Songs
     const albumLogs = filteredLogs.filter(l => l.media_type === 'album' && !l.episode_number);
@@ -130,7 +158,7 @@ async function updateStatsDisplay(config) {
     const totalAlbums = albumLogs.length; 
 
     const totalYoutube = filteredLogs.filter(l => l.media_type === 'youtube').length;
-    const uniqueSeries = new Set(filteredLogs.filter(l => l.media_type === 'tv').map(l => l.media_id)).size;
+    const uniqueSeries = filteredLogs.filter(l => l.media_type === 'tv' && (l.log_level === 'entire' || (!l.season_number && !l.episode_number))).length;
     const totalSeasons = filteredLogs.filter(l => l.media_type === 'tv' && l.season_number && !l.episode_number).length;
     const directEpisodes = filteredLogs.filter(l => l.episode_number && l.media_type === 'tv').length;
     const episodesInSeasons = filteredLogs.reduce((acc, l) => acc + (l.ep_count_in_season || 0), 0);
@@ -153,8 +181,6 @@ async function updateStatsDisplay(config) {
     const ytStat = document.getElementById('total-youtube');
     if (ytStat) ytStat.textContent = totalYoutube;
     
-    document.getElementById('total-seasons').textContent = totalSeasons;
-    document.getElementById('total-episodes').textContent = totalEpisodes;
     const timeElement = document.getElementById('total-time');
     if (timeElement) timeElement.textContent = `${d}d ${h}h ${m}m`;
 
