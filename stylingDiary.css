@@ -127,6 +127,12 @@ tr:hover td {
     padding: 10px 40px;
 }
 
+#toggle-filters-btn {
+    white-space: nowrap;
+    width: auto;
+    flex-shrink: 0;
+}
+
 /* Filter Nav Styling Overrides */
 .filter-nav {
     display: flex;

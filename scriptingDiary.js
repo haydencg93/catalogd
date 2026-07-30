@@ -8,6 +8,7 @@ let currentType = 'all';
 let diaryOwnerId = null;
 let isViewerOwner = false;
 let customImgsMap = new Map();
+let currentSortColumn = 'date';
 
 async function initDiary() {
     try {
@@ -88,10 +89,39 @@ async function initDiary() {
         allLogs = logs || [];
 
         // Build Year Filter (Based on Release Year)
-        const uniqueYears = [...new Set(allLogs.map(l => l.release_year).filter(y => y))].sort((a,b)=>b-a);
         const yearSelect = document.getElementById('year-filter');
-        yearSelect.innerHTML = '<option value="all">All Release Years</option>'; // Reset first
-        uniqueYears.forEach(y => yearSelect.innerHTML += `<option value="${y}">${y}</option>`);
+        const uniqueYearsRaw = [...new Set(allLogs.map(l => l.release_year))];
+        
+        // Filter out specific numeric years
+        const uniqueYears = uniqueYearsRaw
+            .filter(y => y && !isNaN(y) && y.toString().trim() !== '')
+            .map(Number)
+            .sort((a,b) => b - a);
+            
+        // Calculate Decades
+        const decades = [...new Set(uniqueYears.map(y => Math.floor(y / 10) * 10))].sort((a,b) => b - a);
+
+        let yearHTML = '<optgroup label="None"><option value="all">All Release Years</option></optgroup>';
+
+        if (decades.length > 0) {
+            yearHTML += '<optgroup label="Decades">';
+            decades.forEach(d => { yearHTML += `<option value="${d}s">${d}s</option>`; });
+            yearHTML += '</optgroup>';
+        }
+
+        if (uniqueYears.length > 0) {
+            yearHTML += '<optgroup label="Specific Years">';
+            uniqueYears.forEach(y => { yearHTML += `<option value="${y}">${y}</option>`; });
+            yearHTML += '</optgroup>';
+        }
+
+        // Check for null, empty strings, or invalid years
+        const hasUnknown = uniqueYearsRaw.some(y => !y || isNaN(y) || y.toString().trim() === '');
+        if (hasUnknown) {
+            yearHTML += '<optgroup label="Unknown"><option value="unknown">Unknown</option></optgroup>';
+        }
+        
+        yearSelect.innerHTML = yearHTML;
 
         // Build Tag Filter
         const allTags = [...new Set(allLogs.flatMap(l => l.tags || []))].sort();
@@ -106,6 +136,65 @@ async function initDiary() {
         console.error("Diary init error:", err);
     }
 }
+
+// --- BIND TABLE SORTING EVENTS ---
+// By assigning these directly in JS, we bypass browser policies blocking inline HTML onclicks.
+const dateHeader = document.getElementById('th-sort-date');
+if (dateHeader) dateHeader.addEventListener('click', () => toggleSort('date'));
+
+const nameHeader = document.getElementById('th-sort-name');
+if (nameHeader) nameHeader.addEventListener('click', () => toggleSort('name'));
+
+const releasedHeader = document.getElementById('th-sort-released');
+if (releasedHeader) releasedHeader.addEventListener('click', () => toggleSort('released'));
+
+const ratingHeader = document.getElementById('th-sort-rating');
+if (ratingHeader) ratingHeader.addEventListener('click', () => toggleSort('rating'));
+
+// --- FOOLPROOF SORTING LISTENER (EVENT DELEGATION) ---
+document.addEventListener('click', function(event) {
+    // 1. Check if the click happened on (or inside) a sortable header
+    const th = event.target.closest('th.sortable');
+    if (!th) return; // Ignore clicks anywhere else on the page
+
+    // 2. Identify which column was clicked using our data attribute
+    const column = th.getAttribute('data-sort');
+    if (!column) return;
+
+    console.log(`[CLICK CAPTURED] Firing sort for: ${column}`);
+    
+    // 3. Clear all other icons
+    ['date', 'name', 'released', 'rating'].forEach(col => {
+        if (col !== column) {
+            const icon = document.getElementById(`${col}-sort-icon`);
+            if (icon) icon.textContent = '';
+        }
+    });
+
+    // 4. Toggle the sort order
+    if (currentSortColumn === column) {
+        sortOrder = sortOrder === 'desc' ? 'asc' : 'desc';
+    } else {
+        currentSortColumn = column;
+        sortOrder = column === 'name' ? 'asc' : 'desc'; 
+    }
+
+    // 5. Update the correct icon
+    const iconSpan = document.getElementById(`${column}-sort-icon`);
+    if (iconSpan) iconSpan.textContent = sortOrder === 'desc' ? '↓' : '↑';
+    
+    // 6. Reset page to 1, sort the array, and redraw the table
+    currentPage = 1; 
+    
+    if (typeof window.applyCurrentSort === 'function') {
+        window.applyCurrentSort();
+    }
+    
+    fetch('config.json')
+        .then(r => r.json())
+        .then(c => renderDiary(c))
+        .catch(err => console.error("Config fetch failed:", err));
+});
 
 // 1. Unified Filter Logic
 window.applyFilters = async () => {
@@ -127,7 +216,11 @@ window.applyFilters = async () => {
         const matchesReview = reviewLimit === 'all' || (reviewLimit === 'reviewed' ? (log.notes && log.notes.trim() !== '') : (!log.notes || log.notes.trim() === ''));
         const matchesRewatch = rewatchLimit === 'all' || (rewatchLimit === 'rewatch' ? log.is_rewatch : !log.is_rewatch);
         const matchesTag = tagLimit === 'all' || (log.tags && log.tags.includes(tagLimit));
-        const matchesYear = yearLimit === 'all' || log.release_year === yearLimit;
+        const matchesYear = yearLimit === 'all' || 
+            (yearLimit === 'unknown' ? (!log.release_year || isNaN(log.release_year) || log.release_year.toString().trim() === '') :
+            (yearLimit.endsWith('s') ? 
+                (log.release_year && log.release_year.toString().startsWith(yearLimit.substring(0,3))) : 
+                log.release_year == yearLimit));
 
         // Text Search
         const matchesSearch = searchTerm === '' || (log.media_title && log.media_title.toLowerCase().includes(searchTerm));
@@ -135,12 +228,64 @@ window.applyFilters = async () => {
         return matchesType && matchesRating && matchesYear && matchesLiked && matchesReview && matchesRewatch && matchesTag && matchesSearch;
     });
 
+    applyCurrentSort();
+
     currentPage = 1;
     await renderDiary(config); 
     updateStatsDisplay(config);
 };
 
-const albumTrackCache = {}; // NEW: Caches track counts so your diary stays lightning fast
+function applyCurrentSort() {
+    console.log(`[APPLY SORT] Sorting ${filteredLogs.length} items by ${currentSortColumn} in ${sortOrder} order.`);
+    
+    filteredLogs.sort((a, b) => {
+        let valA, valB;
+        
+        if (currentSortColumn === 'date') {
+            valA = a.watched_on ? new Date(a.watched_on).getTime() : 0;
+            valB = b.watched_on ? new Date(b.watched_on).getTime() : 0;
+        } else if (currentSortColumn === 'name') {
+            valA = (a.media_title || '').toString().toLowerCase();
+            valB = (b.media_title || '').toString().toLowerCase();
+        } else if (currentSortColumn === 'released') {
+            valA = parseInt(a.release_year);
+            valB = parseInt(b.release_year);
+        } else if (currentSortColumn === 'rating') {
+            valA = parseFloat(a.rating) || 0;
+            valB = parseFloat(b.rating) || 0;
+        }
+
+        // Safety fallback: Treat NaN values as 0 so sort doesn't crash
+        if (typeof valA === 'number' && isNaN(valA)) valA = 0;
+        if (typeof valB === 'number' && isNaN(valB)) valB = 0;
+
+        // Secondary fallback to Date
+        if (valA === valB) {
+            const tA = a.watched_on ? new Date(a.watched_on).getTime() : 0;
+            const tB = b.watched_on ? new Date(b.watched_on).getTime() : 0;
+            const safeTA = isNaN(tA) ? 0 : tA;
+            const safeTB = isNaN(tB) ? 0 : tB;
+
+            if (safeTA === safeTB) {
+                const cA = new Date(a.created_at).getTime();
+                const cB = new Date(b.created_at).getTime();
+                const diff = (isNaN(cB) ? 0 : cB) - (isNaN(cA) ? 0 : cA);
+                // Respect the asc/desc toggle even on the tie-breaker
+                return sortOrder === 'desc' ? diff : -diff; 
+            }
+            
+            const diff2 = safeTB - safeTA;
+            // Respect the asc/desc toggle even on the tie-breaker
+            return sortOrder === 'desc' ? diff2 : -diff2; 
+        }
+
+        if (valA < valB) return sortOrder === 'desc' ? 1 : -1;
+        if (valA > valB) return sortOrder === 'desc' ? -1 : 1;
+        return 0;
+    });
+}
+
+const albumTrackCache = {};
 
 async function updateStatsDisplay(config) {
     const totalLogs = filteredLogs.length;
@@ -378,6 +523,12 @@ async function fetchAndFormatRow(log, config) {
             reviewHtml = `<td class="review-indicator" onclick="showReviewModal('${safeTitle}', '${safeNotes}')">📝</td>`;
         }
 
+        // 4. Tags Setup
+        const tagsHtml = (log.tags && log.tags.length > 0) ? 
+            `<div class="diary-tags-container">
+                ${log.tags.map(tag => `<span class="diary-tag">${tag}</span>`).join('')}
+            </div>` : '';
+
         return `
             <tr id="row-${log.id}">
                 <td class="diary-year">${log.watched_on || 'Unknown'}</td>
@@ -391,6 +542,7 @@ async function fetchAndFormatRow(log, config) {
                 <td class="diary-year">${year}</td>
                 <td class="star-rating">${'★'.repeat(Math.floor(log.rating)) + (log.rating % 1 !== 0 ? '½' : '')}</td>
                 ${reviewHtml}
+                <td>${tagsHtml}</td> <!-- New Tags Column -->
                 <td style="text-align:center;">
                     <div style="display: flex; gap: 15px; justify-content: center; align-items: center;">
                         <span onclick="window.location.href='log.html?id=${log.media_id}&type=${log.media_type}&logId=${log.id}'" 

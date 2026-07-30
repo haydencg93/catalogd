@@ -111,12 +111,13 @@
             <table id="diary-table">
                 <thead>
                     <tr>
-                        <th onclick="toggleSort('date')" class="sortable">Date <span id="date-sort-icon">↓</span></th>
+                        <th data-sort="date" class="sortable">Date <span id="date-sort-icon">↓</span></th>
                         <th>Cover</th>
-                        <th>Name</th>
-                        <th>Released</th>
-                        <th>Rating</th>
+                        <th data-sort="name" class="sortable">Name <span id="name-sort-icon"></span></th>
+                        <th data-sort="released" class="sortable">Released <span id="released-sort-icon"></span></th>
+                        <th data-sort="rating" class="sortable">Rating <span id="rating-sort-icon"></span></th>
                         <th>Review</th>
+                        <th>Tags</th>
                         <th>Action</th>
                     </tr>
                 </thead>
