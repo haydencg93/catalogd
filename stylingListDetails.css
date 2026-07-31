@@ -259,16 +259,27 @@
         border-bottom: 1px solid rgba(0, 0, 0, 0.2);
     }
 
-    /* 2. Force exactly a 2-column grid for tiered items */
+    /* 2. Fix the flex properties that cause 1-column wrapping */
     .tier-content {
-        display: grid !important;
-        grid-template-columns: repeat(2, 1fr) !important;
+        display: flex !important;
+        flex-direction: row;
+        flex-wrap: wrap;
         gap: 10px;
+        justify-content: flex-start;
     }
     
+    /* 3. Force 2 columns (50% minus half the 10px gap) */
     .tiered-list-container .media-card {
-        width: 100% !important;
-        max-width: 100% !important; 
+        flex: 0 0 calc(50% - 5px) !important;
+        width: calc(50% - 5px) !important;
+        max-width: calc(50% - 5px) !important;
+        min-width: 0 !important; /* CRITICAL: Allows it to shrink below 1 column */
+        box-sizing: border-box;
+    }
+
+    /* Keep font readable for the 2-wide tier cards */
+    .tiered-list-container .media-card .media-info .title {
+        font-size: 0.85rem !important;
     }
 
     /* Scale down font sizes so text fits on narrower 4-column cards */
