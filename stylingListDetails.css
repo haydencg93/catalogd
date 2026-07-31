@@ -243,11 +243,17 @@
     /* Force the list items grid to be exactly 4 titles wide */
     .list-items-grid {
         grid-template-columns: repeat(4, 1fr); 
-        gap: 8px; /* Slightly reduced gap to fit 4 comfortably */
+        gap: 8px; 
     }
 
+    /* Target ONLY tiered list items to be 2 columns */
     .tiered-list-container .media-card {
-        width: calc(25% - 8px); /* 25% width minus gap compensation */
+        width: calc(50% - 5px); /* 50% width minus half of the 10px gap */
+    }
+    
+    /* Since tiered cards are wider again, you can restore their font sizes slightly */
+    .tiered-list-container .media-card .media-info .title {
+        font-size: 0.8rem !important;
     }
 
     /* Scale down font sizes so text fits on narrower 4-column cards */
