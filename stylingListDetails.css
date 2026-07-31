@@ -248,7 +248,9 @@
 
     /* Target ONLY tiered list items to be 2 columns */
     .tiered-list-container .media-card {
-        width: calc(50% - 5px); /* 50% width minus half of the 10px gap */
+        flex: 0 0 calc(50% - 5px) !important;
+        max-width: calc(50% - 5px) !important; 
+        width: calc(50% - 5px) !important;
     }
     
     /* Since tiered cards are wider again, you can restore their font sizes slightly */
