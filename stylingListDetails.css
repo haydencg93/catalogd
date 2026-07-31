@@ -209,48 +209,65 @@
 
 /* --- LIST DETAILS MOBILE RESPONSIVENESS (< 768px) --- */
 @media (max-width: 768px) {
-    .list-header-info > div:first-child {
+    /* Center the title area */
+    .header-top-row {
         flex-direction: column;
-        align-items: center !important;
+        align-items: stretch !important;
+    }
+    .header-titles {
         text-align: center;
-        gap: 15px;
+        margin-bottom: 10px;
     }
 
+    /* Make Edit List and Collaborator Buttons side-by-side with equal sizing */
     .list-controls {
+        flex-direction: row; 
+        width: 100%;
+        justify-content: space-between;
+    }
+    .list-controls button, .list-controls .secondary-btn {
+        flex: 1;
+        margin: 0 !important;
+        padding: 10px 5px; /* Adjust padding if text is too long */
+    }
+
+    /* Make the Reorder buttons drop below the H2 and take up full width */
+    #reorder-controls-container {
         flex-direction: column;
         width: 100%;
-        gap: 10px;
     }
-
-    .list-controls button, .list-controls .secondary-btn {
+    #reorder-controls-container button {
         width: 100%;
-        margin: 0 !important;
     }
 
+    /* Force the list items grid to be exactly 4 titles wide */
     .list-items-grid {
-        /* Fit 2 or 3 posters comfortably side-by-side */
-        grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); 
-        gap: 10px;
+        grid-template-columns: repeat(4, 1fr); 
+        gap: 8px; /* Slightly reduced gap to fit 4 comfortably */
     }
 
+    .tiered-list-container .media-card {
+        width: calc(25% - 8px); /* 25% width minus gap compensation */
+    }
+
+    /* Scale down font sizes so text fits on narrower 4-column cards */
+    .media-card .media-info .title {
+        font-size: 0.75rem !important;
+        white-space: normal; /* Allows text to wrap if it's too long */
+        word-break: break-word;
+    }
+
+    .media-card .media-info .meta {
+        font-size: 0.65rem !important;
+    }
+
+    /* Ensure Add to List Input doesn't break container bounds */
+    #list-search-input {
+        width: 100%;
+        box-sizing: border-box;
+    }
     .search-container {
         padding: 15px;
-    }
-
-    /* Mobile Adjustments for Tiers */
-    .tier-row {
-        flex-direction: column;
-    }
-    
-    .tier-label {
-        width: 100%;
-        height: 30px;
-        font-size: 1.1rem;
-        border-right: none;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.2);
-    }
-    
-    .tiered-list-container .media-card {
-        width: calc(33.333% - 7px); /* 3 across safely on mobile */
+        box-sizing: border-box;
     }
 }
