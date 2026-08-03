@@ -159,7 +159,8 @@ body {
     }
 
     #watchlist-grid {
-        grid-template-columns: repeat(2, 1fr); /* Forces 2 columns on mobile */
-        gap: 15px;                             /* Slightly smaller gap for smaller screens */
+        /* Force 4 columns on mobile instead of 2 */
+        grid-template-columns: repeat(4, 1fr) !important; 
+        gap: 10px !important; /* Slightly reduce gap to ensure 4 cards fit cleanly */
     }
 }

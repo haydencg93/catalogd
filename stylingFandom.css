@@ -160,7 +160,7 @@
 
 /* --- FANDOM MOBILE RESPONSIVENESS (< 768px) --- */
 @media (max-width: 768px) {
-    /* 1. Force a single-column flex layout, overriding stylingDetails.css */
+    /* Force a single-column flex layout */
     .details-container {
         display: flex !important;
         flex-direction: column !important;
@@ -169,12 +169,12 @@
         box-sizing: border-box;
     }
 
-    /* 2. Dissolve the columns so children can be ordered together */
+    /* Dissolve the columns so children can be ordered together */
     #left-col, .info-pane {
         display: contents !important; 
     }
 
-    /* 3. Execute the exact stacking order */
+    /* Execute the exact stacking order */
     #fandom-title {
         order: 1 !important;
         text-align: center;
@@ -189,18 +189,23 @@
         width: 100%;
     }
 
-    #follow-fandom-btn {
+    /* Target the WRAPPER instead of individual items so they stay grouped */
+    #fandom-poster-controls-wrapper {
         order: 3 !important;
+        display: flex;
+        flex-direction: column;
+        width: 100%;
         max-width: 280px;
         margin: 0 auto 20px auto !important;
-        width: 100%;
+        gap: 10px; /* Provides spacing between image and buttons */
     }
 
-    #fandom-poster-area {
-        order: 4 !important;
-        width: 100%;
-        max-width: 280px;
-        margin: 0 auto 20px auto !important;
+    /* Clean up the inner items since the wrapper handles the layout now */
+    #fandom-poster-area, #edit-art-btn, #follow-fandom-btn, #fandom-poster-controls-wrapper > div {
+        order: unset !important;
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
     }
 
     #fandom-poster-area img, #fandom-image {
@@ -209,16 +214,48 @@
         border-radius: 8px;
     }
 
-    /* Summary, Plot, and Cast share this class and will follow DOM order naturally */
+    /* Force the "Part of" box to be right under the buttons */
+    #part-of-section { 
+        order: 4 !important; 
+        width: 100% !important; 
+        box-sizing: border-box !important; 
+    }
+
+    /* Push Descriptions/Plot/Cast below everything else */
     .rating-section {
         order: 5 !important;
         margin-top: 15px !important;
         width: 100% !important; 
+        box-sizing: border-box !important;
     }
 
-    .fandom-character-grid {
-        /* Forces exactly 2 equal-width columns */
-        grid-template-columns: repeat(2, 1fr) !important; 
-        gap: 15px;
+    /* Grid Overflow Fix - Using minmax(0, 1fr) is critical to prevent blowing out the container */
+    .cast-grid, .fandom-character-grid, .rating-section > div[style*="display: grid"] {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important; 
+        gap: 10px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .cast-card {
+        min-width: 0 !important; /* Allows items to shrink below their content size */
+        box-sizing: border-box !important;
+        padding: 8px !important; /* Slightly tighter padding for mobile columns */
+    }
+
+    /* Fix the Character Modal Box boundaries */
+    .cast-modal-card {
+        width: 95% !important;
+        max-width: 400px !important;
+        padding: 20px !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Allow long character names to wrap instead of cutting off */
+    .cast-card span {
+        white-space: normal !important;
+        overflow: visible !important;
+        word-wrap: break-word !important;
+        line-height: 1.2 !important; 
     }
 }
