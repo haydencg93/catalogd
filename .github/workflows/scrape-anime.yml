@@ -15,6 +15,8 @@ on:
 jobs:
   build_and_scrape:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: ./animeFillerListApi
@@ -27,12 +29,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: './animeFillerListApi/package-lock.json'
 
       - name: Install Dependencies
-        run: npm install
+        run: npm ci
 
       - name: Run Scraper Worker
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: node index.js "${{ github.event.inputs.anime_name }}"
+          ANIME_NAME: ${{ github.event.inputs.anime_name }}
+        run: node index.js "$ANIME_NAME"
