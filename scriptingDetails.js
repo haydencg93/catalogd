@@ -434,7 +434,6 @@ async function initDetails() {
         }
 
         // If it is an Anime, handle the Filler Logic
-        // If it is an Anime, handle the Filler Logic
         if (isAnime) {
             const slug = slugify(data.title);
             const fillerContainer = document.getElementById('filler-status-container');
@@ -490,9 +489,18 @@ async function initDetails() {
                 if (isPending) {
                     html += `<div class="meta" style="font-size: 0.85rem; color: #ff9800;">${hasFiller ? 'Update' : 'List'} request pending... check back soon!</div>`;
                 } else {
-                    // Show previous scraper notes if they exist (e.g., "Successfully scraped")
+                    // Show previous scraper notes if they exist (e.g., "Successfully scraped" or an error)
                     if (existingRequest && existingRequest.notes) {
                         html += `<div class="meta" style="font-size: 0.85rem; margin-bottom: 10px;">Status: ${existingRequest.notes}</div>`;
+                        
+                        // NEW: If the note indicates an error/failure, show the Help button!
+                        if (existingRequest.notes.toLowerCase().includes("error") || existingRequest.notes.toLowerCase().includes("failed") || existingRequest.notes.toLowerCase().includes("not found")) {
+                            html += `
+                                <button id="help-scraper-btn" class="primary-btn" style="width: 100%; border-color: #ff9800; color: #14181c; background: #ff9800; margin-bottom: 10px;">
+                                    Help the Scraper
+                                </button>
+                            `;
+                        }
                     }
                     
                     // Always render the request button if it's not actively pending!
@@ -514,6 +522,12 @@ async function initDetails() {
                 // Only attach the request listener if the button was actually rendered
                 if (!isPending) {
                     document.getElementById('request-filler-btn').onclick = () => requestFiller(slug, hasFiller);
+                }
+
+                // Attach Help Scraper listener
+                const helpBtn = document.getElementById('help-scraper-btn');
+                if (helpBtn) {
+                    helpBtn.onclick = () => openHelpScraperModal(slug);
                 }
 
             } catch (e) {
@@ -2339,6 +2353,51 @@ async function fetchFollowingLogs() {
         section.style.display = 'block';
         listContainer.innerHTML = '<p class="meta">Unable to load friend reviews.</p>';
     }
+}
+
+function openHelpScraperModal(originalSlug) {
+    const modal = document.getElementById('help-scraper-modal');
+    const closeBtn = document.getElementById('close-help-scraper-modal');
+    const submitBtn = document.getElementById('submit-manual-slug-btn');
+    const input = document.getElementById('manual-slug-input');
+
+    input.value = '';
+    modal.style.display = 'flex';
+
+    closeBtn.onclick = () => modal.style.display = 'none';
+    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+
+    submitBtn.onclick = async () => {
+        const url = input.value.trim();
+        if (!url) return alert("Please enter a valid link.");
+
+        // Extract the slug (everything after /shows/) using Regex
+        const match = url.match(/\/shows\/([^\/?#]+)/);
+        if (!match || !match[1]) {
+            return alert("Invalid format. Please paste a link like: https://www.animefillerlist.com/shows/jujutsu-kaisen");
+        }
+        
+        const manualSlug = match[1];
+
+        submitBtn.textContent = "Submitting...";
+        submitBtn.disabled = true;
+
+        // Update DB: clear notes (resets queue status) and append manual_slug
+        const { error } = await supabaseClient
+            .from('filler_list_mgnt')
+            .update({ manual_slug: manualSlug, notes: null })
+            .eq('name', originalSlug);
+
+        if (!error) {
+            alert("Thank you! The scraper will check this link shortly.");
+            window.location.reload();
+        } else {
+            console.error(error);
+            alert("Error submitting link.");
+            submitBtn.textContent = "Submit Link";
+            submitBtn.disabled = false;
+        }
+    };
 }
 
 initDetails();
