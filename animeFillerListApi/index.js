@@ -20,11 +20,11 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 /**
  * Main function to scrape data and update Supabase
  */
-async function saveAnimeData(originalName, requestId = null) {
+async function saveAnimeData(originalName, requestId = null, manualSlug = null) {
     console.log(`--- Processing: ${originalName} ---`);
 
-    // 1. Pass the raw name to the scraper (it handles the retry logic internally)
-    const fillerResult = await getFillerData(originalName);
+    // 1. Pass both names to the scraper
+    const fillerResult = await getFillerData(originalName, manualSlug);
 
     if (fillerResult.error) {
         console.error(`Scrape Failed for ${originalName}: ${fillerResult.error}`);
@@ -39,20 +39,20 @@ async function saveAnimeData(originalName, requestId = null) {
     }
 
     // 2. EXTRACT THE SUCCESSFUL SLUG
-    // This is the slug that actually worked on animefillerlist.com (e.g., "jujutsu-kaisen")
     const successSlug = fillerResult.anime;
 
-    // 3. Update Supabase using the successful slug AND save the JSON content
+    // 3. Update Supabase
     await supabase
         .from('filler_list_mgnt')
         .upsert({ 
-            name: successSlug, 
+            name: originalName, // Keep original DB key intact 
             filler_exists: true, 
-            filler_content: fillerResult, // <-- Saves the scraped JSON directly to the DB!
-            notes: 'Successfully scraped' 
+            filler_content: fillerResult, 
+            notes: 'Successfully scraped',
+            manual_slug: null // Clear manual slug on success
         }, { onConflict: 'name' });
 
-    console.log(`Database Updated: ${successSlug}`);
+    console.log(`Database Updated: ${originalName}`);
 }
 
 /**
@@ -67,7 +67,7 @@ async function runWorker() {
         await saveAnimeData(manualInput);
     } else {
         console.log("No manual input. Checking Supabase queue for pending requests...");
-        
+    
         const { data: queue, error } = await supabase
             .from('filler_list_mgnt')
             .select('*')
@@ -85,12 +85,11 @@ async function runWorker() {
 
         console.log(`Found ${queue.length} pending requests.`);
         for (const item of queue) {
-            await saveAnimeData(item.name, item.id);
+            await saveAnimeData(item.name, item.id, item.manual_slug);
         }
+        
+        console.log("--- Worker Task Complete ---");
     }
-    
-    console.log("--- Worker Task Complete ---");
 }
-
 // Start the process
 runWorker();

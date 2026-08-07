@@ -1,10 +1,9 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 
-async function getFillerData(animeSlug) {
+async function getFillerData(animeSlug, manualSlug = null) {
     const { slugify } = require('./utils');
     
-    // Function to actually do the scraping
     const scrape = async (slug) => {
         const url = `https://www.animefillerlist.com/shows/${slug}`;
         try {
@@ -21,26 +20,34 @@ async function getFillerData(animeSlug) {
 
             return episodes.length > 0 ? { anime: slug, total_episodes: episodes.length, episodes } : null;
         } catch (error) {
-            return null; // Return null on 404 or other errors
+            return null; 
         }
     };
 
     // --- LOGIC FLOW ---
+
+    // 1. If user provided a manual slug, ONLY test that one
+    if (manualSlug) {
+        console.log(`Attempting user-provided manual slug: ${manualSlug}`);
+        const result = await scrape(manualSlug);
+        if (result) return result;
+        return { error: "User-provided link was invalid or page not found." };
+    }
     
-    // 1. Try the "Raw" slug first (handles names that already have dashes)
+    // 2. Try the "Raw" slug first 
     console.log(`Attempting raw slug: ${animeSlug}`);
     let result = await scrape(animeSlug);
 
-    // 2. If it failed, try the "Clean" slugify version
+    // 3. Try the "Clean" slugify version
     if (!result) {
         const cleanSlug = slugify(animeSlug);
-        if (cleanSlug !== animeSlug) { // Only retry if the slug is actually different
+        if (cleanSlug !== animeSlug) { 
             console.log(`Raw failed. Attempting clean slug: ${cleanSlug}`);
             result = await scrape(cleanSlug);
         }
     }
 
-    // 3. Final verdict
+    // 4. Final verdict
     if (result) return result;
     return { error: "Anime not found or site structure changed." };
 }
