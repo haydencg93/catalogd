@@ -8,6 +8,8 @@ on:
 jobs:
   update-stats:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -16,11 +18,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: './statsWorker/package-lock.json'
 
       - name: Install Dependencies
         run: |
           cd statsWorker
-          npm install
+          npm ci
 
       - name: Run Stats Updater Script
         env:
