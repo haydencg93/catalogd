@@ -1,4 +1,4 @@
-const path = require('path');
+const path = require('node:path');
 require('dotenv').config({ path: path.join(__dirname, '../misc/.env') });
 
 const { createClient } = require('@supabase/supabase-js');
@@ -37,9 +37,6 @@ async function saveAnimeData(originalName, requestId = null, manualSlug = null) 
         }
         return;
     }
-
-    // 2. EXTRACT THE SUCCESSFUL SLUG
-    const successSlug = fillerResult.anime;
 
     // 3. Update Supabase
     await supabase

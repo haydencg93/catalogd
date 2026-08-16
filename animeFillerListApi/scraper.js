@@ -1,8 +1,8 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
+const { slugify } = require('./utils');
 
 async function getFillerData(animeSlug, manualSlug = null) {
-    const { slugify } = require('./utils');
     
     const scrape = async (slug) => {
         const url = `https://www.animefillerlist.com/shows/${slug}`;
@@ -20,12 +20,12 @@ async function getFillerData(animeSlug, manualSlug = null) {
 
             return episodes.length > 0 ? { anime: slug, total_episodes: episodes.length, episodes } : null;
         } catch (error) {
+            console.warn(`Scraping exception for ${slug}: ${error.message}`);
             return null; 
         }
     };
 
     // --- LOGIC FLOW ---
-
     // 1. If user provided a manual slug, ONLY test that one
     if (manualSlug) {
         console.log(`Attempting user-provided manual slug: ${manualSlug}`);

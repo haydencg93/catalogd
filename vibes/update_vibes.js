@@ -1,5 +1,5 @@
-const path = require('path');
-const fs = require('fs');
+const path = require('node:path');
+const fs = require('node:fs');
 require('dotenv').config({ path: path.resolve(__dirname, '../misc/.env') });
 
 const WebSocket = require('ws');
@@ -39,7 +39,7 @@ function translateKeyword(query) {
     if (vibeMappings.exact[q]) return vibeMappings.exact[q];
     
     // 3. Fallback Cleanup
-    q = q.replace(/based on/g, "");
+    q = q.replaceAll("based on", "");
     return q.trim();
 }
 
@@ -119,7 +119,7 @@ async function fetchImage(query) {
             return { rateLimited: false, result: null };
         }
         const data = await res.json();
-        return { rateLimited: false, result: (data.results && data.results[0]) || null };
+        return { rateLimited: false, result: data.results?.[0] || null };
     }
 
     try {
@@ -154,7 +154,7 @@ async function fetchImage(query) {
         });
         const tmdbData = await tmdbRes.json();
         
-        if (tmdbData.results && tmdbData.results[0] && tmdbData.results[0].backdrop_path) {
+        if (tmdbData.results?.[0]?.backdrop_path) {
             console.log(`[SUCCESS] Found TMDB fallback for "${query}"`);
             return {
                 url: `https://image.tmdb.org/t/p/w1280${tmdbData.results[0].backdrop_path}`,
@@ -172,10 +172,59 @@ async function fetchImage(query) {
     }
 }
 
+async function processUserVibe(vibe, mediaTypes) {
+    let updatedCurrentGenre = vibe.current_top_genre || {};
+    let updatedCurrentTheme = vibe.current_top_theme || {};
+    let updatedImageGenre = vibe.image_genre || {};
+    let updatedImageTheme = vibe.image_theme || {};
+    let updatedAttrGenre = vibe.image_genre_attribution || {};
+    let updatedAttrGenreUrl = vibe.image_genre_attribution_url || {};
+    let updatedAttrTheme = vibe.image_theme_attribution || {};
+    let updatedAttrThemeUrl = vibe.image_theme_attribution_url || {};
+
+    for (const type of mediaTypes) {
+        // FIX: Optional Chaining applied here
+        const targetGenre = vibe.new_top_genre?.[type];
+        const targetTheme = vibe.new_top_theme?.[type];
+
+        if (targetGenre) {
+            const genreResult = await fetchImage(targetGenre);
+            updatedCurrentGenre[type] = targetGenre;
+            updatedImageGenre[type] = genreResult.url;
+            updatedAttrGenre[type] = genreResult.attribution?.text || null;
+            updatedAttrGenreUrl[type] = genreResult.attribution?.url || null;
+        }
+
+        if (targetTheme) {
+            const themeResult = await fetchImage(targetTheme);
+            updatedCurrentTheme[type] = targetTheme;
+            updatedImageTheme[type] = themeResult.url;
+            updatedAttrTheme[type] = themeResult.attribution?.text || null;
+            updatedAttrThemeUrl[type] = themeResult.attribution?.url || null;
+        }
+    }
+
+    await supabase.from('vibes_control').update({
+        current_top_genre: updatedCurrentGenre,
+        current_top_theme: updatedCurrentTheme,
+        image_genre: updatedImageGenre,
+        image_theme: updatedImageTheme,
+        image_genre_attribution: updatedAttrGenre,
+        image_genre_attribution_url: updatedAttrGenreUrl,
+        image_theme_attribution: updatedAttrTheme,
+        image_theme_attribution_url: updatedAttrThemeUrl,
+        needs_update: false,
+        new_top_genre: {}, 
+        new_top_theme: {}, 
+        updated_at: new Date().toISOString()
+    }).eq('id', vibe.id);
+
+    console.log(`Updated vibe for user ${vibe.user_id}`);
+}
+
 async function run() {
     console.log("Starting nightly vibe update...");
     
-    // Fetch all users needing an update
     const { data: usersToUpdate, error } = await supabase
         .from('vibes_control')
         .select('*')
@@ -192,55 +241,7 @@ async function run() {
     const mediaTypes = ['movie', 'tv', 'book', 'album'];
 
     for (const vibe of usersToUpdate) {
-        // Initialize working objects from the existing DB data
-        let updatedCurrentGenre = vibe.current_top_genre || {};
-        let updatedCurrentTheme = vibe.current_top_theme || {};
-        let updatedImageGenre = vibe.image_genre || {};
-        let updatedImageTheme = vibe.image_theme || {};
-        let updatedAttrGenre = vibe.image_genre_attribution || {};
-        let updatedAttrGenreUrl = vibe.image_genre_attribution_url || {};
-        let updatedAttrTheme = vibe.image_theme_attribution || {};
-        let updatedAttrThemeUrl = vibe.image_theme_attribution_url || {};
-
-        for (const type of mediaTypes) {
-            // Check if there is a new queued target for this specific media type
-            const targetGenre = (vibe.new_top_genre || {})[type];
-            const targetTheme = (vibe.new_top_theme || {})[type];
-
-            if (targetGenre) {
-                const genreResult = await fetchImage(targetGenre);
-                updatedCurrentGenre[type] = targetGenre;
-                updatedImageGenre[type] = genreResult.url;
-                updatedAttrGenre[type] = genreResult.attribution ? genreResult.attribution.text : null;
-                updatedAttrGenreUrl[type] = genreResult.attribution ? genreResult.attribution.url : null;
-            }
-
-            if (targetTheme) {
-                const themeResult = await fetchImage(targetTheme);
-                updatedCurrentTheme[type] = targetTheme;
-                updatedImageTheme[type] = themeResult.url;
-                updatedAttrTheme[type] = themeResult.attribution ? themeResult.attribution.text : null;
-                updatedAttrThemeUrl[type] = themeResult.attribution ? themeResult.attribution.url : null;
-            }
-        }
-
-        // Save the merged JSON objects back to Supabase
-        await supabase.from('vibes_control').update({
-            current_top_genre: updatedCurrentGenre,
-            current_top_theme: updatedCurrentTheme,
-            image_genre: updatedImageGenre,
-            image_theme: updatedImageTheme,
-            image_genre_attribution: updatedAttrGenre,
-            image_genre_attribution_url: updatedAttrGenreUrl,
-            image_theme_attribution: updatedAttrTheme,
-            image_theme_attribution_url: updatedAttrThemeUrl,
-            needs_update: false,
-            new_top_genre: {}, // Clear the queue 
-            new_top_theme: {}, // Clear the queue
-            updated_at: new Date().toISOString()
-        }).eq('id', vibe.id);
-
-        console.log(`Updated vibe for user ${vibe.user_id}`);
+        await processUserVibe(vibe, mediaTypes);
     }
 }
 
