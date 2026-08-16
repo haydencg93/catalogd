@@ -1,6 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 const { QdrantClient } = require('@qdrant/js-client-rest'); 
-const path = require('path');
+const path = require('node:path');
 const WebSocket = require('ws'); 
 
 const config = require('../config.json');
@@ -19,7 +19,7 @@ const qdrant = new QdrantClient({
 async function runUnifiedPipeline() {
     console.log("[I] Initializing Unified Vector Search Pipeline...");
     
-    const TransformersApi = Function('return import("@xenova/transformers")')();
+    const TransformersApi = new Function('return import("@xenova/transformers")')();
     
     // 1. Extract 'env' alongside 'pipeline'
     const { pipeline: transformersPipeline, env } = await TransformersApi;
@@ -50,15 +50,12 @@ async function runUnifiedPipeline() {
         if (!movies || movies.length === 0) {
             console.log(`\n[S] SUCCESS! All items have been embedded with Rich Payloads!`);
             console.log(`[I] Total processed this session: ${totalProcessed}`);
-            keepRunning = false;
             break;
         }
 
         console.log(`\n[I] Processing batch of ${movies.length} items...`);
 
-        for (let i = 0; i < movies.length; i++) {
-            const movie = movies[i];
-            
+        for (const movie of movies) {
             try {
                 // 1. Combine the tags and the characters into one giant context string
                 const mathInputString = `${movie.tags}, ${movie.characters || ''}`;

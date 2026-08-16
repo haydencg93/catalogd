@@ -6,6 +6,42 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Extract math complexity out of the main block
+function calculateAverageVector(qdrantPoints: any[], vectorLength: number): number[] {
+    const targetVector = new Array(vectorLength).fill(0);
+    let hasValidVector = false;
+
+    for (const point of qdrantPoints) {
+        if (point.vector?.length === vectorLength) {
+            hasValidVector = true;
+            for (let i = 0; i < vectorLength; i++) {
+                targetVector[i] += point.vector[i];
+            }
+        }
+    }
+
+    if (!hasValidVector) {
+        throw new Error("Could not extract valid mathematical vectors for the selected items.");
+    }
+
+    for (let i = 0; i < vectorLength; i++) {
+        targetVector[i] = targetVector[i] / qdrantPoints.length;
+    }
+
+    return targetVector;
+}
+
+// Extract error formatting logic
+function formatErrorMessage(error: any): string {
+    if (error.data) {
+        return `Qdrant Error: ${JSON.stringify(error.data)}`;
+    }
+    if (error.cause) {
+        return `Error: ${error.message} - Cause: ${error.cause}`;
+    }
+    return error.message;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -33,31 +69,10 @@ serve(async (req) => {
         throw new Error("None of the selected items exist in your AI Taste Graph yet. Try picking a more popular item!");
     }
 
-    // 2. Create Target Vibe with Safety Checks
-    const vectorLength = 384; 
-    let targetVector = new Array(vectorLength).fill(0);
-    let hasValidVector = false;
-
-    for (const point of qdrantPoints) {
-        // Guarantee we don't accidentally create a "Zero Vector" which breaks Qdrant
-        if (point.vector && point.vector.length === vectorLength) {
-            hasValidVector = true;
-            for (let i = 0; i < vectorLength; i++) {
-                targetVector[i] += point.vector[i];
-            }
-        }
-    }
-
-    if (!hasValidVector) {
-        throw new Error("Could not extract valid mathematical vectors for the selected items.");
-    }
-
-    for (let i = 0; i < vectorLength; i++) {
-        targetVector[i] = targetVector[i] / qdrantPoints.length;
-    }
+    // 2. Create Target Vibe with Safety Checks (Uses Helper)
+    const targetVector = calculateAverageVector(qdrantPoints, 384);
 
     // 3. Bulletproof Filter Syntax
-    // Maps the user's choices into explicit Qdrant "OR" statements
     const typeConditions = desiredOutputs.map((type: string) => ({
         key: "media_type",
         match: { value: type }
@@ -69,7 +84,7 @@ serve(async (req) => {
         filter: {
             must: [
                 {
-                    should: typeConditions // Universally supported "any/or" syntax
+                    should: typeConditions
                 }
             ],
             must_not: [
@@ -96,14 +111,8 @@ serve(async (req) => {
     });
 
   } catch (error: any) {
-    // 5. Deep Error Extraction
-    // If Qdrant fails, it hides the reason in a .data object. We pull it out here!
-    let errorMsg = error.message;
-    if (error.data) {
-        errorMsg = `Qdrant Error: ${JSON.stringify(error.data)}`;
-    } else if (error.cause) {
-        errorMsg = `Error: ${error.message} - Cause: ${error.cause}`;
-    }
+    // 5. Deep Error Extraction (Uses Helper)
+    const errorMsg = formatErrorMessage(error);
     
     return new Response(JSON.stringify({ error: errorMsg }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

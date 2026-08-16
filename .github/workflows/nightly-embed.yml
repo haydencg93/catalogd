@@ -1,37 +1,40 @@
-name: Nightly ML Embedding Pipeline Worker
+name: Nightly Vibe Updater Worker
 
 on:
   push:
     branches:
-      - main 
+      - main
   schedule:
-    - cron: '0 0 * * *'
+    - cron: '0 0 * * *' 
   workflow_dispatch:
 
 jobs:
-  embed_media:
+  update-vibes:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: read
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: './vibes/package-lock.json'
 
       - name: Install Dependencies
         run: |
-          cd seederAi
-          rm -rf node_modules # <-- Deletes your Windows files from the server
-          npm install @supabase/supabase-js @qdrant/js-client-rest @xenova/transformers dotenv ws
+          cd vibes
+          npm ci
 
-      - name: Run ML Generator
+      - name: Run Updater Script
         env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          QDRANT_URL: ${{ secrets.QDRANT_URL }}
-          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+          OPENVERSE_CLIENT_ID: ${{ secrets.OPENVERSE_CLIENT_ID }}
+          OPENVERSE_CLIENT_SECRET: ${{ secrets.OPENVERSE_CLIENT_SECRET }}
         run: |
-          cd seederAi
-          node generate_embeddings.js
+          cd vibes
+          node update_vibes.js
