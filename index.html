@@ -10,7 +10,7 @@
 </head>
 <body>
     <header>
-        <div class="css-logo" onclick="window.location.href='index.html'">
+        <a href="index.html" class="css-logo" style="text-decoration: none;">
             <div class="logo-text">catalog<span>d</span></div>
             <div class="logo-circles">
                 <div class="circle c-movie"></div>
@@ -19,7 +19,7 @@
                 <div class="circle c-album"></div>
                 <div class="circle c-youtube"></div>
             </div>
-        </div>
+        </a>
         <div class="nav-actions">
             <!-- Login remains -->
             <button id="login-btn" class="secondary-btn">Sign In</button>
@@ -38,7 +38,7 @@
                     <a href="profile.html">Profile</a>
                     <a href="settings.html">Settings</a>
                     <hr>
-                    <a href="#" onclick="signOut()">Sign Out</a>
+                    <button onclick="signOut()" style="background: none; border: none; color: white; padding: 12px 16px; width: 100%; text-align: left; cursor: pointer; font-family: inherit; font-size: 0.9rem;">Sign Out</button>
                 </div>
             </div>
         </div>
@@ -47,7 +47,7 @@
     <main>
         <section class="search-section">
             <div class="search-bar-wrapper">
-                <select id="search-filter">
+                <select id="search-filter" aria-label="Search filter">
                     <option value="all">All</option>
                     <option value="movie">Movies</option>
                     <option value="tv">TV Shows</option>
@@ -57,7 +57,7 @@
                     <option value="person">Cast Members</option>
                     <option value="author">Authors</option>
                 </select>
-                <input type="text" id="search-input" placeholder="Preparing library..." disabled>
+                <input type="text" id="search-input" aria-label="Search query" placeholder="Preparing library..." disabled>
             </div>
 
             <div style="margin-top: 25px; margin-bottom: 40px; display: flex; flex-direction: column; align-items: center; gap: 20px;">
@@ -84,7 +84,7 @@
             <button id="btn-youtube" class="filter-btn" onclick="switchTab('youtube')">YouTube</button>
         </div>
 
-        <h2 id="section-title" class="section-title" style="display: none;"></h2>
+        <h2 id="section-title" class="section-title" style="display: none;">Library Section</h2>
         <div class="grid" id="results-grid"></div>
     </main>
 
@@ -93,24 +93,24 @@
             <h2 id="modal-title">Welcome Back</h2>
             
             <div id="signup-fields" style="display: none;">
-                <input type="text" id="auth-name" placeholder="Full Name (e.g. John Doe)">
-                <input type="text" id="auth-username" placeholder="Username">
+                <input type="text" id="auth-name" aria-label="Full Name" placeholder="Full Name (e.g. John Doe)">
+                <input type="text" id="auth-username" aria-label="Username" placeholder="Username">
             </div>
 
-            <input type="email" id="auth-email" placeholder="Email">
-            <input type="password" id="auth-password" placeholder="Password">
+            <input type="email" id="auth-email" aria-label="Email Address" placeholder="Email">
+            <input type="password" id="auth-password" aria-label="Password" placeholder="Password">
 
-            <input type="password" id="auth-retype" placeholder="Confirm Password" style="display: none;">
+            <input type="password" id="auth-retype" aria-label="Confirm Password" placeholder="Confirm Password" style="display: none;">
 
-            <p id="forgot-password-link" onclick="handleForgotPassword()" style="color: #9ab; cursor: pointer; font-size: 0.8rem; margin-bottom: 15px; text-decoration: underline;">Forgot password?</p>
+            <button id="forgot-password-link" onclick="handleForgotPassword()" style="background: none; border: none; color: #9ab; cursor: pointer; font-size: 0.8rem; margin-bottom: 15px; text-decoration: underline; font-family: inherit;">Forgot password?</button>
 
             <button id="auth-confirm-btn" class="primary-btn">Sign In</button>
-            <p onclick="toggleAuthMode()" id="auth-switch">Need an account? Sign Up</p>
+            <button onclick="toggleAuthMode()" id="auth-switch" style="background: none; border: none; color: #9ab; cursor: pointer; margin-top: 15px; font-size: 0.8rem; font-family: inherit;">Need an account? Sign Up</button>
             <button id="close-auth" class="close-btn">×</button>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous"></script>
     <script src="scriptingIndex.js"></script>
 </body>
 </html>

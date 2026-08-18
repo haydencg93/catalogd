@@ -117,19 +117,38 @@
     max-width: 500px !important; /* Keeps it from becoming a giant line on widescreen */
 }
 
-/* Apply Glass to Cards */
+/* Apply Glass and Layout to Cards */
 .media-card {
     position: relative;
-    overflow: hidden; /* Ensures the shine stays inside the card */
+    background: var(--card);
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), 
+                opacity 0.3s ease, 
+                filter 0.3s ease, 
+                box-shadow 0.3s ease !important;
+    will-change: transform; 
+    backface-visibility: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.08); 
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 
+                inset 0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
-/* Apply Glass to Auth Modal */
+/* Apply Glass and Layout to Auth Modal */
 .auth-card {
     background: rgba(15, 20, 25, 0.6);
     backdrop-filter: blur(25px);
     -webkit-backdrop-filter: blur(25px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    padding: 30px 40px; 
+    border-radius: 16px; 
+    width: 340px; 
+    text-align: center; 
+    position: relative; 
+    max-height: 90vh;
+    overflow-y: auto;
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 body {
@@ -216,7 +235,7 @@ header, main {
     font-weight: 800 !important;
     letter-spacing: -1px !important;
     color: #fff !important;
-    line-height: 1 !important; 
+    line-height: 1 !important;
 }
 
 .logo-text span {
@@ -262,19 +281,6 @@ header, main {
     box-shadow: 0 6px 12px rgba(0,0,0,0.4);
 }
 
-.logo-text {
-    font-size: 2.2rem;
-    font-weight: 800;
-    letter-spacing: -1px;
-    color: #fff;
-    line-height: 1; /* Keeps the container tight so the circles hug the text */
-}
-
-.logo-text span {
-    color: var(--accent);
-    text-shadow: 0 0 15px var(--accent-glow);
-}
-
 input {
     display: block;
     margin: 40px auto;
@@ -314,23 +320,6 @@ input {
     margin: 0 auto;
 }
 
-.media-card {
-    background: var(--card);
-    border-radius: 12px;
-    overflow: hidden;
-    cursor: pointer;
-    border: 1px solid transparent; /* Added for sync */
-    transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), 
-                opacity 0.3s ease, 
-                filter 0.3s ease, 
-                box-shadow 0.3s ease !important;
-    will-change: transform; /* Tells the browser to optimize for this movement */
-    backface-visibility: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.08); 
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 
-                inset 0 0 0 1px rgba(255, 255, 255, 0.05);
-}
-
 .media-card:hover {
     border-color: rgba(255, 255, 255, 0.2);
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 
@@ -353,26 +342,35 @@ input {
     font-weight: 700;
     z-index: 2;
 }
-.badge-movie { background: var(--movie-tag); color: #000; }
-.badge-tv { background: var(--tv-tag); color: #fff; }
-.badge-book { background: var(--book-tag); color: #fff; }
-.badge-album { background: var(--album-tag); color: #fff; }
-.badge-youtube { background: var(--youtube-tag); color: #fff; }
+.badge-movie {
+    background: var(--movie-tag);
+    color: #000;
+}
+
+.badge-tv {
+    background: var(--tv-tag);
+    color: #fff;
+}
+
+.badge-book {
+    background: var(--book-tag);
+    color: #fff;
+}
+
+.badge-album {
+    background: var(--album-tag);
+    color: #fff;
+}
+
+.badge-youtube {
+    background: var(--youtube-tag);
+    color: #fff;
+}
 
 /* Modal Styles */
 .modal-overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0.85);
     display: flex; justify-content: center; align-items: center; z-index: 1000;
-}
-.auth-card { 
-    background: var(--card); 
-    padding: 30px 40px; /* Reduced padding slightly to fit more fields */
-    border-radius: 16px; 
-    width: 340px; /* Widened slightly */
-    text-align: center; 
-    position: relative; 
-    max-height: 90vh;
-    overflow-y: auto;
 }
 
 .auth-card input { 
@@ -391,8 +389,22 @@ input {
     cursor: pointer;
     width: 100%;
 }
-.secondary-btn { background: transparent; color: white; border: 1px solid #456; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
-#auth-switch { color: #9ab; cursor: pointer; margin-top: 15px; font-size: 0.8rem; }
+
+.secondary-btn {
+    background: transparent;
+    color: white;
+    border: 1px solid #456;
+    padding: 10px 20px;
+    border-radius: 20px;
+    cursor: pointer;
+}
+
+#auth-switch {
+    color: #ccd6e0;
+    cursor: pointer;
+    margin-top: 15px;
+    font-size: 0.8rem;
+}
 .close-btn { position: absolute; top: 10px; right: 15px; background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
 
 .primary-btn, .filter-btn {
@@ -448,7 +460,7 @@ input {
 
 .filter-btn {
     background: transparent;
-    color: #9ab;
+    color: #ccd6e0;
     border: 1px solid #2c3440;
     padding: 10px 25px;
     border-radius: 20px;
@@ -513,6 +525,7 @@ input {
 .media-info .title {
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
     min-height: 2.4em; /* Keeps titles aligned even if one is 1 line and another is 2 */
@@ -872,9 +885,10 @@ a:hover {
         border-right: none;
         border-bottom: 1px solid #2c3440;
         text-align: center;
-        background-position: calc(50% + 40px) center; /* Centers the arrow */
+        background-position: calc(50% + 40px) center; 
         -webkit-appearance: none;
         -moz-appearance: none;
+        appearance: none;
     }
 
     .search-bar-wrapper input {
