@@ -126,7 +126,7 @@ async function checkUserStatus() {
         
         // Ensure avatar is set (Optional: fetch from Supabase user metadata)
         const avatar = document.getElementById('nav-avatar');
-        if (user.user_metadata.avatar_url) avatar.src = user.user_metadata.avatar_url;
+        if (user?.user_metadata?.avatar_url) avatar.src = user.user_metadata.avatar_url;
     } else {
         loginBtn.style.display = 'block'; 
         profileMenu.style.display = 'none';
@@ -138,42 +138,40 @@ async function checkUserStatus() {
     }
 }
 
+async function performSignUp(email, password, name, username, retype) {
+    if (!email || !password || !name || !username) return alert("Please fill in all fields.");
+    if (password !== retype) return alert("Passwords do not match!");
+    if (password.length < 6) return alert("Password must be at least 6 characters.");
+
+    const { error } = await supabaseClient.auth.signUp({
+        email,
+        password,
+        options: { data: { display_name: name, username: username } }
+    });
+    if (error) throw error;
+    alert("Success! Check your email for a confirmation link.");
+    closeAuthModal();
+}
+
+async function performSignIn(email, password) {
+    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    closeAuthModal();
+    await checkUserStatus();
+}
+
 async function handleAuth() {
     const email = authEmail.value;
     const password = authPassword.value;
 
-    if (isSignUpMode) {
-        const name = authName.value;
-        const username = authUsername.value;
-        const retype = authRetype.value;
-
-        if (!email || !password || !name || !username) return alert("Please fill in all fields.");
-        if (password !== retype) return alert("Passwords do not match!");
-        if (password.length < 6) return alert("Password must be at least 6 characters.");
-
-        try {
-            const { data, error } = await supabaseClient.auth.signUp({
-                email,
-                password,
-                options: {
-                    data: { display_name: name, username: username }
-                }
-            });
-            if (error) throw error;
-            alert("Success! Check your email for a confirmation link.");
-            closeAuthModal();
-        } catch (err) {
-            alert(err.message);
+    try {
+        if (isSignUpMode) {
+            await performSignUp(email, password, authName.value, authUsername.value, authRetype.value);
+        } else {
+            await performSignIn(email, password);
         }
-    } else {
-        try {
-            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-            if (error) throw error;
-            closeAuthModal();
-            await checkUserStatus();
-        } catch (err) {
-            alert(err.message);
-        }
+    } catch (err) {
+        alert(err.message);
     }
 }
 
@@ -189,35 +187,37 @@ function toggleAuthMode() {
     authRetype.style.display = isSignUpMode ? "block" : "none";
 }
 
+// HELPER: Handles fetching and deduplicating items
+async function fetchAndMergeTabItems(type) {
+    let forYouItems = [];
+    if (['movie', 'tv'].includes(type)) {
+        forYouItems = await getForYouItems(type);
+        maybeShowServicesNudge();
+    }
+
+    let trendingItems = await getTrendingItems(type);
+    const forYouIds = new Set(forYouItems.map(item => String(item.id)));
+    trendingItems = trendingItems.filter(item => !forYouIds.has(String(item.id)));
+
+    return [...forYouItems, ...trendingItems];
+}
+
 async function loadTabContent(type) {
     const sectionTitle = document.getElementById('section-title');
-    if (sectionTitle) sectionTitle.style.display = 'none'; // Hide headers for normal browsing
+    if (sectionTitle) sectionTitle.style.display = 'none'; 
+    
     resultsGrid.innerHTML = '';
     loader.style.display = 'block';
     loader.textContent = `Fetching ${type}s...`;
+    
     try {
-        if (type === 'youtube' || type === 'user' || type === 'person' || type === 'author') {
-            const existingVibe = document.querySelector('.vibe-container');
-            if (existingVibe) existingVibe.remove();
+        if (['youtube', 'user', 'person', 'author'].includes(type)) {
+            document.querySelector('.vibe-container')?.remove();
         } else {
             calculateAndRenderVibe(type);
         }
 
-        let forYouItems = [];
-        // Only attempt For You if it is a Movie or TV show
-        if (['movie', 'tv'].includes(type)) {
-            forYouItems = await getForYouItems(type);
-            maybeShowServicesNudge();
-        }
-
-        let trendingItems = await getTrendingItems(type);
-
-        // Remove any trending items that are already in the For You array to prevent duplicates
-        const forYouIds = new Set(forYouItems.map(item => String(item.id)));
-        trendingItems = trendingItems.filter(item => !forYouIds.has(String(item.id)));
-
-        // Combine them: For You items populate at the top of the grid!
-        const combined = [...forYouItems, ...trendingItems];
+        const combined = await fetchAndMergeTabItems(type);
 
         if (combined.length === 0) {
             resultsGrid.innerHTML = '<p class="meta" style="grid-column: 1/-1; text-align: center;">No items found.</p>';
@@ -232,69 +232,89 @@ async function loadTabContent(type) {
     }
 }
 
+// HELPER: Resolves book images without nested ternaries
+function resolveBookImage(work) {
+    if (work.cover_edition_key) return `https://covers.openlibrary.org/b/olid/${work.cover_edition_key}-M.jpg`;
+    if (work.cover_i) return `https://covers.openlibrary.org/b/id/${work.cover_i}-M.jpg`;
+    return 'https://placehold.co/500x750/1b2228/9ab?text=No+Cover';
+}
+
+async function fetchTrendingBooks() {
+    let res = await fetch(`https://openlibrary.org/trending/daily.json?limit=15`);
+    let text = await res.text();
+    if (text.trim().startsWith('<')) {
+        res = await fetch(`https://openlibrary.org/search.json?q=subject:fiction&sort=editions&limit=15`);
+        text = await res.text();
+    }
+    const data = JSON.parse(text);
+    const itemsList = data.works || data.docs || [];
+    
+    return itemsList.map(work => ({
+        title: work.title,
+        year: work.first_publish_year || work.publish_year?.[0] || '',
+        author: work.author_name?.[0] || null,
+        image: resolveBookImage(work),
+        type: 'book',
+        id: work.key,
+        isTrending: true
+    }));
+}
+
+async function fetchTrendingAlbums() {
+    const res = await fetch(`https://ws.audioscrobbler.com/2.0/?method=tag.gettopalbums&tag=pop&api_key=${LASTFM_KEY}&format=json&limit=15`);
+    const data = await res.json();
+    return (data.albums.album || []).map(a => {
+        let img = 'https://via.placeholder.com/500x750?text=No+Image';
+        if (a.image?.[3]?.['#text']) img = a.image[3]['#text'];
+        const compositeId = encodeURIComponent(`${a.artist.name}|||${a.name}`);
+        
+        return { 
+            title: a.name, year: '', author: a.artist?.name || null, 
+            image: img, type: 'album', id: compositeId, isTrending: true 
+        };
+    });
+}
+
 async function getTrendingItems(type) {
     try {
-        if (type === 'book') {
-            let res = await fetch(`https://openlibrary.org/trending/daily.json?limit=15`);
-            let text = await res.text();
-            if (text.trim().startsWith('<')) {
-                res = await fetch(`https://openlibrary.org/search.json?q=subject:fiction&sort=editions&limit=15`);
-                text = await res.text();
-            }
-            const data = JSON.parse(text);
-            const itemsList = data.works || data.docs || [];
-            return itemsList.map(work => ({
-                title: work.title,
-                year: work.first_publish_year || (work.publish_year && work.publish_year[0]) || '',
-                author: work.author_name ? work.author_name[0] : null,
-                image: work.cover_edition_key ? `https://covers.openlibrary.org/b/olid/${work.cover_edition_key}-M.jpg` : (work.cover_i ? `https://covers.openlibrary.org/b/id/${work.cover_i}-M.jpg` : 'https://placehold.co/500x750/1b2228/9ab?text=No+Cover'),
-                type: 'book',
-                id: work.key,
-                isTrending: true // Flag for the badge
-            }));
-        } else if (type === 'album') {
-            const res = await fetch(`https://ws.audioscrobbler.com/2.0/?method=tag.gettopalbums&tag=pop&api_key=${LASTFM_KEY}&format=json&limit=15`);
-            const data = await res.json();
-            return (data.albums.album || []).map(a => {
-                let img = 'https://via.placeholder.com/500x750?text=No+Image';
-                if (a.image && a.image.length > 3 && a.image[3]['#text']) img = a.image[3]['#text'];
-                const compositeId = encodeURIComponent(`${a.artist.name}|||${a.name}`);
-                return { title: a.name, year: '', author: a.artist ? a.artist.name : null, image: img, type: 'album', id: compositeId, isTrending: true };
-            });
-        } else {
-            const res = await fetch(`https://api.themoviedb.org/3/trending/${type}/day`, { headers: { accept: 'application/json', Authorization: `Bearer ${TMDB_TOKEN}` } });
-            const data = await res.json();
-            return (data.results || []).map(item => ({
-                title: item.title || item.name,
-                year: (item.release_date || item.first_air_date || '').split('-')[0],
-                image: `https://image.tmdb.org/t/p/w500${item.poster_path}`,
-                type: type,
-                id: item.id,
-                isTrending: true // Flag for the badge
-            }));
-        }
+        if (type === 'book') return await fetchTrendingBooks();
+        if (type === 'album') return await fetchTrendingAlbums();
+
+        const res = await fetch(`https://api.themoviedb.org/3/trending/${type}/day`, { 
+            headers: { accept: 'application/json', Authorization: `Bearer ${TMDB_TOKEN}` } 
+        });
+        const data = await res.json();
+        
+        return (data.results || []).map(item => ({
+            title: item.title || item.name,
+            year: (item.release_date || item.first_air_date || '').split('-')[0],
+            image: `https://image.tmdb.org/t/p/w500${item.poster_path}`,
+            type: type,
+            id: item.id,
+            isTrending: true
+        }));
     } catch (e) {
         console.error("Trending fetch error:", e);
         return [];
     }
 }
 
+const fallbackGradient = 'linear-gradient(135deg, #2a2f3a, #1b1f27)';
+function backgroundStyle(img) {
+    return img ? `background-image: url('${img}'); background-size: cover; background-position: center;`
+                : `background: ${fallbackGradient};`;
+}
+function attributionHtml(attr) {
+    if (!attr?.text) return '';
+    const style = 'position:absolute;bottom:6px;right:8px;font-size:10px;line-height:1.2;' +
+        'color:rgba(255,255,255,0.65);background:rgba(0,0,0,0.35);padding:2px 6px;' +
+        'border-radius:4px;text-decoration:none;pointer-events:auto;z-index:2;';
+    return attr.url
+        ? `<a href="${attr.url}" target="_blank" rel="noopener noreferrer" class="vibe-attribution-link" style="${style}">${attr.text}</a>`
+        : `<div class="vibe-attribution" style="${style}">${attr.text}</div>`;
+}
+
 function renderVibeBox(genreName, themeName, genreImg, themeImg, genreAttr, themeAttr) {
-    const fallbackGradient = 'linear-gradient(135deg, #2a2f3a, #1b1f27)';
-    function backgroundStyle(img) {
-        return img ? `background-image: url('${img}'); background-size: cover; background-position: center;`
-                    : `background: ${fallbackGradient};`;
-    }
-    function attributionHtml(attr) {
-        if (!attr || !attr.text) return '';
-        const style = 'position:absolute;bottom:6px;right:8px;font-size:10px;line-height:1.2;' +
-            'color:rgba(255,255,255,0.65);background:rgba(0,0,0,0.35);padding:2px 6px;' +
-            'border-radius:4px;text-decoration:none;pointer-events:auto;z-index:2;';
-        return attr.url
-            ? `<a href="${attr.url}" target="_blank" rel="noopener noreferrer" class="vibe-attribution-link" style="${style}">${attr.text}</a>`
-            : `<div class="vibe-attribution" style="${style}">${attr.text}</div>`;
-    }
-    
     const vibeContainer = document.createElement('div');
     vibeContainer.className = 'vibe-container';
     
@@ -331,10 +351,34 @@ function renderVibeBox(genreName, themeName, genreImg, themeImg, genreAttr, them
     if (filterNav) filterNav.parentNode.insertBefore(vibeContainer, filterNav.nextSibling);
 }
 
+async function processVibeQueueUpdate(vibeData, mediaType, cleanGenre, cleanTheme) {
+    const currentStoredGenre = vibeData.current_top_genre?.[mediaType] || '';
+    const currentStoredTheme = vibeData.current_top_theme?.[mediaType] || '';
+    
+    const queuedGenre = vibeData.new_top_genre?.[mediaType] || '';
+    const queuedTheme = vibeData.new_top_theme?.[mediaType] || '';
+
+    const needsGenreQueue = (cleanGenre !== currentStoredGenre) && (cleanGenre !== queuedGenre);
+    const needsThemeQueue = (cleanTheme !== currentStoredTheme) && (cleanTheme !== queuedTheme);
+    
+    if (needsGenreQueue || needsThemeQueue) {
+        const updatedNewGenre = { ...(vibeData.new_top_genre || {}) };
+        const updatedNewTheme = { ...(vibeData.new_top_theme || {}) };
+
+        if (needsGenreQueue) updatedNewGenre[mediaType] = cleanGenre;
+        if (needsThemeQueue) updatedNewTheme[mediaType] = cleanTheme;
+
+        await supabaseClient.from('vibes_control').update({
+            needs_update: true,
+            new_top_genre: updatedNewGenre,
+            new_top_theme: updatedNewTheme
+        }).eq('id', vibeData.id);
+    }
+}
+
 async function updateAndRenderVibeFromDB(mediaType, genreName, themeName) {
     if (!genreName) {
-        const existingVibe = document.querySelector('.vibe-container');
-        if (existingVibe) existingVibe.remove();
+        document.querySelector('.vibe-container')?.remove();
         return;
     }
 
@@ -355,60 +399,34 @@ async function updateAndRenderVibeFromDB(mediaType, genreName, themeName) {
         let genreAttr = null, themeAttr = null;
 
         if (!vibeData) {
-            // First time user! Insert a blank row with JSON structured for this media type
             await supabaseClient.from('vibes_control').insert({
                 user_id: user.id,
                 needs_update: true,
                 new_top_genre: { [mediaType]: cleanGenre },
                 new_top_theme: { [mediaType]: cleanTheme },
-                current_top_genre: {},
-                current_top_theme: {},
-                image_genre: {},
-                image_theme: {},
-                image_genre_attribution: {},
-                image_genre_attribution_url: {},
-                image_theme_attribution: {},
-                image_theme_attribution_url: {}
+                current_top_genre: null,
+                current_top_theme: null,
+                image_genre: null,
+                image_theme: null,
+                image_genre_attribution: null,
+                image_genre_attribution_url: null,
+                image_theme_attribution: null,
+                image_theme_attribution_url: null
             });
         } else {
-            const currentStoredGenre = (vibeData.current_top_genre || {})[mediaType] || '';
-            const currentStoredTheme = (vibeData.current_top_theme || {})[mediaType] || '';
+            await processVibeQueueUpdate(vibeData, mediaType, cleanGenre, cleanTheme);
+
+            genreImg = vibeData.image_genre?.[mediaType] || '';
+            themeImg = vibeData.image_theme?.[mediaType] || '';
             
-            const queuedGenre = (vibeData.new_top_genre || {})[mediaType] || '';
-            const queuedTheme = (vibeData.new_top_theme || {})[mediaType] || '';
-
-            // Check if the newly calculated vibe differs from BOTH the active vibe AND what is currently waiting in the queue
-            const needsGenreQueue = (cleanGenre !== currentStoredGenre) && (cleanGenre !== queuedGenre);
-            const needsThemeQueue = (cleanTheme !== currentStoredTheme) && (cleanTheme !== queuedTheme);
-            
-            if (needsGenreQueue || needsThemeQueue) {
-                // Pull the existing queued JSON objects so we don't overwrite other tabs
-                const updatedNewGenre = { ...(vibeData.new_top_genre || {}) };
-                const updatedNewTheme = { ...(vibeData.new_top_theme || {}) };
-
-                if (needsGenreQueue) updatedNewGenre[mediaType] = cleanGenre;
-                if (needsThemeQueue) updatedNewTheme[mediaType] = cleanTheme;
-
-                // Send the merged queue back to Supabase
-                await supabaseClient.from('vibes_control').update({
-                    needs_update: true,
-                    new_top_genre: updatedNewGenre,
-                    new_top_theme: updatedNewTheme
-                }).eq('id', vibeData.id);
-            }
-
-            // Grab the images from the DB JSON if they exist for this media type
-            genreImg = (vibeData.image_genre || {})[mediaType] || '';
-            themeImg = (vibeData.image_theme || {})[mediaType] || '';
-            
-            const genreAttrText = (vibeData.image_genre_attribution || {})[mediaType];
-            const genreAttrUrl = (vibeData.image_genre_attribution_url || {})[mediaType];
+            const genreAttrText = vibeData.image_genre_attribution?.[mediaType];
+            const genreAttrUrl = vibeData.image_genre_attribution_url?.[mediaType];
             if (genreAttrText) {
                 genreAttr = { text: genreAttrText, url: genreAttrUrl || null };
             }
 
-            const themeAttrText = (vibeData.image_theme_attribution || {})[mediaType];
-            const themeAttrUrl = (vibeData.image_theme_attribution_url || {})[mediaType];
+            const themeAttrText = vibeData.image_theme_attribution?.[mediaType];
+            const themeAttrUrl = vibeData.image_theme_attribution_url?.[mediaType];
             if (themeAttrText) {
                 themeAttr = { text: themeAttrText, url: themeAttrUrl || null };
             }
@@ -418,6 +436,99 @@ async function updateAndRenderVibeFromDB(mediaType, genreName, themeName) {
     } catch (e) {
         console.error("Failed to fetch vibe from DB:", e);
     }
+}
+
+function calculateWeight(rating) {
+    if (rating === 5) return 5;
+    if (rating >= 4.5) return 2.5;
+    return 1;
+}
+
+// --- CALCULATE AND RENDER VIBE HELPERS ---
+async function tallyMovieTvVibe(logs, mediaType) {
+    let genreCounts = {}, keywordCounts = {}, genreNames = {}, keywordNames = {};
+    const analyzePromises = logs.slice(0, 15).map(item => 
+        fetch(`https://api.themoviedb.org/3/${mediaType}/${item.media_id}?append_to_response=keywords`, {
+            headers: { Authorization: `Bearer ${TMDB_TOKEN}` }
+        }).then(r => r.json()).catch(() => null)
+    );
+    
+    const analyzedItems = await Promise.all(analyzePromises);
+    
+    analyzedItems.forEach((res, index) => {
+        if (!res) return;
+        const r = logs[index].rating;
+        const w = calculateWeight(r);
+        
+        (res.genres || []).forEach(g => {
+            genreCounts[g.id] = (genreCounts[g.id] || 0) + w;
+            genreNames[g.id] = g.name;
+        });
+        
+        const kw = mediaType === 'tv' ? (res.keywords?.results || []) : (res.keywords?.keywords || []);
+        kw.forEach(k => {
+            keywordCounts[k.id] = (keywordCounts[k.id] || 0) + w;
+            keywordNames[k.id] = k.name;
+        });
+    });
+    
+    const topGenres = Object.keys(genreCounts).sort((a, b) => genreCounts[b] - genreCounts[a]);
+    const topKeywords = Object.keys(keywordCounts).sort((a, b) => keywordCounts[b] - keywordCounts[a]);
+    
+    return {
+        topGenre: topGenres.length > 0 ? genreNames[topGenres[0]] : '',
+        topTheme: topKeywords.length > 0 ? keywordNames[topKeywords[0]] : ''
+    };
+}
+
+async function tallyBookVibe(logs) {
+    let bookCounts = {};
+    const bookPromises = logs.map(log => 
+        fetch(`https://openlibrary.org${log.media_id}.json`).then(r => r.json()).catch(() => null)
+    );
+    const booksData = await Promise.all(bookPromises);
+    
+    booksData.forEach((book, index) => {
+        if (book?.subjects) {
+            const r = logs[index].rating;
+            const w = calculateWeight(r);
+            book.subjects.forEach(s => {
+                const subjectName = typeof s === 'string' ? s : (s.name || '');
+                if (subjectName) {
+                    const cleanName = subjectName.toLowerCase().trim();
+                    bookCounts[cleanName] = (bookCounts[cleanName] || 0) + w;
+                }
+            });
+        }
+    });
+    const sortedBooks = Object.keys(bookCounts).sort((a, b) => bookCounts[b] - bookCounts[a]);
+    return sortedBooks.length > 0 ? sortedBooks[0] : '';
+}
+
+async function tallyAlbumVibe(logs) {
+    let musicCounts = {};
+    const musicPromises = logs.map(log => {
+        const decodedId = decodeURIComponent(log.media_id);
+        const [artist, album] = decodedId.split('|||');
+        return fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}&api_key=${LASTFM_KEY}&format=json`)
+            .then(r => r.json()).catch(() => null);
+    });
+    const musicData = await Promise.all(musicPromises);
+    
+    musicData.forEach((res, index) => {
+        if (res?.album?.tags?.tag) {
+            const r = logs[index].rating;
+            const w = calculateWeight(r);
+            res.album.tags.tag.forEach(t => {
+                if (t.name) {
+                    const cleanName = t.name.toLowerCase().trim();
+                    musicCounts[cleanName] = (musicCounts[cleanName] || 0) + w;
+                }
+            });
+        }
+    });
+    const sortedMusic = Object.keys(musicCounts).sort((a, b) => musicCounts[b] - musicCounts[a]);
+    return sortedMusic.length > 0 ? sortedMusic[0] : '';
 }
 
 async function calculateAndRenderVibe(mediaType) {
@@ -445,90 +556,16 @@ async function calculateAndRenderVibe(mediaType) {
         let topTheme = '';
 
         if (mediaType === 'movie' || mediaType === 'tv') {
-            let genreCounts = {}, keywordCounts = {}, genreNames = {}, keywordNames = {};
-            const analyzePromises = logs.slice(0, 15).map(item => 
-                fetch(`https://api.themoviedb.org/3/${mediaType}/${item.media_id}?append_to_response=keywords`, {
-                    headers: { Authorization: `Bearer ${TMDB_TOKEN}` }
-                }).then(r => r.json()).catch(() => null)
-            );
-            
-            const analyzedItems = await Promise.all(analyzePromises);
-            
-            analyzedItems.forEach((res, index) => {
-                if (!res) return;
-                const r = logs[index].rating;
-                let w = r === 5 ? 5 : (r >= 4.5 ? 2.5 : 1);
-                
-                (res.genres || []).forEach(g => {
-                    genreCounts[g.id] = (genreCounts[g.id] || 0) + w;
-                    genreNames[g.id] = g.name;
-                });
-                
-                const kw = mediaType === 'tv' ? (res.keywords?.results || []) : (res.keywords?.keywords || []);
-                kw.forEach(k => {
-                    keywordCounts[k.id] = (keywordCounts[k.id] || 0) + w;
-                    keywordNames[k.id] = k.name;
-                });
-            });
-            
-            const topGenres = Object.keys(genreCounts).sort((a, b) => genreCounts[b] - genreCounts[a]);
-            const topKeywords = Object.keys(keywordCounts).sort((a, b) => keywordCounts[b] - keywordCounts[a]);
-            
-            if (topGenres.length > 0) topGenre = genreNames[topGenres[0]];
-            if (topKeywords.length > 0) topTheme = keywordNames[topKeywords[0]];
-            
-            console.log(`🎬 Top ${mediaType.toUpperCase()} Genre: ${topGenre}`);
-            console.log(`🎬 Top ${mediaType.toUpperCase()} Theme: ${topTheme}`);
-
+            const result = await tallyMovieTvVibe(logs, mediaType);
+            topGenre = result.topGenre;
+            topTheme = result.topTheme;
+            console.log(`[I] Top ${mediaType.toUpperCase()}...\n     | Genre: ${topGenre}\n     | Theme: ${topTheme}`);
         } else if (mediaType === 'book') {
-            let bookCounts = {};
-            const bookPromises = logs.map(log => 
-                fetch(`https://openlibrary.org${log.media_id}.json`).then(r => r.json()).catch(() => null)
-            );
-            const booksData = await Promise.all(bookPromises);
-            
-            booksData.forEach((book, index) => {
-                if (book && book.subjects) {
-                    const r = logs[index].rating;
-                    let w = r === 5 ? 5 : (r >= 4.5 ? 2.5 : 1);
-                    book.subjects.forEach(s => {
-                        const subjectName = typeof s === 'string' ? s : (s.name || '');
-                        if (subjectName) {
-                            const cleanName = subjectName.toLowerCase().trim();
-                            bookCounts[cleanName] = (bookCounts[cleanName] || 0) + w;
-                        }
-                    });
-                }
-            });
-            const sortedBooks = Object.keys(bookCounts).sort((a, b) => bookCounts[b] - bookCounts[a]);
-            if (sortedBooks.length > 0) topGenre = sortedBooks[0];
-            console.log(`📚 Top Book Genre: ${topGenre}`);
-
+            topGenre = await tallyBookVibe(logs);
+            console.log(`[I] Top Book...\n     | Genre: ${topGenre}`);
         } else if (mediaType === 'album') {
-            let musicCounts = {};
-            const musicPromises = logs.map(log => {
-                const decodedId = decodeURIComponent(log.media_id);
-                const [artist, album] = decodedId.split('|||');
-                return fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}&api_key=${LASTFM_KEY}&format=json`)
-                    .then(r => r.json()).catch(() => null);
-            });
-            const musicData = await Promise.all(musicPromises);
-            
-            musicData.forEach((res, index) => {
-                if (res && res.album && res.album.tags && res.album.tags.tag) {
-                    const r = logs[index].rating;
-                    let w = r === 5 ? 5 : (r >= 4.5 ? 2.5 : 1);
-                    res.album.tags.tag.forEach(t => {
-                        if (t.name) {
-                            const cleanName = t.name.toLowerCase().trim();
-                            musicCounts[cleanName] = (musicCounts[cleanName] || 0) + w;
-                        }
-                    });
-                }
-            });
-            const sortedMusic = Object.keys(musicCounts).sort((a, b) => musicCounts[b] - musicCounts[a]);
-            if (sortedMusic.length > 0) topGenre = sortedMusic[0];
-            console.log(`🎵 Top Music Genre: ${topGenre}`);
+            topGenre = await tallyAlbumVibe(logs);
+            console.log(`[I] Top Music...\n     | Genre: ${topGenre}`);
         }
 
         updateAndRenderVibeFromDB(mediaType, topGenre, topTheme);
@@ -537,12 +574,114 @@ async function calculateAndRenderVibe(mediaType) {
     }
 }
 
+// --- GET FOR YOU ITEMS HELPERS ---
+
+function buildDiscoverUrls(mediaType, topGenres, topKeywords) {
+    const providerParams = `&with_watch_monetization_types=flatrate|free|ads`;
+    
+    const keywordUrls = topKeywords.map(keywordId => {
+        let url = `https://api.themoviedb.org/3/discover/${mediaType}?language=en-US&sort_by=popularity.desc&watch_region=US&page=1`;
+        url += `&with_genres=${topGenres.join('|')}&with_keywords=${keywordId}${providerParams}`;
+        return url;
+    });
+
+    const genreOnlyUrls = [1, 2].map(page => {
+        let url = `https://api.themoviedb.org/3/discover/${mediaType}?language=en-US&sort_by=popularity.desc&watch_region=US&page=${page}`;
+        url += `&with_genres=${topGenres.join('|')}${providerParams}`;
+        return url;
+    });
+
+    return { keywordUrls, genreOnlyUrls };
+}
+
+function evaluateProviderAvailability(item, userStreamingProviderIds) {
+    if (userStreamingProviderIds.length === 0) return true;
+    
+    const usProviders = item['watch/providers']?.results?.US || {};
+    const flatrateIds = (usProviders.flatrate || []).map(p => String(p.provider_id));
+    const freeIds = (usProviders.free || []).map(p => String(p.provider_id));
+    const adsIds = (usProviders.ads || []).map(p => String(p.provider_id));
+
+    const isOnUserServices = [...flatrateIds, ...freeIds, ...adsIds].some(id => userStreamingProviderIds.includes(id));
+    const isFreeAnywhere = freeIds.length > 0 || adsIds.length > 0;
+
+    return isOnUserServices || isFreeAnywhere;
+}
+
+const waitMs = ms => new Promise(res => setTimeout(res, ms));
+
+async function processDiscoverCandidates(urls, requireTheme, contextData, uniqueRecs, seenCandidateIds) {
+    const { topGenres, topKeywords, keywordCounts, genreCounts, loggedIds, userStreamingProviderIds, mediaType } = contextData;
+    
+    const pages = await Promise.all(
+        urls.map(u => fetch(u, { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } }).then(r => r.json()).catch(() => ({})))
+    );
+
+    let rawRecommendations = [];
+    pages.forEach(page => { if (page.results) rawRecommendations.push(...page.results); });
+
+    const newIds = [...new Set(rawRecommendations.map(i => i.id))]
+        .filter(id => !loggedIds.has(String(id)) && !seenCandidateIds.has(id));
+    newIds.forEach(id => seenCandidateIds.add(id));
+
+    if (newIds.length === 0) return;
+
+    const detailedCandidates = [];
+    for (const id of newIds) {
+        try {
+            const res = await fetch(`https://api.themoviedb.org/3/${mediaType}/${id}?append_to_response=keywords,watch/providers`, {
+                headers: { Authorization: `Bearer ${TMDB_TOKEN}` }
+            });
+            if (res.status === 429) {
+                console.warn(`[WARNING] TMDB Rate Limit hit for item ID: ${id}. Waiting before retry...`);
+                await waitMs(500); // Back off if a 429 slips through
+                continue;
+            }
+            const data = await res.json();
+            detailedCandidates.push(data);
+        } catch (err) {
+            console.error(`Failed fetching candidate details for ID ${id}:`, err);
+            detailedCandidates.push(null);
+        }
+        await waitMs(50); // Safe 50ms pacing interval between external lookups
+    }
+
+    detailedCandidates.forEach(item => {
+        if (!item?.id) return;
+
+        const hasTopGenre = (item.genres || []).some(g => topGenres.includes(String(g.id)));
+        if (!hasTopGenre) return;
+
+        if (!evaluateProviderAvailability(item, userStreamingProviderIds)) return;
+
+        let themeScore = 0;
+        let genreScore = 0;
+
+        const keywordsArray = item.keywords?.keywords || item.keywords?.results || [];
+        keywordsArray.forEach(k => {
+            if (topKeywords.includes(String(k.id))) {
+                themeScore += keywordCounts[k.id];
+            }
+        });
+
+        if (requireTheme && themeScore === 0) return;
+
+        (item.genres || []).forEach(g => {
+            if (topGenres.includes(String(g.id))) {
+                genreScore += genreCounts[g.id];
+            }
+        });
+
+        const finalScore = (themeScore * 1000) + genreScore + (item.popularity / 10000);
+        uniqueRecs.set(item.id, { ...item, _score: finalScore });
+    });
+}
+
 async function getForYouItems(mediaType) {
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) return [];
 
     try {
-        // 1. Fetch up to 25 highly-rated items
         const { data: highlyRated } = await supabaseClient
             .from('media_logs')
             .select('media_id, rating') 
@@ -550,17 +689,11 @@ async function getForYouItems(mediaType) {
             .eq('media_type', mediaType)
             .gte('rating', 4)
             .order('rating', { ascending: false })
-            .order('created_at', { ascending: false })
             .limit(25);
 
         if (!highlyRated || highlyRated.length === 0) return [];
 
-        let genreCounts = {};
-        let keywordCounts = {};
-        let genreNames = {};
-        let keywordNames = {};
-        
-        // 2. Fetch TMDB data for ALL 25 items simultaneously
+        let genreCounts = {}, keywordCounts = {}, genreNames = {}, keywordNames = {};
         const analyzePromises = highlyRated.map(item => 
             fetch(`https://api.themoviedb.org/3/${mediaType}/${item.media_id}?append_to_response=keywords`, {
                 headers: { Authorization: `Bearer ${TMDB_TOKEN}` }
@@ -569,21 +702,15 @@ async function getForYouItems(mediaType) {
         
         const analyzedItems = await Promise.all(analyzePromises);
 
-        // 3. Tally genres and keywords with aggressive weighting
         analyzedItems.forEach((res, index) => {
             if (!res) return;
-            
             const itemRating = highlyRated[index].rating;
-            
-            let weight = 1; 
-            if (itemRating === 5) weight = 5;       
-            else if (itemRating >= 4.5) weight = 2.5; 
+            let weight = itemRating === 5 ? 5 : (itemRating >= 4.5 ? 2.5 : 1);
 
             (res.genres || []).forEach(g => {
                 genreCounts[g.id] = (genreCounts[g.id] || 0) + weight;
                 genreNames[g.id] = g.name; 
             });
-            
             const keywordsArray = res.keywords?.keywords || res.keywords?.results || [];
             keywordsArray.forEach(k => {
                 keywordCounts[k.id] = (keywordCounts[k.id] || 0) + weight;
@@ -591,20 +718,11 @@ async function getForYouItems(mediaType) {
             });
         });
 
-        // 4. STRICT EXTRACTION: Top 3 Genres and Top 5 Keywords
         const topGenres = Object.keys(genreCounts).sort((a, b) => genreCounts[b] - genreCounts[a]).slice(0, 3);
         const topKeywords = Object.keys(keywordCounts).sort((a, b) => keywordCounts[b] - keywordCounts[a]).slice(0, 5);
 
-        console.log(`🎬 --- ${mediaType.toUpperCase()} TASTE PROFILE (TARGETED) --- 🎬`);
-        console.log("Top 3 Genres");
-        console.table(topGenres.map(id => ({ Genre: genreNames[id], Score: genreCounts[id] })));
-        console.log("Top 5 Themes/Keywords");
-        console.table(topKeywords.map(id => ({ Theme: keywordNames[id], Score: keywordCounts[id] })));
-        console.log("-------------------------------------------------");
-
         if (topGenres.length === 0 || topKeywords.length === 0) return [];
 
-        // 5. Fetch all logged items to prevent duplicate recommendations
         const { data: allDiary } = await supabaseClient
             .from('media_logs')
             .select('media_id')
@@ -612,144 +730,29 @@ async function getForYouItems(mediaType) {
             .eq('media_type', mediaType);
             
         const loggedIds = new Set((allDiary || []).map(d => String(d.media_id)));
+        const { keywordUrls, genreOnlyUrls } = buildDiscoverUrls(mediaType, topGenres, topKeywords);
 
-        // 6. TARGETED DISCOVERY FETCH (+ provider filter + backfill)
-        // Instead of one big OR search, we fetch page(s) SPECIFICALLY for each of your top 5 themes.
-        // This guarantees the blockbusters in theme #5 can't crowd out the niche films in theme #1.
-        // If the user has picked streaming services in Settings, we also constrain the discovery
-        // itself to titles available (subscription OR free/ad-supported) on one of those platforms.
-        const hasProviderFilter = userStreamingProviderIds.length > 0;
-        // Ask TMDB for subscriptions, fully free, AND free-with-ads
-        const providerParams = `&with_watch_monetization_types=flatrate|free|ads`;
-
-        const buildKeywordUrl = (keywordId, page) => {
-            let url = `https://api.themoviedb.org/3/discover/${mediaType}?language=en-US&sort_by=popularity.desc&watch_region=US&page=${page}`;
-            url += `&with_genres=${topGenres.join('|')}`; // Must have a top genre
-            url += `&with_keywords=${keywordId}`;          // MUST have THIS specific theme
-            url += providerParams;
-            return url;
-        };
-
-        const buildGenreOnlyUrl = (page) => {
-            // Relaxed fallback used only when provider-filtering shrinks the pool too much:
-            // drops the strict keyword requirement but keeps genre + provider constraints.
-            let url = `https://api.themoviedb.org/3/discover/${mediaType}?language=en-US&sort_by=popularity.desc&watch_region=US&page=${page}`;
-            url += `&with_genres=${topGenres.join('|')}`;
-            url += providerParams;
-            return url;
-        };
-
-        const TARGET_COUNT = 12;
-        const MAX_KEYWORD_PAGES = 3; // cap API usage while backfilling
-        const seenCandidateIds = new Set();
+        const contextData = { topGenres, topKeywords, keywordCounts, genreCounts, loggedIds, userStreamingProviderIds, mediaType };
         const uniqueRecs = new Map();
+        const seenCandidateIds = new Set();
 
-        // 7 & 8 combined: fetch a batch of discover URLs, deep-fetch details (+ real-time
-        // watch/providers availability in the SAME request), score, and verify availability.
-        async function processDiscoverUrls(urls, requireTheme = true) {
-            const pages = await Promise.all(
-                urls.map(u => fetch(u, { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } }).then(r => r.json()).catch(() => ({})))
-            );
+        await processDiscoverCandidates(keywordUrls, true, contextData, uniqueRecs, seenCandidateIds);
 
-            let rawRecommendations = [];
-            pages.forEach(page => { if (page.results) rawRecommendations.push(...page.results); });
-
-            const newIds = [...new Set(rawRecommendations.map(i => i.id))]
-                .filter(id => !loggedIds.has(String(id)) && !seenCandidateIds.has(id));
-            newIds.forEach(id => seenCandidateIds.add(id));
-
-            if (newIds.length === 0) return;
-
-            const detailedCandidates = await Promise.all(newIds.map(id =>
-                fetch(`https://api.themoviedb.org/3/${mediaType}/${id}?append_to_response=keywords,watch/providers`, {
-                    headers: { Authorization: `Bearer ${TMDB_TOKEN}` }
-                }).then(r => r.json()).catch(() => null)
-            ));
-
-            detailedCandidates.forEach(item => {
-                if (!item || !item.id) return;
-
-                // RULE 1: Must contain a top genre
-                const hasTopGenre = (item.genres || []).some(g => topGenres.includes(String(g.id)));
-                if (!hasTopGenre) return;
-
-                // RULE 2 (only when the user has picked services): double-check the title is
-                // ACTUALLY available (subscription or free/ad-supported, e.g. Tubi/Roku Channel)
-                // on one of their chosen platforms right now, independent of the discover filter.
-                if (hasProviderFilter) {
-                    const usProviders = (item['watch/providers'] && item['watch/providers'].results && item['watch/providers'].results.US) || {};
-                    
-                    // Group availability into distinct monetization types
-                    const flatrateIds = (usProviders.flatrate || []).map(p => String(p.provider_id));
-                    const freeIds = (usProviders.free || []).map(p => String(p.provider_id));
-                    const adsIds = (usProviders.ads || []).map(p => String(p.provider_id));
-
-                    // Rule 1: Is it available on the user's selected streaming services?
-                    const isOnUserServices = [...flatrateIds, ...freeIds, ...adsIds].some(id => userStreamingProviderIds.includes(id));
-
-                    // Rule 2: If it's not on their services, is it $0 to watch somewhere else? 
-                    // (This allows fully free OR free-with-ads like Tubi/Roku)
-                    const isFreeAnywhere = freeIds.length > 0;
-                    const isFreeWithAdsAnywhere = adsIds.length > 0;
-
-                    // Enforce the rule: Must be on their services OR $0 to watch.
-                    // Drops anything that requires a new paid subscription, rental, or purchase.
-                    if (!isOnUserServices && !isFreeAnywhere && !isFreeWithAdsAnywhere) {
-                        return; 
-                    }
-                }
-
-                let themeScore = 0;
-                let genreScore = 0;
-
-                // Score Themes
-                const keywordsArray = item.keywords?.keywords || item.keywords?.results || [];
-                keywordsArray.forEach(k => {
-                    if (topKeywords.includes(String(k.id))) {
-                        themeScore += keywordCounts[k.id];
-                    }
-                });
-
-                if (requireTheme && themeScore === 0) return;
-
-                // Score Genres
-                (item.genres || []).forEach(g => {
-                    if (topGenres.includes(String(g.id))) {
-                        genreScore += genreCounts[g.id];
-                    }
-                });
-
-                // The Math: A movie with your #1 theme (40 pts -> 40,000) will easily beat
-                // a movie with your #5 theme (30 pts -> 30,000), even if it's less popular.
-                const finalScore = (themeScore * 1000) + genreScore + (item.popularity / 10000);
-
-                uniqueRecs.set(item.id, { ...item, _score: finalScore });
-            });
+        if (userStreamingProviderIds.length > 0 && uniqueRecs.size < 12) {
+            await processDiscoverCandidates(genreOnlyUrls, false, contextData, uniqueRecs, seenCandidateIds);
         }
 
-        // Pass 1: page 1 for each top keyword (matches previous behavior)
-        await processDiscoverUrls(topKeywords.map(k => buildKeywordUrl(k, 1)));
-
-        // Backfill: only needed when provider-filtering shrinks the pool below target.
-        if (hasProviderFilter) {
-            for (let page = 2; page <= MAX_KEYWORD_PAGES && uniqueRecs.size < TARGET_COUNT; page++) {
-                await processDiscoverUrls(topKeywords.map(k => buildKeywordUrl(k, page)));
-            }
-            for (let page = 1; page <= 2 && uniqueRecs.size < TARGET_COUNT; page++) {
-                await processDiscoverUrls([buildGenreOnlyUrl(page)], false);
-            }
-        }
-        const finalRecs = Array.from(uniqueRecs.values())
+        return Array.from(uniqueRecs.values())
             .sort((a, b) => b._score - a._score)
-            .slice(0, 12);
-        return finalRecs.map(item => ({
-            title: item.title || item.name,
-            year: (item.release_date || item.first_air_date || '').split('-')[0],
-            image: `https://image.tmdb.org/t/p/w500${item.poster_path}`,
-            type: mediaType,
-            id: item.id,
-            isForYou: true 
-        }));
+            .slice(0, 12)
+            .map(item => ({
+                title: item.title || item.name,
+                year: (item.release_date || item.first_air_date || '').split('-')[0],
+                image: `https://image.tmdb.org/t/p/w500${item.poster_path}`,
+                type: mediaType,
+                id: item.id,
+                isForYou: true 
+            }));
     } catch (err) {
         console.error("For you fetch error:", err);
         return [];
@@ -792,7 +795,9 @@ function maybeShowServicesNudge() {
             localStorage.setItem('catalogd_services_nudge_dismissed', 'true');
             modal.remove();
         };
-    }).catch(() => {});
+    }).catch((err) => { 
+        console.warn("Nudge check failed:", err);
+    });
 }
 
 function renderResults(items, targetGrid = resultsGrid) {
@@ -801,7 +806,7 @@ function renderResults(items, targetGrid = resultsGrid) {
     items.forEach(item => {
         const card = document.createElement('div');
         card.className = 'media-card';
-        card.setAttribute('data-type', item.type);
+        card.dataset.type = item.type;
         
         card.onclick = () => {
             if (item.type === 'person') window.location.href = `cast.html?personId=${item.id}`;
@@ -868,27 +873,82 @@ window.switchTab = function(type) {
     }
 };
 
+// --- UNIFIED SEARCH HELPERS ---
+
+async function fetchSearchData(query, filterValue, payload) {
+    const fetchPromises = [];
+    const options = { method: 'GET', headers: { accept: 'application/json', Authorization: `Bearer ${TMDB_TOKEN}` } };
+
+    if (['all', 'movie', 'tv', 'person'].includes(filterValue)) {
+        let endpoint = filterValue === 'all' ? 'search/multi' : `search/${filterValue}`;
+        fetchPromises.push(
+            fetch(`https://api.themoviedb.org/3/${endpoint}?query=${encodeURIComponent(query)}`, options)
+                .then(r => r.json()).then(d => payload.tmdbRes = d)
+        );
+    }
+    if (['all', 'book'].includes(filterValue)) {
+        fetchPromises.push(fetchBooks(query).then(d => payload.bookData = d));
+    }
+    if (['all', 'author'].includes(filterValue)) {
+        fetchPromises.push(fetchAuthors(query).then(d => payload.authorData = d));
+    }
+    if (['all', 'user'].includes(filterValue)) {
+        fetchPromises.push(
+            supabaseClient.from('profiles').select('id, username, display_name, avatar_url')
+                .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`).limit(10)
+                .then(res => payload.users = res.data || [])
+        );
+    }
+    if (['all', 'album'].includes(filterValue)) {
+        fetchPromises.push(
+            fetch(`https://ws.audioscrobbler.com/2.0/?method=album.search&album=${encodeURIComponent(query)}&api_key=${LASTFM_KEY}&format=json`)
+                .then(r => r.json()).then(res => {
+                    if (res.results?.albummatches?.album) {
+                        payload.lastfmAlbums = res.results.albummatches.album.map(a => ({
+                            id: encodeURIComponent(`${a.artist}|||${a.name}`),
+                            title: a.name, type: 'album', image: a.image?.[3]?.['#text'] || 'https://via.placeholder.com/500x750?text=No+Image', author: a.artist
+                        }));
+                    }
+                }).catch(err => console.error("Last.fm search error:", err))
+        );
+    }
+    await Promise.all(fetchPromises);
+}
+
+function sortSearchResults(combined, query) {
+    const q = query.toLowerCase().trim();
+    combined.sort((a, b) => {
+        const aTitle = a.title.toLowerCase();
+        const bTitle = b.title.toLowerCase();
+        if (aTitle === q && bTitle !== q) return -1;
+        if (bTitle === q && aTitle !== q) return 1;
+        const aStarts = aTitle.startsWith(q);
+        const bStarts = bTitle.startsWith(q);
+        if (aStarts && !bStarts) return -1;
+        if (bStarts && !aStarts) return 1;
+        return 0; 
+    });
+}
+
 async function unifiedSearch(query) {
     const filterNav = document.querySelector('.filter-nav');
     const filterValue = document.getElementById('search-filter').value;
     const sectionTitle = document.getElementById('section-title');
 
-    if (!query || query.trim() === "") {
+    if (!query?.trim()) {
         const url = new URL(window.location);
         url.searchParams.delete('search');
         window.history.pushState({}, '', url);
-        
-        filterNav.style.display = 'flex'; 
+        if (filterNav) filterNav.style.display = 'flex'; 
         if (currentTab !== 'youtube') loadTabContent(currentTab); 
         return;
     }
 
-    const ytRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+    const ytRegex = /(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|embed)\/|.*[?&]v=)|youtu\.be\/)([^"&?/\s]{11})/;
     const ytMatch = query.match(ytRegex);
 
     if (ytMatch || currentTab === 'youtube') {
-        if (ytMatch && ytMatch[1]) {
-            // We found a valid 11-character video ID! Redirect immediately.
+        if (ytMatch?.[1]) {
             window.location.href = `details.html?id=${ytMatch[1]}&type=youtube`;
         } else {
             loader.textContent = "Please enter a valid YouTube URL.";
@@ -897,162 +957,56 @@ async function unifiedSearch(query) {
         return; 
     }
 
-    filterNav.style.display = 'none'; 
+    if (filterNav) filterNav.style.display = 'none'; 
     if (sectionTitle) sectionTitle.textContent = `Search Results for "${query}"`;
-
-    filterNav.style.display = 'none'; 
-    if (sectionTitle) sectionTitle.textContent = `Search Results for "${query}"`; // Update title for search
 
     loader.style.display = 'block';
     loader.textContent = "Exploring the archives...";
     resultsGrid.innerHTML = '';
 
-    const options = {
-        method: 'GET',
-        headers: { accept: 'application/json', Authorization: `Bearer ${TMDB_TOKEN}` }
-    };
-
     try {
-        let tmdbRes = { results: [] };
-        let bookData = [];
-        let authorData = [];
-        let users = [];
-        let lastfmAlbums = [];
-        const fetchPromises = [];
-
-        // 1. TMDB Data (Movies, TV, People)
-        if (['all', 'movie', 'tv', 'person'].includes(filterValue)) {
-            let endpoint = 'search/multi';
-            if (filterValue === 'movie') endpoint = 'search/movie';
-            if (filterValue === 'tv') endpoint = 'search/tv';
-            if (filterValue === 'person') endpoint = 'search/person';
-            
-            fetchPromises.push(
-                fetch(`https://api.themoviedb.org/3/${endpoint}?query=${encodeURIComponent(query)}`, options)
-                    .then(r => r.json())
-                    .then(d => tmdbRes = d)
-            );
-        }
-
-        // 2. OpenLibrary Data (Books)
-        if (['all', 'book'].includes(filterValue)) {
-            fetchPromises.push(fetchBooks(query).then(d => bookData = d));
-        }
-
-        // 3. OpenLibrary Data (Authors)
-        if (['all', 'author'].includes(filterValue)) {
-            fetchPromises.push(fetchAuthors(query).then(d => authorData = d));
-        }
-
-        // 4. Supabase Data (Users)
-        if (['all', 'user'].includes(filterValue)) {
-            fetchPromises.push(
-                supabaseClient
-                    .from('profiles')
-                    .select('id, username, display_name, avatar_url')
-                    .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
-                    .limit(10)
-                    .then(res => users = res.data || [])
-            );
-        }
-
-        if (['all', 'album'].includes(filterValue)) {
-            fetchPromises.push(
-                fetch(`https://ws.audioscrobbler.com/2.0/?method=album.search&album=${encodeURIComponent(query)}&api_key=${LASTFM_KEY}&format=json`)
-                .then(r => r.json())
-                .then(res => {
-                    if (res.results && res.results.albummatches && res.results.albummatches.album) {
-                        lastfmAlbums = res.results.albummatches.album.map(a => {
-                            let img = 'https://via.placeholder.com/500x750?text=No+Image';
-                            if (a.image && a.image.length > 3 && a.image[3]['#text']) {
-                                img = a.image[3]['#text'];
-                            }
-                            const compositeId = encodeURIComponent(`${a.artist}|||${a.name}`);
-                            return {
-                                id: compositeId,
-                                title: a.name,
-                                type: 'album',
-                                image: img,
-                                author: a.artist
-                            };
-                        });
-                    }
-                })
-                .catch(err => console.error("Last.fm search error:", err))
-            );
-        }
-
-        // Run all required fetches simultaneously
-        await Promise.all(fetchPromises);
+        const payload = { tmdbRes: { results: [] }, bookData: [], authorData: [], users: [], lastfmAlbums: [] };
+        await fetchSearchData(query, filterValue, payload);
 
         const seenNames = new Set();
-        
-        // Process Users
-        const mappedUsers = users.map(u => ({
-            title: u.display_name || u.username,
-            year: `@${u.username}`,
-            image: u.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.display_name || u.username)}&background=1b2228&color=9ab&size=512&font-size=0.33`,
-            type: 'user',
-            id: u.id
+        const mappedUsers = payload.users.map(u => ({
+            title: u.display_name || u.username, year: `@${u.username}`,
+            image: u.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.display_name || u.username)}&background=1b2228&color=9ab&size=512`,
+            type: 'user', id: u.id
         }));
 
-        // Process Authors
-        const processedAuthors = authorData.filter(author => {
+        const processedAuthors = payload.authorData.filter(author => {
             const nameKey = author.title.toLowerCase();
             if (seenNames.has(nameKey)) return false;
             seenNames.add(nameKey);
             return true;
         });
 
-        // Process TMDB
-        const tmdbResults = (tmdbRes.results || [])
-            .map(item => {
-                if (item.media_type === 'person' || filterValue === 'person') {
-                    const nameKey = item.name.toLowerCase();
-                    if (seenNames.has(nameKey)) return null; 
-                    seenNames.add(nameKey);
-                    return {
-                        title: item.name,
-                        year: item.known_for_department || 'Person',
-                        image: item.profile_path 
-                            ? `https://image.tmdb.org/t/p/w500${item.profile_path}` 
-                            : `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=1b2228&color=9ab&size=512`,
-                        type: 'person',
-                        id: item.id
-                    };
-                } else if (item.poster_path || item.backdrop_path) {
-                    // TMDB multi-search returns media_type, specific endpoints (like search/movie) don't always, so we fallback to the filterValue
-                    return {
-                        title: item.title || item.name,
-                        year: (item.release_date || item.first_air_date || '').split('-')[0],
-                        image: `https://image.tmdb.org/t/p/w500${item.poster_path || item.backdrop_path}`,
-                        type: item.media_type || filterValue, 
-                        id: item.id
-                    };
-                }
-                return null;
-            }).filter(Boolean);
+        const tmdbResults = (payload.tmdbRes.results || []).map(item => {
+            if (item.media_type === 'person' || filterValue === 'person') {
+                const nameKey = item.name.toLowerCase();
+                if (seenNames.has(nameKey)) return null; 
+                seenNames.add(nameKey);
+                return {
+                    title: item.name, year: item.known_for_department || 'Person',
+                    image: item.profile_path ? `https://image.tmdb.org/t/p/w500${item.profile_path}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=1b2228&color=9ab&size=512`,
+                    type: 'person', id: item.id
+                };
+            } else if (item.poster_path || item.backdrop_path) {
+                return {
+                    title: item.title || item.name, year: (item.release_date || item.first_air_date || '').split('-')[0],
+                    image: `https://image.tmdb.org/t/p/w500${item.poster_path || item.backdrop_path}`, type: item.media_type || filterValue, id: item.id
+                };
+            }
+            return null;
+        }).filter(Boolean);
 
-        // Combine and Sort
-        let combined = [...mappedUsers, ...processedAuthors, ...tmdbResults, ...bookData, ...lastfmAlbums];
-        
-        // Force filter just to be safe (in case an API returned something weird)
+        let combined = [...mappedUsers, ...processedAuthors, ...tmdbResults, ...payload.bookData, ...payload.lastfmAlbums];
         if (filterValue !== 'all') {
             combined = combined.filter(item => item.type === filterValue);
         }
 
-        const q = query.toLowerCase().trim();
-        combined.sort((a, b) => {
-            const aTitle = a.title.toLowerCase();
-            const bTitle = b.title.toLowerCase();
-            if (aTitle === q && bTitle !== q) return -1;
-            if (bTitle === q && aTitle !== q) return 1;
-            const aStarts = aTitle.startsWith(q);
-            const bStarts = bTitle.startsWith(q);
-            if (aStarts && !bStarts) return -1;
-            if (bStarts && !aStarts) return 1;
-            return 0; 
-        });
+        sortSearchResults(combined, query);
         
         if (combined.length === 0) {
             loader.textContent = "No results found.";
@@ -1067,21 +1021,25 @@ async function unifiedSearch(query) {
 }
 
 async function fetchBooks(query) {
-    // Increased limit to 50 and removed strict cover filter to improve discovery
     const url = `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=50`;
     const res = await fetch(url);
     const data = await res.json();
     return (data.docs || [])
-        .map(doc => ({
-            title: doc.title,
-            year: doc.first_publish_year,
-            author: doc.author_name ? doc.author_name[0] : null,
-            image: doc.cover_i 
+        .map(doc => {
+            const author = doc.author_name?.[0] || null;
+            const image = doc.cover_i 
                 ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg` 
-                : `https://via.placeholder.com/500x750?text=${encodeURIComponent(doc.title)}`,
-            type: 'book',
-            id: doc.key
-        }));
+                : `https://via.placeholder.com/500x750?text=${encodeURIComponent(doc.title)}`;
+                
+            return {
+                title: doc.title,
+                year: doc.first_publish_year,
+                author: author,
+                image: image,
+                type: 'book',
+                id: doc.key
+            };
+        });
 }
 
 async function fetchAuthors(query) {
@@ -1097,10 +1055,14 @@ async function fetchAuthors(query) {
                 if (seenAuthorNames.has(nameKey)) return null;
                 seenAuthorNames.add(nameKey);
                 
+                const image = doc.key 
+                    ? `https://covers.openlibrary.org/a/olid/${doc.key}-M.jpg` 
+                    : `https://ui-avatars.com/api/?name=${encodeURIComponent(doc.name)}&background=1b2228&color=9ab&size=512`;
+
                 return {
                     title: doc.name,
                     year: 'Author',
-                    image: doc.key ? `https://covers.openlibrary.org/a/olid/${doc.key}-M.jpg` : `https://ui-avatars.com/api/?name=${encodeURIComponent(doc.name)}&background=1b2228&color=9ab&size=512`,
+                    image: image,
                     type: 'author',
                     id: doc.key
                 };
