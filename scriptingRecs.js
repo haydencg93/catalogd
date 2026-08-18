@@ -160,21 +160,21 @@ function setupLiveSearch() {
                 // Populate Movies
                 (movieRes.results || []).slice(0, 3).forEach(item => {
                     const year = item.release_date ? ` (${item.release_date.split('-')[0]})` : "";
-                    const img = item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : 'https://via.placeholder.com/92x138?text=No+Image';
+                    const img = item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : 'https://placehold.co/92x138/1b2228/9ab?text=No+Image';
                     searchResults.appendChild(createSearchRow(item.id, item.title, year, 'movie', img, "Movie"));
                 });
 
                 // Populate TV
                 (tvRes.results || []).slice(0, 3).forEach(item => {
                     const year = item.first_air_date ? ` (${item.first_air_date.split('-')[0]})` : "";
-                    const img = item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : 'https://via.placeholder.com/92x138?text=No+Image';
+                    const img = item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : 'https://placehold.co/92x138/1b2228/9ab?text=No+Image';
                     searchResults.appendChild(createSearchRow(item.id, item.name, year, 'tv', img, "TV Show"));
                 });
 
                 // Populate Books
                 (bookRes.docs || []).slice(0, 3).forEach(book => {
                     const year = book.first_publish_year ? ` (${book.first_publish_year})` : "";
-                    const img = book.cover_i ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg` : 'https://via.placeholder.com/92x138?text=No+Cover';
+                    const img = book.cover_i ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg` : 'https://placehold.co/92x138/1b2228/9ab?text=No+Cover';
                     const author = book.author_name ? book.author_name[0] : "Unknown Author";
                     searchResults.appendChild(createSearchRow(book.key, book.title, year, 'book', img, author));
                 });
@@ -261,7 +261,7 @@ generateBtn.addEventListener('click', async () => {
                 'Authorization': `Bearer ${configData.supabase_key}` 
             },
             body: JSON.stringify({
-                favoriteIds: favoriteInputs.map(f => f.universalId), // Sending pure integers!
+                favoriteIds: favoriteInputs.map(f => f.universalId), 
                 desiredOutputs: desiredOutputs
             })
         });
@@ -277,7 +277,7 @@ generateBtn.addEventListener('click', async () => {
 
     } catch (error) {
         console.error("[E] Recommendation Pipeline Error:", error);
-        statusMsg.textContent = error.message;
+        statusMsg.textContent = "AI Engine is currently unavailable.";
         statusMsg.style.color = "#ff4d4d";
     } finally {
         generateBtn.disabled = false;
@@ -285,8 +285,8 @@ generateBtn.addEventListener('click', async () => {
     }
 });
 
-// 4. Render the Results with Lazy Loading Posters
-function renderRecommendations(recs) {
+// 4. Render the Results (Ensures up to 12 VISIBLE cards, Free services bypass filter)
+async function renderRecommendations(recs) {
     if (!recs || recs.length === 0) {
         statusMsg.textContent = "No recommendations found. Try adding different items!";
         statusMsg.style.color = "#ffb347";
@@ -299,21 +299,83 @@ function renderRecommendations(recs) {
         resultsHeader.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 100);
 
-    window.visibleRecsCount = recs.length;
+    const toggle = document.getElementById('services-toggle');
+    const filterStreaming = toggle && toggle.checked && userStreamingServices.length > 0;
 
-    recs.forEach(rec => {
+    let visibleCount = 0;
+    const targetCount = 12;
+
+    for (const rec of recs) {
+        if (visibleCount >= targetCount) break;
+
+        // Check availability before rendering if filter is enabled
+        let posterUrl = null;
+        let isAvailable = true;
+
+        if (rec.media_type === 'movie' || rec.media_type === 'tv') {
+            try {
+                const res = await fetch(`https://api.themoviedb.org/3/${rec.media_type}/${rec.id}?append_to_response=watch/providers`, {
+                    headers: { Authorization: `Bearer ${configData.tmdb_token}` }
+                }).then(r => r.json());
+
+                if (filterStreaming) {
+                    const providers = res['watch/providers']?.results?.US;
+                    let subscriptionProviderIds = [];
+                    let hasFreeOptions = false;
+
+                    if (providers) {
+                        // Collect paid subscriptions to check against user's list
+                        if (providers.flatrate) {
+                            subscriptionProviderIds.push(...providers.flatrate.map(p => String(p.provider_id)));
+                        }
+                        
+                        // Check if it's available for free or with ads
+                        if ((providers.free && providers.free.length > 0) || (providers.ads && providers.ads.length > 0)) {
+                            hasFreeOptions = true;
+                        }
+                    }
+
+                    // It's available if it's free anywhere, OR if the user subscribes to the required service
+                    isAvailable = hasFreeOptions || subscriptionProviderIds.some(id => userStreamingServices.includes(id));
+                }
+
+                if (res.poster_path) {
+                    posterUrl = `https://image.tmdb.org/t/p/w185${res.poster_path}`;
+                }
+            } catch (e) {
+                console.error(`Error checking details for ${rec.title}:`, e);
+            }
+        } else if (rec.media_type === 'book') {
+            try {
+                const rawNum = parseInt(rec.id) - 100000000;
+                const res = await fetch(`https://openlibrary.org/works/OL${rawNum}W.json`).then(r => r.json());
+                if (res.covers && res.covers.length > 0) {
+                    posterUrl = `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg`;
+                }
+            } catch (e) {
+                console.error(`Error checking book cover:`, e);
+            }
+        }
+
+        // If streaming filter is on and item is not available, skip it
+        if (filterStreaming && !isAvailable) {
+            continue;
+        }
+
+        // Create and append the card
+        visibleCount++;
         const card = document.createElement('div');
-        card.id = `rec-card-${rec.id}`; // <-- Add the dynamic ID
+        card.id = `rec-card-${rec.id}`;
         card.className = 'rec-horizontal-card';
         card.onclick = () => {
             window.location.href = `details.html?id=${encodeURIComponent(rec.id)}&type=${rec.media_type}`;
         };
-        
+
         const shortOverview = rec.overview ? rec.overview.substring(0, 130) + '...' : 'No overview available.';
-        const imgId = `poster-${rec.id}`;
+        const fallbackPoster = 'https://placehold.co/120x180/1b2228/9ab?text=No+Poster';
 
         card.innerHTML = `
-            <img id="${imgId}" class="rec-poster" src="https://via.placeholder.com/120x180/1b2228/9ab?text=Loading..." alt="Poster">
+            <img class="rec-poster" src="${posterUrl || fallbackPoster}" alt="Poster">
             <div class="rec-info">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                     <span class="badge badge-${rec.media_type}">${rec.media_type}</span>
@@ -323,11 +385,14 @@ function renderRecommendations(recs) {
                 <div class="meta" style="font-size: 0.85rem; line-height: 1.4; color: #9ab; margin-top: 8px;">${shortOverview}</div>
             </div>
         `;
-        
-        resultsGrid.appendChild(card);
 
-        fetchPosterAndAvail(rec, imgId, `rec-card-${rec.id}`); 
-    });
+        resultsGrid.appendChild(card);
+    }
+
+    if (visibleCount === 0) {
+        statusMsg.textContent = "Matches found, but none are on your streaming services. Try unchecking the filter!";
+        statusMsg.style.color = "#ffb347";
+    }
 }
 
 // 5. The Lazy Loader and Availability Checker
@@ -378,7 +443,7 @@ async function fetchPosterAndAvail(rec, imgElementId, cardId) {
             if (res.poster_path) {
                 imgEl.src = `https://image.tmdb.org/t/p/w185${res.poster_path}`;
             } else {
-                imgEl.src = 'https://via.placeholder.com/120x180/1b2228/9ab?text=No+Poster';
+                imgEl.src = 'https://placehold.co/120x180/1b2228/9ab?text=No+Poster';
             }
         } 
         else if (rec.media_type === 'book') {
@@ -388,12 +453,12 @@ async function fetchPosterAndAvail(rec, imgElementId, cardId) {
             if (res.covers && res.covers.length > 0) {
                 imgEl.src = `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg`;
             } else {
-                imgEl.src = 'https://via.placeholder.com/120x180/1b2228/9ab?text=No+Cover';
+                imgEl.src = 'https://placehold.co/120x180/1b2228/9ab?text=No+Cover';
             }
         }
     } catch (e) {
         console.error(`Error fetching poster for ${rec.title}:`, e);
-        imgEl.src = 'https://via.placeholder.com/120x180/1b2228/ff4d4d?text=Error';
+        imgEl.src = 'https://placehold.co/120x180/1b2228/ff4d4d?text=Error';
     }
 }
 

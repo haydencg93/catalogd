@@ -78,9 +78,9 @@ serve(async (req) => {
         match: { value: type }
     }));
 
-    const searchResults = await qdrant.search('movies', {
-        vector: targetVector,
-        limit: 25, 
+    const searchResults = await qdrant.query('movies', {
+        query: targetVector, 
+        limit: 100,
         filter: {
             must: [
                 {
@@ -96,8 +96,8 @@ serve(async (req) => {
         with_payload: true
     });
 
-    // 4. Format the output directly from Qdrant's payload
-    const finalRecs = searchResults.map(res => ({
+    const pointsArray = searchResults.points || [];
+    const finalRecs = pointsArray.map(res => ({
         id: res.id,
         title: res.payload?.title || "Unknown Title",
         media_type: res.payload?.media_type || "movie",
