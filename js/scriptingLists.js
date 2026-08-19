@@ -12,7 +12,7 @@ let isManagingLists = false;
 let listsSortableInstance = null;
 
 async function initLists() {
-    const response = await fetch('config.json');
+    const response = await fetch('../config/config.json');
     const config = await response.json();
     lastfmKey = config.lastfm_key;
     tmdbToken = config.tmdb_token;

@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Catalogd | Diary</title>
-    <link rel="stylesheet" href="stylingIndex.css">
-    <link rel="stylesheet" href="stylingDiary.css">
-    <link rel="icon" type="image/x-icon" href="catalogdFavicon.png" />
+    <link rel="stylesheet" href="css/stylingIndex.css">
+    <link rel="stylesheet" href="css/stylingDiary.css">
+    <link rel="icon" type="image/x-icon" href="assets/catalogdFavicon.png" />
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700;900&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -67,17 +67,17 @@
             </select>
             <select id="liked-filter" onchange="applyFilters()">
                 <option value="all">Liked or Not</option>
-                <option value="liked">Liked ❤️</option>
+                <option value="liked">Liked</option>
                 <option value="unliked">Not Liked</option>
             </select>
             <select id="review-filter" onchange="applyFilters()">
                 <option value="all">Reviewed or Not</option>
-                <option value="reviewed">Reviewed 📝</option>
+                <option value="reviewed">Reviewed</option>
                 <option value="unreviewed">Not Reviewed</option>
             </select>
             <select id="rewatch-filter" onchange="applyFilters()">
                 <option value="all">All Watches</option>
-                <option value="rewatch">Rewatch/Reread 🔁</option>
+                <option value="rewatch">Rewatch/Reread</option>
                 <option value="first">First Time</option>
             </select>
             <select id="tag-filter" onchange="applyFilters()">
@@ -139,6 +139,6 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="scriptingDiary.js"></script>
+    <script type="module" src="js/scriptingDiary.js"></script>
 </body>
 </html>

@@ -12,7 +12,7 @@ const favSearchInput = document.getElementById('fav-search-input');
 const favSearchResults = document.getElementById('fav-search-results');
 
 async function initSettings() {
-    const response = await fetch('config.json');
+    const response = await fetch('../config/config.json');
     const config = await response.json();
     supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key, {
             auth: {

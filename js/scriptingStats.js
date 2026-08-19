@@ -6,13 +6,13 @@ let statsChartInstance = null;
 
 // Current State
 let currentDepth = 'all-time';
-let currentPeriod = 'all'; // e.g., '2023', 'Winter 2023-2024'
+let currentPeriod = 'all';
 let currentFilter = 'all'; 
 let isOngoingPeriod = true;
 
 async function initStats() {
     try {
-        const response = await fetch('config.json');
+        const response = await fetch('../config/config.json');
         const config = await response.json();
         supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
 

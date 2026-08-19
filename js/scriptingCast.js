@@ -12,7 +12,7 @@ let currentUser = null; // Track the logged-in user
 
 async function initCastPage() {
     try {
-        const configResponse = await fetch('config.json');
+        const configResponse = await fetch('../config/config.json');
         const config = await configResponse.json();
         
         supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
