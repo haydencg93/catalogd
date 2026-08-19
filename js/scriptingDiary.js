@@ -131,7 +131,6 @@ async function initDiary() {
         
         applyFilters();
         setupLoadMore(config);
-        setupHeader();
     } catch (err) {
         console.error("Diary init error:", err);
     }
@@ -594,44 +593,6 @@ window.onclick = (event) => {
         trigger.classList.remove('active');
     }
 };
-
-// --- NEW HEADER & AUTH LOGIC ---
-
-async function setupHeader() {
-    const loginBtn = document.getElementById('login-btn');
-    const profileMenu = document.getElementById('profile-menu');
-
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (user) {
-        loginBtn.style.display = 'none'; 
-        profileMenu.style.display = 'inline-block';
-        
-        const avatar = document.getElementById('nav-avatar');
-        if (avatar && user.user_metadata && user.user_metadata.avatar_url) {
-            avatar.src = user.user_metadata.avatar_url;
-        }
-    } else {
-        loginBtn.style.display = 'inline-block';
-        profileMenu.style.display = 'none';
-        loginBtn.textContent = "Sign In";
-        loginBtn.onclick = () => window.location.href = 'index.html'; 
-    }
-}
-
-function toggleProfileDropdown(event) {
-    if (event) event.stopPropagation();
-    const content = document.getElementById('dropdown-content');
-    const trigger = document.querySelector('.profile-trigger');
-    
-    const isVisible = content.style.display === 'block';
-    content.style.display = isVisible ? 'none' : 'block';
-    trigger.classList.toggle('active', !isVisible);
-}
-
-async function signOut() {
-    await supabaseClient.auth.signOut();
-    location.reload();
-}
 
 window.deleteDiaryEntry = async (logId) => {
     if (!confirm("Are you sure you want to delete this entry from your diary?")) return;

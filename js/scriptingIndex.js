@@ -84,58 +84,25 @@ async function loadConfig() {
 }
 
 async function checkUserStatus() {
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    const profileMenu = document.getElementById('profile-menu');
-    const loginBtn = document.getElementById('login-btn');
+    await customElements.whenDefined('app-header');
+    const header = document.querySelector('app-header');
     
+    // Call the component's method and pass the custom callback!
+    const user = await header.initializeAuth(supabaseClient, () => openAuthModal());
+
     if (user) {
-        const { data: customImgs } = await supabaseClient
-            .from('custom_imgs')
-            .select('*')
-            .eq('user_id', user.id);
-            
+        const { data: customImgs } = await supabaseClient.from('custom_imgs').select('*').eq('user_id', user.id);
         if (customImgs) {
-            customImgs.forEach(img => {
-                customImgsMap.set(`${img.media_type}_${img.media_id}`, img);
-            });
+            customImgs.forEach(img => customImgsMap.set(`${img.media_type}_${img.media_id}`, img));
         }
 
-        // Load the user's preferred streaming services (Settings > Your Services) so
-        // "For You" recommendations can be filtered to what they can actually watch.
         try {
-            const { data: profileServices } = await supabaseClient
-                .from('profiles')
-                .select('services')
-                .eq('id', user.id)
-                .single();
+            const { data: profileServices } = await supabaseClient.from('profiles').select('services').eq('id', user.id).single();
             userStreamingProviderIds = ((profileServices && profileServices.services && profileServices.services.streaming) || []).map(String);
         } catch (e) {
-            console.warn("Could not load streaming services:", e);
             userStreamingProviderIds = [];
         }
-
-        loginBtn.textContent = "Sign Out";
-        loginBtn.onclick = async () => {
-            await supabaseClient.auth.signOut();
-            location.reload();
-        };
-        if (profileBtn) profileBtn.style.display = 'inline-block';
-
-        loginBtn.style.display = 'none'; // Hide Sign In
-        profileMenu.style.display = 'block'; // Show Dropdown
-        
-        // Ensure avatar is set (Optional: fetch from Supabase user metadata)
-        const avatar = document.getElementById('nav-avatar');
-        if (user?.user_metadata?.avatar_url) avatar.src = user.user_metadata.avatar_url;
-    } else {
-        loginBtn.style.display = 'block'; 
-        profileMenu.style.display = 'none';
-        
-        loginBtn.textContent = "Sign In";
-        loginBtn.onclick = function() {
-            openAuthModal();
-        }
-    }
+    } 
 }
 
 async function performSignUp(email, password, name, username, retype) {
@@ -1123,36 +1090,6 @@ document.addEventListener('mouseleave', () => {
         card.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale(1)';
     });
 });
-
-function toggleProfileDropdown(event) {
-    // Prevent the click from immediately bubbling up to the window.onclick listener
-    if (event) event.stopPropagation();
-    
-    const content = document.getElementById('dropdown-content');
-    const trigger = document.querySelector('.profile-trigger');
-    
-    const isVisible = content.style.display === 'block';
-    content.style.display = isVisible ? 'none' : 'block';
-    
-    trigger.classList.toggle('active', !isVisible);
-}
-
-// Update the window click listener to be more specific
-window.onclick = function(event) {
-    const dropdown = document.getElementById('dropdown-content');
-    const trigger = document.querySelector('.profile-trigger');
-    
-    // Only close if the click is NOT on the trigger and NOT inside the menu
-    if (event.target !== trigger && !trigger.contains(event.target) && !dropdown.contains(event.target)) {
-        dropdown.style.display = 'none';
-        trigger.classList.remove('active');
-    }
-}
-
-async function signOut() {
-    await supabaseClient.auth.signOut();
-    location.reload();
-}
 
 authConfirmBtn.addEventListener('click', handleAuth);
 closeModal.addEventListener('click', closeAuthModal);

@@ -13,55 +13,7 @@
 </head>
 <body>
     <div id="backdrop-overlay"></div>
-    <header>
-        <div class="css-logo" onclick="window.location.href='index.html'">
-            <div class="logo-text">catalog<span>d</span></div>
-            <div class="logo-circles">
-                <div class="circle c-movie"></div>
-                <div class="circle c-tv"></div>
-                <div class="circle c-book"></div>
-                <div class="circle c-album"></div>
-                <div class="circle c-youtube"></div>
-            </div>
-        </div>
-        
-        <section class="search-section header-search">
-            <div class="search-bar-wrapper">
-                <select id="search-filter">
-                    <option value="all">All</option>
-                    <option value="movie">Movies</option>
-                    <option value="tv">TV Shows</option>
-                    <option value="book">Books</option>
-                    <option value="album">Music</option>
-                    <option value="user">Users</option>
-                    <option value="person">Cast Members</option>
-                    <option value="author">Authors</option>
-                </select>
-                <input type="text" id="search-input" placeholder="Search for movies, shows, books, cast members, ...">
-            </div>
-        </section>
-
-        <div class="nav-actions">
-            <button id="login-btn" class="secondary-btn">Sign In</button>
-            <div id="profile-menu" class="profile-dropdown" style="display:none;">
-                <button class="profile-trigger" onclick="toggleProfileDropdown(event)">
-                    <img src="https://ui-avatars.com/api/?name=User&background=0d0776&color=fff" id="nav-avatar" alt="Profile">
-                    <span class="dropdown-arrow"></span>
-                </button>
-                <div id="dropdown-content" class="dropdown-content">
-                    <a href="index.html">Home</a>
-                    <a href="diary.html">Diary</a>
-                    <a href="lists.html">Lists</a>
-                    <a href="watchlist.html">Watchlist</a>
-                    <a href="stats.html">Stats</a>
-                    <a href="profile.html">Profile</a>
-                    <a href="settings.html">Settings</a>
-                    <hr>
-                    <a href="#" onclick="signOut()">Sign Out</a>
-                </div>
-            </div>
-        </div>
-    </header>
+    <app-header></app-header>
 
     <main class="details-container">
         <div id="left-col">
@@ -299,5 +251,6 @@
     </div>
 
     <script type="module" src="js/scriptingDetails.js"></script>
+    <script type="module" src="js/components/AppHeader.js"></script>
 </body>
 </html>

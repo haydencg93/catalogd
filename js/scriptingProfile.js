@@ -500,56 +500,12 @@ async function initProfile() {
         if (listsCountEl) listsCountEl.textContent = listsCount || 0;
         
         setupSocialModalListeners();
-        setupHeader()
     } catch (err) {
         console.error("Critical Profile Init Error:", err);
     }
 }
 
-// --- HEADER & AUTH LOGIC ---
-async function setupHeader() {
-    const loginBtn = document.getElementById('login-btn');
-    const profileMenu = document.getElementById('profile-menu');
-
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (user) {
-        if (loginBtn) loginBtn.style.display = 'none'; 
-        if (profileMenu) profileMenu.style.display = 'inline-block';
-        
-        const avatar = document.getElementById('nav-avatar');
-        if (avatar && user.user_metadata && user.user_metadata.avatar_url) {
-            avatar.src = user.user_metadata.avatar_url;
-        }
-    } else {
-        if (loginBtn) {
-            loginBtn.style.display = 'inline-block';
-            loginBtn.textContent = "Sign In";
-            loginBtn.onclick = () => window.location.href = 'index.html'; 
-        }
-        if (profileMenu) profileMenu.style.display = 'none';
-    }
-}
-
-function toggleProfileDropdown(event) {
-    if (event) event.stopPropagation();
-    const content = document.getElementById('dropdown-content');
-    const trigger = document.querySelector('.profile-trigger');
-    if (!content || !trigger) return;
-    
-    const isVisible = content.style.display === 'block';
-    content.style.display = isVisible ? 'none' : 'block';
-    trigger.classList.toggle('active', !isVisible);
-}
-
-window.onclick = (event) => {
-    // Merge with any existing modal logic
-    const dropdown = document.getElementById('dropdown-content');
-    const trigger = document.querySelector('.profile-trigger');
-    if (dropdown && trigger && event.target !== trigger && !trigger.contains(event.target) && !dropdown.contains(event.target)) {
-        dropdown.style.display = 'none';
-        trigger.classList.remove('active');
-    }
-    
+window.onclick = (event) => {    
     // Existing Settings Modal Logic
     const settingsModal = document.getElementById('settings-modal');
     if (settingsModal && event.target == settingsModal) {
@@ -562,11 +518,6 @@ window.onclick = (event) => {
         tagModal.style.display = 'none';
     }
 };
-
-async function signOut() {
-    await supabaseClient.auth.signOut();
-    location.reload();
-}
 
 async function setupSocialUI(currentUserId, targetUserId) {
     const settingsBtnContainer = document.querySelector('.settings-section');

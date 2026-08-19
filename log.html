@@ -10,23 +10,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700;900&display=swap" rel="stylesheet">
 </head>
 <body>
-    <header>
-        <div class="css-logo" onclick="window.location.href='index.html'">
-            <div class="logo-text">catalog<span>d</span></div>
-            <div class="logo-circles">
-                <div class="circle c-movie"></div>
-                <div class="circle c-tv"></div>
-                <div class="circle c-book"></div>
-                <div class="circle c-album"></div>
-                <div class="circle c-youtube"></div>
-            </div>
-        </div>
-        <nav class="nav-actions">
-            <button id="back-to-details-btn" class="secondary-btn">← Cancel & Go Back</button>
-        </nav>
-    </header>
-
+    <app-header></app-header>
+        
     <main class="log-container">
+        <nav class="nav-actions">
+            <button id="back-to-details-btn" class="primary-btn">← Cancel & Go Back</button>
+        </nav>
         <div class="log-card">
             <h1 id="media-title">Loading...</h1>
             
@@ -99,6 +88,7 @@
         </div>
     </main>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/scriptingLog.js"></script>
+    <script type="module" src="js/scriptingLog.js"></script>
+    <script type="module" src="js/components/AppHeader.js"></script>
 </body>
 </html>

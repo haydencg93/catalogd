@@ -16,7 +16,6 @@ async function initCastPage() {
         const config = await configResponse.json();
         
         supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
-        await setupHeader();
 
         if (characterWiki) {
             await initCharacterPage(characterWiki, mediaId, mediaType);
@@ -665,58 +664,6 @@ function formatPlays(numStr) {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
     if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
     return num.toString();
-}
-
-async function setupHeader() {
-    const searchInput = document.getElementById('search-input');
-    const loginBtn = document.getElementById('login-btn');
-    const profileMenu = document.getElementById('profile-menu');
-
-    searchInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && searchInput.value.trim() !== "") {
-            window.location.href = `index.html?search=${encodeURIComponent(searchInput.value)}`;
-        }
-    });
-
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    currentUser = user;
-
-    if (user) {
-        loginBtn.style.display = 'none'; 
-        profileMenu.style.display = 'inline-block';
-        
-        const avatar = document.getElementById('nav-avatar');
-        if (user.user_metadata && user.user_metadata.avatar_url) {
-            avatar.src = user.user_metadata.avatar_url;
-        }
-    } else {
-        loginBtn.style.display = 'inline-block';
-        profileMenu.style.display = 'none';
-        loginBtn.onclick = () => window.location.href = 'index.html';
-    }
-}
-
-function toggleProfileDropdown(event) {
-    if (event) event.stopPropagation();
-    const content = document.getElementById('dropdown-content');
-    const trigger = document.querySelector('.profile-trigger');
-    const isVisible = content.style.display === 'block';
-    content.style.display = isVisible ? 'none' : 'block';
-    trigger.classList.toggle('active', !isVisible);
-}
-
-window.onclick = function(event) {
-    const dropdown = document.getElementById('dropdown-content');
-    const trigger = document.querySelector('.profile-trigger');
-    if (dropdown && trigger && event.target !== trigger && !trigger.contains(event.target) && !dropdown.contains(event.target)) {
-        dropdown.style.display = 'none';
-        trigger.classList.remove('active');
-    }
-}
-
-async function signOut() {
-    await supabaseClient.auth.signOut();
-    location.reload();
 }
 
 initCastPage();

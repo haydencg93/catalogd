@@ -410,8 +410,6 @@ async function initDetails() {
             }
         }
 
-        setupHeader();
-
         if (type === 'tv') setupTVTracker(config, id);
         
         if (type === 'book') {
@@ -1129,67 +1127,6 @@ function displayBookLinks(title, authorName) {
             </div>
         </div>
     `;
-}
-
-async function setupHeader() {
-    const searchInput = document.getElementById('search-input');
-    const searchFilter = document.getElementById('search-filter');
-    const loginBtn = document.getElementById('login-btn');
-    const profileMenu = document.getElementById('profile-menu');
-
-    searchInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && searchInput.value.trim() !== "") {
-            const filterVal = searchFilter ? searchFilter.value : 'all';
-            window.location.href = `index.html?search=${encodeURIComponent(searchInput.value)}&filter=${filterVal}`;
-        }
-    });
-
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (user) {
-        // User is logged in: Hide Sign In, Show Profile Menu
-        loginBtn.style.display = 'none'; 
-        profileMenu.style.display = 'inline-block';
-        
-        const avatar = document.getElementById('nav-avatar');
-        if (user.user_metadata && user.user_metadata.avatar_url) {
-            avatar.src = user.user_metadata.avatar_url;
-        }
-    } else {
-        // Not logged in: Show Sign In, Hide Profile Menu
-        loginBtn.style.display = 'inline-block';
-        profileMenu.style.display = 'none';
-        loginBtn.textContent = "Sign In";
-        loginBtn.onclick = () => window.location.href = 'index.html'; 
-    }
-}
-
-// --- NEW PROFILE DROPDOWN LOGIC ---
-
-function toggleProfileDropdown(event) {
-    if (event) event.stopPropagation();
-    
-    const content = document.getElementById('dropdown-content');
-    const trigger = document.querySelector('.profile-trigger');
-    
-    const isVisible = content.style.display === 'block';
-    content.style.display = isVisible ? 'none' : 'block';
-    trigger.classList.toggle('active', !isVisible);
-}
-
-window.onclick = function(event) {
-    const dropdown = document.getElementById('dropdown-content');
-    const trigger = document.querySelector('.profile-trigger');
-    
-    // Safety check in case the elements haven't loaded
-    if (dropdown && trigger && event.target !== trigger && !trigger.contains(event.target) && !dropdown.contains(event.target)) {
-        dropdown.style.display = 'none';
-        trigger.classList.remove('active');
-    }
-}
-
-async function signOut() {
-    await supabaseClient.auth.signOut();
-    setTimeout(() => window.location.reload(), 100);
 }
 
 async function setupTVTracker(config, seriesId) {
