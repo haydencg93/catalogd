@@ -10,7 +10,7 @@ let currentWatchlistFilter = 'all';
 let customImgsMap = new Map();
 
 async function initWatchlist() {
-    const response = await fetch('../config/config.json');
+    const response = await fetch('config/config.json');
     const config = await response.json();
     tmdbToken = config.tmdb_token;
     lastfmKey = config.lastfm_key;

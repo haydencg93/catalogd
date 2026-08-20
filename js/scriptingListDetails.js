@@ -15,7 +15,7 @@ let customImgsMap = new Map();
 
 async function initListDetails() {
     // 1. Initialize Supabase and Config
-    const response = await fetch('../config/config.json');
+    const response = await fetch('config/config.json');
     const config = await response.json();
     supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
     tmdbToken = config.tmdb_token;

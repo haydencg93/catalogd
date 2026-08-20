@@ -12,7 +12,7 @@ let currentTags = [];
 let mediaReleaseYear = null;
 
 async function initLog() {
-    const config = await fetch('../config/config.json').then(r => r.json());
+    const config = await fetch('config/config.json').then(r => r.json());
     supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
     tmdbToken = config.tmdb_token;
 

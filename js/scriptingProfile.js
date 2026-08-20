@@ -19,7 +19,7 @@ let currentFandomsCategory = 'movie';
 
 async function initProfile() {
     try {
-        const response = await fetch('../config/config.json');
+        const response = await fetch('config/config.json');
         const config = await response.json();
 
         // 1. Initialize Supabase

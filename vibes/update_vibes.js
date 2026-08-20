@@ -5,7 +5,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '../misc/.env') });
 const WebSocket = require('ws');
 const { createClient } = require('@supabase/supabase-js');
 
-const configPath = path.resolve(__dirname, '../config.json');
+const configPath = path.resolve(__dirname, '../config/config.json');
 const configData = JSON.parse(fs.readFileSync(configPath, 'utf8'));
 const TMDB_TOKEN = configData.tmdb_token;
 
