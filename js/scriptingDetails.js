@@ -1483,7 +1483,7 @@ async function markSeasonAsWatched() {
     const seasonNum = parseInt(document.getElementById('season-selector').value);
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) return alert("Please sign in.");
-    const config = await fetch('config.json').then(r => r.json());
+    const config = await fetch(configPath).then(r => r.json());
     
     try {
         const response = await fetch(`https://api.themoviedb.org/3/tv/${id}/season/${seasonNum}?language=en-US`, { 
@@ -2011,7 +2011,7 @@ window.loadSimilar = async function(filterType = 'all') {
     }
     
     try {
-        const config = await fetch('config.json').then(r => r.json());
+        const config = await fetch(configPath).then(r => r.json());
         
         const response = await fetch(`${config.supabase_url}/functions/v1/get-recommendations`, {
             method: 'POST',
@@ -2096,15 +2096,33 @@ async function checkAndQueueMedia(mediaId, mediaType, config) {
     // Standardize the ID
     const universalId = mediaType === 'book' ? parseInt(String(mediaId).replace(/\D/g, ''), 10) + 100000000 : parseInt(mediaId, 10);
 
+    console.log(`[ML Debug] ---------------------------------`);
+    console.log(`[ML Debug] Starting queue check for ${mediaType}`);
+    console.log(`[ML Debug] Original ID: ${mediaId}`);
+    console.log(`[ML Debug] Calculated universalId: ${universalId} (Type: ${typeof universalId})`);
+
     try {
         // 1. Check if it already exists in the Taste Graph
-        const { data: existing } = await supabaseClient
+        const { data: existing, error: selectError, status } = await supabaseClient
             .from('global_movies')
-            .select('tmdb_id')
+            .select('tmdb_id, title') // Added title so we can visually confirm it found the right one
             .eq('tmdb_id', universalId)
             .maybeSingle();
 
-        if (existing) return; // It's already in the database. Do nothing!
+        console.log(`[ML Debug] Select query finished with HTTP Status: ${status}`);
+        
+        if (selectError) {
+            console.error("[ML Debug] Supabase Select Error details:", selectError);
+            return; // Abort if there's a structural error
+        }
+
+        console.log(`[ML Debug] Data returned from DB:`, existing);
+
+        if (existing) {
+            console.log(`[ML Debug] Match found! "${existing.title}" is already in DB. Stopping here.`);
+            console.log(`[ML Debug] ---------------------------------`);
+            return; // It's already in the database. Do nothing!
+        }
 
         console.log("[I] Media not found in Taste Graph. Queuing for nightly ML embedding...");
 
@@ -2137,10 +2155,15 @@ async function checkAndQueueMedia(mediaId, mediaType, config) {
             tags = res.subjects ? res.subjects.map(s => typeof s === 'string' ? s : s.name || '') : [];
         }
 
-        if (tags.length === 0) return; // We can't build math without tags, so we abandon ship.
+        if (tags.length === 0) {
+            console.log("[ML Debug] No tags found. Aborting upsert.");
+            return;
+        }
+
+        console.log(`[ML Debug] Preparing to upsert: ${title} with ID: ${universalId}`);
 
         // 3. Silently push it to Supabase
-        const { error } = await supabaseClient.from('global_movies').upsert({
+        const { error: upsertError } = await supabaseClient.from('global_movies').upsert({
             tmdb_id: universalId,
             title: title,
             release_year: year ? String(year) : null,
@@ -2151,12 +2174,13 @@ async function checkAndQueueMedia(mediaId, mediaType, config) {
             is_embedded: false 
         }, { onConflict: 'tmdb_id' });
 
-        // NEW: Actually check for the error before logging success!
-        if (error) {
-            throw new Error(error.message);
+        if (upsertError) {
+            console.error("[ML Debug] Upsert Failed:", upsertError);
+            throw new Error(upsertError.message);
         }
 
         console.log("[S] Successfully added to the ML queue!");
+        console.log(`[ML Debug] ---------------------------------`);
 
     } catch (err) {
         console.error("[E] Background Queue Error:", err);

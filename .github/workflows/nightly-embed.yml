@@ -1,4 +1,4 @@
-name: Nightly Vibe Updater Worker
+name: Nightly ML Embedding Worker
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  update-vibes:
+  update-seederAi:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -22,19 +22,19 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-          cache-dependency-path: './vibes/package-lock.json'
+          cache-dependency-path: './seederAi/package-lock.json'
 
       - name: Install Dependencies
         run: |
-          cd vibes
+          cd seederAi
           npm ci
 
-      - name: Run Updater Script
+      - name: Run Embedding Script
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           OPENVERSE_CLIENT_ID: ${{ secrets.OPENVERSE_CLIENT_ID }}
           OPENVERSE_CLIENT_SECRET: ${{ secrets.OPENVERSE_CLIENT_SECRET }}
         run: |
-          cd vibes
-          node update_vibes.js
+          cd seederAi
+          node generate-embeddings.js
