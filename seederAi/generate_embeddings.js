@@ -3,7 +3,7 @@ const { QdrantClient } = require('@qdrant/js-client-rest');
 const path = require('node:path');
 const WebSocket = require('ws'); 
 
-const config = require('../config.json');
+const config = require('../config/config.json');
 require('dotenv').config({ path: path.join(__dirname, '../misc/.env') });
 
 const supabase = createClient(config.supabase_url, process.env.SUPABASE_SERVICE_ROLE_KEY, {
