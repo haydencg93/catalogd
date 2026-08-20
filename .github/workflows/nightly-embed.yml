@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  update-seederAi:
+  generate_embeddings:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -37,4 +37,4 @@ jobs:
           OPENVERSE_CLIENT_SECRET: ${{ secrets.OPENVERSE_CLIENT_SECRET }}
         run: |
           cd seederAi
-          node generate-embeddings.js
+          node generate_embeddings.js
