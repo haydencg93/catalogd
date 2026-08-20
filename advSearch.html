@@ -19,8 +19,8 @@
             <div class="adv-search-section">
                 <span class="adv-search-label">I want to watch a...</span>
                 <div id="type-container" class="pill-grid">
-                    <button type="button" class="pill active" data-id="movie" onclick="togglePill(this, 'type')">Movie</button>
-                    <button type="button" class="pill" data-id="tv" onclick="togglePill(this, 'type')">TV Show</button>
+                    <button type="button" class="pill active" data-id="movie" data-group="type">Movie</button>
+                    <button type="button" class="pill" data-id="tv" data-group="type">TV Show</button>
                 </div>
             </div>
 
@@ -35,24 +35,24 @@
                 <div id="movie-duration-wrapper">
                     <span class="adv-search-label" style="font-size: 0.75rem; color: #678; margin-top: 10px;">Movies</span>
                     <div id="movie-duration-container" class="pill-grid">
-                        <button type="button" class="pill" data-id="m30-60" data-min="30" data-max="60" onclick="togglePill(this, 'movie-duration')">30 min - 1 hr</button>
-                        <button type="button" class="pill" data-id="m60-90" data-min="60" data-max="90" onclick="togglePill(this, 'movie-duration')">1 hr - 1.5 hrs</button>
-                        <button type="button" class="pill" data-id="m90-120" data-min="90" data-max="120" onclick="togglePill(this, 'movie-duration')">1.5 hrs - 2 hrs</button>
-                        <button type="button" class="pill" data-id="m120-150" data-min="120" data-max="150" onclick="togglePill(this, 'movie-duration')">2 hrs - 2.5 hrs</button>
-                        <button type="button" class="pill" data-id="m150-180" data-min="150" data-max="180" onclick="togglePill(this, 'movie-duration')">2.5 hrs - 3 hrs</button>
-                        <button type="button" class="pill" data-id="m180-999" data-min="180" data-max="999" onclick="togglePill(this, 'movie-duration')">3+ hrs</button>
+                        <button type="button" class="pill" data-id="m30-60" data-min="30" data-max="60" data-group="movie-duration">30 min - 1 hr</button>
+                        <button type="button" class="pill" data-id="m60-90" data-min="60" data-max="90" data-group="movie-duration">1 hr - 1.5 hrs</button>
+                        <button type="button" class="pill" data-id="m90-120" data-min="90" data-max="120" data-group="movie-duration">1.5 hrs - 2 hrs</button>
+                        <button type="button" class="pill" data-id="m120-150" data-min="120" data-max="150" data-group="movie-duration">2 hrs - 2.5 hrs</button>
+                        <button type="button" class="pill" data-id="m150-180" data-min="150" data-max="180" data-group="movie-duration">2.5 hrs - 3 hrs</button>
+                        <button type="button" class="pill" data-id="m180-999" data-min="180" data-max="999" data-group="movie-duration">3+ hrs</button>
                     </div>
                 </div>
 
                 <div id="tv-duration-wrapper" style="display: none;">
-                    <span class="adv-search-label" style="font-size: 0.75rem; color: #678; margin-top: 15px;">TV Shows (Avg. Episode)</span>
-                    <div id="tv-duration-container" class="pill-grid">
-                        <button type="button" class="pill" data-id="t0-10" data-min="0" data-max="10" onclick="togglePill(this, 'tv-duration')">0 - 10 mins</button>
-                        <button type="button" class="pill" data-id="t10-20" data-min="10" data-max="20" onclick="togglePill(this, 'tv-duration')">10 - 20 mins</button>
-                        <button type="button" class="pill" data-id="t20-30" data-min="20" data-max="30" onclick="togglePill(this, 'tv-duration')">20 - 30 mins</button>
-                        <button type="button" class="pill" data-id="t30-40" data-min="30" data-max="40" onclick="togglePill(this, 'tv-duration')">30 - 40 mins</button>
-                        <button type="button" class="pill" data-id="t40-50" data-min="40" data-max="50" onclick="togglePill(this, 'tv-duration')">40 - 50 mins</button>
-                        <button type="button" class="pill" data-id="t50-999" data-min="50" data-max="999" onclick="togglePill(this, 'tv-duration')">50+ mins</button>
+                     <span class="adv-search-label" style="font-size: 0.75rem; color: #678; margin-top: 15px;">TV Shows (Avg. Episode)</span>
+                     <div id="tv-duration-container" class="pill-grid">
+                        <button type="button" class="pill" data-id="t0-10" data-min="0" data-max="10" data-group="tv-duration">0 - 10 mins</button>
+                        <button type="button" class="pill" data-id="t10-20" data-min="10" data-max="20" data-group="tv-duration">10 - 20 mins</button>
+                        <button type="button" class="pill" data-id="t20-30" data-min="20" data-max="30" data-group="tv-duration">20 - 30 mins</button>
+                        <button type="button" class="pill" data-id="t30-40" data-min="30" data-max="40" data-group="tv-duration">30 - 40 mins</button>
+                        <button type="button" class="pill" data-id="t40-50" data-min="40" data-max="50" data-group="tv-duration">40 - 50 mins</button>
+                        <button type="button" class="pill" data-id="t50-999" data-min="50" data-max="999" data-group="tv-duration">50+ mins</button>
                     </div>
                 </div>
             </div>

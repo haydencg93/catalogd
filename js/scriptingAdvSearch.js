@@ -31,17 +31,33 @@ let allProviders = [];
 let searchTimeout = null;
 let currentPage = 1;
 
+// ----------------------------------------
+// Initizalization
+// ----------------------------------------
 async function initAdvSearch() {
     try {
-        const response = await fetch('../config/config.json');
+        const response = await fetch('config/config.json');
         configData = await response.json();
         
         TMDB_TOKEN = configData.tmdb_token;
         supabaseClient = supabase.createClient(configData.supabase_url, configData.supabase_key);
 
+        // Initialize the AppHeader Web Component so it catches the auth state
+        await customElements.whenDefined('app-header');
+        const header = document.querySelector('app-header');
+        let currentUser = null;
+        if (header) {
+            currentUser = await header.initializeAuth(supabaseClient);
+        }
+
         await fetchTopProviders();
         await fetchCoreGenres();
         await fetchLanguages();
+
+        // Load and apply the user's saved preferences
+        if (currentUser) {
+            await loadUserPreferences(currentUser);
+        }
 
         genreSearchInput.addEventListener('input', (e) => {
             const query = e.target.value.trim();
@@ -57,7 +73,20 @@ async function initAdvSearch() {
         // Search Execution Listeners
         findBtn.addEventListener('click', () => executeSearch(false));
         loadMoreBtn.addEventListener('click', () => executeSearch(true));
-
+        
+        // Event Delegation for all interactive pills
+        document.querySelector('.adv-search-container').addEventListener('click', (e) => {
+            const pill = e.target.closest('.pill');
+            if (!pill) return;
+            
+            // Handle Keywords vs Standard Filters
+            if (pill.closest('#genres-search-results') || pill.closest('#genres-selected-container')) {
+                toggleKeywordPill(pill);
+            } else {
+                const group = pill.dataset.group;
+                if (group) togglePill(pill, group);
+            }
+        });
     } catch (err) {
         console.error("Initialization Error:", err);
     }
@@ -66,7 +95,6 @@ async function initAdvSearch() {
 // ----------------------------------------
 // Data Fetching & UI Rendering
 // ----------------------------------------
-
 async function fetchTopProviders() {
     try {
         const [movieProvRes, tvProvRes] = await Promise.all([
@@ -80,20 +108,18 @@ async function fetchTopProviders() {
         });
         
         allProviders = Array.from(providerMap.values())
-            .sort((a, b) => a.display_priorities.US - b.display_priorities.US)
-            .slice(0, 25);
-
-        providersContainer.innerHTML = allProviders.map(p => {
-            const isActive = activeProviders.has(String(p.provider_id)) ? 'active' : '';
-            return `
-                <button type="button" class="pill ${isActive}" data-id="${p.provider_id}" onclick="togglePill(this, 'provider')">
-                    <img src="https://image.tmdb.org/t/p/w45${p.logo_path}" class="pill-logo">
-                    ${p.provider_name}
-                </button>
-            `;
-        }).join('');
-
-    } catch (e) {
+             .sort((a, b) => a.display_priorities.US - b.display_priorities.US)
+             .slice(0, 25);
+         providersContainer.innerHTML = allProviders.map(p => {
+             const isActive = activeProviders.has(String(p.provider_id)) ? 'active' : '';
+             return `
+                 <button type="button" class="pill ${isActive}" data-id="${p.provider_id}" data-group="provider">
+                     <img src="https://image.tmdb.org/t/p/w45${p.logo_path}" class="pill-logo" alt="">
+                     ${p.provider_name}
+                 </button>
+             `;
+         }).join('');
+     } catch (e) {
         console.error("Error loading providers:", e);
         providersContainer.innerHTML = '<p class="meta">Failed to load providers.</p>';
     }
@@ -112,7 +138,7 @@ async function fetchLanguages() {
         });
 
         document.getElementById('languages-container').innerHTML = sortedLangs.map(lang => `
-            <button type="button" class="pill" data-id="${lang.english_name}" onclick="togglePill(this, 'language')">
+            <button type="button" class="pill" data-id="${lang.english_name}" data-group="language")">
                 ${lang.english_name}
             </button>
         `).join('');
@@ -139,7 +165,7 @@ async function fetchCoreGenres() {
         allCoreGenres = Array.from(genreMap.values()).sort((a, b) => a.name.localeCompare(b.name));
 
         document.getElementById('core-genres-container').innerHTML = allCoreGenres.map(g => `
-            <button type="button" class="pill" data-id="${g.id}" onclick="togglePill(this, 'core-genre')">
+            <button type="button" class="pill" data-id="${g.id}" data-group="core-genre">
                 ${g.name}
             </button>
         `).join('');
@@ -162,7 +188,7 @@ async function fetchKeywordResults(query) {
         } else {
             genresSearchResults.innerHTML = matches.slice(0, 10).map(k => {
                 const isActive = activeKeywords.has(String(k.id)) ? 'active' : '';
-                return `<button type="button" class="pill ${isActive}" data-id="${k.id}" data-name="${k.name}" onclick="toggleKeywordPill(this)">${k.name}</button>`;
+                return `<button type="button" class="pill ${isActive}" data-id="${k.id}" data-name="${k.name}" data-group="${this}">${k.name}</button>`;
             }).join('');
         }
         genresSearchResults.style.display = 'flex';
@@ -304,206 +330,161 @@ function evaluateItemDetail(item, detailData, langRule, selectedIsos, includeFre
     return checkDuration(item, detailData) && 
            checkLanguage(detailData, langRule, selectedIsos) && 
            checkProviders(detailData, includeFree);
+} 
+
+// --- URL Builder Helpers (Fixes S3776) ---
+function getDurationParams(mediaType, filters) {
+    const bounds = mediaType === 'movie' ? filters.movieBounds : filters.tvBounds;
+    if (!bounds) return '';
+    
+    let params = '';
+    if (bounds.min !== null) params += `&with_runtime.gte=${bounds.min}`;
+    if (bounds.max !== null && bounds.max < 999) params += `&with_runtime.lte=${bounds.max}`;
+    return params;
+}
+
+function getProviderParams(filters) {
+    if (!filters.providersStr) return '';
+    return filters.includeFree 
+        ? `&with_watch_monetization_types=flatrate|free|ads`
+        : `&with_watch_providers=${filters.providersStr}&with_watch_monetization_types=flatrate|free|ads`;
+}
+
+function buildBaseUrl(mediaType, filters) {
+    let url = `https://api.themoviedb.org/3/discover/${mediaType}?language=en-US&sort_by=popularity.desc&watch_region=US`;
+    
+    url += getProviderParams(filters);
+    if (filters.keywordsStr) url += `&with_keywords=${filters.keywordsStr}`;
+    if (filters.coreGenresStr) url += `&with_genres=${filters.coreGenresStr}`;
+    if (filters.selectedIsos.length > 0 && filters.langRule === 'original') {
+        url += `&with_original_language=${filters.selectedIsos.join('|')}`;
+    }
+    
+    url += getDurationParams(mediaType, filters);
+    return url;
+}
+
+function buildDiscoverUrls(mediaTypes, textQuery, filters) {
+    const urls = [];
+    const pages = textQuery ? [currentPage, currentPage + 1, currentPage + 2, currentPage + 3, currentPage + 4] : [currentPage];
+    
+    mediaTypes.forEach(mediaType => {
+        const baseUrl = buildBaseUrl(mediaType, filters);
+        pages.forEach(page => urls.push({ url: `${baseUrl}&page=${page}`, type: mediaType }));
+    });
+    return urls;
+}
+
+// --- Search Execution Helpers (Fixes S3776) ---
+function deduplicateResults(results) {
+    const uniqueMap = new Map();
+    results.forEach(item => uniqueMap.set(item.id, item));
+    return Array.from(uniqueMap.values());
+}
+
+async function fetchDetailedResults(results) {
+    return Promise.all(results.map(item => 
+        fetch(`https://api.themoviedb.org/3/${item.media_type}/${item.id}?append_to_response=watch/providers,translations`, { 
+            headers: { Authorization: `Bearer ${TMDB_TOKEN}` } 
+        }).then(r => r.json()).catch(() => null)
+    ));
+}
+
+function applyTextFilter(results, textQuery) {
+    if (!textQuery) return results.sort((a, b) => b.popularity - a.popularity);
+    
+    return results.filter(item => 
+        (item.title || item.name || '').toLowerCase().includes(textQuery) || 
+        (item.overview || '').toLowerCase().includes(textQuery)
+    ).sort((a, b) => {
+        const aMatch = (a.title || a.name || '').toLowerCase().includes(textQuery);
+        const bMatch = (b.title || b.name || '').toLowerCase().includes(textQuery);
+        if (aMatch && !bMatch) return -1;
+        if (!aMatch && bMatch) return 1;
+        return b.popularity - a.popularity;
+    });
+}
+
+async function processCombinedResults(fetchPromises, textQuery, filters) {
+    let combinedResults = deduplicateResults((await Promise.all(fetchPromises)).flat());
+    const detailsResults = await fetchDetailedResults(combinedResults);
+    
+    combinedResults = combinedResults.filter((item, index) => 
+        evaluateItemDetail(item, detailsResults[index], filters.langRule, filters.selectedIsos, filters.includeFree)
+    );
+
+    return applyTextFilter(combinedResults, textQuery);
 }
 
 async function executeSearch(isLoadMore = false) {
-    if (activeTypes.size === 0) {
-        alert("Please select at least one format (Movie or TV Show).");
-        return;
-    }
-
+    if (activeTypes.size === 0) return alert("Please select at least one format (Movie or TV Show).");
+    
     if (!isLoadMore) {
         currentPage = 1;
         resultsGrid.innerHTML = '';
     } else {
         currentPage++;
     }
-
+    
     loader.style.display = 'block';
     loadMoreBtn.style.display = 'none';
 
-    // Fetch values for standard TMDB search
-    const textQuery = document.getElementById('text-search-input').value.toLowerCase().trim(); 
-    
-    // Logic for Core Genres
-    const coreLogic = document.querySelector('input[name="core-genre-logic"]:checked').value;
-    const coreJoinChar = coreLogic === 'all' ? ',' : '|';
-    const coreGenresStr = Array.from(activeCoreGenres).join(coreJoinChar);
-
-    // Logic for Specific Themes
-    const themeLogic = document.querySelector('input[name="theme-logic"]:checked').value;
-    const themeJoinChar = themeLogic === 'all' ? ',' : '|';
-    const keywordsStr = Array.from(activeKeywords.keys()).join(themeJoinChar);
-
-    const includeFree = document.getElementById('include-free-checkbox') ? document.getElementById('include-free-checkbox').checked : false;
-    const providersStr = Array.from(activeProviders).join('|');
-
-    // ==========================================
-    // DEBUG LOGS: EVERY INPUT VALUE
-    // ==========================================
-    console.log("=== [DEBUG] SEARCH STARTED ===");
-    console.log("[DEBUG] INPUT - Formats:", Array.from(activeTypes));
-    console.log("[DEBUG] INPUT - Text Query:", textQuery ? `"${textQuery}"` : "(none)");
-    console.log("[DEBUG] INPUT - Movie Durations:", Array.from(activeMovieDurations));
-    console.log("[DEBUG] INPUT - TV Durations:", Array.from(activeTvDurations));
-    console.log("[DEBUG] INPUT - Providers:", Array.from(activeProviders));
-    console.log("[DEBUG] INPUT - Include Free:", includeFree);
-    console.log("[DEBUG] INPUT - Core Genres (Logic: " + coreLogic + "):", Array.from(activeCoreGenres));
-    console.log("[DEBUG] INPUT - Themes (Logic: " + themeLogic + "):", Array.from(activeKeywords.keys()));
-    // ==========================================
-
-    // 1. Check for a Character Query
+    const textQuery = document.getElementById('text-search-input').value.toLowerCase().trim();
     const characterQuery = document.getElementById('character-search-input') ? document.getElementById('character-search-input').value.trim() : '';
-    let characterFallbackActive = false;
-
+    
     if (characterQuery && !isLoadMore) {
         try {
-            const qdrantSuccess = await executeCharacterSearch(characterQuery);
-            if (qdrantSuccess) return; 
+            if (await executeCharacterSearch(characterQuery)) return;
         } catch (err) {
             console.error("[Qdrant Fallback] Character search failed:", err.message);
-            characterFallbackActive = true; 
         }
     }
 
-    // Min/Max for Movie Ranges
-    let movieRuntimeMin = null, movieRuntimeMax = null;
-    if (activeMovieDurations.size > 0) {
-        const durations = Array.from(activeMovieDurations).map(id => {
-            const el = document.querySelector(`.pill[data-id="${id}"]`);
-            return { min: Number.parseInt(el.dataset.min), max: Number.parseInt(el.dataset.max) };
-        });
-        movieRuntimeMin = Math.min(...durations.map(d => d.min));
-        movieRuntimeMax = Math.max(...durations.map(d => d.max));
-        console.log(`[DEBUG] CALCULATED - Movie Runtime API Bounds: Min=${movieRuntimeMin}, Max=${movieRuntimeMax}`);
-    }
-
-    // Min/Max for TV Ranges
-    let tvRuntimeMin = null, tvRuntimeMax = null;
-    if (activeTvDurations.size > 0) {
-        const durations = Array.from(activeTvDurations).map(id => {
-            const el = document.querySelector(`.pill[data-id="${id}"]`);
-            return { min: Number.parseInt(el.dataset.min), max: Number.parseInt(el.dataset.max) };
-        });
-        tvRuntimeMin = Math.min(...durations.map(d => d.min));
-        tvRuntimeMax = Math.max(...durations.map(d => d.max));
-        console.log(`[DEBUG] CALCULATED - TV Runtime API Bounds: Min=${tvRuntimeMin}, Max=${tvRuntimeMax}`);
-    }
-
-    const langRule = document.querySelector('input[name="lang-rule"]:checked').value;
-    const selectedIsos = Array.from(activeLanguages).map(name => languageIsoMap[name]);
+    const filters = {
+        coreGenresStr: Array.from(activeCoreGenres).join(document.querySelector('input[name="core-genre-logic"]:checked').value === 'all' ? ',' : '|'),
+        keywordsStr: Array.from(activeKeywords.keys()).join(document.querySelector('input[name="theme-logic"]:checked').value === 'all' ? ',' : '|'),
+        providersStr: Array.from(activeProviders).join('|'),
+        includeFree: document.getElementById('include-free-checkbox')?.checked || false,
+        langRule: document.querySelector('input[name="lang-rule"]:checked').value,
+        selectedIsos: Array.from(activeLanguages).map(name => languageIsoMap[name]),
+        movieBounds: getDurationBounds(activeMovieDurations),
+        tvBounds: getDurationBounds(activeTvDurations)
+    };
 
     try {
-        const fetchPromises = [];
-        const pagesToFetch = textQuery ? [currentPage, currentPage + 1, currentPage + 2, currentPage + 3, currentPage + 4] : [currentPage];
-
-        console.log(`[DEBUG] Fetching pages:`, pagesToFetch);
-
-        for (let mediaType of activeTypes) {
-            let baseUrl = `https://api.themoviedb.org/3/discover/${mediaType}?language=en-US&sort_by=popularity.desc&watch_region=US`;
-            
-            if (activeProviders.size > 0) {
-                if (includeFree) {
-                    baseUrl += `&with_watch_monetization_types=flatrate|free|ads`;
-                } else {
-                    baseUrl += `&with_watch_providers=${providersStr}&with_watch_monetization_types=flatrate|free|ads`;
-                }
-            }
-
-            if (keywordsStr) baseUrl += `&with_keywords=${keywordsStr}`;
-            if (coreGenresStr) baseUrl += `&with_genres=${coreGenresStr}`;
-
-            if (mediaType === 'movie') {
-                if (movieRuntimeMin !== null) baseUrl += `&with_runtime.gte=${movieRuntimeMin}`;
-                if (movieRuntimeMax !== null && movieRuntimeMax < 999) baseUrl += `&with_runtime.lte=${movieRuntimeMax}`;
-            } else if (mediaType === 'tv') {
-                if (tvRuntimeMin !== null) baseUrl += `&with_runtime.gte=${tvRuntimeMin}`;
-                if (tvRuntimeMax !== null && tvRuntimeMax < 999) baseUrl += `&with_runtime.lte=${tvRuntimeMax}`;
-            }
-
-            if (activeLanguages.size > 0 && langRule === 'original') {
-                // If strict original language, offload the work straight to TMDB
-                baseUrl += `&with_original_language=${selectedIsos.join('|')}`;
-            }
-
-            pagesToFetch.forEach(page => {
-                fetchPromises.push(
-                    fetch(`${baseUrl}&page=${page}`, { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } })
-                    .then(r => r.json())
-                    .then(data => (data.results || []).map(item => ({ ...item, media_type: mediaType }))) 
-                );
-            });
-        }
-
+        const requests = buildDiscoverUrls(activeTypes, textQuery, filters);
+        const fetchPromises = requests.map(req => 
+            fetch(req.url, { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } })
+                .then(r => r.json())
+                .then(data => (data.results || []).map(item => ({ ...item, media_type: req.type })))
+        );
+        
         if (textQuery) currentPage += 4;
+        
+        const finalResults = await processCombinedResults(fetchPromises, textQuery, filters);
 
-        const resultsArrays = await Promise.all(fetchPromises);
-        let combinedResults = resultsArrays.flat();
-
-        const uniqueMap = new Map();
-        combinedResults.forEach(item => uniqueMap.set(item.id, item));
-        combinedResults = Array.from(uniqueMap.values());
-
-        console.log(`[DEBUG] Pre-filter count from Discover API: ${combinedResults.length}`);
-
-        // --- Accurate Real-time Provider, Duration & Language Checking ---
-        console.log(`[DEBUG] Fetching detailed data for ${combinedResults.length} items...`);
-        const detailPromises = combinedResults.map(item => 
-            // Pull the main details, providers, AND translations in one go!
-            fetch(`https://api.themoviedb.org/3/${item.media_type}/${item.id}?append_to_response=watch/providers,translations`, {
-                headers: { Authorization: `Bearer ${TMDB_TOKEN}` }
-            })
-            .then(r => r.json())
-            .catch(() => null)
-        );
-        const detailsResults = await Promise.all(detailPromises);
-
-        combinedResults = combinedResults.filter((item, index) => 
-            evaluateItemDetail(item, detailsResults[index], langRule, selectedIsos, includeFree)
-        );
-
-        console.log(`[DEBUG] Post-filter count (Providers + Strict Duration): ${combinedResults.length}`);
-
-        // --- Client-side Text Filtering and Custom Sort ---
-        if (textQuery) {
-            combinedResults = combinedResults.filter(item => {
-                const title = (item.title || item.name || '').toLowerCase();
-                const overview = (item.overview || '').toLowerCase();
-                return title.includes(textQuery) || overview.includes(textQuery);
-            });
-
-            combinedResults.sort((a, b) => {
-                const aTitleMatch = (a.title || a.name || '').toLowerCase().includes(textQuery);
-                const bTitleMatch = (b.title || b.name || '').toLowerCase().includes(textQuery);
-
-                if (aTitleMatch && !bTitleMatch) return -1;
-                if (!aTitleMatch && bTitleMatch) return 1;
-
-                return b.popularity - a.popularity;
-            });
-            console.log(`[DEBUG] Count after Text Query ("${textQuery}") filter: ${combinedResults.length}`);
-        } else {
-            combinedResults.sort((a, b) => b.popularity - a.popularity);
-        }
-
-        if (combinedResults.length === 0 && !isLoadMore) {
+        if (finalResults.length === 0 && !isLoadMore) {
             resultsGrid.innerHTML = '<p class="meta" style="grid-column: 1/-1; text-align:center;">No matches found. Try widening your filters!</p>';
-        } else if (combinedResults.length > 0) {
-            renderResults(combinedResults);
-            
-            if (combinedResults.length >= (textQuery ? 5 : 10)) loadMoreBtn.style.display = 'inline-block';
+        } else if (finalResults.length > 0) {
+            renderResults(finalResults);
+            if (finalResults.length >= (textQuery ? 5 : 10)) loadMoreBtn.style.display = 'inline-block';
         }
     } catch (err) {
         if (!isLoadMore) resultsGrid.innerHTML = '<p class="meta" style="grid-column: 1/-1; text-align:center;">Search failed.</p>';
         console.error("=== [DEBUG] SEARCH FAILED ===", err);
     } finally {
         loader.style.display = 'none';
-        console.log("=== [DEBUG] SEARCH COMPLETED ===");
-        
-        if (!isLoadMore) {
-            document.getElementById('results-grid').scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
+        if (!isLoadMore) document.getElementById('results-grid').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+}
+
+function getDurationBounds(durationSet) {
+    if (durationSet.size === 0) return null;
+    const durations = Array.from(durationSet).map(id => {
+        const el = document.querySelector(`.pill[data-id="${id}"]`);
+        return { min: Number.parseInt(el.dataset.min), max: Number.parseInt(el.dataset.max) };
+    });
+    return { min: Math.min(...durations.map(d => d.min)), max: Math.max(...durations.map(d => d.max)) };
 }
 
 function renderResults(items) {
@@ -649,6 +630,42 @@ async function fetchDynamicPoster(rec, imgElementId) {
         } 
     } catch (e) {
         imgEl.src = 'https://via.placeholder.com/500x750/1b2228/ff4d4d?text=Error';
+    }
+}
+
+async function loadUserPreferences(user) {
+    if (!user) return;
+    try {
+        const { data: profile } = await supabaseClient
+            .from('profiles')
+            .select('services')
+            .eq('id', user.id)
+            .single();
+
+        // Using optional chaining here!
+        if (profile?.services) {
+            // 1. Autofill Streaming Providers
+            const userProviders = profile.services.streaming || [];
+            userProviders.forEach(providerId => {
+                const pill = document.querySelector(`.pill[data-id="${providerId}"][data-group="provider"]`);
+                if (pill) {
+                    activeProviders.add(String(providerId));
+                    pill.classList.add('active');
+                }
+            });
+
+            // 2. Autofill Preferred Languages
+            const userLanguages = profile.services.languages || [];
+            userLanguages.forEach(langName => {
+                const pill = document.querySelector(`.pill[data-id="${langName}"][data-group="language"]`);
+                if (pill) {
+                    activeLanguages.add(langName);
+                    pill.classList.add('active');
+                }
+            });
+        }
+    } catch (err) {
+        console.warn("Could not load user preferences:", err);
     }
 }
 
