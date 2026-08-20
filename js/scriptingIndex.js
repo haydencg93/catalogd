@@ -37,7 +37,7 @@ let userStreamingProviderIds = [];
 */
 async function loadConfig() {
     try {
-        const response = await fetch('../config/config.json');
+        const response = await fetch('config/config.json');
         if (!response.ok) throw new Error("config.json not found");
         const config = await response.json();
         

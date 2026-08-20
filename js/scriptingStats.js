@@ -12,7 +12,7 @@ let isOngoingPeriod = true;
 
 async function initStats() {
     try {
-        const response = await fetch('../config/config.json');
+        const response = await fetch('config/config.json');
         const config = await response.json();
         supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
 

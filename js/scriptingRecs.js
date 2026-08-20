@@ -16,7 +16,7 @@ const resultsHeader = document.getElementById('results-header');
 
 async function initRecs() {
     try {
-        const response = await fetch('../config/config.json');
+        const response = await fetch('config/config.json');
         configData = await response.json();
         
         supabaseClient = supabase.createClient(configData.supabase_url, configData.supabase_key);

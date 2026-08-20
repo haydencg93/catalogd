@@ -19,7 +19,7 @@ const propertyMap = {
 let allFandomCharacters = [];
 
 async function initFandomPage() {
-    const config = await fetch('../config/config.json').then(r => r.json());
+    const config = await fetch('config/config.json').then(r => r.json());
     supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
     await setupHeader();
 
