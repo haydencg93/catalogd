@@ -12,8 +12,18 @@ export class AppHeader extends HTMLElement {
                     <div class="circle c-youtube"></div>
                 </div>
             </a>
-            <div class="nav-actions">
+            <div class="nav-actions" style="display: flex; align-items: center; gap: 15px;">
                 <button id="login-btn" class="secondary-btn" style="display:none;">Sign In</button>
+                
+                <!--
+                <a href="info.html" class="info-icon-link" aria-label="Information">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-info-circle" viewBox="0 0 16 16">
+                        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                        <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/>
+                    </svg>
+                </a>
+                -->
+
                 <div id="profile-menu" class="profile-dropdown" style="display:none;">
                     <button class="profile-trigger" id="profile-trigger-btn" aria-expanded="false">
                         <img src="https://ui-avatars.com/api/?name=User&background=0d0776&color=fff" id="nav-avatar" alt="Profile">
