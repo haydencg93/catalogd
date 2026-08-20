@@ -243,20 +243,13 @@ input {
 }
 
 /* Watchlist Stats Card Button */
-.stat-card[onclick] {
+/* Stats Bar Hover Effects */
+.stats-bar .stat-card {
     transition: all 0.2s ease;
     cursor: pointer;
 }
 
-.stat-card[onclick]:hover {
-    background: var(--accent-glow);
-    border-color: var(--accent) !important;
-    transform: translateY(-3px);
-}
-
-/* Ensure all stat cards (including the one with the ID) hover the same way */
-.stat-card[onclick]:hover, 
-#stats-nav-btn:hover {
+.stats-bar .stat-card:hover {
     background: var(--accent-glow);
     border-color: var(--accent) !important;
     transform: translateY(-3px);
