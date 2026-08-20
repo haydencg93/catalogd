@@ -1,4 +1,6 @@
 let supabaseClient = null;
+const configPath = 'config/config.json';
+
 let allUserLogs = [];
 let allLibraryItems = [];
 let allTrackedPeople = [];
@@ -19,7 +21,7 @@ let currentFandomsCategory = 'movie';
 
 async function initProfile() {
     try {
-        const response = await fetch('config/config.json');
+        const response = await fetch(configPath);
         const config = await response.json();
 
         // 1. Initialize Supabase
@@ -30,6 +32,8 @@ async function initProfile() {
                 detectSessionInUrl: true
             }
         });
+        await customElements.whenDefined('app-header');
+        document.querySelector('app-header').initializeAuth(supabaseClient);
 
         // 2. Identify User from URL
         const params = new URLSearchParams(window.location.search);
@@ -62,6 +66,17 @@ async function initProfile() {
         if (!profileUserId) {
             window.location.href = 'index.html';
             return;
+        }
+
+        const profileListsBtn = document.getElementById('profile-lists-btn'); // Or whatever the element ID is in profile.html
+        if (profileListsBtn) {
+            if (!isOwner) {
+                // Point directly to the target user's lists page
+                profileListsBtn.href = `lists.html?id=${profileUserId}`;
+            } else {
+                // Point to your own lists page
+                profileListsBtn.href = `lists.html`;
+            }
         }
 
         const { data: customImgs } = await supabaseClient
@@ -214,23 +229,17 @@ async function initProfile() {
             console.warn("4. No profile found in database for this ID.");
         }
 
-        const diaryNavBtn = document.querySelector('button[onclick*="diary.html"]');
-        const listsNavBtn = document.querySelector('button[onclick*="lists.html"]');
+        // Setup Profile Stat Card Routing
+        const urlSuffix = isOwner ? '' : `?id=${profileUserId}`;
 
-        if (diaryNavBtn) {
-            diaryNavBtn.onclick = () => {
-                // If we're looking at someone else, append their ID to the link
-                const urlSuffix = isOwner ? '' : `?id=${profileUserId}`;
-                window.location.href = `diary.html${urlSuffix}`;
-            };
-        }
+        const diaryCard = document.getElementById('profile-diary-card');
+        if (diaryCard) diaryCard.onclick = () => window.location.href = `diary.html${urlSuffix}`;
 
-        if (listsNavBtn) {
-            listsNavBtn.onclick = () => {
-                const urlSuffix = isOwner ? '' : `?id=${profileUserId}`;
-                window.location.href = `lists.html${urlSuffix}`;
-            };
-        }
+        const listsCard = document.getElementById('profile-lists-card');
+        if (listsCard) listsCard.onclick = () => window.location.href = `lists.html${urlSuffix}`;
+
+        const watchlistCard = document.getElementById('profile-watchlist-card');
+        if (watchlistCard) watchlistCard.onclick = () => window.location.href = `watchlist.html${urlSuffix}`;
 
         if (profileError) throw profileError;
 
@@ -675,7 +684,7 @@ window.filterRevisit = async (type) => {
         return;
     }
 
-    const config = await fetch('config.json').then(r => r.json());
+    const config = await fetch(configPath).then(r => r.json());
     
     // 3. Fetch Image Data
     const itemsWithImages = await Promise.all(items.map(async (item) => {
@@ -728,7 +737,7 @@ window.filterRevisit = async (type) => {
 
 async function renderStatusItems(items, gridId) {
     const grid = document.getElementById(gridId);
-    const config = await fetch('config.json').then(r => r.json());
+    const config = await fetch(configPath).then(r => r.json());
     
     const displayPromises = items.map(async (item) => {
         let title, image, progressText = "";
@@ -1271,7 +1280,7 @@ window.openTagDetails = async (tag) => {
     const taggedLogs = allUserLogs.filter(log => log.tags && log.tags.includes(tag));
     const sortedLogs = taggedLogs.sort((a, b) => getSafeDate(b) - getSafeDate(a));
 
-    const config = await fetch('config.json').then(r => r.json());
+    const config = await fetch(configPath).then(r => r.json());
 
     try {
         const fullLogs = await Promise.all(sortedLogs.map(async (log) => {
@@ -1364,7 +1373,7 @@ async function renderRecent(logs) {
     }
 
     const sortedLogs = logs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 10);
-    const config = await fetch('config.json').then(r => r.json());
+    const config = await fetch(configPath).then(r => r.json());
 
     try {
         const mediaPromises = sortedLogs.map(async (log) => {
@@ -1626,7 +1635,7 @@ async function renderLibrary(items) {
         return;
     }
 
-    const config = await fetch('config.json').then(r => r.json());
+    const config = await fetch(configPath).then(r => r.json());
 
     try {
         const mediaPromises = items.map(async (item) => {

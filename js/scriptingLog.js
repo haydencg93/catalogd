@@ -1,7 +1,9 @@
+let supabaseClient, tmdbToken;
+const configPath = 'config/config.json';
+
 const params = new URLSearchParams(window.location.search);
 const id = params.get('id');
 const type = params.get('type');
-let supabaseClient, tmdbToken;
 let currentMediaRuntime = 0;
 let isLiked = false;
 let isRewatch = false;
@@ -12,7 +14,7 @@ let currentTags = [];
 let mediaReleaseYear = null;
 
 async function initLog() {
-    const config = await fetch('config/config.json').then(r => r.json());
+    const config = await fetch(configPath).then(r => r.json());
     supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
     tmdbToken = config.tmdb_token;
 

@@ -118,6 +118,19 @@
                 </div>
             </div>
         </div>
+
+        <div id="collab-modal" class="modal-overlay" style="display:none;">
+        <div class="auth-card">
+            <button class="close-btn" id="close-collab-modal">×</button>
+            <h3 style="margin-top: 0;">Collaborators</h3>
+            <div id="collab-list" style="margin-top: 15px; margin-bottom: 15px;"></div>
+            <div class="input-group">
+                <input type="text" id="collab-username" placeholder="Enter username to invite" style="width: 100%; box-sizing: border-box;">
+                <button id="add-collab-btn" class="primary-btn" style="margin-top: 10px; width: 100%;">Add Collaborator</button>
+            </div>
+        </div>
+    </div>
+    
     </main>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>

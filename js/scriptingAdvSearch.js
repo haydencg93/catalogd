@@ -1,6 +1,7 @@
 let TMDB_TOKEN = '';
 let supabaseClient = null;
 let configData = null;
+const configPath = 'config/config.json';
 
 // Elements
 const durationSection = document.getElementById('duration-section');
@@ -36,7 +37,7 @@ let currentPage = 1;
 // ----------------------------------------
 async function initAdvSearch() {
     try {
-        const response = await fetch('config/config.json');
+        const response = await fetch(configPath);
         configData = await response.json();
         
         TMDB_TOKEN = configData.tmdb_token;

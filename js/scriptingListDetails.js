@@ -1,3 +1,5 @@
+const configPath = 'config/config.json';
+
 const params = new URLSearchParams(window.location.search);
 const listId = params.get('id');
 let supabaseClient = null;
@@ -15,9 +17,12 @@ let customImgsMap = new Map();
 
 async function initListDetails() {
     // 1. Initialize Supabase and Config
-    const response = await fetch('config/config.json');
+    const response = await fetch(configPath);
     const config = await response.json();
     supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
+    await customElements.whenDefined('app-header');
+    document.querySelector('app-header').initializeAuth(supabaseClient);
+
     tmdbToken = config.tmdb_token;
     lastfmKey = config.lastfm_key;
 

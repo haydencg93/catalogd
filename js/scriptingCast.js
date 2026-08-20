@@ -1,3 +1,5 @@
+const configPath = 'config/config.json';
+
 const params = new URLSearchParams(window.location.search);
 const personId = params.get('personId');
 const authorId = params.get('authorId');
@@ -12,10 +14,11 @@ let currentUser = null; // Track the logged-in user
 
 async function initCastPage() {
     try {
-        const configResponse = await fetch('config/config.json');
+        const configResponse = await fetch(configPath);
         const config = await configResponse.json();
         
         supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
+        document.querySelector('app-header')?.initializeAuth(supabaseClient);
 
         if (characterWiki) {
             await initCharacterPage(characterWiki, mediaId, mediaType);

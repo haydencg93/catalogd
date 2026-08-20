@@ -2,6 +2,8 @@ const params = new URLSearchParams(window.location.search);
 let mediaId = params.get('id');
 let mediaType = params.get('type');
 let supabaseClient = null;
+const configPath = 'config/config.json';
+
 let currentUser = null;
 
 // Unblockable Inline SVG Placeholders
@@ -19,8 +21,10 @@ const propertyMap = {
 let allFandomCharacters = [];
 
 async function initFandomPage() {
-    const config = await fetch('config/config.json').then(r => r.json());
+    const config = await fetch(configPath).then(r => r.json());
     supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
+    document.querySelector('app-header')?.initializeAuth(supabaseClient);
+
     const urlListId = params.get('listId');
     const isCollection = (mediaType === 'collection' || !!urlListId);
 

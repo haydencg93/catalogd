@@ -1,3 +1,5 @@
+const configPath = 'config/config.json';
+
 const params = new URLSearchParams(window.location.search);
 const id = params.get('id');
 const type = params.get('type');
@@ -10,9 +12,10 @@ let directorData = null;
 
 async function initDetails() {
     try {
-        const response = await fetch('config/config.json');
+        const response = await fetch(configPath);
         const config = await response.json();
         supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
+        document.querySelector('app-header')?.initializeAuth(supabaseClient);
 
         const tmdbOptions = { 
             headers: { Authorization: `Bearer ${config.tmdb_token}` } 
@@ -1429,7 +1432,7 @@ async function openEpisodeModal(epNum, fallbackTitle, seasonNum) {
 
         // Deep-fetch Guest Cast structure directly from TMDB natively to ensure flawless Actor Cast routing
         try {
-            const config = await fetch('config.json').then(r => r.json());
+            const config = await fetch(configPath).then(r => r.json());
             const tmdbRes = await fetch(`https://api.themoviedb.org/3/tv/${id}/season/${seasonNum}/episode/${epNum}/credits?language=en-US`, {
                 headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` }
             }).then(r => r.json());

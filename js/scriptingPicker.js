@@ -1,3 +1,5 @@
+const configPath = 'config/config.json';
+
 let TMDB_TOKEN = '';
 let supabaseClient = null;
 let configData = null;
@@ -28,7 +30,7 @@ let currentWinnerMediaId = null;
 
 async function initPicker() {
     try {
-        const response = await fetch('config/config.json');
+        const response = await fetch(configPath);
         configData = await response.json();
         TMDB_TOKEN = configData.tmdb_token;
         supabaseClient = supabase.createClient(configData.supabase_url, configData.supabase_key);

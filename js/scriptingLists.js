@@ -1,4 +1,6 @@
 let supabaseClient = null;
+const configPath = 'config/config.json';
+
 let listOwnerId = null;
 let isViewerOwner = false;
 let lastfmKey = null;
@@ -12,11 +14,13 @@ let isManagingLists = false;
 let listsSortableInstance = null;
 
 async function initLists() {
-    const response = await fetch('config/config.json');
+    const response = await fetch(configPath);
     const config = await response.json();
     lastfmKey = config.lastfm_key;
     tmdbToken = config.tmdb_token;
     supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
+    await customElements.whenDefined('app-header');
+    document.querySelector('app-header').initializeAuth(supabaseClient);
 
     const params = new URLSearchParams(window.location.search);
     const urlId = params.get('id');
@@ -29,6 +33,27 @@ async function initLists() {
     if (!listOwnerId) {
         window.location.href = 'index.html';
         return;
+    }
+
+    if (!isViewerOwner) {
+        // 1. Update the page heading to show it's another user's collection
+        const pageTitle = document.querySelector('h1');
+        if (pageTitle) pageTitle.textContent = "Shared Lists";
+
+        // 2. Hide the creation panel since visitors can't make lists for other users
+        const createSection = document.querySelector('.create-list-section');
+        if (createSection) createSection.style.display = 'none';
+
+        // 3. Hide any reordering/management controls
+        const manageBtn = document.getElementById('manage-lists-btn');
+        if (manageBtn) manageBtn.style.display = 'none';
+    } else {
+        // Standard owner adjustments
+        const pageTitle = document.querySelector('h1');
+        if (pageTitle) pageTitle.textContent = "My Lists";
+        
+        const createSection = document.querySelector('.create-list-section');
+        if (createSection) createSection.style.display = 'block';
     }
 
     const backToProfileBtn = document.getElementById('back-to-profile-btn');
@@ -106,7 +131,7 @@ async function fetchUserLists(userId, currentUserId) {
         const { data: ownedLists, error: ownedError } = await supabaseClient
             .from('media_lists')
             .select('*, list_items(media_id, media_type, added_at, tier_rank, custom_image_url, media_title)')
-            .eq('user_id', userId);
+            .eq('user_id', listOwnerId);
 
         const { data: collabRecords, error: collabError } = await supabaseClient
             .from('list_collaborators')
@@ -118,7 +143,26 @@ async function fetchUserLists(userId, currentUserId) {
         const collaborativeLists = (collabRecords || []).map(record => record.media_lists).filter(Boolean);
         const allListsMap = new Map();
 
+        let visitorCollabs = new Set();
+        if (!isViewerOwner && currentUserId) {
+            // Fetch what lists the VISITING user is a collaborator on
+            const { data: vc } = await supabaseClient
+                .from('list_collaborators')
+                .select('list_id')
+                .eq('user_id', currentUserId);
+            if (vc) visitorCollabs = new Set(vc.map(c => c.list_id));
+        }
+
         [...(ownedLists || []), ...collaborativeLists].forEach(list => {
+            if (!isViewerOwner) {
+                const isVisitorOwner = list.user_id === currentUserId;
+                const isVisitorCollab = visitorCollabs.has(list.id);
+                
+                // If it's private, AND the visitor doesn't own it, AND the visitor isn't a collaborator, skip it!
+                if (!list.is_public && !isVisitorOwner && !isVisitorCollab) {
+                    return; 
+                }
+            }
             allListsMap.set(list.id, list);
         });
 

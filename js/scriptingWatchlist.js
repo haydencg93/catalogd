@@ -1,4 +1,6 @@
 let supabaseClient = null;
+const configPath = 'config/config.json';
+
 let allWatchlistItems = [];
 let tmdbToken = null;
 let lastfmKey = null;
@@ -10,11 +12,13 @@ let currentWatchlistFilter = 'all';
 let customImgsMap = new Map();
 
 async function initWatchlist() {
-    const response = await fetch('config/config.json');
+    const response = await fetch(configPath);
     const config = await response.json();
     tmdbToken = config.tmdb_token;
     lastfmKey = config.lastfm_key;
     supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
+    await customElements.whenDefined('app-header');
+    document.querySelector('app-header').initializeAuth(supabaseClient);
 
     // 1. Identify whose watchlist to load
     const params = new URLSearchParams(window.location.search);

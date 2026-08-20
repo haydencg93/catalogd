@@ -1,4 +1,6 @@
 let supabaseClient = null;
+const configPath = 'config/config.json';
+
 let currentUser = null;
 let allMediaLogs = [];
 let earliestDate = new Date();
@@ -12,9 +14,10 @@ let isOngoingPeriod = true;
 
 async function initStats() {
     try {
-        const response = await fetch('config/config.json');
+        const response = await fetch(configPath);
         const config = await response.json();
         supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
+        document.querySelector('app-header')?.initializeAuth(supabaseClient);
 
         const { data: { user } } = await supabaseClient.auth.getUser();
         if (!user) {

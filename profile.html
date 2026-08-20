@@ -134,21 +134,20 @@
                 </div>
             </div>
 
-            <!-- Bottom Stats Bar: Diary, Lists, Watchlist -->
+            <!-- Diary, Lists, Watchlist, Stats -->
             <div class="stats-bar" style="margin-bottom: 50px;">
-                <div class="stat-card" onclick="window.location.href='diary.html' + (typeof profileUserId !== 'undefined' ? '?id=' + profileUserId : '')" style="cursor: pointer; border-color: var(--accent);">
+                <div id="profile-diary-card" class="stat-card" style="cursor: pointer; border-color: var(--accent);">
                     <span id="stat-count" class="stat-value">0</span>
                     <span class="stat-label">Diary →</span>
                 </div>
-                <div class="stat-card" onclick="window.location.href='lists.html' + (typeof profileUserId !== 'undefined' ? '?id=' + profileUserId : '')" style="cursor: pointer; border-color: var(--accent);">
+                <div id="profile-lists-card" class="stat-card" style="cursor: pointer; border-color: var(--accent);">
                     <span id="lists-count" class="stat-value">0</span>
                     <span class="stat-label">Lists →</span>
                 </div>
-                <div class="stat-card" onclick="window.location.href='watchlist.html' + (typeof profileUserId !== 'undefined' ? '?id=' + profileUserId : '')" style="cursor: pointer; border-color: var(--accent);">
+                <div id="profile-watchlist-card" class="stat-card" style="cursor: pointer; border-color: var(--accent);">
                     <span id="watchlist-count" class="stat-value">0</span>
                     <span class="stat-label">Watchlist →</span>
                 </div>
-                <!-- CHANGED: Removed inline green colors to match others -->
                 <div id="stats-nav-btn" class="stat-card" style="display: none; cursor: pointer; border-color: var(--accent);">
                     <span class="stat-value">📊</span>
                     <span class="stat-label">Stats →</span>

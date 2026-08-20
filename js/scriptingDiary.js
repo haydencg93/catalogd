@@ -1,4 +1,6 @@
 let supabaseClient = null;
+const configPath = 'config/config.json';
+
 let allLogs = [];
 let filteredLogs = [];
 let currentPage = 1;
@@ -12,9 +14,11 @@ let currentSortColumn = 'date';
 
 async function initDiary() {
     try {
-        const response = await fetch('config/config.json');
+        const response = await fetch(configPath);
         const config = await response.json();
         supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
+        await customElements.whenDefined('app-header');
+        document.querySelector('app-header').initializeAuth(supabaseClient);
 
         // 1. Identify whose diary to load
         const params = new URLSearchParams(window.location.search);
@@ -58,8 +62,8 @@ async function initDiary() {
             // HIDE Action column (Edit/Delete) for non-owners via CSS injection
             const style = document.createElement('style');
             style.innerHTML = `
-                #diary-table th:nth-child(7), 
-                #diary-table td:nth-child(7) { display: none !important; }
+                #diary-table th:nth-child(8), 
+                #diary-table td:nth-child(8) { display: none !important; }
             `;
             document.head.appendChild(style);
             
@@ -189,7 +193,7 @@ document.addEventListener('click', function(event) {
         window.applyCurrentSort();
     }
     
-    fetch('config.json')
+    fetch(configPath)
         .then(r => r.json())
         .then(c => renderDiary(c))
         .catch(err => console.error("Config fetch failed:", err));
@@ -205,7 +209,7 @@ window.applyFilters = async () => {
     const rewatchLimit = document.getElementById('rewatch-filter').value;
     const tagLimit = document.getElementById('tag-filter').value;
     
-    const config = await fetch('config.json').then(r => r.json());
+    const config = await fetch(configPath).then(r => r.json());
 
     filteredLogs = allLogs.filter(log => {
         const matchesType = currentType === 'all' || log.media_type === currentType;
@@ -380,7 +384,7 @@ window.toggleSort = (column) => {
             return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
         });
 
-        fetch('config.json').then(r => r.json()).then(c => renderDiary(c));
+        fetch(configPath).then(r => r.json()).then(c => renderDiary(c));
     }
 };
 

@@ -20,7 +20,8 @@ const profileMenu = document.getElementById('profile-menu');
 // 2. Global Variables
 let TMDB_TOKEN = '';
 let LASTFM_KEY = '';
-let supabaseClient = null; 
+let supabaseClient = null;
+const configPath = 'config/config.json';
 let isSignUpMode = false;
 let currentTab = 'movie';
 let customImgsMap = new Map();
@@ -37,7 +38,7 @@ let userStreamingProviderIds = [];
 */
 async function loadConfig() {
     try {
-        const response = await fetch('config/config.json');
+        const response = await fetch(configPath);
         if (!response.ok) throw new Error("config.json not found");
         const config = await response.json();
         
