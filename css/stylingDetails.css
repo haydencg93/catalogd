@@ -397,7 +397,7 @@ html, body {
 }
 
 #quick-page-input:focus {
-    border-color: #00e054;
+    border-color: var(--accent);
 }
 
 .quick-update-row .primary-btn {

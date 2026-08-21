@@ -1467,7 +1467,7 @@ async function openEpisodeModal(epNum, fallbackTitle, seasonNum) {
     modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
 }
 
-async function toggleEpisode(seriesId, seasonNum, epNum) {
+window.toggleEpisode = async function(seriesId, seasonNum, epNum) {
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) return;
     const isChecked = document.getElementById(`ep-${epNum}`).checked;
