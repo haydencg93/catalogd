@@ -40,3 +40,15 @@ jobs:
         run: |
           cd seederAi
           node generate_embeddings.js
+        
+      - name: Run Character Filler Script
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OPENVERSE_CLIENT_ID: ${{ secrets.OPENVERSE_CLIENT_ID }}
+          OPENVERSE_CLIENT_SECRET: ${{ secrets.OPENVERSE_CLIENT_SECRET }}
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+        run: |
+          cd seederAi
+          node fill_characters.js

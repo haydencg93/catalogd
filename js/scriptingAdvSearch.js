@@ -529,49 +529,63 @@ async function executeCharacterSearch(characterQuery) {
     loadMoreBtn.style.display = 'none';
 
     try {
-        // 1. Fetch from Qdrant
-        const response = await fetch(`${configData.supabase_url}/functions/v1/search-characters`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${configData.supabase_key}` 
-            },
-            body: JSON.stringify({ query: characterQuery })
-        });
+        // 1. Build Supabase query against `global_movies`
+        let query = supabaseClient
+            .from('global_movies')
+            .select('tmdb_id, title, release_year, popularity, overview, tags, media_type, characters')
+            .ilike('characters', `%${characterQuery}%`)
+            .order('popularity', { ascending: false })
+            .limit(40);
 
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(`Edge Function Failed: ${data.error}`);
+        // 2. Filter by selected media type(s) ('movie' / 'tv')
+        if (activeTypes.size > 0) {
+            query = query.in('media_type', Array.from(activeTypes));
         }
 
-        let matches = data.results || [];
+        const { data: movies, error } = await query;
 
-        // 2. Filter locally by Media Type
-        matches = matches.filter(m => activeTypes.has(m.media_type));
+        if (error) throw error;
 
-        // 3. Filter locally by Core Genres & Themes
-        const requiredTags = [...Array.from(activeCoreGenres).map(id => document.querySelector(`.pill[data-id="${id}"]`).innerText), ...Array.from(activeKeywords.values())].map(t => t.toLowerCase());
-        
+        let matches = (movies || []).map(m => ({
+            id: m.tmdb_id,
+            title: m.title,
+            release_year: m.release_year,
+            media_type: m.media_type || 'movie',
+            characters: m.characters,
+            tags: m.tags
+        }));
+
+        // 3. Filter locally by selected Core Genres & Themes if active
+        const requiredTags = [
+            ...Array.from(activeCoreGenres).map(id => document.querySelector(`.pill[data-id="${id}"]`)?.innerText?.trim()),
+            ...Array.from(activeKeywords.values())
+        ].filter(Boolean).map(t => t.toLowerCase());
+
         if (requiredTags.length > 0) {
+            const isAllLogic = document.querySelector('input[name="theme-logic"]:checked')?.value === 'all';
+            
             matches = matches.filter(m => {
                 const payloadTags = (m.tags || '').toLowerCase();
-                // Simple logic: Does the Qdrant tag payload contain at least one of the selected themes?
-                return requiredTags.some(tag => payloadTags.includes(tag)); 
+                return isAllLogic
+                    ? requiredTags.every(tag => payloadTags.includes(tag))
+                    : requiredTags.some(tag => payloadTags.includes(tag));
             });
         }
 
+        // 4. Handle empty state
         if (matches.length === 0) {
             resultsGrid.innerHTML = '<p class="meta" style="grid-column: 1/-1; text-align:center;">No matches found for that character with your current filters.</p>';
-            return;
+            return true;
         }
 
-        // 4. Render using the Lazy Poster approach
+        // 5. Render results using dynamic TMDB poster loader
         renderQdrantResults(matches);
+        return true;
 
     } catch (err) {
-        console.error("Character Search Error:", err);
+        console.error("Supabase Character Search Error:", err);
         resultsGrid.innerHTML = '<p class="meta" style="grid-column: 1/-1; text-align:center;">Failed to fetch character data.</p>';
+        return false;
     } finally {
         loader.style.display = 'none';
         document.getElementById('results-grid').scrollIntoView({ behavior: 'smooth', block: 'start' });
