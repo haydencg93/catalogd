@@ -80,17 +80,17 @@ async function runUnifiedPipeline() {
                     }]
                 });
 
-                // 3. DELETE the item from Supabase to save storage space!
-                const { error: deleteError } = await supabase
+                // 3. UPDATE the item in Supabase to mark it as embedded
+                const { error: updateError } = await supabase
                     .from('global_movies')
-                    .delete()
+                    .update({ is_embedded: true })
                     .eq('tmdb_id', movie.tmdb_id);
 
-                if (deleteError) {
-                    console.error(`[E] DB Deletion Error for ${movie.title}:`, deleteError.message);
+                if (updateError) {
+                    console.error(`[E] DB Update Error for ${movie.title}:`, updateError.message);
                 } else {
                     totalProcessed++;
-                    console.log(`[S] (${totalProcessed}) Synced to Qdrant & Cleared from Queue: ${movie.title}`);
+                    console.log(`[S] (${totalProcessed}) Synced to Qdrant & Marked as Embedded: ${movie.title}`);
                 }
 
             } catch (err) {
