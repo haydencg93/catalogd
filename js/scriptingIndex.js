@@ -156,6 +156,7 @@ function toggleAuthMode() {
 }
 
 // HELPER: Handles fetching and deduplicating items
+// HELPER: Handles fetching and deduplicating items
 async function fetchAndMergeTabItems(type) {
     let forYouItems = [];
     if (['movie', 'tv'].includes(type)) {
@@ -176,7 +177,6 @@ async function loadTabContent(type) {
     
     resultsGrid.innerHTML = '';
     loader.style.display = 'block';
-    loader.textContent = `Fetching ${type}s...`;
     
     try {
         if (['youtube', 'user', 'person', 'author'].includes(type)) {
@@ -185,18 +185,47 @@ async function loadTabContent(type) {
             calculateAndRenderVibe(type);
         }
 
-        const combined = await fetchAndMergeTabItems(type);
+        // STEP 1: Fetch and render Trending Items FIRST for instant UI feedback
+        loader.textContent = `Fetching trending ${type}s...`;
+        let trendingItems = await getTrendingItems(type);
 
-        if (combined.length === 0) {
+        if (trendingItems.length === 0) {
             resultsGrid.innerHTML = '<p class="meta" style="grid-column: 1/-1; text-align: center;">No items found.</p>';
         } else {
-            renderResults(combined);
+            renderResults(trendingItems);
+        }
+
+        // STEP 2: Only attempt to calculate "For You" if they are signed in and on a supported tab
+        if (['movie', 'tv'].includes(type)) {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+
+            if (user) {
+                // Keep the loader visible while the AI thinks
+                loader.style.display = 'block';
+                loader.textContent = `Calculating "For You" ${type}s...`;
+
+                const forYouItems = await getForYouItems(type);
+                maybeShowServicesNudge();
+
+                if (forYouItems.length > 0) {
+                    // Filter out any trending items that the AI already picked for you
+                    const forYouIds = new Set(forYouItems.map(item => String(item.id)));
+                    trendingItems = trendingItems.filter(item => !forYouIds.has(String(item.id)));
+
+                    // Re-render the grid with the AI items injected at the very top!
+                    const combined = [...forYouItems, ...trendingItems];
+                    renderResults(combined);
+                }
+            }
         }
     } catch (err) {
         console.error("Tab content load failed:", err);
         loader.textContent = "Failed to load content.";
+        loader.style.display = 'block';
     } finally {
-        if(loader.textContent.startsWith("Fetching")) loader.style.display = 'none';
+        if(loader.textContent.startsWith("Fetching") || loader.textContent.startsWith("Calculating")) {
+            loader.style.display = 'none';
+        }
     }
 }
 
