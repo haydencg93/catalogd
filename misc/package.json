@@ -1,8 +1,9 @@
 {
   "dependencies": {
-    "@supabase/supabase-js": "^2.110.7",
+    "@qdrant/js-client-rest": "^1.19.0",
+    "@supabase/supabase-js": "^2.112.3",
     "dotenv": "^17.4.2",
-    "ws": "^8.21.1"
+    "ws": "^8.21.3"
   },
   "name": "misc",
   "version": "1.0.0",
