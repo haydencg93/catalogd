@@ -199,6 +199,10 @@ window.filterLists = (category) => {
     renderFilteredLists();
 };
 
+document.querySelectorAll('[data-list-filter]').forEach((button) => {
+    button.addEventListener('click', () => window.filterLists(button.dataset.listFilter));
+});
+
 async function renderFilteredLists() {
     const container = document.getElementById('lists-container');
     

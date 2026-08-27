@@ -2009,6 +2009,10 @@ window.loadSimilar = async function(filterType = 'all') {
     if (filterType !== 'all') {
         desiredOutputs = [filterType];
     }
+
+    document.querySelectorAll('[data-similar-filter]').forEach((button) => {
+        button.addEventListener('click', () => window.loadSimilar(button.dataset.similarFilter));
+    });
     
     try {
         const config = await loadConfig();

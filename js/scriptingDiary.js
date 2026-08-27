@@ -598,6 +598,17 @@ window.onclick = (event) => {
     }
 };
 
+document.getElementById('diary-search')?.addEventListener('input', () => applyFilters());
+document.querySelectorAll('#advanced-filters select').forEach((select) => {
+    select.addEventListener('change', () => applyFilters());
+});
+document.getElementById('toggle-filters-btn')?.addEventListener('click', () => {
+    document.getElementById('advanced-filters')?.classList.toggle('show');
+});
+document.querySelectorAll('[data-diary-type]').forEach((button) => {
+    button.addEventListener('click', () => window.filterType(button.dataset.diaryType));
+});
+
 window.deleteDiaryEntry = async (logId) => {
     if (!confirm("Are you sure you want to delete this entry from your diary?")) return;
 

@@ -123,6 +123,10 @@ window.filterWatchlist = (type) => {
     renderWatchlist(filtered, tmdbToken, type);
 };
 
+document.querySelectorAll('[data-watchlist-filter]').forEach((button) => {
+    button.addEventListener('click', () => window.filterWatchlist(button.dataset.watchlistFilter));
+});
+
 async function renderWatchlist(items, token, typeLabel) {
     const grid = document.getElementById('watchlist-grid');
     const subtitle = document.getElementById('watchlist-subtitle');
