@@ -1,5 +1,7 @@
+import { loadConfig } from './core/config.js';
+import { getSupabaseClient } from './core/supabase.js';
+
 let supabaseClient = null;
-const configPath = 'config/config.json';
 
 let currentUser = null;
 let allMediaLogs = [];
@@ -14,10 +16,9 @@ let isOngoingPeriod = true;
 
 async function initStats() {
     try {
-        const response = await fetch(configPath);
-        const config = await response.json();
-        supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
-        document.querySelector('app-header')?.initializeAuth(supabaseClient);
+        const config = await loadConfig();
+        supabaseClient = await getSupabaseClient();
+        await document.querySelector('app-header')?.initializeAuth(supabaseClient);
 
         const { data: { user } } = await supabaseClient.auth.getUser();
         if (!user) {

@@ -1,5 +1,7 @@
+import { loadConfig } from './core/config.js';
+import { getSupabaseClient } from './core/supabase.js';
+
 let supabaseClient = null;
-const configPath = 'config/config.json';
 
 let allUserLogs = [];
 let allLibraryItems = [];
@@ -21,11 +23,10 @@ let currentFandomsCategory = 'movie';
 
 async function initProfile() {
     try {
-        const response = await fetch(configPath);
-        const config = await response.json();
+        const config = await loadConfig();
 
         // 1. Initialize Supabase
-        supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key, {
+        supabaseClient = await getSupabaseClient({
             auth: {
                 persistSession: true,
                 autoRefreshToken: true,
@@ -33,7 +34,7 @@ async function initProfile() {
             }
         });
         await customElements.whenDefined('app-header');
-        document.querySelector('app-header').initializeAuth(supabaseClient);
+        await document.querySelector('app-header').initializeAuth(supabaseClient);
 
         // 2. Identify User from URL
         const params = new URLSearchParams(window.location.search);
@@ -684,7 +685,7 @@ window.filterRevisit = async (type) => {
         return;
     }
 
-    const config = await fetch(configPath).then(r => r.json());
+    const config = await loadConfig();
     
     // 3. Fetch Image Data
     const itemsWithImages = await Promise.all(items.map(async (item) => {
@@ -737,7 +738,7 @@ window.filterRevisit = async (type) => {
 
 async function renderStatusItems(items, gridId) {
     const grid = document.getElementById(gridId);
-    const config = await fetch(configPath).then(r => r.json());
+    const config = await loadConfig();
     
     const displayPromises = items.map(async (item) => {
         let title, image, progressText = "";
@@ -1280,7 +1281,7 @@ window.openTagDetails = async (tag) => {
     const taggedLogs = allUserLogs.filter(log => log.tags && log.tags.includes(tag));
     const sortedLogs = taggedLogs.sort((a, b) => getSafeDate(b) - getSafeDate(a));
 
-    const config = await fetch(configPath).then(r => r.json());
+    const config = await loadConfig();
 
     try {
         const fullLogs = await Promise.all(sortedLogs.map(async (log) => {
@@ -1373,7 +1374,7 @@ async function renderRecent(logs) {
     }
 
     const sortedLogs = logs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 10);
-    const config = await fetch(configPath).then(r => r.json());
+    const config = await loadConfig();
 
     try {
         const mediaPromises = sortedLogs.map(async (log) => {
@@ -1635,7 +1636,7 @@ async function renderLibrary(items) {
         return;
     }
 
-    const config = await fetch(configPath).then(r => r.json());
+    const config = await loadConfig();
 
     try {
         const mediaPromises = items.map(async (item) => {
