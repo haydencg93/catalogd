@@ -1748,4 +1748,18 @@ window.removeFavorite = (type, index) => {
     renderFavManager();
 };
 
+document.querySelectorAll('[data-service-category]').forEach((pill) => {
+    const toggle = () => window.toggleServicePill(pill, pill.dataset.serviceCategory);
+    pill.addEventListener('click', toggle);
+    pill.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            toggle();
+        }
+    });
+});
+document.querySelectorAll('[data-import-type]').forEach((button) => {
+    button.addEventListener('click', () => window.handleAdvancedImport(button.dataset.importType));
+});
+
 initSettings();

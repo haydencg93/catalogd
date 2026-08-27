@@ -1766,4 +1766,29 @@ async function renderLibraryPage() {
     }
 }
 
+document.querySelectorAll('[data-profile-tab]').forEach((button) => {
+    button.addEventListener('click', () => window.switchTab(button.dataset.profileTab));
+});
+document.querySelectorAll('[data-library-filter]').forEach((button) => {
+    button.addEventListener('click', () => window.filterLibrary(button.dataset.libraryFilter));
+});
+document.querySelectorAll('[data-people-filter]').forEach((button) => {
+    button.addEventListener('click', () => window.filterPeople(button.dataset.peopleFilter));
+});
+document.querySelectorAll('[data-fandom-filter]').forEach((button) => {
+    button.addEventListener('click', () => window.filterFandoms(button.dataset.fandomFilter));
+});
+document.querySelectorAll('[data-revisit-filter]').forEach((button) => {
+    button.addEventListener('click', () => window.filterRevisit(button.dataset.revisitFilter));
+});
+document.querySelectorAll('[data-favorites-filter]').forEach((button) => {
+    button.addEventListener('click', () => window.filterFavs(button.dataset.favoritesFilter));
+});
+document.querySelectorAll('[data-recent-filter]').forEach((button) => {
+    button.addEventListener('click', () => window.filterRecent(button.dataset.recentFilter));
+});
+document.querySelector('[data-navigation="settings.html"]')?.addEventListener('click', () => {
+    window.location.href = 'settings.html';
+});
+
 initProfile();

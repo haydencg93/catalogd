@@ -708,4 +708,12 @@ function renderMilestones(logs) {
     area.innerHTML = html;
 }
 
+document.querySelectorAll('[data-stats-depth]').forEach((button) => {
+    button.addEventListener('click', () => window.switchStatsDepth(button.dataset.statsDepth));
+});
+document.querySelectorAll('[data-stats-filter]').forEach((button) => {
+    button.addEventListener('click', () => window.filterStats(button.dataset.statsFilter));
+});
+document.getElementById('refresh-stats-btn')?.addEventListener('click', () => window.requestStatsUpdate());
+
 initStats();

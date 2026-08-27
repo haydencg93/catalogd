@@ -116,11 +116,11 @@
             <div class="input-group" style="margin-top: 25px;">
                 <label>Listening Providers (Music)</label>
                 <div id="settings-listening-container" class="pill-grid" style="margin-top: 10px;">
-                    <div class="pill" data-id="spotify" onclick="toggleServicePill(this, 'listening')">Spotify</div>
-                    <div class="pill" data-id="applemusic" onclick="toggleServicePill(this, 'listening')">Apple Music</div>
-                    <div class="pill" data-id="youtubemusic" onclick="toggleServicePill(this, 'listening')">YouTube Music</div>
-                    <div class="pill" data-id="tidal" onclick="toggleServicePill(this, 'listening')">Tidal</div>
-                    <div class="pill" data-id="amazonmusic" onclick="toggleServicePill(this, 'listening')">Amazon Music</div>
+                    <div class="pill" data-id="spotify" data-service-category="listening" role="button" tabindex="0">Spotify</div>
+                    <div class="pill" data-id="applemusic" data-service-category="listening" role="button" tabindex="0">Apple Music</div>
+                    <div class="pill" data-id="youtubemusic" data-service-category="listening" role="button" tabindex="0">YouTube Music</div>
+                    <div class="pill" data-id="tidal" data-service-category="listening" role="button" tabindex="0">Tidal</div>
+                    <div class="pill" data-id="amazonmusic" data-service-category="listening" role="button" tabindex="0">Amazon Music</div>
                 </div>
             </div>
 
@@ -245,25 +245,25 @@
             <div class="import-block" style="margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #2c3440;">
                 <label>Import Watchlist (watchlist.csv)</label>
                 <input type="file" id="import-watchlist-input" accept=".csv" style="margin-top: 5px;">
-                <button onclick="handleAdvancedImport('watchlist')" class="secondary-btn" style="margin-top: 10px;">Sync Watchlist</button>
+                <button data-import-type="watchlist" class="secondary-btn" style="margin-top: 10px;">Sync Watchlist</button>
             </div>
 
             <div class="import-block" style="margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #2c3440;">
                 <label>Import Likes (films.csv)</label>
                 <input type="file" id="import-likes-input" accept=".csv" style="margin-top: 5px;">
-                <button onclick="handleAdvancedImport('likes')" class="secondary-btn" style="margin-top: 10px;">Update Likes</button>
+                <button data-import-type="likes" class="secondary-btn" style="margin-top: 10px;">Update Likes</button>
             </div>
 
             <div class="import-block" style="margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #2c3440;">
                 <label>Import Extended Reviews (reviews.csv)</label>
                 <input type="file" id="import-reviews-input" accept=".csv" style="margin-top: 5px;">
-                <button onclick="handleAdvancedImport('reviews')" class="secondary-btn" style="margin-top: 10px;">Update Reviews</button>
+                <button data-import-type="reviews" class="secondary-btn" style="margin-top: 10px;">Update Reviews</button>
             </div>
 
             <div class="import-block" style="margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #2c3440;">
                 <label>Import Custom List (listname.csv)</label>
                 <input type="file" id="import-list-input" accept=".csv" style="margin-top: 5px;">
-                <button onclick="handleAdvancedImport('list')" class="secondary-btn" style="margin-top: 10px;">Sync List</button>
+                <button data-import-type="list" class="secondary-btn" style="margin-top: 10px;">Sync List</button>
             </div>
 
             <div class="import-block" style="margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #2c3440;">
