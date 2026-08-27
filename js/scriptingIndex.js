@@ -1094,6 +1094,15 @@ document.addEventListener('mouseleave', () => {
 
 authConfirmBtn.addEventListener('click', handleAuth);
 closeModal.addEventListener('click', closeAuthModal);
-window.toggleAuthMode = toggleAuthMode;
+document.querySelectorAll('[data-navigation]').forEach((button) => {
+    button.addEventListener('click', () => {
+        window.location.href = button.dataset.navigation;
+    });
+});
+document.querySelectorAll('[data-tab]').forEach((button) => {
+    button.addEventListener('click', () => switchTab(button.dataset.tab));
+});
+document.getElementById('forgot-password-link')?.addEventListener('click', handleForgotPassword);
+authSwitch.addEventListener('click', toggleAuthMode);
 
 loadConfig();
