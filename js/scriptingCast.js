@@ -1,4 +1,5 @@
-const configPath = 'config/config.json';
+import { loadConfig } from './core/config.js';
+import { getSupabaseClient } from './core/supabase.js';
 
 const params = new URLSearchParams(window.location.search);
 const personId = params.get('personId');
@@ -14,11 +15,10 @@ let currentUser = null; // Track the logged-in user
 
 async function initCastPage() {
     try {
-        const configResponse = await fetch(configPath);
-        const config = await configResponse.json();
+        const config = await loadConfig();
         
-        supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
-        document.querySelector('app-header')?.initializeAuth(supabaseClient);
+        supabaseClient = await getSupabaseClient();
+        currentUser = await document.querySelector('app-header')?.initializeAuth(supabaseClient);
 
         if (characterWiki) {
             await initCharacterPage(characterWiki, mediaId, mediaType);

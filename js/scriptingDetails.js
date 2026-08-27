@@ -1,4 +1,5 @@
-const configPath = 'config/config.json';
+import { loadConfig } from './core/config.js';
+import { getSupabaseClient } from './core/supabase.js';
 
 const params = new URLSearchParams(window.location.search);
 const id = params.get('id');
@@ -12,10 +13,9 @@ let directorData = null;
 
 async function initDetails() {
     try {
-        const response = await fetch(configPath);
-        const config = await response.json();
-        supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
-        document.querySelector('app-header')?.initializeAuth(supabaseClient);
+        const config = await loadConfig();
+        supabaseClient = await getSupabaseClient();
+        await document.querySelector('app-header')?.initializeAuth(supabaseClient);
 
         const tmdbOptions = { 
             headers: { Authorization: `Bearer ${config.tmdb_token}` } 
@@ -1432,7 +1432,7 @@ async function openEpisodeModal(epNum, fallbackTitle, seasonNum) {
 
         // Deep-fetch Guest Cast structure directly from TMDB natively to ensure flawless Actor Cast routing
         try {
-            const config = await fetch(configPath).then(r => r.json());
+            const config = await loadConfig();
             const tmdbRes = await fetch(`https://api.themoviedb.org/3/tv/${id}/season/${seasonNum}/episode/${epNum}/credits?language=en-US`, {
                 headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` }
             }).then(r => r.json());
@@ -1483,7 +1483,7 @@ async function markSeasonAsWatched() {
     const seasonNum = parseInt(document.getElementById('season-selector').value);
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) return alert("Please sign in.");
-    const config = await fetch(configPath).then(r => r.json());
+    const config = await loadConfig();
     
     try {
         const response = await fetch(`https://api.themoviedb.org/3/tv/${id}/season/${seasonNum}?language=en-US`, { 
@@ -2011,7 +2011,7 @@ window.loadSimilar = async function(filterType = 'all') {
     }
     
     try {
-        const config = await fetch(configPath).then(r => r.json());
+        const config = await loadConfig();
         
         const response = await fetch(`${config.supabase_url}/functions/v1/get-recommendations`, {
             method: 'POST',
