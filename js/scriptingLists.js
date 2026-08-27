@@ -1,5 +1,7 @@
+import { loadConfig } from './core/config.js';
+import { getSupabaseClient } from './core/supabase.js';
+
 let supabaseClient = null;
-const configPath = 'config/config.json';
 
 let listOwnerId = null;
 let isViewerOwner = false;
@@ -14,13 +16,12 @@ let isManagingLists = false;
 let listsSortableInstance = null;
 
 async function initLists() {
-    const response = await fetch(configPath);
-    const config = await response.json();
+    const config = await loadConfig();
     lastfmKey = config.lastfm_key;
     tmdbToken = config.tmdb_token;
-    supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
+    supabaseClient = await getSupabaseClient();
     await customElements.whenDefined('app-header');
-    document.querySelector('app-header').initializeAuth(supabaseClient);
+    await document.querySelector('app-header').initializeAuth(supabaseClient);
 
     const params = new URLSearchParams(window.location.search);
     const urlId = params.get('id');

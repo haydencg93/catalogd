@@ -1,5 +1,7 @@
+import { loadConfig } from './core/config.js';
+import { getSupabaseClient } from './core/supabase.js';
+
 let supabaseClient = null;
-const configPath = 'config/config.json';
 
 let allLogs = [];
 let filteredLogs = [];
@@ -14,11 +16,10 @@ let currentSortColumn = 'date';
 
 async function initDiary() {
     try {
-        const response = await fetch(configPath);
-        const config = await response.json();
-        supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
+        const config = await loadConfig();
+        supabaseClient = await getSupabaseClient();
         await customElements.whenDefined('app-header');
-        document.querySelector('app-header').initializeAuth(supabaseClient);
+        await document.querySelector('app-header').initializeAuth(supabaseClient);
 
         // 1. Identify whose diary to load
         const params = new URLSearchParams(window.location.search);
@@ -193,8 +194,7 @@ document.addEventListener('click', function(event) {
         window.applyCurrentSort();
     }
     
-    fetch(configPath)
-        .then(r => r.json())
+    loadConfig()
         .then(c => renderDiary(c))
         .catch(err => console.error("Config fetch failed:", err));
 });
@@ -209,7 +209,7 @@ window.applyFilters = async () => {
     const rewatchLimit = document.getElementById('rewatch-filter').value;
     const tagLimit = document.getElementById('tag-filter').value;
     
-    const config = await fetch(configPath).then(r => r.json());
+    const config = await loadConfig();
 
     filteredLogs = allLogs.filter(log => {
         const matchesType = currentType === 'all' || log.media_type === currentType;
@@ -384,7 +384,7 @@ window.toggleSort = (column) => {
             return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
         });
 
-        fetch(configPath).then(r => r.json()).then(c => renderDiary(c));
+        loadConfig().then(c => renderDiary(c));
     }
 };
 
