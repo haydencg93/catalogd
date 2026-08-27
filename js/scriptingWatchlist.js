@@ -266,10 +266,13 @@ async function renderWatchlistPage() {
 
     if (totalItems > WATCHLIST_PAGE_SIZE) {
         paginationContainer.innerHTML = `
-            <button class="secondary-btn" onclick="changeWatchlistPage(-1)" ${currentWatchlistPage === 1 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>Previous</button>
+            <button class="secondary-btn" data-watchlist-page="-1" ${currentWatchlistPage === 1 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>Previous</button>
             <span class="meta" style="margin: 0 15px; font-weight: bold;">Page ${currentWatchlistPage} of ${totalPages}</span>
-            <button class="secondary-btn" onclick="changeWatchlistPage(1)" ${currentWatchlistPage === totalPages ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>Next</button>
+            <button class="secondary-btn" data-watchlist-page="1" ${currentWatchlistPage === totalPages ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>Next</button>
         `;
+        paginationContainer.querySelectorAll('[data-watchlist-page]').forEach((button) => {
+            button.addEventListener('click', () => window.changeWatchlistPage(Number(button.dataset.watchlistPage)));
+        });
     } else {
         paginationContainer.innerHTML = ''; // Hide if 50 items or fewer
     }

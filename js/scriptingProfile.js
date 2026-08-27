@@ -1757,10 +1757,13 @@ async function renderLibraryPage() {
 
     if (totalItems > LIBRARY_PAGE_SIZE) {
         paginationContainer.innerHTML = `
-            <button class="secondary-btn" onclick="changeLibraryPage(-1)" ${currentLibraryPage === 1 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>Previous</button>
+            <button class="secondary-btn" data-library-page="-1" ${currentLibraryPage === 1 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>Previous</button>
             <span class="meta" style="margin: 0 15px; font-weight: bold;">Page ${currentLibraryPage} of ${totalPages}</span>
-            <button class="secondary-btn" onclick="changeLibraryPage(1)" ${currentLibraryPage === totalPages ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>Next</button>
+            <button class="secondary-btn" data-library-page="1" ${currentLibraryPage === totalPages ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>Next</button>
         `;
+        paginationContainer.querySelectorAll('[data-library-page]').forEach((button) => {
+            button.addEventListener('click', () => window.changeLibraryPage(Number(button.dataset.libraryPage)));
+        });
     } else {
         paginationContainer.innerHTML = ''; // Hide if 50 items or fewer
     }

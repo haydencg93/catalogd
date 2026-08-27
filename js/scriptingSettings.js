@@ -325,7 +325,7 @@ async function fetchAndRenderProviders() {
         const generatePillHTML = (p, category) => {
             const isActive = currentServices[category].includes(String(p.provider_id)) ? 'active' : '';
             return `
-                <div class="pill ${isActive}" data-id="${p.provider_id}" onclick="toggleServicePill(this, '${category}')">
+                <div class="pill ${isActive}" data-id="${p.provider_id}" data-service-category="${category}" role="button" tabindex="0">
                     <img src="https://image.tmdb.org/t/p/w45${p.logo_path}" class="pill-logo">
                     ${p.provider_name}
                 </div>
@@ -335,6 +335,7 @@ async function fetchAndRenderProviders() {
         // Render to the UI
         document.getElementById('settings-streaming-container').innerHTML = topStreaming.map(p => generatePillHTML(p, 'streaming')).join('');
         document.getElementById('settings-buying-container').innerHTML = topBuying.map(p => generatePillHTML(p, 'buying')).join('');
+        bindServicePills();
 
     } catch (e) {
         document.getElementById('settings-streaming-container').innerHTML = '<p class="meta">Failed to load streaming providers.</p>';
@@ -354,11 +355,12 @@ async function fetchAndRenderLanguages() {
         document.getElementById('settings-languages-container').innerHTML = sortedLangs.map(lang => {
             const isActive = currentServices.languages && currentServices.languages.includes(lang.english_name) ? 'active' : '';
             return `
-                <div class="pill ${isActive}" data-id="${lang.english_name}" onclick="toggleServicePill(this, 'languages')">
+                <div class="pill ${isActive}" data-id="${lang.english_name}" data-service-category="languages" role="button" tabindex="0">
                     ${lang.english_name}
                 </div>
             `;
         }).join('');
+        bindServicePills();
     } catch (e) {
         document.getElementById('settings-languages-container').innerHTML = '<p class="meta">Failed to load languages.</p>';
     }
@@ -372,6 +374,19 @@ function renderActiveServicePills() {
         if (currentServices.listening.includes(id)) {
             pill.classList.add('active');
         }
+    });
+}
+
+function bindServicePills() {
+    document.querySelectorAll('[data-service-category]').forEach((pill) => {
+        const toggle = () => window.toggleServicePill(pill, pill.dataset.serviceCategory);
+        pill.addEventListener('click', toggle);
+        pill.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                toggle();
+            }
+        });
     });
 }
 
@@ -1748,16 +1763,7 @@ window.removeFavorite = (type, index) => {
     renderFavManager();
 };
 
-document.querySelectorAll('[data-service-category]').forEach((pill) => {
-    const toggle = () => window.toggleServicePill(pill, pill.dataset.serviceCategory);
-    pill.addEventListener('click', toggle);
-    pill.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            toggle();
-        }
-    });
-});
+bindServicePills();
 document.querySelectorAll('[data-import-type]').forEach((button) => {
     button.addEventListener('click', () => window.handleAdvancedImport(button.dataset.importType));
 });
