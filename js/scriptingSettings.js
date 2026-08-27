@@ -1,5 +1,7 @@
+import { loadConfig } from './core/config.js';
+import { getSupabaseClient } from './core/supabase.js';
+
 let supabaseClient = null;
-const configPath = 'config/config.json';
 
 let tmdbToken = null;
 let lastfmKey = null;
@@ -14,16 +16,15 @@ const favSearchInput = document.getElementById('fav-search-input');
 const favSearchResults = document.getElementById('fav-search-results');
 
 async function initSettings() {
-    const response = await fetch(configPath);
-    const config = await response.json();
-    supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key, {
+    const config = await loadConfig();
+    supabaseClient = await getSupabaseClient({
         auth: {
             persistSession: true,
             autoRefreshToken: true,
             detectSessionInUrl: true
         }
     });
-    document.querySelector('app-header')?.initializeAuth(supabaseClient);
+    await document.querySelector('app-header')?.initializeAuth(supabaseClient);
 
     tmdbToken = config.tmdb_token;
     lastfmKey = config.lastfm_key;

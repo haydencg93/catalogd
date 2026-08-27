@@ -1,4 +1,5 @@
-const configPath = 'config/config.json';
+import { loadConfig } from './core/config.js';
+import { getSupabaseClient } from './core/supabase.js';
 
 let favoriteInputs = [];
 let configData = null;
@@ -18,11 +19,10 @@ const resultsHeader = document.getElementById('results-header');
 
 async function initRecs() {
     try {
-        const response = await fetch(configPath);
-        configData = await response.json();
+        configData = await loadConfig();
         
-        supabaseClient = supabase.createClient(configData.supabase_url, configData.supabase_key);
-        document.querySelector('app-header')?.initializeAuth(supabaseClient);
+        supabaseClient = await getSupabaseClient();
+        await document.querySelector('app-header')?.initializeAuth(supabaseClient);
         
         setupLiveSearch();
     } catch (err) {

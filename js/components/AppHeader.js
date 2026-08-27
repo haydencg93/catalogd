@@ -1,4 +1,18 @@
 export class AppHeader extends HTMLElement {
+    closeDropdown = (event) => {
+        if (!this.contains(event.target)) this.setDropdownOpen(false);
+    };
+
+    setDropdownOpen(isOpen) {
+        const trigger = this.querySelector('#profile-trigger-btn');
+        const content = this.querySelector('#dropdown-content');
+        if (!trigger || !content) return;
+
+        content.style.display = isOpen ? 'block' : 'none';
+        trigger.classList.toggle('active', isOpen);
+        trigger.setAttribute('aria-expanded', String(isOpen));
+    }
+
     connectedCallback() {
         this.innerHTML = `
         <header>
@@ -25,11 +39,11 @@ export class AppHeader extends HTMLElement {
                 -->
 
                 <div id="profile-menu" class="profile-dropdown" style="display:none;">
-                    <button class="profile-trigger" id="profile-trigger-btn" aria-expanded="false">
+                    <button class="profile-trigger" id="profile-trigger-btn" aria-expanded="false" aria-controls="dropdown-content" aria-label="Open profile menu">
                         <img src="https://ui-avatars.com/api/?name=User&background=0d0776&color=fff" id="nav-avatar" alt="Profile">
                         <span class="dropdown-arrow"></span>
                     </button>
-                    <div id="dropdown-content" class="dropdown-content">
+                    <div id="dropdown-content" class="dropdown-content" style="display: none;">
                         <a href="index.html">Home</a>
                         <a href="diary.html">Diary</a>
                         <a href="lists.html">Lists</a>
@@ -53,19 +67,15 @@ export class AppHeader extends HTMLElement {
             trigger.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const isVisible = content.style.display === 'block';
-                content.style.display = isVisible ? 'none' : 'block';
-                trigger.classList.toggle('active', !isVisible);
-                trigger.setAttribute('aria-expanded', !isVisible);
+                this.setDropdownOpen(!isVisible);
             });
 
-            document.addEventListener('click', (e) => {
-                if (!this.contains(e.target)) {
-                    content.style.display = 'none';
-                    trigger.classList.remove('active');
-                    trigger.setAttribute('aria-expanded', 'false');
-                }
-            });
+            document.addEventListener('click', this.closeDropdown);
         }
+    }
+
+    disconnectedCallback() {
+        document.removeEventListener('click', this.closeDropdown);
     }
 
     /**
@@ -87,7 +97,12 @@ export class AppHeader extends HTMLElement {
             if (loginBtn) loginBtn.style.display = 'none';
             if (profileMenu) profileMenu.style.display = 'inline-block';
             if (avatar && user.user_metadata?.avatar_url) {
-                avatar.src = user.user_metadata.avatar_url;
+                try {
+                    const avatarUrl = new URL(user.user_metadata.avatar_url, window.location.href);
+                    if (avatarUrl.protocol === 'https:') avatar.src = avatarUrl.href;
+                } catch {
+                    // Ignore invalid profile avatar URLs and retain the default.
+                }
             }
             
             if (signOutBtn) {

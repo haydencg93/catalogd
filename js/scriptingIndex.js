@@ -1,3 +1,6 @@
+import { loadConfig as fetchConfig } from './core/config.js';
+import { getSupabaseClient } from './core/supabase.js';
+
 // 1. Elements
 const searchInput = document.getElementById('search-input');
 const resultsGrid = document.getElementById('results-grid');
@@ -21,7 +24,6 @@ const profileMenu = document.getElementById('profile-menu');
 let TMDB_TOKEN = '';
 let LASTFM_KEY = '';
 let supabaseClient = null;
-const configPath = 'config/config.json';
 let isSignUpMode = false;
 let currentTab = 'movie';
 let customImgsMap = new Map();
@@ -38,13 +40,11 @@ let userStreamingProviderIds = [];
 */
 async function loadConfig() {
     try {
-        const response = await fetch(configPath);
-        if (!response.ok) throw new Error("config.json not found");
-        const config = await response.json();
+        const config = await fetchConfig();
         
         TMDB_TOKEN = config.tmdb_token;
         LASTFM_KEY = config.lastfm_key;
-        supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
+        supabaseClient = await getSupabaseClient();
         
         await checkUserStatus(); 
 

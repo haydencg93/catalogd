@@ -1,7 +1,9 @@
+import { loadConfig } from './core/config.js';
+import { getSupabaseClient } from './core/supabase.js';
+
 let TMDB_TOKEN = '';
 let supabaseClient = null;
 let configData = null;
-const configPath = 'config/config.json';
 
 // Elements
 const durationSection = document.getElementById('duration-section');
@@ -37,11 +39,10 @@ let currentPage = 1;
 // ----------------------------------------
 async function initAdvSearch() {
     try {
-        const response = await fetch(configPath);
-        configData = await response.json();
+        configData = await loadConfig();
         
         TMDB_TOKEN = configData.tmdb_token;
-        supabaseClient = supabase.createClient(configData.supabase_url, configData.supabase_key);
+        supabaseClient = await getSupabaseClient();
 
         // Initialize the AppHeader Web Component so it catches the auth state
         await customElements.whenDefined('app-header');

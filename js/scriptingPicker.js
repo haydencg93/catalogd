@@ -1,4 +1,5 @@
-const configPath = 'config/config.json';
+import { loadConfig } from './core/config.js';
+import { getSupabaseClient } from './core/supabase.js';
 
 let TMDB_TOKEN = '';
 let supabaseClient = null;
@@ -30,10 +31,9 @@ let currentWinnerMediaId = null;
 
 async function initPicker() {
     try {
-        const response = await fetch(configPath);
-        configData = await response.json();
+        configData = await loadConfig();
         TMDB_TOKEN = configData.tmdb_token;
-        supabaseClient = supabase.createClient(configData.supabase_url, configData.supabase_key);
+        supabaseClient = await getSupabaseClient();
 
         await setupHeaderAndUser();
 

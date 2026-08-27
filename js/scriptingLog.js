@@ -1,5 +1,7 @@
+import { loadConfig } from './core/config.js';
+import { getSupabaseClient } from './core/supabase.js';
+
 let supabaseClient, tmdbToken;
-const configPath = 'config/config.json';
 
 const params = new URLSearchParams(window.location.search);
 const id = params.get('id');
@@ -14,8 +16,8 @@ let currentTags = [];
 let mediaReleaseYear = null;
 
 async function initLog() {
-    const config = await fetch(configPath).then(r => r.json());
-    supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
+    const config = await loadConfig();
+    supabaseClient = await getSupabaseClient();
     tmdbToken = config.tmdb_token;
 
     const dateInput = document.getElementById('watched-date');
