@@ -259,7 +259,7 @@ async function initProfile() {
             if (profile.avatar_url && profile.avatar_url.trim() !== "") {
                 avatarContainer.innerHTML = `<img src="${profile.avatar_url}" 
                     style="width:100%; height:100%; object-fit:cover; border-radius:50%;"
-                    onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=${profile.username}&background=1b2228&color=9ab';">`;
+                    data-fallback="https://ui-avatars.com/api/?name=${encodeURIComponent(profile.username || '')}&background=1b2228&color=9ab">`;
                 avatarContainer.style.background = "transparent";
             } else {
                 const name = profile.display_name || profile.username || "U";
@@ -840,11 +840,11 @@ async function renderStatusItems(items, gridId) {
         }
 
         return `
-            <div class="media-card" data-type="${item.media_type}" onclick="window.location.href='details.html?id=${item.media_id}&type=${item.media_type}'">
+            <div class="media-card" data-type="${item.media_type}" data-route="details.html?id=${encodeURIComponent(item.media_id)}&type=${encodeURIComponent(item.media_type)}">
                 <div class="poster-wrapper">
                     <img src="${item.image || 'https://placehold.co/500x750/1b2228/9ab?text=No+Image'}" 
                          alt="${item.title}"
-                         onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
+                         data-fallback="https://placehold.co/500x750/1b2228/9ab?text=No+Image">
                     
                     <div class="active-badge" style="--badge-text: ${badgeText}; background: ${badgeBg}; color: ${badgeText};">
                         ${statusLabel}
@@ -954,7 +954,7 @@ window.filterPeople = (type) => {
                 ${rankBadge}
                 <img src="${finalImg}" 
                      alt="${p.character_name}" 
-                     onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
+                     data-fallback="https://placehold.co/500x750/1b2228/9ab?text=No+Image">
                 <span class="badge badge-movie" style="background: #456; color: #fff;">${label}</span>
             </div>
             <div class="media-info">
@@ -1090,7 +1090,7 @@ window.filterFandoms = (type) => {
                     ${rankBadge}
                     <img src="${finalImg}" 
                         alt="${f.title}" 
-                        onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
+                        data-fallback="https://placehold.co/500x750/1b2228/9ab?text=No+Image">
                     <span class="badge badge-movie" style="background: #456; color: #fff;">${label}</span>
                 </div>
                 <div class="media-info">
@@ -1247,7 +1247,7 @@ function renderProfileTags() {
     }
 
     container.innerHTML = uniqueTags.map(tag => `
-        <div class="profile-tag-pill clickable" onclick="openTagDetails('${tag}')">
+        <div class="profile-tag-pill clickable" data-tag="${tag}">
             <span class="tag-name">${tag}</span>
             <span class="tag-count">${tagCounts[tag]}</span>
         </div>
@@ -1445,7 +1445,7 @@ async function renderRecent(logs) {
                     </div>
                     <img src="${log.image || 'https://placehold.co/500x750/1b2228/9ab?text=No+Image'}" 
                          alt="${log.title}"
-                         onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
+                         data-fallback="https://placehold.co/500x750/1b2228/9ab?text=No+Image">
                     <span class="badge badge-${log.media_type}">${log.media_type}</span>
                 </div>
                 <div class="media-info">
@@ -1514,7 +1514,7 @@ window.filterFavs = (type) => {
                 <img src="${finalImage}" 
                 alt="${item.title}" 
                 loading="lazy" 
-                onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
+                data-fallback="https://placehold.co/500x750/1b2228/9ab?text=No+Image">
                 <span class="badge badge-${item.type}">${item.type}</span>
             </div>
             <div class="media-info">
@@ -1705,7 +1705,7 @@ async function renderLibrary(items) {
                     </div>
                     <img src="${item.image || 'https://placehold.co/500x750/1b2228/9ab?text=No+Image'}" 
                          alt="${item.title}"
-                         onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
+                         data-fallback="https://placehold.co/500x750/1b2228/9ab?text=No+Image">
                     <span class="badge badge-${item.media_type}">${item.media_type}</span>
                 </div>
                 <div class="media-info">
@@ -1793,5 +1793,22 @@ document.querySelectorAll('[data-recent-filter]').forEach((button) => {
 document.querySelector('[data-navigation="settings.html"]')?.addEventListener('click', () => {
     window.location.href = 'settings.html';
 });
+document.addEventListener('click', (event) => {
+    const routeTarget = event.target.closest('[data-route]');
+    if (routeTarget) {
+        window.location.href = routeTarget.dataset.route;
+        return;
+    }
+
+    const tagTarget = event.target.closest('[data-tag]');
+    if (tagTarget) window.openTagDetails(tagTarget.dataset.tag);
+});
+document.addEventListener('error', (event) => {
+    const image = event.target;
+    if (image instanceof HTMLImageElement && image.dataset.fallback) {
+        image.src = image.dataset.fallback;
+        delete image.dataset.fallback;
+    }
+}, true);
 
 initProfile();

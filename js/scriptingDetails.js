@@ -238,14 +238,14 @@ async function initDetails() {
             // Only render if there are languages to show (either preferred or hidden)
             if (displayedLangs.length > 0 || hiddenCount > 0) {
                 const pillStyle = `background: rgba(255,255,255,0.05); border: 1px solid #2c3440; color: #ccd6e0; padding: 4px 10px; border-radius: 8px; font-size: 0.8rem; cursor: default; transition: all 0.2s ease; display: inline-block;`;
-                const hoverEvents = `onmouseover="this.style.background='rgba(255,255,255,0.1)'; this.style.color='#fff'; this.style.borderColor='var(--accent)';" onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.color='#ccd6e0'; this.style.borderColor='#2c3440';"`;
+                const hoverEvents = '';
 
                 let transHtmlContent = displayedLangs.map(lang => `<span style="${pillStyle}" ${hoverEvents}>${lang}</span>`).join('');
                 
                 // Add the "+X more" clickable button if there are translations outside their preferences
                 if (hiddenCount > 0) {
                     const btnStyle = `background: rgba(255,255,255,0.05); border: 1px dashed #2c3440; color: #ccd6e0; padding: 4px 10px; border-radius: 8px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s ease; display: inline-block;`;
-                    transHtmlContent += `<button onclick="expandTranslations()" style="${btnStyle}" ${hoverEvents}>+${hiddenCount} more</button>`;
+                    transHtmlContent += `<button data-expand-translations style="${btnStyle}" ${hoverEvents}>+${hiddenCount} more</button>`;
                 }
 
                 const transHtml = `
@@ -348,7 +348,7 @@ async function initDetails() {
                         durationStr = `${mins}:${secs}`;
                     }
                     return `
-                    <div style="display: flex; justify-content: space-between; padding: 12px 15px; border-bottom: 1px solid #2c3440; align-items: center; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
+                    <div style="display: flex; justify-content: space-between; padding: 12px 15px; border-bottom: 1px solid #2c3440; align-items: center; transition: background 0.2s;">
                         <div style="display: flex; gap: 15px; align-items: center;">
                             <span style="color: #9ab; font-size: 0.9rem; width: 20px; text-align: right;">${index + 1}</span>
                             <span style="font-weight: bold;">${track.name}</span>
@@ -378,7 +378,7 @@ async function initDetails() {
                 const artistAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.artistName)}&background=1b2228&color=9ab&size=512`;
                 
                 castList.innerHTML = `
-                    <div class="cast-card" onclick="window.location.href='cast.html?artist=${encodeURIComponent(data.artistName)}'" style="cursor: pointer;">
+                    <div class="cast-card" data-details-route="cast.html?artist=${encodeURIComponent(data.artistName)}" style="cursor: pointer;">
                         <img src="${artistAvatar}" alt="${data.artistName}">
                         <div class="cast-info">
                             <span class="cast-name">${data.artistName}</span>
@@ -879,7 +879,7 @@ function renderMainPageCast() {
 
     castList.innerHTML = finalDisplayList.map(person => `
         <div class="cast-card ${person.isDirector ? 'director-highlight' : ''}" 
-             onclick="window.location.href='cast.html?personId=${person.id}'">
+             data-details-route="cast.html?personId=${encodeURIComponent(person.id)}">
             <img src="${person.profile_path ? 'https://image.tmdb.org/t/p/w185' + person.profile_path : 'https://via.placeholder.com/185x278?text=No+Photo'}" alt="${person.name}">
             <div class="cast-info">
                 <span class="cast-name">${person.name}</span>
@@ -938,7 +938,7 @@ function openCastModal() {
 
         grid.innerHTML = filtered.map(person => `
             <div class="cast-card ${person.job === 'Director' ? 'director-highlight' : ''}" 
-                 onclick="window.location.href='cast.html?personId=${person.id}'">
+                 data-details-route="cast.html?personId=${encodeURIComponent(person.id)}">
                 <img src="${person.profile_path ? 'https://image.tmdb.org/t/p/w185' + person.profile_path : 'https://via.placeholder.com/185x278?text=No+Photo'}" 
                      alt="${person.name}" loading="lazy">
                 <div class="cast-info">
@@ -983,7 +983,7 @@ async function fetchBookAuthors(authorsList) {
                 : `https://ui-avatars.com/api/?name=${encodeURIComponent(details.name)}&background=1b2228&color=9ab&size=512`;
 
             return `
-                <div class="cast-card" onclick="window.location.href='cast.html?authorId=${authorId}'">
+                <div class="cast-card" data-details-route="cast.html?authorId=${encodeURIComponent(authorId)}">
                     <img src="${photoUrl}" alt="${details.name}">
                     <div class="cast-info">
                         <span class="cast-name">${details.name}</span>
@@ -1015,7 +1015,7 @@ function setupBookTracker(totalPages) {
         <div class="book-progress-container">
             <div class="quick-update-row">
                 <input type="number" id="quick-page-input" placeholder="Current Page #" min="1" max="${totalPages}">
-                <button onclick="updatePageProgress(${totalPages})" class="primary-btn">Update Progress</button>
+                <button data-update-page-progress="${totalPages}" class="primary-btn">Update Progress</button>
             </div>
         </div>
     `;
@@ -1313,9 +1313,9 @@ function renderLogs(logsToRender) {
                     <span class="history-label" style="margin: 0; padding-right: 15px;">${label}</span>
                     <div style="display: flex; gap: 12px; align-items: center;">
                         <span class="history-stars">${stars}</span>
-                        <span onclick="window.location.href='log.html?id=${id}&type=${type}&logId=${log.id}'" 
+                        <span data-details-route="log.html?id=${encodeURIComponent(id)}&type=${encodeURIComponent(type)}&logId=${encodeURIComponent(log.id)}"
                               style="cursor:pointer; font-size: 0.8rem;" title="Edit Log">✏️</span>
-                        <span onclick="deleteLog('${log.id}')" 
+                        <span data-delete-log="${encodeURIComponent(log.id)}"
                               style="cursor:pointer; color:#ff4d4d; font-size: 0.8rem;" title="Delete Log">🗑️</span>
                     </div>
                 </div>
@@ -1387,9 +1387,9 @@ async function loadEpisodes(config, seriesId, seasonNum, tvmazeId) {
             <div class="episode-item" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px;">
                 <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0;">
                     <input type="checkbox" id="ep-${ep.episode_number}" ${watchedSet.has(ep.episode_number) ? 'checked' : ''} 
-                        onclick="event.stopPropagation(); toggleEpisode('${seriesId}', ${seasonNum}, ${ep.episode_number})">
+                        data-toggle-episode="${encodeURIComponent(seriesId)}" data-season-number="${seasonNum}" data-episode-number="${ep.episode_number}">
                     <label style="cursor: pointer; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" 
-                           onclick="openEpisodeModal('${ep.episode_number}', '${(ep.name || 'Untitled').replace(/'/g, "\\'")}', '${seasonNum}')">
+                           data-open-episode="${encodeURIComponent(ep.name || 'Untitled')}" data-episode-number="${ep.episode_number}" data-season-number="${seasonNum}">
                         E${ep.episode_number}: <span style="text-decoration: underline; color: var(--accent);">${ep.name || 'Untitled'}</span>
                     </label>
                 </div>
@@ -1443,10 +1443,9 @@ async function openEpisodeModal(epNum, fallbackTitle, seasonNum) {
                     
                     // Route using personId (TMDB ID) instead of characterWiki!
                     return `
-                        <div onclick="window.location.href='cast.html?personId=${g.id}'" 
+                        <div data-details-route="cast.html?personId=${encodeURIComponent(g.id)}"
                             style="cursor: pointer; background: rgba(255,255,255,0.03); padding: 8px; border-radius: 6px; font-size: 0.8rem; display: flex; flex-direction: column; align-items: center; text-align: center; transition: background 0.2s, transform 0.2s;"
-                            onmouseover="this.style.background='rgba(255,255,255,0.08)'; this.style.transform='scale(1.03)';"
-                            onmouseout="this.style.background='rgba(255,255,255,0.03)'; this.style.transform='scale(1)';">
+                            >
                             <img src="${img}" style="width: 45px; height: 45px; object-fit: cover; border-radius: 50%; margin-bottom: 6px; border: 1px solid #2c3440;">
                             <span style="font-weight: bold; color: #fff; display: block; overflow: hidden; text-overflow: ellipsis; max-width: 100%; white-space: nowrap;">${g.name}</span>
                             <span style="color: #9ab; font-size: 0.7rem; display: block; overflow: hidden; text-overflow: ellipsis; max-width: 100%; white-space: nowrap; margin-top: 2px;">${g.character || 'Guest'}</span>
@@ -1644,7 +1643,7 @@ window.expandTranslations = function() {
     if (!container || !globalData || !globalData.translations) return;
 
     const pillStyle = `background: rgba(255,255,255,0.05); border: 1px solid #2c3440; color: #ccd6e0; padding: 4px 10px; border-radius: 8px; font-size: 0.8rem; cursor: default; transition: all 0.2s ease; display: inline-block;`;
-    const hoverEvents = `onmouseover="this.style.background='rgba(255,255,255,0.1)'; this.style.color='#fff'; this.style.borderColor='var(--accent)';" onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.color='#ccd6e0'; this.style.borderColor='#2c3440';"`;
+    const hoverEvents = '';
     
     // Re-render the container with ALL translations
     container.innerHTML = globalData.translations.map(lang => 
@@ -1718,7 +1717,7 @@ async function setupListManager(mediaId, mediaType) {
             return `
                 <div class="list-select-item">
                     <span>${l.name}</span>
-                    <button onclick="toggleListItem('${l.id}', '${mediaId}', '${mediaType}', this)" class="${btnClass}">${btnText}</button>
+                    <button data-list-id="${l.id}" data-media-id="${encodeURIComponent(mediaId)}" data-media-type="${encodeURIComponent(mediaType)}" class="${btnClass}">${btnText}</button>
                 </div>
             `;
         }).join('');
@@ -1983,6 +1982,58 @@ async function setupCustomArt(mediaId, mediaType) {
 // ==========================================
 // AI RECOMMENDATIONS ENGINE (If You Liked This...)
 // ==========================================
+
+document.addEventListener('click', (event) => {
+    const routeTarget = event.target.closest('[data-details-route]');
+    if (routeTarget) {
+        window.location.href = routeTarget.dataset.detailsRoute;
+        return;
+    }
+    const expandTarget = event.target.closest('[data-expand-translations]');
+    if (expandTarget) {
+        window.expandTranslations();
+        return;
+    }
+    const progressTarget = event.target.closest('[data-update-page-progress]');
+    if (progressTarget) {
+        window.updatePageProgress(Number(progressTarget.dataset.updatePageProgress));
+        return;
+    }
+    const deleteTarget = event.target.closest('[data-delete-log]');
+    if (deleteTarget) {
+        window.deleteLog(decodeURIComponent(deleteTarget.dataset.deleteLog));
+        return;
+    }
+    const toggleEpisodeTarget = event.target.closest('[data-toggle-episode]');
+    if (toggleEpisodeTarget) {
+        event.stopPropagation();
+        toggleEpisode(
+            decodeURIComponent(toggleEpisodeTarget.dataset.toggleEpisode),
+            Number(toggleEpisodeTarget.dataset.seasonNumber),
+            Number(toggleEpisodeTarget.dataset.episodeNumber)
+        );
+        return;
+    }
+    const openEpisodeTarget = event.target.closest('[data-open-episode]');
+    if (openEpisodeTarget) {
+        event.stopPropagation();
+        openEpisodeModal(
+            openEpisodeTarget.dataset.episodeNumber,
+            decodeURIComponent(openEpisodeTarget.dataset.openEpisode),
+            openEpisodeTarget.dataset.seasonNumber
+        );
+        return;
+    }
+    const listTarget = event.target.closest('[data-list-id]');
+    if (listTarget) {
+        window.toggleListItem(
+            listTarget.dataset.listId,
+            decodeURIComponent(listTarget.dataset.mediaId),
+            decodeURIComponent(listTarget.dataset.mediaType),
+            listTarget
+        );
+    }
+});
 
 window.loadSimilar = async function(filterType = 'all') {
     const simSection = document.getElementById('similar-section');
@@ -2275,7 +2326,7 @@ async function fetchFollowingLogs() {
                 const scopeLabel = getLogScopeLabel(log);
 
                 return `
-                    <div class="history-item following-log-item" style="cursor: pointer; transition: background 0.2s; padding: 10px; border-radius: 8px; margin: 0 -10px 10px -10px;" onclick="window.location.href='profile.html?userId=${log.user_id}'">
+                    <div class="history-item following-log-item" data-details-route="profile.html?userId=${encodeURIComponent(log.user_id)}" style="cursor: pointer; transition: background 0.2s; padding: 10px; border-radius: 8px; margin: 0 -10px 10px -10px;">
                         <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 8px;">
                             <img src="${avatar}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1px solid #2c3440;">
                             <div style="display: flex; flex-direction: column;">

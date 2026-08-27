@@ -180,9 +180,9 @@ async function initAuthorPage(id) {
                 <h3>Best Known Works</h3>
                 <div class="known-for-grid">
                     ${knownFor.map(item => `
-                        <div class="media-card" onclick="window.location.href='details.html?id=${item.key}&type=book'">
+                        <div class="media-card" data-cast-route="details.html?id=${encodeURIComponent(item.key)}&type=book">
                             <div class="poster-wrapper">
-                                <img src="https://covers.openlibrary.org/b/id/${item.covers[0]}-M.jpg" alt="${item.title}" onerror="this.style.display='none'">
+                                <img src="https://covers.openlibrary.org/b/id/${item.covers[0]}-M.jpg" alt="${item.title}" data-hide-on-error>
                             </div>
                             <div class="media-info">
                                 <div class="title" style="font-size: 0.9rem; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
@@ -215,7 +215,7 @@ async function initAuthorPage(id) {
         
         row.innerHTML = `
             <span class="film-year">${yearDisplay}</span>
-            <img src="${poster}" class="mini-poster" alt="book" onerror="this.src='${bookPlaceholder}'">
+            <img src="${poster}" class="mini-poster" alt="book" data-fallback="${bookPlaceholder}">
             <div class="film-info">
                 <span class="film-title"><strong>${item.title}</strong></span>
                 <span class="film-role">Author</span>
@@ -271,7 +271,7 @@ async function initPersonPage(id, token) {
                 <h3>Known For</h3>
                 <div class="known-for-grid">
                     ${knownFor.map(item => `
-                        <div class="media-card" onclick="window.location.href='details.html?id=${item.id}&type=${item.media_type}'">
+                        <div class="media-card" data-cast-route="details.html?id=${encodeURIComponent(item.id)}&type=${encodeURIComponent(item.media_type)}">
                             <div class="poster-wrapper">
                                 <img src="${item.poster_path ? 'https://image.tmdb.org/t/p/w300' + item.poster_path : 'placeholder.png'}" alt="${item.title || item.name}">
                             </div>
@@ -307,7 +307,7 @@ async function initPersonPage(id, token) {
         const role = category === 'actor' ? (item.character ? 'as ' + item.character : '') : (item.job || '');
 
         return `
-            <div class="film-row" onclick="window.location.href='details.html?id=${item.id}&type=${item.media_type}'">
+            <div class="film-row" data-cast-route="details.html?id=${encodeURIComponent(item.id)}&type=${encodeURIComponent(item.media_type)}">
                 <span class="film-year">${year}</span>
                 <img src="${poster}" class="mini-poster" alt="poster">
                 <div class="film-info">
@@ -355,7 +355,7 @@ async function initArtistPage(name, apiKey) {
                             if (item.image && item.image.length > 3 && item.image[3]['#text']) img = item.image[3]['#text'];
                             const compositeId = encodeURIComponent(`${artist.name}|||${item.name}`);
                             return `
-                            <div class="media-card" onclick="window.location.href='details.html?id=${compositeId}&type=album'">
+                            <div class="media-card" data-cast-route="details.html?id=${compositeId}&type=album">
                                 <div class="poster-wrapper">
                                     <img src="${img}" alt="${item.name}">
                                 </div>
@@ -393,7 +393,7 @@ async function initArtistPage(name, apiKey) {
             
             row.innerHTML = `
                 <span class="film-year" style="font-size: 0.85rem; min-width: 75px;">${plays}</span>
-                <img src="${img}" class="mini-poster" alt="album" onerror="this.src='${albumPlaceholder}'">
+                <img src="${img}" class="mini-poster" alt="album" data-fallback="${albumPlaceholder}">
                 <div class="film-info">
                     <span class="film-title"><strong>${item.name}</strong></span>
                     <span class="film-role">Album</span>
@@ -559,10 +559,21 @@ async function setupTierListManager(personId, personName, category, imageUrl, me
             return `
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #2c3440;">
                     <span style="font-weight: 600; color: #fff; font-size: 1rem;">${l.name}</span>
-                    <button onclick="toggleTierListItem('${l.id}', '${personId}', '${category}', '${personName.replace(/'/g, "\\'")}', '${imageUrl}', '${safeMediaTitle}', this)" class="${btnClass}" style="padding: 4px 10px; font-size: 0.75rem; border-radius: 14px; width: auto; min-width: 60px;">${btnText}</button>
+                    <button data-tier-list-id="${l.id}" data-tier-person-id="${encodeURIComponent(personId)}" data-tier-category="${category}" data-tier-name="${encodeURIComponent(personName)}" data-tier-image="${encodeURIComponent(imageUrl)}" data-tier-source-title="${encodeURIComponent(mediaTitle || '')}" class="${btnClass}" style="padding: 4px 10px; font-size: 0.75rem; border-radius: 14px; width: auto; min-width: 60px;">${btnText}</button>
                 </div>
             `;
         }).join('');
+        container.querySelectorAll('[data-tier-list-id]').forEach((tierButton) => {
+            tierButton.addEventListener('click', () => window.toggleTierListItem(
+                tierButton.dataset.tierListId,
+                decodeURIComponent(tierButton.dataset.tierPersonId),
+                tierButton.dataset.tierCategory,
+                decodeURIComponent(tierButton.dataset.tierName),
+                decodeURIComponent(tierButton.dataset.tierImage),
+                decodeURIComponent(tierButton.dataset.tierSourceTitle),
+                tierButton
+            ));
+        });
     };
 
     close.onclick = () => modal.style.display = 'none';
@@ -668,5 +679,21 @@ function formatPlays(numStr) {
     if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
     return num.toString();
 }
+
+document.addEventListener('click', (event) => {
+    const routeTarget = event.target.closest('[data-cast-route]');
+    if (routeTarget) window.location.href = routeTarget.dataset.castRoute;
+});
+document.addEventListener('error', (event) => {
+    const image = event.target;
+    if (!(image instanceof HTMLImageElement)) return;
+    if (image.dataset.hideOnError) {
+        image.style.display = 'none';
+        delete image.dataset.hideOnError;
+    } else if (image.dataset.fallback) {
+        image.src = image.dataset.fallback;
+        delete image.dataset.fallback;
+    }
+}, true);
 
 initCastPage();

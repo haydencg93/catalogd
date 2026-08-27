@@ -190,7 +190,7 @@ async function renderWatchlist(items, token, typeLabel) {
                     <img src="${item.image}" 
                          alt="${item.title}" 
                          loading="lazy"
-                         onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
+                         data-fallback="https://placehold.co/500x750/1b2228/9ab?text=No+Image">
                     <span class="badge badge-${item.media_type}">${item.media_type}</span>
                 </div>
                 <div class="media-info">
@@ -198,6 +198,11 @@ async function renderWatchlist(items, token, typeLabel) {
                 </div>
             `;
             grid.appendChild(card);
+            const imageElement = card.querySelector('img');
+            imageElement?.addEventListener('error', () => {
+                imageElement.src = imageElement.dataset.fallback;
+                delete imageElement.dataset.fallback;
+            }, { once: true });
         });
     } catch (err) {
         console.error("Watchlist render error:", err);

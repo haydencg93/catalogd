@@ -521,9 +521,7 @@ async function fetchAndFormatRow(log, config) {
         // 3. Review Indicator
         let reviewHtml = '<td></td>';
         if (log.notes) {
-            const safeTitle = title.replace(/'/g, "\\'").replace(/"/g, "&quot;");
-            const safeNotes = log.notes.replace(/'/g, "\\'").replace(/"/g, "&quot;").replace(/\n/g, "\\n").replace(/\r/g, "\\r");
-            reviewHtml = `<td class="review-indicator" onclick="showReviewModal('${safeTitle}', '${safeNotes}')">📝</td>`;
+            reviewHtml = `<td class="review-indicator" data-review-title="${encodeURIComponent(title)}" data-review-notes="${encodeURIComponent(log.notes)}">📝</td>`;
         }
 
         // 4. Tags Setup
@@ -535,8 +533,8 @@ async function fetchAndFormatRow(log, config) {
         return `
             <tr id="row-${log.id}">
                 <td class="diary-year">${log.watched_on || 'Unknown'}</td>
-                <td><img src="${image}" class="diary-poster" data-type="${log.media_type}" alt="poster" onerror="this.src='https://via.placeholder.com/92x138?text=No+Image';"></td>
-                <td class="diary-name" onclick="window.location.href='details.html?id=${log.media_id}&type=${log.media_type}'">
+                <td><img src="${image}" class="diary-poster" data-type="${log.media_type}" alt="poster" data-fallback="https://via.placeholder.com/92x138?text=No+Image"></td>
+                <td class="diary-name" data-diary-route="details.html?id=${encodeURIComponent(log.media_id)}&type=${encodeURIComponent(log.media_type)}">
                     <div style="display: flex; align-items: center; flex-wrap: wrap;">
                         ${displayTitle}
                         ${badgeRow}
@@ -548,9 +546,9 @@ async function fetchAndFormatRow(log, config) {
                 <td>${tagsHtml}</td> <!-- New Tags Column -->
                 <td style="text-align:center;">
                     <div style="display: flex; gap: 15px; justify-content: center; align-items: center;">
-                        <span onclick="window.location.href='log.html?id=${log.media_id}&type=${log.media_type}&logId=${log.id}'" 
+                        <span data-diary-route="log.html?id=${encodeURIComponent(log.media_id)}&type=${encodeURIComponent(log.media_type)}&logId=${encodeURIComponent(log.id)}"
                             style="cursor:pointer; color:var(--accent); font-size: 1.1rem;" title="Edit Log">✏️</span>
-                        <span onclick="deleteDiaryEntry('${log.id}')" 
+                        <span data-delete-diary="${encodeURIComponent(log.id)}"
                             style="cursor:pointer; color:#ff4d4d; font-size: 1.1rem;" title="Delete Log">🗑️</span>
                     </div>
                 </td>
@@ -581,6 +579,28 @@ window.showReviewModal = (title, notes) => {
 document.querySelector('.close-modal').onclick = () => {
     document.getElementById('review-modal').style.display = 'none';
 };
+
+document.addEventListener('click', (event) => {
+    const routeTarget = event.target.closest('[data-diary-route]');
+    if (routeTarget) {
+        window.location.href = routeTarget.dataset.diaryRoute;
+        return;
+    }
+    const reviewTarget = event.target.closest('[data-review-title]');
+    if (reviewTarget) {
+        window.showReviewModal(decodeURIComponent(reviewTarget.dataset.reviewTitle), decodeURIComponent(reviewTarget.dataset.reviewNotes));
+        return;
+    }
+    const deleteTarget = event.target.closest('[data-delete-diary]');
+    if (deleteTarget) window.deleteDiaryEntry(decodeURIComponent(deleteTarget.dataset.deleteDiary));
+});
+document.addEventListener('error', (event) => {
+    const image = event.target;
+    if (image instanceof HTMLImageElement && image.dataset.fallback) {
+        image.src = image.dataset.fallback;
+        delete image.dataset.fallback;
+    }
+}, true);
 
 window.onclick = (event) => {
     // 1. Review Modal Logic

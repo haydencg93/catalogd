@@ -1722,7 +1722,7 @@ function renderFavManager() {
                 <span class="drag-handle" style="cursor: grab; color: #678; margin-right: 5px;" title="Drag to reorder">☰</span>
                 <span class="fav-rank" style="color: var(--accent); font-weight: bold;">#${index + 1}</span>
                 <span style="font-size: 0.9rem;">${item.title}</span>
-                <span onclick="removeFavorite('${cat}', ${index})" style="cursor: pointer; color: #ff4d4d; font-weight: bold; margin-left: auto;">×</span>
+                <span data-remove-favorite="${cat}" data-favorite-index="${index}" style="cursor: pointer; color: #ff4d4d; font-weight: bold; margin-left: auto;">×</span>
             `;
             itemContainer.appendChild(itemDiv);
         });
@@ -1766,6 +1766,12 @@ window.removeFavorite = (type, index) => {
 bindServicePills();
 document.querySelectorAll('[data-import-type]').forEach((button) => {
     button.addEventListener('click', () => window.handleAdvancedImport(button.dataset.importType));
+});
+document.addEventListener('click', (event) => {
+    const removeTarget = event.target.closest('[data-remove-favorite]');
+    if (removeTarget) {
+        window.removeFavorite(removeTarget.dataset.removeFavorite, Number(removeTarget.dataset.favoriteIndex));
+    }
 });
 
 initSettings();

@@ -380,13 +380,13 @@ async function createListCard(item, index, listType) {
     card.setAttribute('data-id', item.id);
 
     const rankBadge = (listType === 'standard' && isRanked) ? `<div class="rank-badge">${index + 1}</div>` : '';
-    const removeBtn = isOwner ? `<button class="remove-btn" onclick="removeItem('${item.id}', event)">✕</button>` : '';
+    const removeBtn = isOwner ? `<button class="remove-btn" data-remove-item="${encodeURIComponent(item.id)}">✕</button>` : '';
     
     card.innerHTML = `
         ${rankBadge}
         ${removeBtn}
         <div class="poster-wrapper">
-            <img src="${details.poster}" alt="${details.title}" onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
+            <img src="${details.poster}" alt="${details.title}" data-fallback="https://placehold.co/500x750/1b2228/9ab?text=No+Image">
             ${badgeHtml}
         </div>
         <div class="media-info">
@@ -571,7 +571,7 @@ async function setupSearch() {
                     const div = document.createElement('div');
                     div.className = 'search-result-item';
                     div.innerHTML = `
-                        <img src="${res.thumbnail_url}" onerror="this.src='placeholder.png'">
+                        <img src="${res.thumbnail_url}" data-fallback="placeholder.png">
                         <div>
                             <strong>${res.title}</strong>
                             <div class="meta">YOUTUBE</div>
@@ -611,7 +611,7 @@ function renderSearchResults(tmdb, books, albums) {
         const imgPath = item.poster_path || item.profile_path;
         div.className = 'search-result-item';
         div.innerHTML = `
-            <img src="https://image.tmdb.org/t/p/w92${imgPath}" onerror="this.src='placeholder.png'">
+            <img src="https://image.tmdb.org/t/p/w92${imgPath}" data-fallback="placeholder.png">
             <div>
                 <strong>${item.title || item.name}</strong>
                 <div class="meta">${item.media_type.toUpperCase()}</div>
@@ -625,7 +625,7 @@ function renderSearchResults(tmdb, books, albums) {
         const div = document.createElement('div');
         div.className = 'search-result-item';
         div.innerHTML = `
-            <img src="https://covers.openlibrary.org/b/id/${book.cover_i}-S.jpg" onerror="this.src='placeholder.png'">
+            <img src="https://covers.openlibrary.org/b/id/${book.cover_i}-S.jpg" data-fallback="placeholder.png">
             <div>
                 <strong>${book.title}</strong>
                 <div class="meta">BOOK</div>
@@ -640,7 +640,7 @@ function renderSearchResults(tmdb, books, albums) {
         div.className = 'search-result-item';
         let img = a.image && a.image[2]['#text'] ? a.image[2]['#text'] : 'https://placehold.co/92x138/1b2228/eb3486?text=Music';
         div.innerHTML = `
-            <img src="${img}" onerror="this.src='https://placehold.co/92x138/1b2228/eb3486?text=Music'">
+            <img src="${img}" data-fallback="https://placehold.co/92x138/1b2228/eb3486?text=Music">
             <div>
                 <strong>${a.name}</strong>
                 <div class="meta">ALBUM • ${a.artist}</div>
@@ -816,7 +816,7 @@ async function setupCollabModal() {
                         <span class="social-username">@${u.username}</span>
                     </div>
                 </div>
-                <span onclick="removeCollaborator('${collab.id}')" style="color:#ff4d4d; cursor:pointer; font-size:1.5rem; padding:0 10px;">&times;</span>
+                <span data-remove-collaborator="${encodeURIComponent(collab.id)}" style="color:#ff4d4d; cursor:pointer; font-size:1.5rem; padding:0 10px;">&times;</span>
             `;
             collabListDiv.appendChild(row);
         });
