@@ -28,10 +28,29 @@ let supabaseClient = null;
 let isSignUpMode = false;
 let currentTab = 'movie';
 let contentRequestId = 0;
+let activeContentController = null;
 let customImgsMap = new Map();
 // Provider IDs (TMDB watch/providers ids, as strings) the user picked in Settings > Your Services > Streaming.
 // Populated in checkUserStatus(). Empty array = no filtering (user hasn't set services yet).
 let userStreamingProviderIds = [];
+
+function beginContentRequest() {
+    activeContentController?.abort();
+    activeContentController = new AbortController();
+    return activeContentController;
+}
+
+function abortContentRequest() {
+    activeContentController?.abort();
+}
+
+function contentFetch(url, options = {}) {
+    return fetch(url, { ...options, signal: activeContentController?.signal });
+}
+
+function throwIfContentAborted() {
+    if (activeContentController?.signal.aborted) throw new DOMException('Content request superseded', 'AbortError');
+}
 
 /*
 * Fetches configuration variables, initializes external APIs (Supabase, TMDB, Last.fm),
@@ -54,6 +73,9 @@ async function loadConfig() {
         searchInput.placeholder = "Search for movies, shows, books, authors, ...";
         searchInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') unifiedSearch(searchInput.value);
+        });
+        searchInput.addEventListener('input', () => {
+            if (searchInput.value.trim()) abortContentRequest();
         });
 
         const searchFilter = document.getElementById('search-filter');
@@ -173,6 +195,7 @@ async function fetchAndMergeTabItems(type) {
 }
 
 async function loadTabContent(type) {
+    beginContentRequest();
     const requestId = ++contentRequestId;
     const sectionTitle = document.getElementById('section-title');
     if (sectionTitle) sectionTitle.style.display = 'none'; 
@@ -184,12 +207,13 @@ async function loadTabContent(type) {
         if (['youtube', 'user', 'person', 'author'].includes(type)) {
             document.querySelector('.vibe-container')?.remove();
         } else {
-            calculateAndRenderVibe(type);
+            calculateAndRenderVibe(type, requestId);
         }
 
         // STEP 1: Fetch and render Trending Items FIRST for instant UI feedback
         loader.textContent = `Fetching trending ${type}s...`;
         let trendingItems = await getTrendingItems(type);
+        if (requestId !== contentRequestId) return;
 
         if (trendingItems.length === 0) {
             resultsGrid.innerHTML = '<p class="meta" style="grid-column: 1/-1; text-align: center;">No items found.</p>';
@@ -202,11 +226,13 @@ async function loadTabContent(type) {
             const { data: { user } } = await supabaseClient.auth.getUser();
 
             if (user) {
+                if (requestId !== contentRequestId) return;
                 // Keep the loader visible while the AI thinks
                 loader.style.display = 'block';
                 loader.textContent = `Calculating "For You" ${type}s...`;
 
                 const forYouItems = await getForYouItems(type);
+                if (requestId !== contentRequestId) return;
                 maybeShowServicesNudge();
 
                 if (forYouItems.length > 0) {
@@ -222,6 +248,7 @@ async function loadTabContent(type) {
         }
     } catch (err) {
         if (requestId !== contentRequestId) return;
+        if (err.name === 'AbortError') return;
         console.error("Tab content load failed:", err);
         loader.textContent = "Failed to load content.";
         loader.style.display = 'block';
@@ -240,10 +267,10 @@ function resolveBookImage(work) {
 }
 
 async function fetchTrendingBooks() {
-    let res = await fetch(`https://openlibrary.org/trending/daily.json?limit=15`);
+    let res = await contentFetch(`https://openlibrary.org/trending/daily.json?limit=15`);
     let text = await res.text();
     if (text.trim().startsWith('<')) {
-        res = await fetch(`https://openlibrary.org/search.json?q=subject:fiction&sort=editions&limit=15`);
+        res = await contentFetch(`https://openlibrary.org/search.json?q=subject:fiction&sort=editions&limit=15`);
         text = await res.text();
     }
     const data = JSON.parse(text);
@@ -261,7 +288,7 @@ async function fetchTrendingBooks() {
 }
 
 async function fetchTrendingAlbums() {
-    const res = await fetch(`https://ws.audioscrobbler.com/2.0/?method=tag.gettopalbums&tag=pop&api_key=${LASTFM_KEY}&format=json&limit=15`);
+    const res = await contentFetch(`https://ws.audioscrobbler.com/2.0/?method=tag.gettopalbums&tag=pop&api_key=${LASTFM_KEY}&format=json&limit=15`);
     const data = await res.json();
     return (data.albums.album || []).map(a => {
         let img = 'https://via.placeholder.com/500x750?text=No+Image';
@@ -280,7 +307,7 @@ async function getTrendingItems(type) {
         if (type === 'book') return await fetchTrendingBooks();
         if (type === 'album') return await fetchTrendingAlbums();
 
-        const res = await fetch(`https://api.themoviedb.org/3/trending/${type}/day`, { 
+        const res = await contentFetch(`https://api.themoviedb.org/3/trending/${type}/day`, {
             headers: { accept: 'application/json', Authorization: `Bearer ${TMDB_TOKEN}` } 
         });
         const data = await res.json();
@@ -294,6 +321,7 @@ async function getTrendingItems(type) {
             isTrending: true
         }));
     } catch (e) {
+        if (e.name === 'AbortError') throw e;
         console.error("Trending fetch error:", e);
         return [];
     }
@@ -448,9 +476,12 @@ function calculateWeight(rating) {
 async function tallyMovieTvVibe(logs, mediaType) {
     let genreCounts = {}, keywordCounts = {}, genreNames = {}, keywordNames = {};
     const analyzePromises = logs.slice(0, 15).map(item => 
-        fetch(`https://api.themoviedb.org/3/${mediaType}/${item.media_id}?append_to_response=keywords`, {
+        contentFetch(`https://api.themoviedb.org/3/${mediaType}/${item.media_id}?append_to_response=keywords`, {
             headers: { Authorization: `Bearer ${TMDB_TOKEN}` }
-        }).then(r => r.json()).catch(() => null)
+        }).then(r => r.json()).catch((error) => {
+            if (error.name === 'AbortError') throw error;
+            return null;
+        })
     );
     
     const analyzedItems = await Promise.all(analyzePromises);
@@ -484,7 +515,10 @@ async function tallyMovieTvVibe(logs, mediaType) {
 async function tallyBookVibe(logs) {
     let bookCounts = {};
     const bookPromises = logs.map(log => 
-        fetch(`https://openlibrary.org${normalizeOpenLibraryId(log.media_id)}.json`).then(r => r.json()).catch(() => null)
+        contentFetch(`https://openlibrary.org${normalizeOpenLibraryId(log.media_id)}.json`).then(r => r.json()).catch((error) => {
+            if (error.name === 'AbortError') throw error;
+            return null;
+        })
     );
     const booksData = await Promise.all(bookPromises);
     
@@ -510,7 +544,7 @@ async function tallyAlbumVibe(logs) {
     const musicPromises = logs.map(log => {
         const decodedId = decodeURIComponent(log.media_id);
         const [artist, album] = decodedId.split('|||');
-        return fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}&api_key=${LASTFM_KEY}&format=json`)
+        return contentFetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}&api_key=${LASTFM_KEY}&format=json`)
             .then(r => r.json()).catch(() => null);
     });
     const musicData = await Promise.all(musicPromises);
@@ -531,7 +565,7 @@ async function tallyAlbumVibe(logs) {
     return sortedMusic.length > 0 ? sortedMusic[0] : '';
 }
 
-async function calculateAndRenderVibe(mediaType) {
+async function calculateAndRenderVibe(mediaType, requestId) {
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) return;
 
@@ -568,6 +602,7 @@ async function calculateAndRenderVibe(mediaType) {
             console.log(`[I] Top Music...\n     | Genre: ${topGenre}`);
         }
 
+        if (requestId !== contentRequestId) return;
         updateAndRenderVibeFromDB(mediaType, topGenre, topTheme);
     } catch (e) {
         console.error("Vibe rendering failed:", e);
@@ -614,7 +649,10 @@ async function processDiscoverCandidates(urls, requireTheme, contextData, unique
     const { topGenres, topKeywords, keywordCounts, genreCounts, loggedIds, userStreamingProviderIds, mediaType } = contextData;
     
     const pages = await Promise.all(
-        urls.map(u => fetch(u, { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } }).then(r => r.json()).catch(() => ({})))
+        urls.map(u => contentFetch(u, { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } }).then(r => r.json()).catch((error) => {
+            if (error.name === 'AbortError') throw error;
+            return {};
+        }))
     );
 
     let rawRecommendations = [];
@@ -629,7 +667,8 @@ async function processDiscoverCandidates(urls, requireTheme, contextData, unique
     const detailedCandidates = [];
     for (const id of newIds) {
         try {
-            const res = await fetch(`https://api.themoviedb.org/3/${mediaType}/${id}?append_to_response=keywords,watch/providers`, {
+            throwIfContentAborted();
+            const res = await contentFetch(`https://api.themoviedb.org/3/${mediaType}/${id}?append_to_response=keywords,watch/providers`, {
                 headers: { Authorization: `Bearer ${TMDB_TOKEN}` }
             });
             if (res.status === 429) {
@@ -640,6 +679,7 @@ async function processDiscoverCandidates(urls, requireTheme, contextData, unique
             const data = await res.json();
             detailedCandidates.push(data);
         } catch (err) {
+            if (err.name === 'AbortError') throw err;
             console.error(`Failed fetching candidate details for ID ${id}:`, err);
             detailedCandidates.push(null);
         }
@@ -695,9 +735,12 @@ async function getForYouItems(mediaType) {
 
         let genreCounts = {}, keywordCounts = {}, genreNames = {}, keywordNames = {};
         const analyzePromises = highlyRated.map(item => 
-            fetch(`https://api.themoviedb.org/3/${mediaType}/${item.media_id}?append_to_response=keywords`, {
+            contentFetch(`https://api.themoviedb.org/3/${mediaType}/${item.media_id}?append_to_response=keywords`, {
                 headers: { Authorization: `Bearer ${TMDB_TOKEN}` }
-            }).then(r => r.json()).catch(() => null) 
+            }).then(r => r.json()).catch((error) => {
+                if (error.name === 'AbortError') throw error;
+                return null;
+            })
         );
         
         const analyzedItems = await Promise.all(analyzePromises);
@@ -882,7 +925,7 @@ async function fetchSearchData(query, filterValue, payload) {
     if (['all', 'movie', 'tv', 'person'].includes(filterValue)) {
         let endpoint = filterValue === 'all' ? 'search/multi' : `search/${filterValue}`;
         fetchPromises.push(
-            fetch(`https://api.themoviedb.org/3/${endpoint}?query=${encodeURIComponent(query)}`, options)
+            contentFetch(`https://api.themoviedb.org/3/${endpoint}?query=${encodeURIComponent(query)}`, options)
                 .then(r => r.json()).then(d => payload.tmdbRes = d)
         );
     }
@@ -901,7 +944,7 @@ async function fetchSearchData(query, filterValue, payload) {
     }
     if (['all', 'album'].includes(filterValue)) {
         fetchPromises.push(
-            fetch(`https://ws.audioscrobbler.com/2.0/?method=album.search&album=${encodeURIComponent(query)}&api_key=${LASTFM_KEY}&format=json`)
+            contentFetch(`https://ws.audioscrobbler.com/2.0/?method=album.search&album=${encodeURIComponent(query)}&api_key=${LASTFM_KEY}&format=json`)
                 .then(r => r.json()).then(res => {
                     if (res.results?.albummatches?.album) {
                         payload.lastfmAlbums = res.results.albummatches.album.map(a => ({
@@ -931,6 +974,7 @@ function sortSearchResults(combined, query) {
 }
 
 async function unifiedSearch(query) {
+    beginContentRequest();
     const requestId = ++contentRequestId;
     const filterNav = document.querySelector('.filter-nav');
     const filterValue = document.getElementById('search-filter').value;
@@ -1025,7 +1069,7 @@ async function unifiedSearch(query) {
 
 async function fetchBooks(query) {
     const url = `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=50`;
-    const res = await fetch(url);
+    const res = await contentFetch(url);
     const data = await res.json();
     return (data.docs || [])
         .map(doc => {
@@ -1048,7 +1092,7 @@ async function fetchBooks(query) {
 async function fetchAuthors(query) {
     const url = `https://openlibrary.org/search/authors.json?q=${encodeURIComponent(query)}&limit=5`;
     try {
-        const res = await fetch(url);
+        const res = await contentFetch(url);
         const data = await res.json();
         
         const seenAuthorNames = new Set();
