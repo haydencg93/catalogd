@@ -1,5 +1,6 @@
 import { loadConfig as fetchConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
+import { normalizeOpenLibraryId } from './core/media.js';
 
 // 1. Elements
 const searchInput = document.getElementById('search-input');
@@ -26,6 +27,7 @@ let LASTFM_KEY = '';
 let supabaseClient = null;
 let isSignUpMode = false;
 let currentTab = 'movie';
+let contentRequestId = 0;
 let customImgsMap = new Map();
 // Provider IDs (TMDB watch/providers ids, as strings) the user picked in Settings > Your Services > Streaming.
 // Populated in checkUserStatus(). Empty array = no filtering (user hasn't set services yet).
@@ -156,7 +158,6 @@ function toggleAuthMode() {
 }
 
 // HELPER: Handles fetching and deduplicating items
-// HELPER: Handles fetching and deduplicating items
 async function fetchAndMergeTabItems(type) {
     let forYouItems = [];
     if (['movie', 'tv'].includes(type)) {
@@ -172,6 +173,7 @@ async function fetchAndMergeTabItems(type) {
 }
 
 async function loadTabContent(type) {
+    const requestId = ++contentRequestId;
     const sectionTitle = document.getElementById('section-title');
     if (sectionTitle) sectionTitle.style.display = 'none'; 
     
@@ -219,6 +221,7 @@ async function loadTabContent(type) {
             }
         }
     } catch (err) {
+        if (requestId !== contentRequestId) return;
         console.error("Tab content load failed:", err);
         loader.textContent = "Failed to load content.";
         loader.style.display = 'block';
@@ -481,7 +484,7 @@ async function tallyMovieTvVibe(logs, mediaType) {
 async function tallyBookVibe(logs) {
     let bookCounts = {};
     const bookPromises = logs.map(log => 
-        fetch(`https://openlibrary.org${log.media_id}.json`).then(r => r.json()).catch(() => null)
+        fetch(`https://openlibrary.org${normalizeOpenLibraryId(log.media_id)}.json`).then(r => r.json()).catch(() => null)
     );
     const booksData = await Promise.all(bookPromises);
     
@@ -928,6 +931,7 @@ function sortSearchResults(combined, query) {
 }
 
 async function unifiedSearch(query) {
+    const requestId = ++contentRequestId;
     const filterNav = document.querySelector('.filter-nav');
     const filterValue = document.getElementById('search-filter').value;
     const sectionTitle = document.getElementById('section-title');
@@ -964,6 +968,7 @@ async function unifiedSearch(query) {
     try {
         const payload = { tmdbRes: { results: [] }, bookData: [], authorData: [], users: [], lastfmAlbums: [] };
         await fetchSearchData(query, filterValue, payload);
+        if (requestId !== contentRequestId) return;
 
         const seenNames = new Set();
         const mappedUsers = payload.users.map(u => ({
@@ -1012,6 +1017,7 @@ async function unifiedSearch(query) {
             loader.style.display = 'none';
         }
     } catch (err) { 
+        if (requestId !== contentRequestId) return;
         console.error("Search failed:", err); 
         loader.textContent = "Search failed.";
     }
@@ -1123,6 +1129,15 @@ document.addEventListener('mouseleave', () => {
 
 authConfirmBtn.addEventListener('click', handleAuth);
 closeModal.addEventListener('click', closeAuthModal);
-window.toggleAuthMode = toggleAuthMode;
+document.querySelectorAll('[data-navigation]').forEach((button) => {
+    button.addEventListener('click', () => {
+        window.location.href = button.dataset.navigation;
+    });
+});
+document.querySelectorAll('[data-tab]').forEach((button) => {
+    button.addEventListener('click', () => switchTab(button.dataset.tab));
+});
+document.getElementById('forgot-password-link')?.addEventListener('click', handleForgotPassword);
+authSwitch.addEventListener('click', toggleAuthMode);
 
 loadConfig();

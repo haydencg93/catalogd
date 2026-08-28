@@ -1,5 +1,6 @@
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
+import { normalizeOpenLibraryId } from './core/media.js';
 
 let supabaseClient = null;
 
@@ -199,6 +200,10 @@ window.filterLists = (category) => {
     renderFilteredLists();
 };
 
+document.querySelectorAll('[data-list-filter]').forEach((button) => {
+    button.addEventListener('click', () => window.filterLists(button.dataset.listFilter));
+});
+
 async function renderFilteredLists() {
     const container = document.getElementById('lists-container');
     
@@ -244,7 +249,7 @@ async function renderFilteredLists() {
             let posterUrl = 'https://placehold.co/500x750/1b2228/9ab?text=No+Image';
             try {
                 if (item.media_type === 'book') {
-                    const res = await fetch(`https://openlibrary.org${item.media_id}.json`).then(r => r.json());
+                    const res = await fetch(`https://openlibrary.org${normalizeOpenLibraryId(item.media_id)}.json`).then(r => r.json());
                     if (res.covers) posterUrl = `https://covers.openlibrary.org/b/id/${res.covers[0]}-S.jpg`;
                 } else if (item.media_type === 'youtube') {
                     const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${item.media_id}`).then(r => r.json());

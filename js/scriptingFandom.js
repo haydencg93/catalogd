@@ -665,9 +665,8 @@ async function fetchTVDBLists(mId, mType, config) {
                         <div style="display: flex; flex-direction: column; gap: 8px;">
                             ${listsToShow.map(list => `
                                 <button class="secondary-btn" style="width: 100%; text-align: left; padding: 12px; font-size: 0.85rem; border-color: #2c3440; background: rgba(255,255,255,0.02);" 
-                                        onclick="window.location.href='fandom.html?listId=${list.id}'"
-                                        onmouseover="this.style.background='rgba(255,255,255,0.1)'; this.style.borderColor='var(--accent)';"
-                                        onmouseout="this.style.background='rgba(255,255,255,0.02)'; this.style.borderColor='#2c3440';">
+                                        data-fandom-route="fandom.html?listId=${encodeURIComponent(list.id)}"
+                                        >
                                     • ${list.name}
                                 </button>
                             `).join('')}
@@ -692,7 +691,7 @@ async function fetchStructuredCharacters(externalId, type) {
     gridContainer.innerHTML = '<p class="meta">Loading characters...</p>';
 
     try {
-        const config = await fetch('config.json').then(r => r.json());
+        const config = await loadConfig();
         const endpoint = type === 'tv' ? 'aggregate_credits' : 'credits';
         const res = await fetch(`https://api.themoviedb.org/3/${type}/${externalId}/${endpoint}?language=en-US`, {
             headers: { Authorization: `Bearer ${config.tmdb_token}` }
@@ -748,12 +747,12 @@ async function fetchStructuredCharacters(externalId, type) {
             const currentMediaTitle = document.getElementById('fandom-title').textContent.replace(/'/g, "\\'");
 
             gridHtml += `
-                <div class="cast-card" style="cursor: pointer; text-align: center; background: rgba(255,255,255,0.03); padding: 10px; border-radius: 12px; border: 1px solid #2c3440;" onclick="routeToCharacter('${escapedWikiId}')">
+                <div class="cast-card" data-character-wiki="${encodeURIComponent(char.wikiId)}" style="cursor: pointer; text-align: center; background: rgba(255,255,255,0.03); padding: 10px; border-radius: 12px; border: 1px solid #2c3440;">
                     <img src="${fallbackImg}" style="width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: 8px; margin-bottom: 10px;" loading="lazy">
                     <span style="font-weight: bold; color: #fff; font-size: 0.95rem; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${char.name}</span>
                     <button class="${btnClass}" 
                         style="width: 100%; padding: 6px; font-size: 0.8rem; border-radius: 6px; margin-top: 10px;"
-                        onclick="event.stopPropagation(); toggleCharacterFollow(this, '${escapedWikiId}', '${escapedName}', '${safeDbImage}', '${currentMediaTitle}')">
+                        data-character-follow data-wiki-id="${encodeURIComponent(char.wikiId)}" data-character-name="${encodeURIComponent(char.name)}" data-character-image="${encodeURIComponent(safeDbImage)}" data-character-media-title="${encodeURIComponent(currentMediaTitle)}">
                         ${btnText}
                     </button>
                 </div>
@@ -821,12 +820,12 @@ function openCharacterModal(followedCharacterIds) {
             const escapedName = char.name.replace(/'/g, "\\'");
 
             return `
-                <div class="cast-card" style="cursor: pointer; text-align: center; background: rgba(255,255,255,0.03); padding: 10px; border-radius: 12px; border: 1px solid #2c3440;" onclick="routeToCharacter('${char.wikiId}')">
+                <div class="cast-card" data-character-wiki="${encodeURIComponent(char.wikiId)}" style="cursor: pointer; text-align: center; background: rgba(255,255,255,0.03); padding: 10px; border-radius: 12px; border: 1px solid #2c3440;">
                     <img src="${fallbackImg}" style="width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: 8px; margin-bottom: 10px;" loading="lazy">
                     <span style="font-weight: bold; color: #fff; font-size: 0.95rem; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${char.name}</span>
                     <button class="${btnClass}" 
                         style="width: 100%; padding: 6px; font-size: 0.8rem; border-radius: 6px; margin-top: 10px;"
-                        onclick="event.stopPropagation(); toggleCharacterFollow(this, '${char.wikiId}', '${escapedName}', '${safeDbImage}')">
+                        data-character-follow data-wiki-id="${encodeURIComponent(char.wikiId)}" data-character-name="${encodeURIComponent(char.name)}" data-character-image="${encodeURIComponent(safeDbImage)}">
                         ${btnText}
                     </button>
                 </div>
@@ -1005,6 +1004,30 @@ window.toggleCharacterFollow = async function(btn, charId, charName, imageUrl, m
     btn.disabled = false;
     btn.style.opacity = '1';
 };
+
+document.addEventListener('click', (event) => {
+    const fandomRouteTarget = event.target.closest('[data-fandom-route]');
+    if (fandomRouteTarget) {
+        window.location.href = fandomRouteTarget.dataset.fandomRoute;
+        return;
+    }
+
+    const followTarget = event.target.closest('[data-character-follow]');
+    if (followTarget) {
+        event.stopPropagation();
+        window.toggleCharacterFollow(
+            followTarget,
+            decodeURIComponent(followTarget.dataset.wikiId),
+            decodeURIComponent(followTarget.dataset.characterName),
+            decodeURIComponent(followTarget.dataset.characterImage),
+            decodeURIComponent(followTarget.dataset.characterMediaTitle || '')
+        );
+        return;
+    }
+
+    const characterTarget = event.target.closest('[data-character-wiki]');
+    if (characterTarget) window.routeToCharacter(decodeURIComponent(characterTarget.dataset.characterWiki));
+});
 
 function showError(message) {
     document.getElementById('fandom-title').textContent = "Lore Unavailable";

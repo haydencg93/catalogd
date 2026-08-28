@@ -27,14 +27,14 @@
             </div>
 
             <div style="margin-top: 25px; margin-bottom: 40px; display: flex; flex-direction: column; align-items: center; gap: 20px;">
-                <button id="adv-search-btn" class="secondary-btn" style="width: 350px; max-width: 100%; padding: 15px 20px; font-size: 1.1rem; box-sizing: border-box;" onclick="window.location.href='advSearch.html'">
+                <button id="adv-search-btn" class="secondary-btn" data-navigation="advSearch.html" style="width: 350px; max-width: 100%; padding: 15px 20px; font-size: 1.1rem; box-sizing: border-box;">
                     Advanced Search
                 </button>
                 <div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; width: 100%; max-width: 750px;">
-                    <button id="recs-btn" class="primary-btn" style="flex: 1; min-width: 280px; padding: 15px 20px; font-size: 1.1rem; box-shadow: 0 4px 15px rgba(0, 224, 84, 0.2); box-sizing: border-box;" onclick="window.location.href='recs.html'">
+                    <button id="recs-btn" class="primary-btn" data-navigation="recs.html" style="flex: 1; min-width: 280px; padding: 15px 20px; font-size: 1.1rem; box-shadow: 0 4px 15px rgba(0, 224, 84, 0.2); box-sizing: border-box;">
                         Discover with AI Recommendations
                     </button>
-                    <button id="picker-btn" class="primary-btn" style="flex: 1; min-width: 280px; padding: 15px 20px; font-size: 1.1rem; box-shadow: 0 4px 15px var(--accent-glow); box-sizing: border-box; background: linear-gradient(135deg, var(--accent), #4338ca);" onclick="window.location.href='picker.html'">
+                    <button id="picker-btn" class="primary-btn" data-navigation="picker.html" style="flex: 1; min-width: 280px; padding: 15px 20px; font-size: 1.1rem; box-shadow: 0 4px 15px var(--accent-glow); box-sizing: border-box; background: linear-gradient(135deg, var(--accent), #4338ca);">
                         Random Decider
                     </button>
                 </div>
@@ -43,11 +43,11 @@
             <div id="loader">Loading configuration...</div>
         </section>
         <div class="filter-nav">
-            <button id="btn-movie" class="filter-btn active" onclick="switchTab('movie')">Movies</button>
-            <button id="btn-tv" class="filter-btn" onclick="switchTab('tv')">TV Shows</button>
-            <button id="btn-book" class="filter-btn" onclick="switchTab('book')">Books</button>
-            <button id="btn-album" class="filter-btn" onclick="switchTab('album')">Music</button>
-            <button id="btn-youtube" class="filter-btn" onclick="switchTab('youtube')">YouTube</button>
+            <button id="btn-movie" class="filter-btn active" data-tab="movie">Movies</button>
+            <button id="btn-tv" class="filter-btn" data-tab="tv">TV Shows</button>
+            <button id="btn-book" class="filter-btn" data-tab="book">Books</button>
+            <button id="btn-album" class="filter-btn" data-tab="album">Music</button>
+            <button id="btn-youtube" class="filter-btn" data-tab="youtube">YouTube</button>
         </div>
 
         <h2 id="section-title" class="section-title" style="display: none;">Library Section</h2>
@@ -68,10 +68,10 @@
 
             <input type="password" id="auth-retype" aria-label="Confirm Password" placeholder="Confirm Password" style="display: none;">
 
-            <button id="forgot-password-link" onclick="handleForgotPassword()" style="background: none; border: none; color: #9ab; cursor: pointer; font-size: 0.8rem; margin-bottom: 15px; text-decoration: underline; font-family: inherit;">Forgot password?</button>
+            <button id="forgot-password-link" style="background: none; border: none; color: #9ab; cursor: pointer; font-size: 0.8rem; margin-bottom: 15px; text-decoration: underline; font-family: inherit;">Forgot password?</button>
 
             <button id="auth-confirm-btn" class="primary-btn">Sign In</button>
-            <button onclick="toggleAuthMode()" id="auth-switch" style="background: none; border: none; color: #9ab; cursor: pointer; margin-top: 15px; font-size: 0.8rem; font-family: inherit;">Need an account? Sign Up</button>
+            <button id="auth-switch" style="background: none; border: none; color: #9ab; cursor: pointer; margin-top: 15px; font-size: 0.8rem; font-family: inherit;">Need an account? Sign Up</button>
             <button id="close-auth" class="close-btn">×</button>
         </div>
     </div>

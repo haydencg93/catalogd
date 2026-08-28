@@ -16,13 +16,13 @@
         <div class="diary-header">
             <h1>Diary</h1>
             <div class="diary-controls">
-                <input type="text" id="diary-search" placeholder="Search titles..." oninput="applyFilters()">
-                <button id="toggle-filters-btn" class="secondary-btn" onclick="document.getElementById('advanced-filters').classList.toggle('show')">⚙️ Filters</button>
+                <input type="text" id="diary-search" placeholder="Search titles...">
+                <button id="toggle-filters-btn" class="secondary-btn">⚙️ Filters</button>
             </div>
         </div>
 
         <div id="advanced-filters" class="filter-panel">
-            <select id="rating-filter" onchange="applyFilters()">
+            <select id="rating-filter">
                 <option value="all">All Ratings</option>
                 <option value="5">★★★★★</option>
                 <option value="4">★★★★</option>
@@ -30,26 +30,26 @@
                 <option value="2">★★</option>
                 <option value="1">★</option>
             </select>
-            <select id="year-filter" onchange="applyFilters()">
+            <select id="year-filter">
                 <option value="all">All Release Years</option>
                 <!-- JS will populate this -->
             </select>
-            <select id="liked-filter" onchange="applyFilters()">
+            <select id="liked-filter">
                 <option value="all">Liked or Not</option>
                 <option value="liked">Liked</option>
                 <option value="unliked">Not Liked</option>
             </select>
-            <select id="review-filter" onchange="applyFilters()">
+            <select id="review-filter">
                 <option value="all">Reviewed or Not</option>
                 <option value="reviewed">Reviewed</option>
                 <option value="unreviewed">Not Reviewed</option>
             </select>
-            <select id="rewatch-filter" onchange="applyFilters()">
+            <select id="rewatch-filter">
                 <option value="all">All Watches</option>
                 <option value="rewatch">Rewatch/Reread</option>
                 <option value="first">First Time</option>
             </select>
-            <select id="tag-filter" onchange="applyFilters()">
+            <select id="tag-filter">
                 <option value="all">All Tags</option>
                 <!-- JS will populate this -->
             </select>
@@ -68,12 +68,12 @@
         </div>
 
         <div class="filter-nav">
-            <button id="btn-all" class="filter-btn active" onclick="filterType('all')">All</button>
-            <button id="btn-movie" class="filter-btn" onclick="filterType('movie')">Movies</button>
-            <button id="btn-tv" class="filter-btn" onclick="filterType('tv')">TV</button>
-            <button id="btn-book" class="filter-btn" onclick="filterType('book')">Books</button>
-            <button id="btn-album" class="filter-btn" onclick="filterType('album')">Music</button>
-            <button id="btn-youtube" class="filter-btn" onclick="filterType('youtube')">YouTube</button>
+            <button id="btn-all" class="filter-btn active" data-diary-type="all">All</button>
+            <button id="btn-movie" class="filter-btn" data-diary-type="movie">Movies</button>
+            <button id="btn-tv" class="filter-btn" data-diary-type="tv">TV</button>
+            <button id="btn-book" class="filter-btn" data-diary-type="book">Books</button>
+            <button id="btn-album" class="filter-btn" data-diary-type="album">Music</button>
+            <button id="btn-youtube" class="filter-btn" data-diary-type="youtube">YouTube</button>
         </div>
 
         <div class="table-wrapper">

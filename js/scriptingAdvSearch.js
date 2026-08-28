@@ -209,7 +209,7 @@ function updateSelectedKeywordsUI() {
     let html = '';
     activeKeywords.forEach((name, id) => {
         html += `
-            <button type="button" class="pill active" data-id="${id}" data-name="${name}" onclick="toggleKeywordPill(this)">
+            <button type="button" class="pill active" data-id="${id}" data-name="${name}" data-keyword-pill>
                 ${name} <span style="margin-left:5px;">×</span>
             </button>
         `;
@@ -217,6 +217,9 @@ function updateSelectedKeywordsUI() {
     
     genresSelectedContainer.innerHTML = html;
     genresSelectedContainer.style.display = 'flex';
+    genresSelectedContainer.querySelectorAll('[data-keyword-pill]').forEach((pill) => {
+        pill.addEventListener('click', () => window.toggleKeywordPill(pill));
+    });
 }
 
 // ----------------------------------------
@@ -513,7 +516,7 @@ function renderResults(items) {
                 <img src="https://image.tmdb.org/t/p/w500${item.poster_path}" 
                      alt="${safeTitle.innerHTML}" 
                      loading="lazy" 
-                     onerror="this.onerror=null; this.src='https://via.placeholder.com/500x750?text=No+Image';">
+                    >
                 <span class="badge badge-${mediaType}">${mediaType}</span>
             </div>
             <div class="media-info">
@@ -521,6 +524,10 @@ function renderResults(items) {
                 <div class="meta">${year}</div>
             </div>`;
         resultsGrid.appendChild(card);
+        const image = card.querySelector('img');
+        image?.addEventListener('error', () => {
+            image.src = 'https://via.placeholder.com/500x750?text=No+Image';
+        }, { once: true });
     });
 }
 

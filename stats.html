@@ -18,21 +18,21 @@
         <h2 class="section-title">Your Statistics</h2>
 
         <div class="profile-tabs" id="depth-1-tabs" style="justify-content: center;">
-            <button class="tab-btn active" onclick="switchStatsDepth('all-time')">All-Time</button>
-            <button class="tab-btn" onclick="switchStatsDepth('by-year')">By Year</button>
-            <button class="tab-btn" onclick="switchStatsDepth('by-season')">By Season & Year</button>
+            <button class="tab-btn active" data-stats-depth="all-time">All-Time</button>
+            <button class="tab-btn" data-stats-depth="by-year">By Year</button>
+            <button class="tab-btn" data-stats-depth="by-season">By Season & Year</button>
         </div>
 
         <div id="depth-2-controls" class="controls-container">
             </div>
 
         <div class="filter-nav" style="margin-top: 20px;">
-            <button class="filter-btn active" onclick="filterStats('all')">All</button>
-            <button class="filter-btn" onclick="filterStats('movie')">Movies</button>
-            <button class="filter-btn" onclick="filterStats('tv')">TV</button>
-            <button class="filter-btn" onclick="filterStats('book')">Books</button>
-            <button class="filter-btn" onclick="filterStats('album')">Music</button>
-            <button class="filter-btn" onclick="filterStats('youtube')">YouTube</button>
+            <button class="filter-btn active" data-stats-filter="all">All</button>
+            <button class="filter-btn" data-stats-filter="movie">Movies</button>
+            <button class="filter-btn" data-stats-filter="tv">TV</button>
+            <button class="filter-btn" data-stats-filter="book">Books</button>
+            <button class="filter-btn" data-stats-filter="album">Music</button>
+            <button class="filter-btn" data-stats-filter="youtube">YouTube</button>
         </div>
 
         <div id="stats-render-area" class="auth-card" style="width: 100%; max-width: 900px; margin: 0 auto; text-align: left; padding: 30px;">
@@ -52,7 +52,7 @@
         </div>
 
         <div style="text-align: center; margin-top: 15px;">
-            <button id="refresh-stats-btn" class="secondary-btn" onclick="requestStatsUpdate()" style="font-size: 0.85rem; padding: 8px 16px;">
+            <button id="refresh-stats-btn" class="secondary-btn" style="font-size: 0.85rem; padding: 8px 16px;">
                 ↻ Refresh This Period
             </button>
             <div id="refresh-status" class="meta" style="display: none; margin-top: 5px; font-size: 0.8rem; color: #10b981;">

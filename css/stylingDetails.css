@@ -43,6 +43,28 @@ html, body {
     margin: 80px auto;
     padding: 0 20px;
 }
+.details-container > *,
+#left-col,
+.info-pane {
+    min-width: 0;
+    max-width: 100%;
+}
+#poster-area,
+#poster-area img,
+.info-pane img,
+.info-pane iframe,
+.info-pane video {
+    max-width: 100%;
+    box-sizing: border-box;
+}
+#media-overview,
+.info-pane p,
+.info-pane pre,
+.info-pane table {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
 #poster-area img { width: 100%; border-radius: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.6); }
 .info-pane h1, 
 #media-title {
@@ -860,8 +882,7 @@ html, body {
 
     .details-container {
         display: grid !important;
-        /* minmax(0, 1fr) forces a strict 50/50 split regardless of content size */
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important; 
+        grid-template-columns: minmax(0, 1fr) !important;
         gap: 10px; 
         padding: 10px;
         align-items: start; 
@@ -893,7 +914,7 @@ html, body {
     /* ROW 2: Poster Wrapper (Left) and Info Wrapper (Right) */
     #poster-controls-wrapper {
         grid-row: 2 !important;
-        grid-column: 1 / 2 !important;
+        grid-column: 1 !important;
         display: flex;
         flex-direction: column;
         gap: 10px; 
@@ -908,7 +929,7 @@ html, body {
 
     #media-info-right {
         grid-row: 2 !important;
-        grid-column: 2 / 3 !important;
+        grid-column: 1 !important;
         text-align: left;
         display: flex;
         flex-direction: column;

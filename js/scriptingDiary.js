@@ -1,5 +1,6 @@
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
+import { normalizeOpenLibraryId } from './core/media.js';
 
 let supabaseClient = null;
 
@@ -462,8 +463,8 @@ async function fetchAndFormatRow(log, config) {
             }
             tracks = res.album?.tracks?.track || [];
         } else if (log.media_type === 'book') {
-            const res = await fetch(`https://openlibrary.org${log.media_id}.json`).then(r => r.json()).catch(() => ({}));
-            title = res.title || 'Unknown Book';
+            const res = await fetch(`https://openlibrary.org${normalizeOpenLibraryId(log.media_id)}.json`).then(r => r.json()).catch(() => ({}));
+            title = log.media_title || res.title || 'Unknown Book';
             year = res.first_publish_date || 'N/A';
             image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-S.jpg` : 'https://placehold.co/92x138/1b2228/9ab?text=No+Cover';
         } else {
@@ -473,7 +474,7 @@ async function fetchAndFormatRow(log, config) {
             
             if (res.success === false) throw new Error("TMDB returned an error JSON");
             
-            title = res.title || res.name || 'Unknown Title'; // Fallback prevents "undefined"
+            title = log.media_title || res.title || res.name || 'Unknown Title'; // Fallback prevents "undefined"
             year = (res.release_date || res.first_air_date || '').split('-')[0];
             image = res.poster_path ? `https://image.tmdb.org/t/p/w92${res.poster_path}` : 'https://via.placeholder.com/92x138?text=No+Poster';
         }
@@ -521,9 +522,7 @@ async function fetchAndFormatRow(log, config) {
         // 3. Review Indicator
         let reviewHtml = '<td></td>';
         if (log.notes) {
-            const safeTitle = title.replace(/'/g, "\\'").replace(/"/g, "&quot;");
-            const safeNotes = log.notes.replace(/'/g, "\\'").replace(/"/g, "&quot;").replace(/\n/g, "\\n").replace(/\r/g, "\\r");
-            reviewHtml = `<td class="review-indicator" onclick="showReviewModal('${safeTitle}', '${safeNotes}')">📝</td>`;
+            reviewHtml = `<td class="review-indicator" data-review-title="${encodeURIComponent(title)}" data-review-notes="${encodeURIComponent(log.notes)}">📝</td>`;
         }
 
         // 4. Tags Setup
@@ -535,8 +534,8 @@ async function fetchAndFormatRow(log, config) {
         return `
             <tr id="row-${log.id}">
                 <td class="diary-year">${log.watched_on || 'Unknown'}</td>
-                <td><img src="${image}" class="diary-poster" data-type="${log.media_type}" alt="poster" onerror="this.src='https://via.placeholder.com/92x138?text=No+Image';"></td>
-                <td class="diary-name" onclick="window.location.href='details.html?id=${log.media_id}&type=${log.media_type}'">
+                <td><img src="${image}" class="diary-poster" data-type="${log.media_type}" alt="poster" data-fallback="https://via.placeholder.com/92x138?text=No+Image"></td>
+                <td class="diary-name" data-diary-route="details.html?id=${encodeURIComponent(log.media_id)}&type=${encodeURIComponent(log.media_type)}">
                     <div style="display: flex; align-items: center; flex-wrap: wrap;">
                         ${displayTitle}
                         ${badgeRow}
@@ -548,9 +547,9 @@ async function fetchAndFormatRow(log, config) {
                 <td>${tagsHtml}</td> <!-- New Tags Column -->
                 <td style="text-align:center;">
                     <div style="display: flex; gap: 15px; justify-content: center; align-items: center;">
-                        <span onclick="window.location.href='log.html?id=${log.media_id}&type=${log.media_type}&logId=${log.id}'" 
+                        <span data-diary-route="log.html?id=${encodeURIComponent(log.media_id)}&type=${encodeURIComponent(log.media_type)}&logId=${encodeURIComponent(log.id)}"
                             style="cursor:pointer; color:var(--accent); font-size: 1.1rem;" title="Edit Log">✏️</span>
-                        <span onclick="deleteDiaryEntry('${log.id}')" 
+                        <span data-delete-diary="${encodeURIComponent(log.id)}"
                             style="cursor:pointer; color:#ff4d4d; font-size: 1.1rem;" title="Delete Log">🗑️</span>
                     </div>
                 </td>
@@ -582,6 +581,28 @@ document.querySelector('.close-modal').onclick = () => {
     document.getElementById('review-modal').style.display = 'none';
 };
 
+document.addEventListener('click', (event) => {
+    const routeTarget = event.target.closest('[data-diary-route]');
+    if (routeTarget) {
+        window.location.href = routeTarget.dataset.diaryRoute;
+        return;
+    }
+    const reviewTarget = event.target.closest('[data-review-title]');
+    if (reviewTarget) {
+        window.showReviewModal(decodeURIComponent(reviewTarget.dataset.reviewTitle), decodeURIComponent(reviewTarget.dataset.reviewNotes));
+        return;
+    }
+    const deleteTarget = event.target.closest('[data-delete-diary]');
+    if (deleteTarget) window.deleteDiaryEntry(decodeURIComponent(deleteTarget.dataset.deleteDiary));
+});
+document.addEventListener('error', (event) => {
+    const image = event.target;
+    if (image instanceof HTMLImageElement && image.dataset.fallback) {
+        image.src = image.dataset.fallback;
+        delete image.dataset.fallback;
+    }
+}, true);
+
 window.onclick = (event) => {
     // 1. Review Modal Logic
     const modal = document.getElementById('review-modal');
@@ -597,6 +618,17 @@ window.onclick = (event) => {
         trigger.classList.remove('active');
     }
 };
+
+document.getElementById('diary-search')?.addEventListener('input', () => applyFilters());
+document.querySelectorAll('#advanced-filters select').forEach((select) => {
+    select.addEventListener('change', () => applyFilters());
+});
+document.getElementById('toggle-filters-btn')?.addEventListener('click', () => {
+    document.getElementById('advanced-filters')?.classList.toggle('show');
+});
+document.querySelectorAll('[data-diary-type]').forEach((button) => {
+    button.addEventListener('click', () => window.filterType(button.dataset.diaryType));
+});
 
 window.deleteDiaryEntry = async (logId) => {
     if (!confirm("Are you sure you want to delete this entry from your diary?")) return;

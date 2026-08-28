@@ -121,7 +121,7 @@ window.switchStatsDepth = (depth) => {
     
     // Update active tab styling
     document.querySelectorAll('#depth-1-tabs .tab-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.getAttribute('onclick').includes(depth));
+        btn.classList.toggle('active', btn.dataset.statsDepth === depth);
     });
 
     const controlsContainer = document.getElementById('depth-2-controls');
@@ -136,26 +136,32 @@ window.switchStatsDepth = (depth) => {
     } 
     else if (depth === 'by-year') {
         // Generate Year Dropdown
-        let selectHtml = `<select id="year-select" class="stats-dropdown" onchange="updatePeriod(this.value)">`;
+        let selectHtml = `<select id="year-select" class="stats-dropdown">`;
         for (let y = currentYear; y >= earliestYear; y--) {
             selectHtml += `<option value="${y}">${y}</option>`;
         }
         selectHtml += `</select>`;
         controlsContainer.innerHTML = selectHtml;
+        document.getElementById('year-select').addEventListener('change', (event) => window.updatePeriod(event.target.value));
         currentPeriod = currentYear.toString();
         loadStatsData();
     }
     else if (depth === 'by-season') {
         // Generate Season & Year Dropdowns
         controlsContainer.innerHTML = `
-            <select id="season-select" class="stats-dropdown" onchange="generateSeasonYears()">
+            <select id="season-select" class="stats-dropdown">
                 <option value="Winter">Winter</option>
                 <option value="Spring">Spring</option>
                 <option value="Summer">Summer</option>
                 <option value="Fall">Fall</option>
             </select>
-            <select id="season-year-select" class="stats-dropdown" onchange="updatePeriod(document.getElementById('season-select').value + ' ' + this.value)"></select>
+            <select id="season-year-select" class="stats-dropdown"></select>
         `;
+        document.getElementById('season-select').addEventListener('change', () => window.generateSeasonYears());
+        document.getElementById('season-year-select').addEventListener('change', (event) => {
+            const season = document.getElementById('season-select').value;
+            window.updatePeriod(`${season} ${event.target.value}`);
+        });
         generateSeasonYears(); // Populate the second dropdown based on default "Winter"
     }
 };
@@ -193,7 +199,7 @@ window.updatePeriod = (newPeriod) => {
 window.filterStats = (type) => {
     currentFilter = type;
     document.querySelectorAll('.filter-nav .filter-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.getAttribute('onclick').includes(`('${type}')`));
+        btn.classList.toggle('active', btn.dataset.statsFilter === type);
     });
     loadStatsData();
 };
@@ -707,5 +713,13 @@ function renderMilestones(logs) {
     html += `</div>`;
     area.innerHTML = html;
 }
+
+document.querySelectorAll('[data-stats-depth]').forEach((button) => {
+    button.addEventListener('click', () => window.switchStatsDepth(button.dataset.statsDepth));
+});
+document.querySelectorAll('[data-stats-filter]').forEach((button) => {
+    button.addEventListener('click', () => window.filterStats(button.dataset.statsFilter));
+});
+document.getElementById('refresh-stats-btn')?.addEventListener('click', () => window.requestStatsUpdate());
 
 initStats();

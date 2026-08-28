@@ -113,10 +113,10 @@
             <h2 class="section-title" style="margin-bottom: 30px; font-size: 2rem;">If You Liked This...</h2>
             
             <div class="filter-nav" style="display: flex; justify-content: center; gap: 15px; margin-bottom: 30px;">
-                <button id="sim-btn-all" class="filter-btn active" onclick="loadSimilar('all')">All Matches</button>
-                <button id="sim-btn-movie" class="filter-btn" onclick="loadSimilar('movie')">Movies</button>
-                <button id="sim-btn-tv" class="filter-btn" onclick="loadSimilar('tv')">TV Shows</button>
-                <button id="sim-btn-book" class="filter-btn" onclick="loadSimilar('book')">Books</button>
+                <button id="sim-btn-all" class="filter-btn active" data-similar-filter="all">All Matches</button>
+                <button id="sim-btn-movie" class="filter-btn" data-similar-filter="movie">Movies</button>
+                <button id="sim-btn-tv" class="filter-btn" data-similar-filter="tv">TV Shows</button>
+                <button id="sim-btn-book" class="filter-btn" data-similar-filter="book">Books</button>
             </div>
 
             <div class="grid" id="similar-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 20px;">

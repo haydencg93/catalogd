@@ -1,5 +1,6 @@
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
+import { normalizeOpenLibraryId } from './core/media.js';
 
 let supabaseClient = null;
 
@@ -123,6 +124,10 @@ window.filterWatchlist = (type) => {
     renderWatchlist(filtered, tmdbToken, type);
 };
 
+document.querySelectorAll('[data-watchlist-filter]').forEach((button) => {
+    button.addEventListener('click', () => window.filterWatchlist(button.dataset.watchlistFilter));
+});
+
 async function renderWatchlist(items, token, typeLabel) {
     const grid = document.getElementById('watchlist-grid');
     const subtitle = document.getElementById('watchlist-subtitle');
@@ -132,8 +137,8 @@ async function renderWatchlist(items, token, typeLabel) {
             let title, image;
             try {
                 if (item.media_type === 'book') {
-                    const res = await fetch(`https://openlibrary.org${item.media_id}.json`).then(r => r.json());
-                    title = res.title;
+                    const res = await fetch(`https://openlibrary.org${normalizeOpenLibraryId(item.media_id)}.json`).then(r => r.json());
+                    title = item.media_title || res.title || 'Unknown Book';
                     image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : 'https://placehold.co/500x750/1b2228/9ab?text=No+Cover';
                 } else if (item.media_type === 'youtube') {
                     const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${item.media_id}`).then(r => r.json());
@@ -155,11 +160,11 @@ async function renderWatchlist(items, token, typeLabel) {
                     const res = await fetch(`https://api.themoviedb.org/3/${item.media_type}/${item.media_id}`, {
                         headers: { Authorization: `Bearer ${token}` }
                     }).then(r => r.json());
-                    title = res.title || res.name;
+                    title = item.media_title || res.title || res.name || 'Unknown Title';
                     image = res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : 'https://placehold.co/500x750/1b2228/9ab?text=No+Image';
                 }
             } catch (err) {
-                title = "Unknown Item";
+                title = item.media_title || "Unknown Item";
                 image = 'https://placehold.co/500x750/1b2228/9ab?text=Error';
             }
 
@@ -186,7 +191,7 @@ async function renderWatchlist(items, token, typeLabel) {
                     <img src="${item.image}" 
                          alt="${item.title}" 
                          loading="lazy"
-                         onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
+                         data-fallback="https://placehold.co/500x750/1b2228/9ab?text=No+Image">
                     <span class="badge badge-${item.media_type}">${item.media_type}</span>
                 </div>
                 <div class="media-info">
@@ -194,6 +199,11 @@ async function renderWatchlist(items, token, typeLabel) {
                 </div>
             `;
             grid.appendChild(card);
+            const imageElement = card.querySelector('img');
+            imageElement?.addEventListener('error', () => {
+                imageElement.src = imageElement.dataset.fallback;
+                delete imageElement.dataset.fallback;
+            }, { once: true });
         });
     } catch (err) {
         console.error("Watchlist render error:", err);
@@ -262,10 +272,13 @@ async function renderWatchlistPage() {
 
     if (totalItems > WATCHLIST_PAGE_SIZE) {
         paginationContainer.innerHTML = `
-            <button class="secondary-btn" onclick="changeWatchlistPage(-1)" ${currentWatchlistPage === 1 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>Previous</button>
+            <button class="secondary-btn" data-watchlist-page="-1" ${currentWatchlistPage === 1 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>Previous</button>
             <span class="meta" style="margin: 0 15px; font-weight: bold;">Page ${currentWatchlistPage} of ${totalPages}</span>
-            <button class="secondary-btn" onclick="changeWatchlistPage(1)" ${currentWatchlistPage === totalPages ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>Next</button>
+            <button class="secondary-btn" data-watchlist-page="1" ${currentWatchlistPage === totalPages ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>Next</button>
         `;
+        paginationContainer.querySelectorAll('[data-watchlist-page]').forEach((button) => {
+            button.addEventListener('click', () => window.changeWatchlistPage(Number(button.dataset.watchlistPage)));
+        });
     } else {
         paginationContainer.innerHTML = ''; // Hide if 50 items or fewer
     }

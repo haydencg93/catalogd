@@ -1,5 +1,6 @@
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
+import { normalizeOpenLibraryId } from './core/media.js';
 
 let supabaseClient = null;
 
@@ -259,7 +260,7 @@ async function initProfile() {
             if (profile.avatar_url && profile.avatar_url.trim() !== "") {
                 avatarContainer.innerHTML = `<img src="${profile.avatar_url}" 
                     style="width:100%; height:100%; object-fit:cover; border-radius:50%;"
-                    onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=${profile.username}&background=1b2228&color=9ab';">`;
+                    data-fallback="https://ui-avatars.com/api/?name=${encodeURIComponent(profile.username || '')}&background=1b2228&color=9ab">`;
                 avatarContainer.style.background = "transparent";
             } else {
                 const name = profile.display_name || profile.username || "U";
@@ -443,6 +444,7 @@ async function initProfile() {
                     libraryMap.set(key, {
                         media_id: s.media_id,
                         media_type: s.media_type,
+                        media_title: s.media_title,
                         image_url: s.image_url,
                         first_added: s.created_at || s.updated_at
                     });
@@ -476,11 +478,13 @@ async function initProfile() {
 
                         // Prioritize image_url from log if missing
                         if (!existing.image_url && l.image_url) existing.image_url = l.image_url;
+                        if (!existing.media_title && l.media_title) existing.media_title = l.media_title;
                     } else {
                         // New item from logs
                         libraryMap.set(key, {
                             media_id: l.media_id,
                             media_type: l.media_type,
+                            media_title: l.media_title,
                             image_url: l.image_url,
                             first_added: l.created_at,
                             latest_log_date: logDate,
@@ -502,9 +506,12 @@ async function initProfile() {
         const { count: followingCount } = await supabaseClient.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', profileUserId);
         const { count: followersCount } = await supabaseClient.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', profileUserId);
 
-        document.getElementById('following-count').textContent = followingCount || 0;
-        document.getElementById('followers-count').textContent = followersCount || 0;
-        document.getElementById('watchlist-count').textContent = watchlistCount || 0;
+        const followingCountEl = document.getElementById('following-count');
+        const followersCountEl = document.getElementById('followers-count');
+        const watchlistCountEl = document.getElementById('watchlist-count');
+        if (followingCountEl) followingCountEl.textContent = followingCount || 0;
+        if (followersCountEl) followersCountEl.textContent = followersCount || 0;
+        if (watchlistCountEl) watchlistCountEl.textContent = watchlistCount || 0;
         
         const listsCountEl = document.getElementById('lists-count');
         if (listsCountEl) listsCountEl.textContent = listsCount || 0;
@@ -693,7 +700,7 @@ window.filterRevisit = async (type) => {
         try {
             if (!image) {
                  if (item.media_type === 'book') {
-                    const res = await fetch(`https://openlibrary.org${item.media_id}.json`).then(r=>r.json()).catch(()=>({}));
+                    const res = await fetch(`https://openlibrary.org${normalizeOpenLibraryId(item.media_id)}.json`).then(r=>r.json()).catch(()=>({}));
                     image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : '';
                  } else if (item.media_type === 'album') {
                     const [artist, albumName] = decodeURIComponent(item.media_id).split('|||');
@@ -781,8 +788,8 @@ async function renderStatusItems(items, gridId) {
 
             // --- MEDIA INFO FETCHING ---
             if (item.media_type === 'book') {
-                const res = await fetch(`https://openlibrary.org${item.media_id}.json`).then(r => r.json()).catch(() => ({}));
-                title = res.title || 'Unknown Book';
+                const res = await fetch(`https://openlibrary.org${normalizeOpenLibraryId(item.media_id)}.json`).then(r => r.json()).catch(() => ({}));
+                title = item.media_title || res.title || 'Unknown Book';
                 image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : '';
             } else if (item.media_type === 'youtube') {
                 const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${item.media_id}`).then(r => r.json());
@@ -803,11 +810,11 @@ async function renderStatusItems(items, gridId) {
                     headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` } 
                 }).then(r => r.json());
                 if (res.success === false) throw new Error("TMDB returned an error JSON");
-                title = res.title || res.name || 'Unknown Title';
+                title = item.media_title || res.title || res.name || 'Unknown Title';
                 image = res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : '';
             }
         } catch (e) {
-            title = "Unknown Item";
+            title = item.media_title || "Unknown Item";
             image = item.image_url || ''; 
         }
 
@@ -840,11 +847,11 @@ async function renderStatusItems(items, gridId) {
         }
 
         return `
-            <div class="media-card" data-type="${item.media_type}" onclick="window.location.href='details.html?id=${item.media_id}&type=${item.media_type}'">
+            <div class="media-card" data-type="${item.media_type}" data-route="details.html?id=${encodeURIComponent(item.media_id)}&type=${encodeURIComponent(item.media_type)}">
                 <div class="poster-wrapper">
                     <img src="${item.image || 'https://placehold.co/500x750/1b2228/9ab?text=No+Image'}" 
                          alt="${item.title}"
-                         onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
+                         data-fallback="https://placehold.co/500x750/1b2228/9ab?text=No+Image">
                     
                     <div class="active-badge" style="--badge-text: ${badgeText}; background: ${badgeBg}; color: ${badgeText};">
                         ${statusLabel}
@@ -954,7 +961,7 @@ window.filterPeople = (type) => {
                 ${rankBadge}
                 <img src="${finalImg}" 
                      alt="${p.character_name}" 
-                     onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
+                     data-fallback="https://placehold.co/500x750/1b2228/9ab?text=No+Image">
                 <span class="badge badge-movie" style="background: #456; color: #fff;">${label}</span>
             </div>
             <div class="media-info">
@@ -1090,7 +1097,7 @@ window.filterFandoms = (type) => {
                     ${rankBadge}
                     <img src="${finalImg}" 
                         alt="${f.title}" 
-                        onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
+                        data-fallback="https://placehold.co/500x750/1b2228/9ab?text=No+Image">
                     <span class="badge badge-movie" style="background: #456; color: #fff;">${label}</span>
                 </div>
                 <div class="media-info">
@@ -1247,7 +1254,7 @@ function renderProfileTags() {
     }
 
     container.innerHTML = uniqueTags.map(tag => `
-        <div class="profile-tag-pill clickable" onclick="openTagDetails('${tag}')">
+        <div class="profile-tag-pill clickable" data-tag="${tag}">
             <span class="tag-name">${tag}</span>
             <span class="tag-count">${tagCounts[tag]}</span>
         </div>
@@ -1288,8 +1295,8 @@ window.openTagDetails = async (tag) => {
             let title, image;
             try {
                 if (log.media_type === 'book') {
-                    const res = await fetch(`https://openlibrary.org${item.media_id}.json`).then(r => r.json()).catch(() => ({}));
-                    title = res.title || 'Unknown Book';
+                    const res = await fetch(`https://openlibrary.org${normalizeOpenLibraryId(log.media_id)}.json`).then(r => r.json()).catch(() => ({}));
+                    title = log.media_title || res.title || 'Unknown Book';
                     image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : '';
                 } else if (log.media_type === 'youtube') {
                     const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${log.media_id}`).then(r => r.json());
@@ -1381,8 +1388,8 @@ async function renderRecent(logs) {
             let title, image;
             try {
                 if (log.media_type === 'book') {
-                    const res = await fetch(`https://openlibrary.org${item.media_id}.json`).then(r => r.json()).catch(() => ({}));
-                    title = res.title || 'Unknown Book';
+                    const res = await fetch(`https://openlibrary.org${normalizeOpenLibraryId(log.media_id)}.json`).then(r => r.json()).catch(() => ({}));
+                    title = log.media_title || res.title || 'Unknown Book';
                     image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : '';
                 } else if (log.media_type === 'youtube') {
                     const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${log.media_id}`).then(r => r.json());
@@ -1445,7 +1452,7 @@ async function renderRecent(logs) {
                     </div>
                     <img src="${log.image || 'https://placehold.co/500x750/1b2228/9ab?text=No+Image'}" 
                          alt="${log.title}"
-                         onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
+                         data-fallback="https://placehold.co/500x750/1b2228/9ab?text=No+Image">
                     <span class="badge badge-${log.media_type}">${log.media_type}</span>
                 </div>
                 <div class="media-info">
@@ -1514,7 +1521,7 @@ window.filterFavs = (type) => {
                 <img src="${finalImage}" 
                 alt="${item.title}" 
                 loading="lazy" 
-                onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
+                data-fallback="https://placehold.co/500x750/1b2228/9ab?text=No+Image">
                 <span class="badge badge-${item.type}">${item.type}</span>
             </div>
             <div class="media-info">
@@ -1643,12 +1650,12 @@ async function renderLibrary(items) {
             let title, image;
             try {
                 if (item.media_type === 'book') {
-                    const res = await fetch(`https://openlibrary.org${item.media_id}.json`).then(r => r.json()).catch(() => ({}));
-                    title = res.title || 'Unknown Book';
+                    const res = await fetch(`https://openlibrary.org${normalizeOpenLibraryId(item.media_id)}.json`).then(r => r.json()).catch(() => ({}));
+                    title = item.media_title || res.title || 'Unknown Book';
                     image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : '';
                 } else if (item.media_type === 'youtube') {
                     const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${item.media_id}`).then(r => r.json());
-                    title = res.title || 'YouTube Video';
+                    title = item.media_title || res.title || 'YouTube Video';
                     image = res.thumbnail_url || '';
                 } else if (item.media_type === 'album') {
                     const decodedId = decodeURIComponent(item.media_id);
@@ -1666,7 +1673,7 @@ async function renderLibrary(items) {
                         headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` } 
                     }).then(r => r.json());
                     if (res.success === false) throw new Error("TMDB returned an error JSON");
-                    title = res.title || res.name || 'Unknown Title';
+                    title = item.media_title || res.title || res.name || 'Unknown Title';
                     image = res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : '';
                 }
                 
@@ -1705,7 +1712,7 @@ async function renderLibrary(items) {
                     </div>
                     <img src="${item.image || 'https://placehold.co/500x750/1b2228/9ab?text=No+Image'}" 
                          alt="${item.title}"
-                         onerror="this.onerror=null; this.src='https://placehold.co/500x750/1b2228/9ab?text=No+Image';">
+                         data-fallback="https://placehold.co/500x750/1b2228/9ab?text=No+Image">
                     <span class="badge badge-${item.media_type}">${item.media_type}</span>
                 </div>
                 <div class="media-info">
@@ -1757,13 +1764,58 @@ async function renderLibraryPage() {
 
     if (totalItems > LIBRARY_PAGE_SIZE) {
         paginationContainer.innerHTML = `
-            <button class="secondary-btn" onclick="changeLibraryPage(-1)" ${currentLibraryPage === 1 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>Previous</button>
+            <button class="secondary-btn" data-library-page="-1" ${currentLibraryPage === 1 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>Previous</button>
             <span class="meta" style="margin: 0 15px; font-weight: bold;">Page ${currentLibraryPage} of ${totalPages}</span>
-            <button class="secondary-btn" onclick="changeLibraryPage(1)" ${currentLibraryPage === totalPages ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>Next</button>
+            <button class="secondary-btn" data-library-page="1" ${currentLibraryPage === totalPages ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>Next</button>
         `;
+        paginationContainer.querySelectorAll('[data-library-page]').forEach((button) => {
+            button.addEventListener('click', () => window.changeLibraryPage(Number(button.dataset.libraryPage)));
+        });
     } else {
         paginationContainer.innerHTML = ''; // Hide if 50 items or fewer
     }
 }
+
+document.querySelectorAll('[data-profile-tab]').forEach((button) => {
+    button.addEventListener('click', () => window.switchTab(button.dataset.profileTab));
+});
+document.querySelectorAll('[data-library-filter]').forEach((button) => {
+    button.addEventListener('click', () => window.filterLibrary(button.dataset.libraryFilter));
+});
+document.querySelectorAll('[data-people-filter]').forEach((button) => {
+    button.addEventListener('click', () => window.filterPeople(button.dataset.peopleFilter));
+});
+document.querySelectorAll('[data-fandom-filter]').forEach((button) => {
+    button.addEventListener('click', () => window.filterFandoms(button.dataset.fandomFilter));
+});
+document.querySelectorAll('[data-revisit-filter]').forEach((button) => {
+    button.addEventListener('click', () => window.filterRevisit(button.dataset.revisitFilter));
+});
+document.querySelectorAll('[data-favorites-filter]').forEach((button) => {
+    button.addEventListener('click', () => window.filterFavs(button.dataset.favoritesFilter));
+});
+document.querySelectorAll('[data-recent-filter]').forEach((button) => {
+    button.addEventListener('click', () => window.filterRecent(button.dataset.recentFilter));
+});
+document.querySelector('[data-navigation="settings.html"]')?.addEventListener('click', () => {
+    window.location.href = 'settings.html';
+});
+document.addEventListener('click', (event) => {
+    const routeTarget = event.target.closest('[data-route]');
+    if (routeTarget) {
+        window.location.href = routeTarget.dataset.route;
+        return;
+    }
+
+    const tagTarget = event.target.closest('[data-tag]');
+    if (tagTarget) window.openTagDetails(tagTarget.dataset.tag);
+});
+document.addEventListener('error', (event) => {
+    const image = event.target;
+    if (image instanceof HTMLImageElement && image.dataset.fallback) {
+        image.src = image.dataset.fallback;
+        delete image.dataset.fallback;
+    }
+}, true);
 
 initProfile();

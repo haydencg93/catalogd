@@ -162,8 +162,9 @@ function renderTags() {
         tag.className = 'vibe-tag';
         tag.innerHTML = `
             <span>[${item.type}]</span> ${item.title}
-            <button onclick="removeInput(${index})">×</button>
+            <button data-remove-input="${index}">×</button>
         `;
+        tag.querySelector('[data-remove-input]').addEventListener('click', () => window.removeInput(index));
         tagsContainer.appendChild(tag);
     });
 
