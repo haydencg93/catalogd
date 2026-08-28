@@ -1,5 +1,6 @@
 import { loadConfig as fetchConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
+import { normalizeOpenLibraryId } from './core/media.js';
 
 // 1. Elements
 const searchInput = document.getElementById('search-input');
@@ -26,6 +27,7 @@ let LASTFM_KEY = '';
 let supabaseClient = null;
 let isSignUpMode = false;
 let currentTab = 'movie';
+let contentRequestId = 0;
 let customImgsMap = new Map();
 // Provider IDs (TMDB watch/providers ids, as strings) the user picked in Settings > Your Services > Streaming.
 // Populated in checkUserStatus(). Empty array = no filtering (user hasn't set services yet).
@@ -171,6 +173,7 @@ async function fetchAndMergeTabItems(type) {
 }
 
 async function loadTabContent(type) {
+    const requestId = ++contentRequestId;
     const sectionTitle = document.getElementById('section-title');
     if (sectionTitle) sectionTitle.style.display = 'none'; 
     
@@ -186,6 +189,7 @@ async function loadTabContent(type) {
         }
 
         const combined = await fetchAndMergeTabItems(type);
+        if (requestId !== contentRequestId) return;
 
         if (combined.length === 0) {
             resultsGrid.innerHTML = '<p class="meta" style="grid-column: 1/-1; text-align: center;">No items found.</p>';
@@ -193,9 +197,11 @@ async function loadTabContent(type) {
             renderResults(combined);
         }
     } catch (err) {
+        if (requestId !== contentRequestId) return;
         console.error("Tab content load failed:", err);
         loader.textContent = "Failed to load content.";
     } finally {
+        if (requestId !== contentRequestId) return;
         if(loader.textContent.startsWith("Fetching")) loader.style.display = 'none';
     }
 }
@@ -452,7 +458,7 @@ async function tallyMovieTvVibe(logs, mediaType) {
 async function tallyBookVibe(logs) {
     let bookCounts = {};
     const bookPromises = logs.map(log => 
-        fetch(`https://openlibrary.org${log.media_id}.json`).then(r => r.json()).catch(() => null)
+        fetch(`https://openlibrary.org${normalizeOpenLibraryId(log.media_id)}.json`).then(r => r.json()).catch(() => null)
     );
     const booksData = await Promise.all(bookPromises);
     
@@ -899,6 +905,7 @@ function sortSearchResults(combined, query) {
 }
 
 async function unifiedSearch(query) {
+    const requestId = ++contentRequestId;
     const filterNav = document.querySelector('.filter-nav');
     const filterValue = document.getElementById('search-filter').value;
     const sectionTitle = document.getElementById('section-title');
@@ -935,6 +942,7 @@ async function unifiedSearch(query) {
     try {
         const payload = { tmdbRes: { results: [] }, bookData: [], authorData: [], users: [], lastfmAlbums: [] };
         await fetchSearchData(query, filterValue, payload);
+        if (requestId !== contentRequestId) return;
 
         const seenNames = new Set();
         const mappedUsers = payload.users.map(u => ({
@@ -983,6 +991,7 @@ async function unifiedSearch(query) {
             loader.style.display = 'none';
         }
     } catch (err) { 
+        if (requestId !== contentRequestId) return;
         console.error("Search failed:", err); 
         loader.textContent = "Search failed.";
     }

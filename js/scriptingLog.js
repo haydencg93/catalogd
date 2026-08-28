@@ -1,5 +1,6 @@
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
+import { normalizeOpenLibraryId } from './core/media.js';
 
 let supabaseClient, tmdbToken;
 
@@ -19,6 +20,8 @@ async function initLog() {
     const config = await loadConfig();
     supabaseClient = await getSupabaseClient();
     tmdbToken = config.tmdb_token;
+    await customElements.whenDefined('app-header');
+    await document.querySelector('app-header')?.initializeAuth(supabaseClient);
 
     const dateInput = document.getElementById('watched-date');
     if (dateInput) {
@@ -47,7 +50,7 @@ async function initLog() {
     }
 
     if (type === 'book') {
-        const res = await fetch(`https://openlibrary.org${id}.json`).then(r => r.json());
+        const res = await fetch(`https://openlibrary.org${normalizeOpenLibraryId(id)}.json`).then(r => r.json());
         document.getElementById('media-title').textContent = res.title;
         
         // Capture book release year (just grabbing the first 4 characters/digits if it exists)
@@ -414,7 +417,7 @@ async function saveLog() {
                 const { error } = await supabaseClient.from('media_logs').upsert(payload);
                 if (error) throw error;
             } else {
-                const olRes = await fetch(`https://openlibrary.org${id}.json`).then(r => r.json());
+                const olRes = await fetch(`https://openlibrary.org${normalizeOpenLibraryId(id)}.json`).then(r => r.json());
                 let totalPages = olRes.number_of_pages || 0;
                 
                 // Override with custom pages if user inputted one

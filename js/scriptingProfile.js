@@ -1,5 +1,6 @@
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
+import { normalizeOpenLibraryId } from './core/media.js';
 
 let supabaseClient = null;
 
@@ -443,6 +444,7 @@ async function initProfile() {
                     libraryMap.set(key, {
                         media_id: s.media_id,
                         media_type: s.media_type,
+                        media_title: s.media_title,
                         image_url: s.image_url,
                         first_added: s.created_at || s.updated_at
                     });
@@ -476,11 +478,13 @@ async function initProfile() {
 
                         // Prioritize image_url from log if missing
                         if (!existing.image_url && l.image_url) existing.image_url = l.image_url;
+                        if (!existing.media_title && l.media_title) existing.media_title = l.media_title;
                     } else {
                         // New item from logs
                         libraryMap.set(key, {
                             media_id: l.media_id,
                             media_type: l.media_type,
+                            media_title: l.media_title,
                             image_url: l.image_url,
                             first_added: l.created_at,
                             latest_log_date: logDate,
@@ -502,9 +506,12 @@ async function initProfile() {
         const { count: followingCount } = await supabaseClient.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', profileUserId);
         const { count: followersCount } = await supabaseClient.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', profileUserId);
 
-        document.getElementById('following-count').textContent = followingCount || 0;
-        document.getElementById('followers-count').textContent = followersCount || 0;
-        document.getElementById('watchlist-count').textContent = watchlistCount || 0;
+        const followingCountEl = document.getElementById('following-count');
+        const followersCountEl = document.getElementById('followers-count');
+        const watchlistCountEl = document.getElementById('watchlist-count');
+        if (followingCountEl) followingCountEl.textContent = followingCount || 0;
+        if (followersCountEl) followersCountEl.textContent = followersCount || 0;
+        if (watchlistCountEl) watchlistCountEl.textContent = watchlistCount || 0;
         
         const listsCountEl = document.getElementById('lists-count');
         if (listsCountEl) listsCountEl.textContent = listsCount || 0;
@@ -693,7 +700,7 @@ window.filterRevisit = async (type) => {
         try {
             if (!image) {
                  if (item.media_type === 'book') {
-                    const res = await fetch(`https://openlibrary.org${item.media_id}.json`).then(r=>r.json()).catch(()=>({}));
+                    const res = await fetch(`https://openlibrary.org${normalizeOpenLibraryId(item.media_id)}.json`).then(r=>r.json()).catch(()=>({}));
                     image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : '';
                  } else if (item.media_type === 'album') {
                     const [artist, albumName] = decodeURIComponent(item.media_id).split('|||');
@@ -781,8 +788,8 @@ async function renderStatusItems(items, gridId) {
 
             // --- MEDIA INFO FETCHING ---
             if (item.media_type === 'book') {
-                const res = await fetch(`https://openlibrary.org${item.media_id}.json`).then(r => r.json()).catch(() => ({}));
-                title = res.title || 'Unknown Book';
+                const res = await fetch(`https://openlibrary.org${normalizeOpenLibraryId(item.media_id)}.json`).then(r => r.json()).catch(() => ({}));
+                title = item.media_title || res.title || 'Unknown Book';
                 image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : '';
             } else if (item.media_type === 'youtube') {
                 const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${item.media_id}`).then(r => r.json());
@@ -803,11 +810,11 @@ async function renderStatusItems(items, gridId) {
                     headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` } 
                 }).then(r => r.json());
                 if (res.success === false) throw new Error("TMDB returned an error JSON");
-                title = res.title || res.name || 'Unknown Title';
+                title = item.media_title || res.title || res.name || 'Unknown Title';
                 image = res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : '';
             }
         } catch (e) {
-            title = "Unknown Item";
+            title = item.media_title || "Unknown Item";
             image = item.image_url || ''; 
         }
 
@@ -1288,8 +1295,8 @@ window.openTagDetails = async (tag) => {
             let title, image;
             try {
                 if (log.media_type === 'book') {
-                    const res = await fetch(`https://openlibrary.org${item.media_id}.json`).then(r => r.json()).catch(() => ({}));
-                    title = res.title || 'Unknown Book';
+                    const res = await fetch(`https://openlibrary.org${normalizeOpenLibraryId(log.media_id)}.json`).then(r => r.json()).catch(() => ({}));
+                    title = log.media_title || res.title || 'Unknown Book';
                     image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : '';
                 } else if (log.media_type === 'youtube') {
                     const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${log.media_id}`).then(r => r.json());
@@ -1381,8 +1388,8 @@ async function renderRecent(logs) {
             let title, image;
             try {
                 if (log.media_type === 'book') {
-                    const res = await fetch(`https://openlibrary.org${item.media_id}.json`).then(r => r.json()).catch(() => ({}));
-                    title = res.title || 'Unknown Book';
+                    const res = await fetch(`https://openlibrary.org${normalizeOpenLibraryId(log.media_id)}.json`).then(r => r.json()).catch(() => ({}));
+                    title = log.media_title || res.title || 'Unknown Book';
                     image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : '';
                 } else if (log.media_type === 'youtube') {
                     const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${log.media_id}`).then(r => r.json());
@@ -1643,12 +1650,12 @@ async function renderLibrary(items) {
             let title, image;
             try {
                 if (item.media_type === 'book') {
-                    const res = await fetch(`https://openlibrary.org${item.media_id}.json`).then(r => r.json()).catch(() => ({}));
-                    title = res.title || 'Unknown Book';
+                    const res = await fetch(`https://openlibrary.org${normalizeOpenLibraryId(item.media_id)}.json`).then(r => r.json()).catch(() => ({}));
+                    title = item.media_title || res.title || 'Unknown Book';
                     image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : '';
                 } else if (item.media_type === 'youtube') {
                     const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${item.media_id}`).then(r => r.json());
-                    title = res.title || 'YouTube Video';
+                    title = item.media_title || res.title || 'YouTube Video';
                     image = res.thumbnail_url || '';
                 } else if (item.media_type === 'album') {
                     const decodedId = decodeURIComponent(item.media_id);
@@ -1666,7 +1673,7 @@ async function renderLibrary(items) {
                         headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` } 
                     }).then(r => r.json());
                     if (res.success === false) throw new Error("TMDB returned an error JSON");
-                    title = res.title || res.name || 'Unknown Title';
+                    title = item.media_title || res.title || res.name || 'Unknown Title';
                     image = res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : '';
                 }
                 

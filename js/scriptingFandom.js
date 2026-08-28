@@ -691,7 +691,7 @@ async function fetchStructuredCharacters(externalId, type) {
     gridContainer.innerHTML = '<p class="meta">Loading characters...</p>';
 
     try {
-        const config = await fetch('config.json').then(r => r.json());
+        const config = await loadConfig();
         const endpoint = type === 'tv' ? 'aggregate_credits' : 'credits';
         const res = await fetch(`https://api.themoviedb.org/3/${type}/${externalId}/${endpoint}?language=en-US`, {
             headers: { Authorization: `Bearer ${config.tmdb_token}` }
@@ -961,30 +961,6 @@ window.toggleCharacterFollow = async function(btn, charId, charName, imageUrl, m
         return;
     }
 
-    document.addEventListener('click', (event) => {
-        const fandomRouteTarget = event.target.closest('[data-fandom-route]');
-        if (fandomRouteTarget) {
-            window.location.href = fandomRouteTarget.dataset.fandomRoute;
-            return;
-        }
-
-        const followTarget = event.target.closest('[data-character-follow]');
-        if (followTarget) {
-            event.stopPropagation();
-            window.toggleCharacterFollow(
-                followTarget,
-                decodeURIComponent(followTarget.dataset.wikiId),
-                decodeURIComponent(followTarget.dataset.characterName),
-                decodeURIComponent(followTarget.dataset.characterImage),
-                decodeURIComponent(followTarget.dataset.characterMediaTitle || '')
-            );
-            return;
-        }
-
-        const characterTarget = event.target.closest('[data-character-wiki]');
-        if (characterTarget) window.routeToCharacter(decodeURIComponent(characterTarget.dataset.characterWiki));
-    });
-
     const isFollowing = btn.textContent.trim() === 'Unfollow';
 
     // Disable briefly while updating DB
@@ -1028,6 +1004,30 @@ window.toggleCharacterFollow = async function(btn, charId, charName, imageUrl, m
     btn.disabled = false;
     btn.style.opacity = '1';
 };
+
+document.addEventListener('click', (event) => {
+    const fandomRouteTarget = event.target.closest('[data-fandom-route]');
+    if (fandomRouteTarget) {
+        window.location.href = fandomRouteTarget.dataset.fandomRoute;
+        return;
+    }
+
+    const followTarget = event.target.closest('[data-character-follow]');
+    if (followTarget) {
+        event.stopPropagation();
+        window.toggleCharacterFollow(
+            followTarget,
+            decodeURIComponent(followTarget.dataset.wikiId),
+            decodeURIComponent(followTarget.dataset.characterName),
+            decodeURIComponent(followTarget.dataset.characterImage),
+            decodeURIComponent(followTarget.dataset.characterMediaTitle || '')
+        );
+        return;
+    }
+
+    const characterTarget = event.target.closest('[data-character-wiki]');
+    if (characterTarget) window.routeToCharacter(decodeURIComponent(characterTarget.dataset.characterWiki));
+});
 
 function showError(message) {
     document.getElementById('fandom-title').textContent = "Lore Unavailable";

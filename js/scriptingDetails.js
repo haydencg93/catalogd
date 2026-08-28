@@ -1,5 +1,6 @@
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
+import { normalizeOpenLibraryId } from './core/media.js';
 
 const params = new URLSearchParams(window.location.search);
 const id = params.get('id');
@@ -89,7 +90,8 @@ async function initDetails() {
         // --- 2. BOOK FETCH ---
         else if (type === 'book') {
             // Safely fetch and catch any 404 errors from OpenLibrary
-            const res = await fetch(`https://openlibrary.org${id}.json`).then(r => r.json()).catch(() => ({}));
+            const normalizedBookId = normalizeOpenLibraryId(id);
+            const res = await fetch(`https://openlibrary.org${normalizedBookId}.json`).then(r => r.json()).catch(() => ({}));
             
             if (res.error || !res.title) {
                 alert("Book not found. It may have been removed or merged by OpenLibrary.");
@@ -99,7 +101,7 @@ async function initDetails() {
 
             let editionsRes = {};
             try {
-                const edFetch = await fetch(`https://openlibrary.org${id}/editions.json`);
+                const edFetch = await fetch(`https://openlibrary.org${normalizedBookId}/editions.json`);
                 if (edFetch.ok) {
                     editionsRes = await edFetch.json();
                 }
@@ -1055,6 +1057,8 @@ async function updatePageProgress(totalPages) {
         fetchMediaHistory();
     }
 }
+
+window.updatePageProgress = updatePageProgress;
 
 async function fetchBookProgress(totalPages) {
     const { data: { user } } = await supabaseClient.auth.getUser();
@@ -2193,7 +2197,7 @@ async function checkAndQueueMedia(mediaId, mediaType, config) {
                 headers: { Authorization: `Bearer ${config.tmdb_token}` } 
             }).then(r => r.json());
             
-            title = res.title || res.name;
+            title = res.title || res.name || 'Unknown Title';
             year = (res.release_date || res.first_air_date || '').split('-')[0];
             popularity = res.popularity;
             overview = res.overview;
@@ -2203,8 +2207,8 @@ async function checkAndQueueMedia(mediaId, mediaType, config) {
             tags = [...genres, ...kwList.map(k => k.name)];
             
         } else if (mediaType === 'book') {
-            const res = await fetch(`https://openlibrary.org${mediaId}.json`).then(r => r.json());
-            title = res.title;
+            const res = await fetch(`https://openlibrary.org${normalizeOpenLibraryId(mediaId)}.json`).then(r => r.json());
+            title = res.title || 'Unknown Book';
             year = res.first_publish_date ? res.first_publish_date : null; 
             overview = typeof res.description === 'string' ? res.description : (res.description?.value || '');
             tags = res.subjects ? res.subjects.map(s => typeof s === 'string' ? s : s.name || '') : [];

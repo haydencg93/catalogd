@@ -1,5 +1,6 @@
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
+import { normalizeOpenLibraryId } from './core/media.js';
 
 let supabaseClient = null;
 
@@ -462,8 +463,8 @@ async function fetchAndFormatRow(log, config) {
             }
             tracks = res.album?.tracks?.track || [];
         } else if (log.media_type === 'book') {
-            const res = await fetch(`https://openlibrary.org${log.media_id}.json`).then(r => r.json()).catch(() => ({}));
-            title = res.title || 'Unknown Book';
+            const res = await fetch(`https://openlibrary.org${normalizeOpenLibraryId(log.media_id)}.json`).then(r => r.json()).catch(() => ({}));
+            title = log.media_title || res.title || 'Unknown Book';
             year = res.first_publish_date || 'N/A';
             image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-S.jpg` : 'https://placehold.co/92x138/1b2228/9ab?text=No+Cover';
         } else {
@@ -473,7 +474,7 @@ async function fetchAndFormatRow(log, config) {
             
             if (res.success === false) throw new Error("TMDB returned an error JSON");
             
-            title = res.title || res.name || 'Unknown Title'; // Fallback prevents "undefined"
+            title = log.media_title || res.title || res.name || 'Unknown Title'; // Fallback prevents "undefined"
             year = (res.release_date || res.first_air_date || '').split('-')[0];
             image = res.poster_path ? `https://image.tmdb.org/t/p/w92${res.poster_path}` : 'https://via.placeholder.com/92x138?text=No+Poster';
         }

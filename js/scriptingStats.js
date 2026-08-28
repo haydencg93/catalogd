@@ -121,7 +121,7 @@ window.switchStatsDepth = (depth) => {
     
     // Update active tab styling
     document.querySelectorAll('#depth-1-tabs .tab-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.getAttribute('onclick').includes(depth));
+        btn.classList.toggle('active', btn.dataset.statsDepth === depth);
     });
 
     const controlsContainer = document.getElementById('depth-2-controls');
@@ -199,7 +199,7 @@ window.updatePeriod = (newPeriod) => {
 window.filterStats = (type) => {
     currentFilter = type;
     document.querySelectorAll('.filter-nav .filter-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.getAttribute('onclick').includes(`('${type}')`));
+        btn.classList.toggle('active', btn.dataset.statsFilter === type);
     });
     loadStatsData();
 };

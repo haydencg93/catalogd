@@ -1,5 +1,6 @@
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
+import { normalizeOpenLibraryId } from './core/media.js';
 
 let supabaseClient = null;
 
@@ -136,8 +137,8 @@ async function renderWatchlist(items, token, typeLabel) {
             let title, image;
             try {
                 if (item.media_type === 'book') {
-                    const res = await fetch(`https://openlibrary.org${item.media_id}.json`).then(r => r.json());
-                    title = res.title;
+                    const res = await fetch(`https://openlibrary.org${normalizeOpenLibraryId(item.media_id)}.json`).then(r => r.json());
+                    title = item.media_title || res.title || 'Unknown Book';
                     image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : 'https://placehold.co/500x750/1b2228/9ab?text=No+Cover';
                 } else if (item.media_type === 'youtube') {
                     const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${item.media_id}`).then(r => r.json());
@@ -159,11 +160,11 @@ async function renderWatchlist(items, token, typeLabel) {
                     const res = await fetch(`https://api.themoviedb.org/3/${item.media_type}/${item.media_id}`, {
                         headers: { Authorization: `Bearer ${token}` }
                     }).then(r => r.json());
-                    title = res.title || res.name;
+                    title = item.media_title || res.title || res.name || 'Unknown Title';
                     image = res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : 'https://placehold.co/500x750/1b2228/9ab?text=No+Image';
                 }
             } catch (err) {
-                title = "Unknown Item";
+                title = item.media_title || "Unknown Item";
                 image = 'https://placehold.co/500x750/1b2228/9ab?text=Error';
             }
 

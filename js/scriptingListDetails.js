@@ -1,5 +1,6 @@
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
+import { normalizeOpenLibraryId } from './core/media.js';
 
 const params = new URLSearchParams(window.location.search);
 const listId = params.get('id');
@@ -394,6 +395,17 @@ async function createListCard(item, index, listType) {
             ${metaHtml}
         </div>
     `;
+
+    card.querySelector('[data-remove-item]')?.addEventListener('click', (event) => {
+        event.stopPropagation();
+        window.removeItem(decodeURIComponent(event.currentTarget.dataset.removeItem), event);
+    });
+    card.querySelectorAll('img[data-fallback]').forEach((image) => {
+        image.addEventListener('error', () => {
+            image.src = image.dataset.fallback;
+            delete image.dataset.fallback;
+        }, { once: true });
+    });
     
     card.onclick = () => {
         if (!isManaging && !item.is_custom) {
@@ -692,9 +704,9 @@ async function fetchMediaDetails(item) {
                 poster: res.thumbnail_url || 'https://placehold.co/500x750/1b2228/ff0000?text=YouTube'
             };
         } else if (type === 'book') {            
-            const res = await fetch(`https://openlibrary.org${id}.json`).then(r => r.json());
+            const res = await fetch(`https://openlibrary.org${normalizeOpenLibraryId(id)}.json`).then(r => r.json());
             return {
-                title: res.title,
+                title: item.media_title || res.title || 'Unknown Book',
                 poster: res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : 'https://placehold.co/500x750/1b2228/9ab?text=No+Cover'
             };
         } else if (type === 'album') {
@@ -718,7 +730,7 @@ async function fetchMediaDetails(item) {
                 headers: { Authorization: `Bearer ${tmdbToken}` }
             }).then(r => r.json());
             return {
-                title: res.title || res.name,
+                title: item.media_title || res.title || res.name || 'Unknown Title',
                 poster: res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : 'https://placehold.co/500x750/1b2228/9ab?text=No+Image'
             };
         }
