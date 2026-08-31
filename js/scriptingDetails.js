@@ -12,6 +12,22 @@ let fullCastData = [];
 let fullCrewData = [];
 let directorData = null;
 
+function buildYoutubeFallbackData(id) {
+    const youtubeId = String(id || '').trim();
+    const hasValidId = /^[A-Za-z0-9_-]{11}$/.test(youtubeId);
+
+    return {
+        title: 'Unknown YouTube video',
+        overview: 'This video is unavailable, deleted, or no longer accessible. The YouTube metadata for it could not be loaded.',
+        poster_path: 'https://placehold.co/500x750/1b2228/ff0000?text=YouTube',
+        meta: 'YouTube Video',
+        author_name: 'Unknown Channel',
+        isUnavailable: true,
+        youtubeId: youtubeId,
+        isValidId: hasValidId
+    };
+}
+
 async function initDetails() {
     try {
         const config = await loadConfig();
@@ -26,21 +42,35 @@ async function initDetails() {
         
         // --- 1. YOUTUBE FETCH ---
         if (type === 'youtube') {
-            const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${id}`).then(r => r.json());
-            
-            if (res.error) {
-                alert("Error loading video data.");
-                window.location.href = 'index.html';
-                return;
+            const youtubeId = String(id || '').trim();
+            let res = null;
+            let isUnavailable = false;
+
+            if (!/^[A-Za-z0-9_-]{11}$/.test(youtubeId)) {
+                isUnavailable = true;
+            } else {
+                try {
+                    const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${youtubeId}`)}&format=json`;
+                    res = await fetch(oembedUrl).then(r => r.json());
+                    isUnavailable = !res || !res.title || !res.thumbnail_url;
+                } catch (error) {
+                    console.warn('YouTube metadata unavailable for this video.', error);
+                    isUnavailable = true;
+                }
             }
 
-            data = {
-                title: res.title,
-                overview: `A video by ${res.author_name}.\n\n(Note: Durations and descriptions are not provided by this API. Please input your watch time manually when logging!)`,
-                poster_path: res.thumbnail_url,
-                meta: 'YouTube Video',
-                author_name: res.author_name
-            };
+            if (isUnavailable) {
+                data = buildYoutubeFallbackData(youtubeId);
+            } else {
+                data = {
+                    title: res.title || 'Unknown YouTube video',
+                    overview: `A video by ${res.author_name || 'Unknown Channel'}.\n\n(Note: Durations and descriptions are not provided by this API. Please input your watch time manually when logging!)`,
+                    poster_path: res.thumbnail_url || 'https://placehold.co/500x750/1b2228/ff0000?text=YouTube',
+                    meta: 'YouTube Video',
+                    author_name: res.author_name || 'Unknown Channel',
+                    isUnavailable: false
+                };
+            }
         } 
         else if (type === 'album') {
             const decodedId = decodeURIComponent(id);
@@ -272,18 +302,34 @@ async function initDetails() {
 
         // --- YOUTUBE POSTER, PROVIDERS, & CAST RENDERING ---
         if (type === 'youtube') {
-            // Replace static poster with a responsive 16:9 playable iframe
-            document.getElementById('poster-area').innerHTML = `
-                <div style="position: relative; width: 100%; padding-bottom: 56.25%; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.6);">
-                    <iframe 
-                        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" 
-                        src="https://www.youtube.com/embed/${id}" 
-                        title="${data.title}" 
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-                        allowfullscreen>
-                    </iframe>
-                </div>
-            `;
+            const isUnavailable = !!data.isUnavailable;
+
+            if (isUnavailable) {
+                document.getElementById('poster-area').innerHTML = `
+                    <div style="position: relative; width: 100%; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.6); background: #14181c;">
+                        <img src="${data.poster_path}" alt="${data.title}" style="display: block; width: 100%; height: auto; filter: grayscale(0.2) brightness(0.7);">
+                        <div style="position: absolute; inset: 0; display: flex; align-items: flex-end; justify-content: center; padding: 24px; background: linear-gradient(180deg, rgba(8,10,12,0.15), rgba(8,10,12,0.9)); text-align: center;">
+                            <div>
+                                <div style="font-size: 1.1rem; font-weight: 700; margin-bottom: 6px;">Video Unavailable</div>
+                                <div style="font-size: 0.82rem; color: #cfd8e3; opacity: 0.9;">This YouTube item may be private, deleted, or restricted.</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                // Replace static poster with a responsive 16:9 playable iframe
+                document.getElementById('poster-area').innerHTML = `
+                    <div style="position: relative; width: 100%; padding-bottom: 56.25%; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.6);">
+                        <iframe 
+                            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" 
+                            src="https://www.youtube.com/embed/${id}" 
+                            title="${data.title}" 
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                            allowfullscreen>
+                        </iframe>
+                    </div>
+                `;
+            }
             
             // 2. Set YouTube as the Watch Provider
             const providerSection = document.getElementById('watch-providers');
@@ -293,7 +339,7 @@ async function initDetails() {
                 document.getElementById('providers-list').innerHTML = `
                     <div class="provider-group">
                         <div class="provider-icons">
-                            <a href="https://www.youtube.com/watch?v=${id}" target="_blank" style="text-decoration: none; display: inline-block;">
+                            <a href="https://www.youtube.com/watch?v=${encodeURIComponent(id || '')}" target="_blank" style="text-decoration: none; display: inline-block;">
                                 <img src="https://www.youtube.com/s/desktop/40cd5ddc/img/favicon_144x144.png" class="provider-logo" style="width: 60px; object-fit: contain; background: transparent; border: none; transition: transform 0.2s;" title="Open in YouTube">
                             </a>
                         </div>

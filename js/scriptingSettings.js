@@ -532,7 +532,7 @@ async function getExportTitle(id, type) {
             const parts = decodeURIComponent(id).split('|||');
             title = parts[1] || parts[0] || title;
         } else if (type === 'youtube') {
-            const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${id}`).then(r=>r.json());
+            const res = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${id}`)}&format=json`).then(r=>r.json());
             title = res.title || title;
         }
     } catch(e) {
@@ -1558,8 +1558,8 @@ function setupFavoritesSearch() {
 
         if (ytMatch && ytMatch[1]) {
             const ytId = ytMatch[1];
-            fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${ytId}`).then(r => r.json()).then(res => {
-                if (!res.error) {
+            fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${ytId}`)}&format=json`).then(r => r.json()).then(res => {
+                if (res && res.title) {
                     favSearchResults.innerHTML = '';
                     favSearchResults.style.display = 'block';
                     

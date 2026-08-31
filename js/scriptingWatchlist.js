@@ -141,7 +141,7 @@ async function renderWatchlist(items, token, typeLabel) {
                     title = item.media_title || res.title || 'Unknown Book';
                     image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : 'https://placehold.co/500x750/1b2228/9ab?text=No+Cover';
                 } else if (item.media_type === 'youtube') {
-                    const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${item.media_id}`).then(r => r.json());
+                    const res = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${item.media_id}`)}&format=json`).then(r => r.json());
                     title = res.title || 'YouTube Video';
                     image = res.thumbnail_url || 'https://placehold.co/500x750/1b2228/ff0000?text=YouTube';
                 } else if (item.media_type === 'album') {

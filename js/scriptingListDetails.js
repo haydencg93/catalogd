@@ -574,9 +574,9 @@ async function setupSearch() {
         if (ytMatch && ytMatch[1]) {
             const ytId = ytMatch[1];
             try {
-                const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${ytId}`).then(r => r.json());
+                const res = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${ytId}`)}&format=json`).then(r => r.json());
                 
-                if (!res.error) {
+                if (res && res.title) {
                     resultsDiv.innerHTML = '';
                     resultsDiv.style.display = 'block';
                     
@@ -698,7 +698,7 @@ async function fetchMediaDetails(item) {
                 poster: item.custom_image_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.media_title || id)}&background=1b2228&color=9ab&size=300`
             };
         } else if (type === 'youtube') {
-            const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${id}`).then(r => r.json());
+            const res = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${id}`)}&format=json`).then(r => r.json());
             return {
                 title: res.title || 'YouTube Video',
                 poster: res.thumbnail_url || 'https://placehold.co/500x750/1b2228/ff0000?text=YouTube'

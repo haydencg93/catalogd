@@ -252,7 +252,7 @@ async function renderFilteredLists() {
                     const res = await fetch(`https://openlibrary.org${normalizeOpenLibraryId(item.media_id)}.json`).then(r => r.json());
                     if (res.covers) posterUrl = `https://covers.openlibrary.org/b/id/${res.covers[0]}-S.jpg`;
                 } else if (item.media_type === 'youtube') {
-                    const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${item.media_id}`).then(r => r.json());
+                    const res = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${item.media_id}`)}&format=json`).then(r => r.json());
                     if (res.thumbnail_url) posterUrl = res.thumbnail_url;
                 } else if (item.media_type === 'album') {
                     const decodedId = decodeURIComponent(item.media_id);

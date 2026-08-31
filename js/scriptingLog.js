@@ -89,7 +89,7 @@ async function initLog() {
         
         currentMediaRuntime = 0;
     } else if (type === 'youtube') {
-        const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${id}`).then(r => r.json());
+        const res = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${id}`)}&format=json`).then(r => r.json());
         document.getElementById('media-title').textContent = res.title || 'YouTube Video';
 
         mediaReleaseYear = null;

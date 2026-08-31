@@ -792,7 +792,7 @@ async function renderStatusItems(items, gridId) {
                 title = item.media_title || res.title || 'Unknown Book';
                 image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : '';
             } else if (item.media_type === 'youtube') {
-                const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${item.media_id}`).then(r => r.json());
+                const res = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${item.media_id}`)}&format=json`).then(r => r.json());
                 title = res.title || 'YouTube Video';
                 image = res.thumbnail_url || '';
             } else if (item.media_type === 'album') {
@@ -1299,7 +1299,7 @@ window.openTagDetails = async (tag) => {
                     title = log.media_title || res.title || 'Unknown Book';
                     image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : '';
                 } else if (log.media_type === 'youtube') {
-                    const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${log.media_id}`).then(r => r.json());
+                    const res = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${log.media_id}`)}&format=json`).then(r => r.json());
                     title = res.title || 'YouTube Video';
                     image = res.thumbnail_url || '';
                 } else if (log.media_type === 'album') {
@@ -1392,7 +1392,7 @@ async function renderRecent(logs) {
                     title = log.media_title || res.title || 'Unknown Book';
                     image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : '';
                 } else if (log.media_type === 'youtube') {
-                    const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${log.media_id}`).then(r => r.json());
+                    const res = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${log.media_id}`)}&format=json`).then(r => r.json());
                     title = res.title || 'YouTube Video';
                     image = res.thumbnail_url || '';
                 } else if (log.media_type === 'album') {
@@ -1654,7 +1654,7 @@ async function renderLibrary(items) {
                     title = item.media_title || res.title || 'Unknown Book';
                     image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : '';
                 } else if (item.media_type === 'youtube') {
-                    const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${item.media_id}`).then(r => r.json());
+                    const res = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${item.media_id}`)}&format=json`).then(r => r.json());
                     title = item.media_title || res.title || 'YouTube Video';
                     image = res.thumbnail_url || '';
                 } else if (item.media_type === 'album') {

@@ -438,7 +438,7 @@ async function fetchAndFormatRow(log, config) {
         
         // 1. Fetch Basic Media Info
         if (log.media_type === 'youtube') {
-            const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${log.media_id}`).then(r => r.json());
+            const res = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${log.media_id}`)}&format=json`).then(r => r.json());
             title = res.title || 'Unknown Video';
             year = 'YouTube'; 
             image = res.thumbnail_url || 'https://via.placeholder.com/92x138?text=No+Thumb';
