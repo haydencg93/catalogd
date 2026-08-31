@@ -5,6 +5,7 @@ let supabaseClient = null;
 
 let tmdbToken = null;
 let lastfmKey = null;
+let currentUser = null;
 
 let currentFavs = { movie: [], tv: [], book: [], album: [], youtube: [], all: [] };
 let currentServices = { streaming: [], buying: [], listening: [], languages: [] };
@@ -14,6 +15,18 @@ const exportTitleCache = new Map();
 
 const favSearchInput = document.getElementById('fav-search-input');
 const favSearchResults = document.getElementById('fav-search-results');
+
+async function refreshCurrentUserState() {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    currentUser = user;
+
+    const currentEmailInput = document.getElementById('current-email');
+    if (currentEmailInput) {
+        currentEmailInput.value = user?.email || '';
+    }
+
+    return user;
+}
 
 async function initSettings() {
     const config = await loadConfig();
@@ -30,7 +43,14 @@ async function initSettings() {
     lastfmKey = config.lastfm_key;
 
     const { data: { user } } = await supabaseClient.auth.getUser();
+    currentUser = user;
     if (!user) { window.location.href = 'index.html'; return; }
+
+    supabaseClient.auth.onAuthStateChange(async (_event, _session) => {
+        if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED' || _event === 'USER_UPDATED' || _event === 'SIGNED_OUT') {
+            await refreshCurrentUserState();
+        }
+    });
 
     // Fetch existing Bio/Website/Favs to prefill
     const { data: profile } = await supabaseClient
@@ -119,7 +139,37 @@ async function initSettings() {
     document.getElementById('edit-username').value = meta.username || '';
     document.getElementById('edit-avatar').value = meta.avatar_url || '';
     document.getElementById('edit-banner').value = meta.banner_url || '';
+    document.getElementById('current-email').value = currentUser?.email || user.email || '';
     document.getElementById('save-services-btn').onclick = saveAllProfileData;
+
+    // --- Change Email ---
+    document.getElementById('change-email-btn').onclick = async () => {
+        const newEmail = document.getElementById('new-email').value.trim();
+        const currentPassword = document.getElementById('change-email-password').value;
+
+        if (!newEmail) return alert("Please enter a new email.");
+        if (newEmail === (currentUser?.email || user.email)) return alert("That is already your current email.");
+
+        if (!currentPassword) return alert("Please enter your current password to confirm the email change.");
+
+        const { error: reauthError } = await supabaseClient.auth.signInWithPassword({
+            email: currentUser?.email || user.email,
+            password: currentPassword
+        });
+
+        if (reauthError) return alert("Current password is incorrect.");
+
+        const { error } = await supabaseClient.auth.updateUser({ email: newEmail });
+
+        if (error) {
+            alert(error.message);
+        } else {
+            alert("Email change requested. Check your new inbox to confirm the update.");
+            document.getElementById('new-email').value = '';
+            document.getElementById('change-email-password').value = '';
+            await refreshCurrentUserState();
+        }
+    };
 
     // --- Change Password ---
     document.getElementById('change-password-btn').onclick = async () => {
