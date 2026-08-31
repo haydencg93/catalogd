@@ -108,6 +108,89 @@ async function loadConfig() {
     }
 }
 
+async function ensureCatalogdFollow(user) {
+    if (!user?.id || !supabaseClient) return;
+
+    try {
+        const { data: existingProfile, error: profileLookupError } = await supabaseClient
+            .from('profiles')
+            .select('id')
+            .eq('id', user.id)
+            .maybeSingle();
+
+        if (profileLookupError && profileLookupError.code !== 'PGRST116') {
+            console.warn('Unable to verify user profile before auto-follow:', profileLookupError);
+            return;
+        }
+
+        if (!existingProfile) {
+            const usernameSeed = String(user.user_metadata?.username || user.user_metadata?.display_name || user.email || 'user')
+                .trim()
+                .replace(/^@/, '')
+                .replace(/\s+/g, '')
+                .toLowerCase();
+
+            const displayName = user.user_metadata?.display_name || user.email?.split('@')[0] || 'User';
+            const { error: profileInsertError } = await supabaseClient
+                .from('profiles')
+                .upsert({
+                    id: user.id,
+                    username: usernameSeed,
+                    display_name: displayName,
+                    avatar_url: user.user_metadata?.avatar_url || null
+                }, { onConflict: 'id' });
+
+            if (profileInsertError) {
+                console.warn('Unable to create profile row for auto-follow:', profileInsertError);
+                return;
+            }
+        }
+
+        const { data: profileRows, error: officialLookupError } = await supabaseClient
+            .from('profiles')
+            .select('id, username, display_name')
+            .limit(200);
+
+        if (officialLookupError) {
+            console.warn('Unable to load profiles for official account lookup:', officialLookupError);
+            return;
+        }
+
+        const normalizeHandle = (value) => String(value || '').toLowerCase().replace(/^@/, '').trim();
+        const officialProfile = (profileRows || []).find((profile) => {
+            const username = normalizeHandle(profile.username);
+            const displayName = normalizeHandle(profile.display_name);
+            return username === 'catalogd' || displayName === 'catalogd' || username === 'catalogd official' || displayName === 'catalogd official';
+        });
+
+        if (!officialProfile) return;
+
+        const { data: existingFollow, error: followCheckError } = await supabaseClient
+            .from('follows')
+            .select('id')
+            .eq('follower_id', user.id)
+            .eq('following_id', officialProfile.id)
+            .maybeSingle();
+
+        if (followCheckError && followCheckError.code !== 'PGRST116') {
+            console.warn('Unable to verify default Catalogd follow:', followCheckError);
+            return;
+        }
+
+        if (existingFollow) return;
+
+        const { error: followInsertError } = await supabaseClient
+            .from('follows')
+            .insert({ follower_id: user.id, following_id: officialProfile.id });
+
+        if (followInsertError && followInsertError.code !== '23505') {
+            console.warn('Unable to auto-follow Catalogd:', followInsertError);
+        }
+    } catch (err) {
+        console.warn('Catalogd follow default failed:', err);
+    }
+}
+
 async function checkUserStatus() {
     await customElements.whenDefined('app-header');
     const header = document.querySelector('app-header');
@@ -116,6 +199,8 @@ async function checkUserStatus() {
     const user = await header.initializeAuth(supabaseClient, () => openAuthModal());
 
     if (user) {
+        await ensureCatalogdFollow(user);
+
         const { data: customImgs } = await supabaseClient.from('custom_imgs').select('*').eq('user_id', user.id);
         if (customImgs) {
             customImgs.forEach(img => customImgsMap.set(`${img.media_type}_${img.media_id}`, img));
@@ -135,12 +220,17 @@ async function performSignUp(email, password, name, username, retype) {
     if (password !== retype) return alert("Passwords do not match!");
     if (password.length < 6) return alert("Password must be at least 6 characters.");
 
-    const { error } = await supabaseClient.auth.signUp({
+    const { data: signUpData, error } = await supabaseClient.auth.signUp({
         email,
         password,
         options: { data: { display_name: name, username: username } }
     });
     if (error) throw error;
+
+    if (signUpData?.user) {
+        await ensureCatalogdFollow(signUpData.user);
+    }
+
     alert("Success! Check your email for a confirmation link.");
     closeAuthModal();
 }
