@@ -159,7 +159,10 @@ async function initSettings() {
 
         if (reauthError) return alert("Current password is incorrect.");
 
-        const { error } = await supabaseClient.auth.updateUser({ email: newEmail });
+        const { error } = await supabaseClient.auth.updateUser(
+            { email: newEmail },
+            { emailRedirectTo: new URL('settings.html', document.baseURI).href }
+        );
 
         if (error) {
             alert(error.message);
@@ -264,12 +267,13 @@ rangeSelect.onchange = async () => {
             }
         }
 
-        const hash = window.location.hash;
-        if (hash && hash.includes('type=recovery')) {
-            alert("Password recovery mode active. Please enter your new password in the Security section.");
-            document.getElementById('new-password').scrollIntoView({ behavior: 'smooth' });
-            document.getElementById('new-password').focus();
-        }
+    }
+
+    const hash = window.location.hash;
+    if (hash && hash.includes('type=recovery')) {
+        alert("Password recovery mode active. Please enter your new password in the Security section.");
+        document.getElementById('new-password').scrollIntoView({ behavior: 'smooth' });
+        document.getElementById('new-password').focus();
     }
 
         // Helper function to safely assign clicks only if the element exists
