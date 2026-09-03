@@ -167,7 +167,7 @@ async function initSettings() {
         if (error) {
             alert(error.message);
         } else {
-            alert("Email change requested. Check your new inbox to confirm the update.");
+            alert("Email change requested. Press the confirmation link in both your current and new email inboxes to confirm the update.");
             document.getElementById('new-email').value = '';
             document.getElementById('change-email-password').value = '';
             await refreshCurrentUserState();
