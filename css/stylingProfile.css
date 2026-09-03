@@ -213,12 +213,11 @@ input {
     position: relative;
 }
 
-/* Snaps the Profile Status Badges to the bottom-right of the poster */
+/* Snaps the Profile Status Badges to the top-right of the poster */
 .active-badge {
     position: absolute;
-    bottom: 6px;
+    top: 6px;
     right: 6px;
-    left: auto; 
     width: max-content; 
     white-space: nowrap; 
     padding: 3px 6px; 
@@ -234,6 +233,13 @@ input {
     transition: all 0.3s ease; 
     backdrop-filter: blur(8px); /* Creates the smoked glass effect */
     -webkit-backdrop-filter: blur(8px); /* Safari support */
+}
+
+.media-card .poster-wrapper > .badge {
+    position: absolute;
+    bottom: 6px;
+    left: 6px;
+    z-index: 10;
 }
 
 /* Fill the badge with solid color and turns text black when the poster is hovered! */

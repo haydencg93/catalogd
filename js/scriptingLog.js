@@ -492,7 +492,7 @@ async function saveLog() {
                     }).then(r => r.json());
                     
                     payload.ep_count_in_season = tvData.number_of_episodes || 0;
-                    payload.season_number = tvData.number_of_seasons || 0; 
+                    payload.season_number = null;
                     payload.episode_number = null; // Ensure this is clear
                 } else if (currentScopeValue === 'season') {
                     const seasonSelect = document.getElementById('season-select');
