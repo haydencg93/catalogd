@@ -24,5 +24,30 @@ jobs:
         env:
           BETA_TOKEN: ${{ secrets.CATALOGD_BETA_TOKEN }}
         run: |
-          git remote add beta "https://x-access-token:${BETA_TOKEN}@github.com/haydencg93/catalogd-beta.git"
-          git push beta HEAD:main
+          beta_dir="$RUNNER_TEMP/catalogd-beta"
+          git clone --branch main --single-branch "https://x-access-token:${BETA_TOKEN}@github.com/haydencg93/catalogd-beta.git" "$beta_dir"
+
+          rsync -a --delete \
+            --exclude='.git/' \
+            --exclude='.github/workflows/scrape-anime.yml' \
+            --exclude='.github/workflows/update-stats.yml' \
+            --exclude='.github/workflows/nightly-vibes.yml' \
+            --exclude='.github/workflows/nightly-embed.yml' \
+            "$GITHUB_WORKSPACE/" "$beta_dir/"
+
+          rm -f \
+            "$beta_dir/.github/workflows/scrape-anime.yml" \
+            "$beta_dir/.github/workflows/update-stats.yml" \
+            "$beta_dir/.github/workflows/nightly-vibes.yml" \
+            "$beta_dir/.github/workflows/nightly-embed.yml"
+
+          git -C "$beta_dir" config user.name "github-actions[bot]"
+          git -C "$beta_dir" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "$beta_dir" add --all
+
+          if git -C "$beta_dir" diff --cached --quiet; then
+            echo "No beta changes to push."
+          else
+            git -C "$beta_dir" commit -m "Sync test branch ($GITHUB_SHA)"
+            git -C "$beta_dir" push origin HEAD:main
+          fi
