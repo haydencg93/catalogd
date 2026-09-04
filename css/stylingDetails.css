@@ -227,6 +227,41 @@ html, body {
     transition: width 0.3s ease;
 }
 
+.manual-page-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    color: #ccd6e0;
+    font-size: 0.9rem;
+}
+
+.manual-page-toggle input {
+    accent-color: var(--accent);
+    width: 18px;
+    height: 18px;
+}
+
+.manual-page-inputs {
+    flex-wrap: wrap;
+}
+
+#quick-total-pages-input {
+    flex: 1;
+    max-width: 150px;
+    background: #14181c;
+    border: 1px solid #2c3440;
+    color: white;
+    padding: 8px 12px;
+    font-size: 1rem;
+    border-radius: 6px;
+    outline: none;
+}
+
+#quick-total-pages-input:focus {
+    border-color: var(--accent);
+}
+
 /* Update your grid to handle the left column better */
 .details-container
 

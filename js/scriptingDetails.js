@@ -464,6 +464,7 @@ async function initDetails() {
         if (type === 'tv') setupTVTracker(config, id);
         
         if (type === 'book') {
+            await setupBookTracker(data.pages);
             const firstAuthor = data.authors && data.authors.length > 0 ? data.authors[0].name : '';
             displayBookLinks(data.title, data.authorName); 
             setupBookTracker(data.pages);
@@ -1044,79 +1045,239 @@ async function fetchBookAuthors(authorsList) {
     } catch (err) { console.error("Error fetching authors:", err); }
 }
 
-function setupBookTracker(totalPages) {
+async function setupBookTracker(automaticTotalPages) {
     const trackerSection = document.getElementById('tv-tracker');
     const list = document.getElementById('episode-list');
+
     trackerSection.style.display = 'block';
-    trackerSection.querySelector('h3').textContent = "Reading Progress";
-    
-    const controls = document.querySelector('.tracker-controls');
-    if (controls) controls.style.display = 'none';
-    list.style.display = 'block'; 
-    
-    if (!totalPages) {
-        list.innerHTML = `<p class="meta">Page count not available.</p>`;
-        return;
-    }
+    trackerSection.querySelector('h3').textContent = 'Reading Progress';
 
-    list.innerHTML = `
-        <div class="book-progress-container">
-            <div class="quick-update-row">
-                <input type="number" id="quick-page-input" placeholder="Current Page #" min="1" max="${totalPages}">
-                <button data-update-page-progress="${totalPages}" class="primary-btn">Update Progress</button>
-            </div>
-        </div>
-    `;
-    fetchBookProgress(totalPages); 
-}
-
-async function updatePageProgress(totalPages) {
-    const input = document.getElementById('quick-page-input');
-    const newPage = parseInt(input.value);
-
-    if (newPage >= totalPages) {
-        alert("To mark a book as finished, please use the 'Log or Review' button to rate and review.");
-        input.value = '';
-        return;
-    }
-
-    if (!newPage || newPage < 1) return alert(`Enter a page between 1 and ${totalPages - 1}`);
+    document.querySelector('.tracker-controls')?.style.setProperty('display', 'none');
 
     const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) return alert("Please sign in.");
 
-    const { data: activeLog } = await supabaseClient.from('media_logs').select('id')
-        .eq('user_id', user.id).eq('media_id', id).eq('is_finished', false).maybeSingle();
+    let preference = null;
+    let progress = null;
+
+    if (user) {
+        const { data: preferenceData } = await supabaseClient
+            .from('book_progress_preferences')
+            .select('use_manual_page_count, manual_total_pages')
+            .eq('user_id', user.id)
+            .eq('media_id', String(id))
+            .maybeSingle();
+
+        preference = preferenceData;
+
+        const { data: progressData } = await supabaseClient
+            .from('media_logs')
+            .select('current_page, total_pages')
+            .eq('user_id', user.id)
+            .eq('media_id', String(id))
+            .eq('media_type', 'book')
+            .eq('is_finished', false)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        progress = progressData;
+    }
+
+    const useManualPages = preference?.use_manual_page_count === true;
+    const savedManualTotal = preference?.manual_total_pages || '';
+    const savedCurrentPage = progress?.current_page || '';
+    const automaticPages = Number(automaticTotalPages) || 0;
+
+    const renderTracker = (manualMode, manualTotal = savedManualTotal) => {
+        const totalPages = manualMode ? Number(manualTotal) || '' : automaticPages;
+        const hasPageCount = manualMode ? Boolean(totalPages) : automaticPages > 0;
+
+        list.style.display = 'block';
+        list.innerHTML = `
+            <div class="book-progress-container">
+                <div class="book-progress-header">
+                    <div id="progress-container">
+                        <div class="progress-bar-bg">
+                            <div id="main-progress-fill" class="progress-bar-fill" style="width: 0%;"></div>
+                        </div>
+                        <p id="progress-stats-text" class="meta">0 / 0 pages read (0%)</p>
+                    </div>
+
+                    <label class="manual-page-toggle">
+                        <input type="checkbox" id="manual-page-toggle" ${manualMode ? 'checked' : ''}>
+                        <span>Manual page count</span>
+                    </label>
+                </div>
+
+                ${
+                    !hasPageCount
+                        ? `<p class="meta">Page count not available.</p>`
+                        : `
+                            <div class="quick-update-row">
+                                <input
+                                    type="number"
+                                    id="quick-page-input"
+                                    placeholder="Current Page #"
+                                    min="1"
+                                    max="${totalPages}"
+                                    value="${savedCurrentPage}"
+                                >
+
+                                ${
+                                    manualMode
+                                        ? `
+                                            <input
+                                                type="number"
+                                                id="quick-total-pages-input"
+                                                placeholder="Total Pages"
+                                                min="1"
+                                                value="${manualTotal}"
+                                            >
+                                        `
+                                        : ''
+                                }
+
+                                <button data-update-page-progress class="primary-btn">
+                                    Update Progress
+                                </button>
+                            </div>
+                        `
+                }
+            </div>
+        `;
+
+        document.getElementById('manual-page-toggle').onchange = async (event) => {
+            const enabled = event.target.checked;
+            const totalInput = document.getElementById('quick-total-pages-input');
+            const nextManualTotal = enabled
+                ? Number(totalInput?.value || savedManualTotal) || null
+                : null;
+
+            if (user) {
+                const { error } = await supabaseClient
+                    .from('book_progress_preferences')
+                    .upsert({
+                        user_id: user.id,
+                        media_id: String(id),
+                        use_manual_page_count: enabled,
+                        manual_total_pages: nextManualTotal,
+                        updated_at: new Date().toISOString()
+                    }, {
+                        onConflict: 'user_id,media_id'
+                    });
+
+                if (error) {
+                    console.error('Book page preference error:', error);
+                    event.target.checked = !enabled;
+                    return;
+                }
+            }
+
+            renderTracker(enabled, nextManualTotal || '');
+        };
+
+        if (hasPageCount) {
+            updateUnifiedProgress(
+                Number(savedCurrentPage) || 0,
+                Number(totalPages),
+                'pages read'
+            );
+        }
+    };
+
+    renderTracker(useManualPages, savedManualTotal);
+}
+
+async function updatePageProgress() {
+    const pageInput = document.getElementById('quick-page-input');
+    const manualToggle = document.getElementById('manual-page-toggle');
+    const totalInput = document.getElementById('quick-total-pages-input');
+
+    const useManualPages = manualToggle?.checked || false;
+    const automaticTotalPages = Number(globalData.pages || 0);
+    const totalPages = useManualPages
+        ? parseInt(totalInput?.value, 10)
+        : automaticTotalPages;
+
+    const newPage = parseInt(pageInput?.value, 10);
+
+    if (!totalPages || totalPages < 1) {
+        return alert('Enter a valid total page count.');
+    }
+
+    if (!newPage || newPage < 1 || newPage > totalPages) {
+        return alert(`Enter a page between 1 and ${totalPages}.`);
+    }
+
+    if (newPage >= totalPages) {
+        return alert("To mark a book as finished, please use the 'Log or Review' button.");
+    }
+
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) return alert('Please sign in.');
+
+    await supabaseClient
+        .from('book_progress_preferences')
+        .upsert({
+            user_id: user.id,
+            media_id: String(id),
+            use_manual_page_count: useManualPages,
+            manual_total_pages: useManualPages ? totalPages : null,
+            updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id,media_id' });
+
+    const { data: activeLog } = await supabaseClient
+        .from('media_logs')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('media_id', id)
+        .eq('media_type', 'book')
+        .eq('is_finished', false)
+        .maybeSingle();
 
     const logData = {
-        user_id: user.id, media_id: id, media_type: 'book',
+        user_id: user.id,
+        media_id: id,
+        media_type: 'book',
         media_title: globalData.title,
-        current_page: newPage, total_pages: totalPages,
-        is_finished: false, watched_on: new Date().toISOString().split('T')[0]
+        current_page: newPage,
+        total_pages: totalPages,
+        is_finished: false,
+        watched_on: new Date().toISOString().split('T')[0]
     };
+
     if (activeLog) logData.id = activeLog.id;
 
-    const { error } = await supabaseClient.from('media_logs').upsert(logData);
+    const { error } = await supabaseClient
+        .from('media_logs')
+        .upsert(logData);
+
     if (!error) {
-        input.value = '';
+        pageInput.value = '';
         fetchBookProgress(totalPages);
         fetchMediaHistory();
     }
 }
 
-window.updatePageProgress = updatePageProgress;
-
 async function fetchBookProgress(totalPages) {
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user || !totalPages) return;
 
-    const { data: logs } = await supabaseClient.from('media_logs')
-        .select('current_page').eq('user_id', user.id).eq('media_id', id)
-        .eq('is_finished', false).order('created_at', { ascending: false }).limit(1);
+    const { data: logs } = await supabaseClient
+        .from('media_logs')
+        .select('current_page')
+        .eq('user_id', user.id)
+        .eq('media_id', id)
+        .eq('media_type', 'book')
+        .eq('is_finished', false)
+        .order('created_at', { ascending: false })
+        .limit(1);
 
     const currentPage = logs?.[0]?.current_page || 0;
-    updateUnifiedProgress(currentPage, totalPages, "pages read");
+    updateUnifiedProgress(currentPage, totalPages, 'pages read');
 }
+
+window.updatePageProgress = updatePageProgress;
 
 function displayBookLinks(title, authorName) {
     const providerSection = document.getElementById('watch-providers');
@@ -2046,7 +2207,7 @@ document.addEventListener('click', (event) => {
     }
     const progressTarget = event.target.closest('[data-update-page-progress]');
     if (progressTarget) {
-        window.updatePageProgress(Number(progressTarget.dataset.updatePageProgress));
+        window.updatePageProgress();
         return;
     }
     const deleteTarget = event.target.closest('[data-delete-log]');
