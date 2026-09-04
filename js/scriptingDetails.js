@@ -467,7 +467,6 @@ async function initDetails() {
             await setupBookTracker(data.pages);
             const firstAuthor = data.authors && data.authors.length > 0 ? data.authors[0].name : '';
             displayBookLinks(data.title, data.authorName); 
-            setupBookTracker(data.pages);
             fetchBookAuthors(data.authors);
         } else if (type !== 'youtube' && type !== 'album') {
             // This ensures TMDB provider/credit fetches skip YouTube videos AND Albums!
@@ -1048,9 +1047,11 @@ async function fetchBookAuthors(authorsList) {
 async function setupBookTracker(automaticTotalPages) {
     const trackerSection = document.getElementById('tv-tracker');
     const list = document.getElementById('episode-list');
+    const sharedProgressContainer = document.getElementById('progress-container');
 
     trackerSection.style.display = 'block';
     trackerSection.querySelector('h3').textContent = 'Reading Progress';
+    sharedProgressContainer?.style.setProperty('display', 'none');
 
     document.querySelector('.tracker-controls')?.style.setProperty('display', 'none');
 
@@ -1090,13 +1091,13 @@ async function setupBookTracker(automaticTotalPages) {
 
     const renderTracker = (manualMode, manualTotal = savedManualTotal) => {
         const totalPages = manualMode ? Number(manualTotal) || '' : automaticPages;
-        const hasPageCount = manualMode ? Boolean(totalPages) : automaticPages > 0;
+        const hasAutomaticPageCount = automaticPages > 0;
 
         list.style.display = 'block';
         list.innerHTML = `
             <div class="book-progress-container">
                 <div class="book-progress-header">
-                    <div id="progress-container">
+                    <div class="book-progress-display">
                         <div class="progress-bar-bg">
                             <div id="main-progress-fill" class="progress-bar-fill" style="width: 0%;"></div>
                         </div>
@@ -1109,10 +1110,8 @@ async function setupBookTracker(automaticTotalPages) {
                     </label>
                 </div>
 
-                ${
-                    !hasPageCount
-                        ? `<p class="meta">Page count not available.</p>`
-                        : `
+                ${manualMode || hasAutomaticPageCount
+                    ? `
                             <div class="quick-update-row">
                                 <input
                                     type="number"
@@ -1142,6 +1141,7 @@ async function setupBookTracker(automaticTotalPages) {
                                 </button>
                             </div>
                         `
+                    : `<p class="meta">Page count not available.</p>`
                 }
             </div>
         `;
@@ -1176,7 +1176,7 @@ async function setupBookTracker(automaticTotalPages) {
             renderTracker(enabled, nextManualTotal || '');
         };
 
-        if (hasPageCount) {
+        if (totalPages) {
             updateUnifiedProgress(
                 Number(savedCurrentPage) || 0,
                 Number(totalPages),
@@ -1189,75 +1189,107 @@ async function setupBookTracker(automaticTotalPages) {
 }
 
 async function updatePageProgress() {
-    const pageInput = document.getElementById('quick-page-input');
+    const currentPageInput = document.getElementById('quick-page-input');
+    const totalPagesInput = document.getElementById('quick-total-pages-input');
     const manualToggle = document.getElementById('manual-page-toggle');
-    const totalInput = document.getElementById('quick-total-pages-input');
 
-    const useManualPages = manualToggle?.checked || false;
-    const automaticTotalPages = Number(globalData.pages || 0);
-    const totalPages = useManualPages
-        ? parseInt(totalInput?.value, 10)
-        : automaticTotalPages;
-
-    const newPage = parseInt(pageInput?.value, 10);
+    const currentPage = Number(currentPageInput?.value);
+    const usingManualPages = manualToggle?.checked === true;
+    const totalPages = usingManualPages
+        ? Number(totalPagesInput?.value)
+        : Number(globalData.pages);
 
     if (!totalPages || totalPages < 1) {
-        return alert('Enter a valid total page count.');
+        alert('Enter a valid total page count.');
+        return;
     }
 
-    if (!newPage || newPage < 1 || newPage > totalPages) {
-        return alert(`Enter a page between 1 and ${totalPages}.`);
-    }
-
-    if (newPage >= totalPages) {
-        return alert("To mark a book as finished, please use the 'Log or Review' button.");
+    if (!currentPage || currentPage < 1 || currentPage >= totalPages) {
+        alert(`Enter a page between 1 and ${totalPages - 1}.`);
+        return;
     }
 
     const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) return alert('Please sign in.');
+    if (!user) {
+        alert('Please sign in.');
+        return;
+    }
 
-    await supabaseClient
-        .from('book_progress_preferences')
-        .upsert({
-            user_id: user.id,
-            media_id: String(id),
-            use_manual_page_count: useManualPages,
-            manual_total_pages: useManualPages ? totalPages : null,
-            updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id,media_id' });
+    if (usingManualPages) {
+        const { error: preferenceError } = await supabaseClient
+            .from('book_progress_preferences')
+            .upsert({
+                user_id: user.id,
+                media_id: String(id),
+                use_manual_page_count: true,
+                manual_total_pages: totalPages,
+                updated_at: new Date().toISOString()
+            }, {
+                onConflict: 'user_id,media_id'
+            });
 
-    const { data: activeLog } = await supabaseClient
+        if (preferenceError) {
+            console.error('Book page preference error:', preferenceError);
+            alert('Unable to save manual page settings.');
+            return;
+        }
+    }
+
+    const { data: activeLog, error: lookupError } = await supabaseClient
         .from('media_logs')
         .select('id')
         .eq('user_id', user.id)
-        .eq('media_id', id)
+        .eq('media_id', String(id))
         .eq('media_type', 'book')
         .eq('is_finished', false)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
 
-    const logData = {
-        user_id: user.id,
-        media_id: id,
-        media_type: 'book',
-        media_title: globalData.title,
-        current_page: newPage,
+    if (lookupError) {
+        console.error('Book progress lookup error:', lookupError);
+        return;
+    }
+
+    const progressData = {
+        current_page: currentPage,
         total_pages: totalPages,
         is_finished: false,
+        media_type: 'book',
+        media_title: globalData.title,
         watched_on: new Date().toISOString().split('T')[0]
     };
 
-    if (activeLog) logData.id = activeLog.id;
+    let saveResult;
 
-    const { error } = await supabaseClient
-        .from('media_logs')
-        .upsert(logData);
-
-    if (!error) {
-        pageInput.value = '';
-        fetchBookProgress(totalPages);
-        fetchMediaHistory();
+    if (activeLog) {
+        saveResult = await supabaseClient
+            .from('media_logs')
+            .update(progressData)
+            .eq('id', activeLog.id)
+            .eq('user_id', user.id);
+    } else {
+        saveResult = await supabaseClient
+            .from('media_logs')
+            .insert({
+                ...progressData,
+                user_id: user.id,
+                media_id: String(id)
+            });
     }
+
+    if (saveResult.error) {
+        console.error('Book progress save error:', saveResult.error);
+        alert('Unable to save reading progress.');
+        return;
+    }
+
+    currentPageInput.value = '';
+    await fetchBookProgress(totalPages);
+    await fetchMediaHistory();
 }
+
+window.updatePageProgress = updatePageProgress;
 
 async function fetchBookProgress(totalPages) {
     const { data: { user } } = await supabaseClient.auth.getUser();
@@ -1729,8 +1761,13 @@ async function refreshProgressBar(seriesId, seasonNum) {
 }
 
 function updateUnifiedProgress(current, total, label) {
-    const bar = document.getElementById('main-progress-fill');
-    const text = document.getElementById('progress-stats-text');
+    const isBook = type === 'book';
+    const bar = isBook
+        ? document.querySelector('.book-progress-container .progress-bar-fill')
+        : document.getElementById('main-progress-fill');
+    const text = isBook
+        ? document.querySelector('.book-progress-container #progress-stats-text')
+        : document.getElementById('progress-stats-text');
     const percent = total > 0 ? Math.min(Math.round((current / total) * 100), 100) : 0;
     if (bar) bar.style.width = `${percent}%`;
     if (text) text.textContent = `${current} / ${total} ${label} (${percent}%)`;
