@@ -1322,6 +1322,7 @@ function displayBookLinks(title, authorName) {
 
     const logos = {
         worldcat: "https://search.worldcat.org/favicons/android-chrome-192x192.png",
+        overdrive: "https://www.overdrive.com/apple-touch-icon.png",
         bwb: "https://www.betterworldbooks.com/images/logos/favicon.ico",
         amazon: "https://www.amazon.com/favicon.ico",
         thriftbooks: "https://static.thriftbooks.com/images/favicon.ico",
@@ -1335,10 +1336,13 @@ function displayBookLinks(title, authorName) {
 
     list.innerHTML = `
         <div class="provider-group">
-            <span class="provider-type-label">Check nearby libraries</span>
+            <span class="provider-type-label">Check libraries</span>
             <div class="provider-icons">
                 <a href="https://search.worldcat.org/search?q=${query}" target="_blank" style="text-decoration: none; display: inline-block;">
                     <img src="${logos.worldcat}" class="provider-logo" title="WorldCat" style="background: white; object-fit: contain;">
+                </a>
+                <a href="https://www.overdrive.com/search?q=${query}" target="_blank" style="text-decoration: none; display: inline-block;">
+                    <img src="${logos.overdrive}" class="provider-logo" title="OverDrive" style="background: white; object-fit: contain;">
                 </a>
             </div>
         </div>
