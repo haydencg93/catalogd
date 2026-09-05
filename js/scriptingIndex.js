@@ -1219,7 +1219,7 @@ async function handleForgotPassword() {
     }
     try {
         const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-            redirectTo: window.location.origin + '/settings.html',
+            redirectTo: new URL('settings.html', document.baseURI).href,
         });
         if (error) throw error;
         alert("Success! Check your email for a password reset link.");
