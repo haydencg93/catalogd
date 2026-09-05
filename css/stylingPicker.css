@@ -204,6 +204,23 @@
     border: 1px solid rgba(255,255,255,0.1);
 }
 
+.winner-description-section {
+    margin-top: 20px;
+}
+
+.winner-description-section h4 {
+    margin: 0 0 8px;
+    color: #9ab;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+}
+
+.winner-description-section p {
+    margin: 0;
+    color: #d7dde5;
+    line-height: 1.5;
+}
+
 /* Mobile Responsive */
 @media (max-width: 768px) {
     .winner-card {
