@@ -60,6 +60,7 @@ async function initSettings() {
         .single();
 
     if (profile) {
+        const socials = profile.socials || {};
         // Helper function to safely set values only if the element exists
         const setVal = (id, val) => {
             const el = document.getElementById(id);
@@ -73,12 +74,25 @@ async function initSettings() {
         // Safely prefill text fields
         setVal('edit-bio', profile.bio || '');
         setVal('edit-website', profile.website_url || '');
-        setVal('edit-instagram', profile.instagram || '');
-        setVal('edit-snapchat', profile.snapchat || '');
-        setVal('edit-tiktok', profile.tiktok || '');
-        setVal('edit-youtube', profile.youtube || '');
-        setVal('edit-github', profile.github || '');
-        setVal('lastfm-username-input', profile.lastfm_username || '');
+        setVal('edit-instagram', socials.instagram || '');
+        setVal('edit-snapchat', socials.snapchat || '');
+        setVal('edit-tiktok', socials.tiktok || '');
+        setVal('edit-youtube', socials.youtube || '');
+        setVal('edit-github', socials.github || '');
+        setVal('edit-reddit', socials.reddit || '');
+        setVal('edit-goodreads', socials.goodreads || '');
+        setVal('edit-facebook', socials.facebook || '');
+        setVal('edit-x', socials.x || '');
+        setVal('edit-pinterest', socials.pinterest || '');
+        setVal('edit-letterboxd', socials.letterboxd || '');
+        setVal('edit-discord', socials.discord || '');
+        setVal('edit-apple-music', socials.apple_music || '');
+        setVal('edit-spotify', socials.spotify || '');
+        setVal('lastfm-username-input', socials.lastfm_username || '');
+        setVal('display-lastfm-username', socials.lastfm_username || '');
+        setCheck('lastfm-show-profile', socials.show_lastfm === true);
+        const lastfmStatus = document.getElementById('lastfm-profile-status');
+        if (lastfmStatus) lastfmStatus.textContent = socials.show_lastfm === true ? 'Shown on profile' : 'Not shown on profile';
 
         // Populate the link
         const currentPath = window.location.pathname;
@@ -489,6 +503,16 @@ async function saveAllProfileData() {
     const tiktokVal = document.getElementById('edit-tiktok').value.trim();
     let youtubeVal = document.getElementById('edit-youtube').value.trim();
     const githubVal = document.getElementById('edit-github').value.trim();
+    const redditVal = document.getElementById('edit-reddit').value.trim();
+    const goodreadsVal = document.getElementById('edit-goodreads').value.trim();
+    const facebookVal = document.getElementById('edit-facebook').value.trim();
+    const xVal = document.getElementById('edit-x').value.trim();
+    const pinterestVal = document.getElementById('edit-pinterest').value.trim();
+    const letterboxdVal = document.getElementById('edit-letterboxd').value.trim();
+    const discordVal = document.getElementById('edit-discord').value.trim();
+    const appleMusicVal = document.getElementById('edit-apple-music').value.trim();
+    const spotifyVal = document.getElementById('edit-spotify').value.trim();
+    const lastfmShowProfile = document.getElementById('lastfm-show-profile')?.checked ?? false;
 
     if (youtubeVal && !youtubeVal.startsWith('@')) youtubeVal = '@' + youtubeVal;
 
@@ -508,6 +532,25 @@ async function saveAllProfileData() {
     });
 
     // 3. Update Profiles Table
+    const socials = {
+        instagram: instagramVal,
+        snapchat: snapchatVal,
+        tiktok: tiktokVal,
+        youtube: youtubeVal,
+        github: githubVal,
+        reddit: redditVal,
+        goodreads: goodreadsVal,
+        facebook: facebookVal,
+        x: xVal,
+        pinterest: pinterestVal,
+        letterboxd: letterboxdVal,
+        discord: discordVal,
+        apple_music: appleMusicVal,
+        spotify: spotifyVal,
+        lastfm_username: document.getElementById('lastfm-username-input').value.trim(),
+        show_lastfm: lastfmShowProfile
+    };
+
     const { error: profileError } = await supabaseClient
         .from('profiles')
         .update({
@@ -517,11 +560,7 @@ async function saveAllProfileData() {
             banner_url: bannerValue,  
             bio: bioValue,
             website_url: websiteValue,
-            instagram: instagramVal,
-            snapchat: snapchatVal,
-            tiktok: tiktokVal,
-            youtube: youtubeVal,
-            github: githubVal,
+            socials,
             favorites: currentFavs,
             services: currentServices,
             show_active_status: showActive,
@@ -538,6 +577,11 @@ async function saveAllProfileData() {
         window.location.reload();
     }
 }
+
+document.getElementById('lastfm-show-profile')?.addEventListener('change', (event) => {
+    const status = document.getElementById('lastfm-profile-status');
+    if (status) status.textContent = event.target.checked ? 'Shown on profile' : 'Not shown on profile';
+});
 
 function addFavorite(item) {
     if (!currentFavs[item.type]) {
@@ -1065,7 +1109,14 @@ document.getElementById('start-lastfm-sync-btn').onclick = async () => {
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) return alert("Session lost. Please log in again.");
 
-    await supabaseClient.from('profiles').update({ lastfm_username: username }).eq('id', user.id);
+    const { data: profile } = await supabaseClient.from('profiles').select('socials').eq('id', user.id).single();
+    await supabaseClient.from('profiles').update({
+        socials: {
+            ...(profile?.socials || {}),
+            lastfm_username: username,
+            show_lastfm: document.getElementById('lastfm-show-profile')?.checked ?? false
+        }
+    }).eq('id', user.id);
 
     const statusDiv = document.getElementById('import-status');
     const progressBar = document.getElementById('import-progress-bar');
