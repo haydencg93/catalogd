@@ -301,7 +301,7 @@ async function initProfile() {
             document.getElementById('display-bio').textContent = profile.bio || "No bio yet.";
 
             const shareBtn = document.createElement('button');
-            shareBtn.innerHTML = 'ðŸ”—';
+            shareBtn.innerHTML = '🔗';
             // Style it to look like a subtle inline icon
             shareBtn.style.cssText = 'background: none; border: none; cursor: pointer; font-size: 1.1rem; padding: 0; margin: 0; opacity: 0.7; transition: opacity 0.2s, transform 0.2s;';
             shareBtn.title = 'Copy Custom Profile Link';
@@ -328,10 +328,10 @@ async function initProfile() {
                 }
 
                 function showSuccess() {
-                    shareBtn.innerHTML = 'âœ…';
+                    shareBtn.innerHTML = '✅';
                     shareBtn.style.transform = 'scale(1.1)';
                     setTimeout(() => {
-                        shareBtn.innerHTML = 'ðŸ”—';
+                        shareBtn.innerHTML = '🔗';
                         shareBtn.style.transform = 'scale(1)';
                     }, 2000);
                 }
@@ -1328,15 +1328,15 @@ window.openTagDetails = async (tag) => {
 
         body.innerHTML = '';
         fullLogs.forEach(log => {
-            const stars = 'â˜…'.repeat(Math.floor(log.rating || 0)) + ((log.rating % 1 !== 0) ? 'Â½' : '');
+            const stars = '★'.repeat(Math.floor(log.rating || 0)) + ((log.rating % 1 !== 0) ? '½' : '');
             
             const safeDate = getSafeDate(log);
             const dateStr = safeDate.toLocaleDateString(undefined, {
                 year: 'numeric', month: 'short', day: 'numeric'
             });
             
-            const reviewIcon = log.notes ? `<span title="Reviewed" style="margin-right:8px;">ðŸ“</span>` : '';
-            const likeIcon = log.is_liked ? `<span title="Liked" style="color:#ff4d4d; margin-right:8px;">â¤ï¸</span>` : '';
+            const reviewIcon = log.notes ? `<span title="Reviewed" style="margin-right:8px;">📝</span>` : '';
+            const likeIcon = log.is_liked ? `<span title="Liked" style="color:#ff4d4d; margin-right:8px;">❤️</span>` : '';
             
             const row = document.createElement('div');
             row.className = 'tag-log-row';
@@ -1427,14 +1427,14 @@ async function renderRecent(logs) {
             card.className = 'media-card';
             card.onclick = () => window.location.href = `details.html?id=${encodeURIComponent(log.media_id)}&type=${log.media_type}`;
 
-            const stars = 'â˜…'.repeat(Math.floor(log.rating || 0)) + ((log.rating % 1 !== 0) ? 'Â½' : '');
+            const stars = '★'.repeat(Math.floor(log.rating || 0)) + ((log.rating % 1 !== 0) ? '½' : '');
             let rewatchText = 'Rewatch';
             if (log.media_type === 'book') rewatchText = 'Reread';
             else if (log.media_type === 'album') rewatchText = 'Relisten';
 
-            const reviewBadge = log.notes ? `<div class="card-icon-badge" title="Reviewed">ðŸ“</div>` : '';
-            const likeBadge = log.is_liked ? `<div class="card-icon-badge icon-heart" title="Liked">â¤ï¸</div>` : '';
-            const rewatchBadge = log.is_rewatch ? `<div class="card-icon-badge" title="${rewatchText}" style="font-size: 0.8rem;">ðŸ”</div>` : '';
+            const reviewBadge = log.notes ? `<div class="card-icon-badge" title="Reviewed">📝</div>` : '';
+            const likeBadge = log.is_liked ? `<div class="card-icon-badge icon-heart" title="Liked">❤️</div>` : '';
+            const rewatchBadge = log.is_rewatch ? `<div class="card-icon-badge" title="${rewatchText}" style="font-size: 0.8rem;">🔁</div>` : '';
 
             card.innerHTML = `
                 <div class="poster-wrapper">
@@ -1692,11 +1692,11 @@ async function renderLibrary(items) {
 
             let starsHtml = '';
             if (item.rating > 0) {
-                const starString = 'â˜…'.repeat(Math.floor(item.rating)) + ((item.rating % 1 !== 0) ? 'Â½' : '');
+                const starString = '★'.repeat(Math.floor(item.rating)) + ((item.rating % 1 !== 0) ? '½' : '');
                 starsHtml = `<span class="text-glow">${starString}</span>`;
             }
             
-            const likeBadge = item.is_liked ? `<div class="card-icon-badge icon-heart">â¤ï¸</div>` : '';
+            const likeBadge = item.is_liked ? `<div class="card-icon-badge icon-heart">❤️</div>` : '';
 
             card.innerHTML = `
                 <div class="poster-wrapper">
