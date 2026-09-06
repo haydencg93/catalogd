@@ -20,10 +20,13 @@
         <div class="picker-container auth-card">
             
             <div class="form-group">
-                <label>I want to watch a...</label>
+                <label>I want a...</label>
                 <select id="media-type-select" class="picker-select">
                     <option value="movie">Movie</option>
                     <option value="tv">TV Show</option>
+                    <option value="anime">Anime</option>
+                    <option value="book">Book</option>
+                    <option value="album">Music</option>
                 </select>
             </div>
 
@@ -47,7 +50,7 @@
                 <label class="custom-checkbox">
                     <input type="checkbox" id="services-filter-check" checked>
                     <span class="checkmark"></span>
-                    Only pick titles available on my streaming services or for free
+                    Only pick titles available on my preferred services or for free
                 </label>
             </div>
 
@@ -73,9 +76,15 @@
                     <div id="winner-providers" class="provider-icons"></div>
                 </div>
 
+                <div class="winner-description-section">
+                    <h4>Description</h4>
+                    <p id="winner-description"></p>
+                </div>
+
                 <div class="winner-actions">
-                    <button id="reroll-btn" class="secondary-btn">🎲 Re-roll</button>
+                    <button id="details-btn" class="secondary-btn">View Details</button>
                     <button id="watch-btn" class="secondary-btn">Mark as Currently Watching</button>
+                    <button id="reroll-btn" class="secondary-btn">🎲 Re-roll</button>
                 </div>
             </div>
         </div>

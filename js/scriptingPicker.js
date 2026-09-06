@@ -1,5 +1,6 @@
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
+import { normalizeOpenLibraryId } from './core/media.js';
 
 let TMDB_TOKEN = '';
 let supabaseClient = null;
@@ -24,8 +25,10 @@ const winTitle = document.getElementById('winner-title');
 const winYear = document.getElementById('winner-year');
 const winGenres = document.getElementById('winner-genres');
 const winProviders = document.getElementById('winner-providers');
+const winDescription = document.getElementById('winner-description');
 const rerollBtn = document.getElementById('reroll-btn');
 const watchBtn = document.getElementById('watch-btn');
+const detailsBtn = document.getElementById('details-btn');
 
 let currentWinnerMediaId = null;
 
@@ -39,14 +42,40 @@ async function initPicker() {
 
         // Listeners
         sourceSelect.addEventListener('change', handleSourceChange);
-        mediaTypeSelect.addEventListener('change', handleSourceChange);
+        mediaTypeSelect.addEventListener('change', handleMediaTypeChange);
         rollBtn.addEventListener('click', () => pickRandom());
         rerollBtn.addEventListener('click', () => pickRandom());
         watchBtn.addEventListener('click', markAsWatching);
+        detailsBtn.addEventListener('click', () => {
+            const detailsType = mediaTypeSelect.value === 'anime' ? 'tv' : mediaTypeSelect.value;
+            window.location.href = `details.html?id=${encodeURIComponent(currentWinnerMediaId)}&type=${detailsType}`;
+        });
 
     } catch (err) {
         console.error("Initialization Error:", err);
     }
+}
+
+function handleMediaTypeChange() {
+    const tasteOption = sourceSelect.querySelector('option[value="taste"]');
+    const supportsTasteProfile = ['movie', 'tv', 'anime'].includes(mediaTypeSelect.value);
+    tasteOption.hidden = !supportsTasteProfile;
+    if (!supportsTasteProfile && sourceSelect.value === 'taste') sourceSelect.value = 'watchlist';
+    handleSourceChange();
+}
+
+function getActionLabel(type) {
+    if (type === 'book') return 'Mark as Currently Reading';
+    if (type === 'album') return 'Mark as Currently Listening';
+    return 'Mark as Currently Watching';
+}
+
+function isAnime(item) {
+    const isAnimation = (item.genres || []).some(genre => genre.id === 16)
+        || (item.genre_ids || []).includes(16);
+    const isJapanese = (item.origin_country || []).includes('JP')
+        || item.original_language === 'ja';
+    return isAnimation && isJapanese;
 }
 
 async function setupHeaderAndUser() {
@@ -89,7 +118,7 @@ async function handleSourceChange() {
         }
         
         listSelectGroup.style.display = 'block';
-        const type = mediaTypeSelect.value;
+        const type = mediaTypeSelect.value === 'anime' ? 'tv' : mediaTypeSelect.value;
         specificListSelect.innerHTML = '<option>Loading lists...</option>';
 
         // Fetch all lists the user owns or collaborates on
@@ -146,19 +175,20 @@ async function pickRandom() {
     resultContainer.style.display = 'none';
     loader.style.display = 'block';
 
-    const type = mediaTypeSelect.value;
+    const selectedType = mediaTypeSelect.value;
+    const type = selectedType === 'anime' ? 'tv' : selectedType;
     const source = sourceSelect.value;
     const requireServices = servicesCheck.checked;
     
     // Reset watch button state
-    watchBtn.textContent = "Mark as Currently Watching";
+    watchBtn.textContent = getActionLabel(selectedType);
     watchBtn.classList.remove('active');
 
     try {
         let poolIds = [];
 
         if (source === 'taste') {
-            poolIds = await getTastePool(type);
+            poolIds = await getTastePool(selectedType);
         } else if (source === 'watchlist') {
             const { data } = await supabaseClient.from('user_watchlist').select('media_id').eq('user_id', currentUser.id).eq('media_type', type);
             poolIds = (data || []).map(d => d.media_id);
@@ -183,9 +213,7 @@ async function pickRandom() {
 
         // Sequentially check items until we find one that meets the provider constraints
         for (let id of poolIds) {
-            const details = await fetch(`https://api.themoviedb.org/3/${type}/${id}?append_to_response=watch/providers`, {
-                headers: { Authorization: `Bearer ${TMDB_TOKEN}` }
-            }).then(r => r.json()).catch(() => null);
+            const details = await fetchMediaDetails(selectedType, id);
 
             if (!details || !details.id) continue;
 
@@ -197,7 +225,9 @@ async function pickRandom() {
             let isAvailable = false;
             let availableProvidersList = [];
 
-            if (!requireServices) {
+            if (!['movie', 'tv'].includes(type)) {
+                isAvailable = true;
+            } else if (!requireServices) {
                 isAvailable = true;
                 // Just grab top 5 streams/free
                 availableProvidersList = [...flatrate, ...free, ...ads];
@@ -235,7 +265,7 @@ async function pickRandom() {
             throw new Error("The list doesn't contain any that are available on free services or your preferred streaming services.");
         }
 
-        renderWinner(winner, type, winnerProviders);
+        renderWinner(winner, selectedType, winnerProviders);
 
     } catch (err) {
         errorMsg.textContent = err.message;
@@ -245,31 +275,70 @@ async function pickRandom() {
     }
 }
 
+async function fetchMediaDetails(type, id) {
+    if (type === 'book') {
+        const response = await fetch(`https://openlibrary.org${normalizeOpenLibraryId(id)}.json`);
+        const item = await response.json();
+        if (!item.title) return null;
+        return {
+            ...item,
+            id,
+            overview: typeof item.description === 'string' ? item.description : item.description?.value,
+            poster_path: item.covers?.[0] ? `https://covers.openlibrary.org/b/id/${item.covers[0]}-L.jpg` : null,
+            release_date: item.first_publish_date
+        };
+    }
+
+    if (type === 'album') {
+        const [artist, album] = decodeURIComponent(id).split('|||');
+        const response = await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}&api_key=${configData.lastfm_key}&format=json`);
+        const result = await response.json();
+        if (!result.album || result.error) return null;
+        const albumData = result.album;
+        return {
+            id,
+            title: albumData.name,
+            overview: albumData.wiki?.summary?.split('<a href')[0].trim() || 'No description available.',
+            poster_path: albumData.image?.[3]?.['#text'],
+            artist: albumData.artist
+        };
+    }
+
+    const tmdbType = type === 'anime' ? 'tv' : type;
+    const details = await fetch(`https://api.themoviedb.org/3/${tmdbType}/${id}?append_to_response=watch/providers`, {
+        headers: { Authorization: `Bearer ${TMDB_TOKEN}` }
+    }).then(r => r.json()).catch(() => null);
+    if (type === 'anime' && details && !isAnime(details)) return null;
+    return details;
+}
+
 // Replicates the "For You" API logic, but asks for more pages to build a pool of ~50
 async function getTastePool(type) {
+    const storageType = type === 'anime' ? 'tv' : type;
+    const tmdbType = type === 'anime' ? 'tv' : type;
     if (!currentUser) {
         // Fallback for non-logged in users: just grab trending
-        const res = await fetch(`https://api.themoviedb.org/3/trending/${type}/week`, { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } }).then(r => r.json());
-        return (res.results || []).map(i => String(i.id));
+        const res = await fetch(`https://api.themoviedb.org/3/trending/${tmdbType}/week`, { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } }).then(r => r.json());
+        return (res.results || []).filter(item => type !== 'anime' || isAnime(item)).map(i => String(i.id));
     }
 
     const { data: highlyRated } = await supabaseClient.from('media_logs')
         .select('media_id, rating') 
         .eq('user_id', currentUser.id)
-        .eq('media_type', type)
+        .eq('media_type', storageType)
         .gte('rating', 4)
         .order('rating', { ascending: false })
         .limit(20);
 
     if (!highlyRated || highlyRated.length === 0) {
         // Fallback: Trending
-        const res = await fetch(`https://api.themoviedb.org/3/trending/${type}/week`, { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } }).then(r => r.json());
-        return (res.results || []).map(i => String(i.id));
+        const res = await fetch(`https://api.themoviedb.org/3/trending/${tmdbType}/week`, { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } }).then(r => r.json());
+        return (res.results || []).filter(item => type !== 'anime' || isAnime(item)).map(i => String(i.id));
     }
 
     let genreCounts = {};
     const analyzedItems = await Promise.all(highlyRated.map(item => 
-        fetch(`https://api.themoviedb.org/3/${type}/${item.media_id}`, { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } }).then(r => r.json()).catch(() => null) 
+        fetch(`https://api.themoviedb.org/3/${tmdbType}/${item.media_id}`, { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } }).then(r => r.json()).catch(() => null)
     ));
 
     analyzedItems.forEach((res, index) => {
@@ -284,7 +353,9 @@ async function getTastePool(type) {
     let pool = [];
     const genreStr = topGenres.join('|');
     for(let i = 1; i <= 3; i++) {
-        const discoverUrl = `https://api.themoviedb.org/3/discover/${type}?language=en-US&sort_by=popularity.desc&watch_region=US&with_genres=${genreStr}&page=${i}`;
+        const animeFilter = type === 'anime' ? '&with_genres=16&with_origin_country=JP' : '';
+        const genreFilter = type === 'anime' ? '' : `&with_genres=${genreStr}`;
+        const discoverUrl = `https://api.themoviedb.org/3/discover/${tmdbType}?language=en-US&sort_by=popularity.desc&watch_region=US${genreFilter}${animeFilter}&page=${i}`;
         const pageData = await fetch(discoverUrl, { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } }).then(r => r.json()).catch(() => ({}));
         if(pageData.results) pool.push(...pageData.results.map(item => String(item.id)));
     }
@@ -325,7 +396,8 @@ function renderWinner(item, type, providers) {
     
     winTitle.textContent = item.title || item.name;
     winYear.textContent = (item.release_date || item.first_air_date || '').split('-')[0];
-    winPoster.src = item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : 'https://via.placeholder.com/500x750/1b2228/9ab?text=No+Cover';
+    winPoster.src = item.poster_path?.startsWith('http') ? item.poster_path : item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : 'https://via.placeholder.com/500x750/1b2228/9ab?text=No+Cover';
+    winDescription.textContent = item.overview || 'No description available.';
     
     // Top 3 Genres
     const genres = (item.genres || []).slice(0, 3).map(g => `<span class="genre-pill">${g.name}</span>`).join('');
@@ -335,6 +407,9 @@ function renderWinner(item, type, providers) {
         winProviders.innerHTML = providers.map(p => `
             <img src="https://image.tmdb.org/t/p/original${p.logo_path}" title="${p.provider_name}" class="provider-logo">
         `).join('');
+        winProviders.parentElement.style.display = 'block';
+    } else if (['book', 'album'].includes(type)) {
+        winProviders.textContent = 'Not applicable';
         winProviders.parentElement.style.display = 'block';
     } else {
         winProviders.parentElement.style.display = 'none';
@@ -346,7 +421,7 @@ function renderWinner(item, type, providers) {
 async function markAsWatching() {
     if (!currentUser || !currentWinnerMediaId) return;
     
-    const type = mediaTypeSelect.value;
+    const type = mediaTypeSelect.value === 'anime' ? 'tv' : mediaTypeSelect.value;
 
     const { error } = await supabaseClient
         .from('media_status')

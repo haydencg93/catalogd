@@ -479,6 +479,16 @@ input {
     fill: currentColor;
 }
 
+.social-icon-btn .social-icon-svg * {
+    fill: #9ab !important;
+    stroke: none !important; /* Forces the SVG outlines to drop, revealing the negative space */
+}
+
+.social-icon-btn:hover .social-icon-svg * {
+    fill: #000 !important;
+    stroke: none !important;
+}
+
 .social-icon-btn:hover {
     background: var(--accent);
     color: #000;

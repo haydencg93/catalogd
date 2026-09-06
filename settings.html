@@ -66,6 +66,47 @@
                         <label>GitHub</label>
                         <input type="text" id="edit-github" placeholder="username">
                     </div>
+                    <div class="input-group" style="margin-bottom: 0;">
+                        <label>Reddit</label>
+                        <input type="text" id="edit-reddit" placeholder="username">
+                    </div>
+                    <div class="input-group" style="margin-bottom: 0;">
+                        <label>Goodreads</label>
+                        <input type="text" id="edit-goodreads" placeholder="username">
+                    </div>
+                    <div class="input-group" style="margin-bottom: 0;">
+                        <label>Facebook</label>
+                        <input type="text" id="edit-facebook" placeholder="username">
+                    </div>
+                    <div class="input-group" style="margin-bottom: 0;">
+                        <label>X</label>
+                        <input type="text" id="edit-x" placeholder="username">
+                    </div>
+                    <div class="input-group" style="margin-bottom: 0;">
+                        <label>Pinterest</label>
+                        <input type="text" id="edit-pinterest" placeholder="username">
+                    </div>
+                    <div class="input-group" style="margin-bottom: 0;">
+                        <label>Letterboxd</label>
+                        <input type="text" id="edit-letterboxd" placeholder="username">
+                    </div>
+                    <div class="input-group" style="margin-bottom: 0;">
+                        <label>Discord</label>
+                        <input type="text" id="edit-discord" placeholder="username">
+                    </div>
+                    <div class="input-group" style="margin-bottom: 0;">
+                        <label>Apple Music</label>
+                        <input type="text" id="edit-apple-music" placeholder="profile name">
+                    </div>
+                    <div class="input-group" style="margin-bottom: 0;">
+                        <label>Spotify</label>
+                        <input type="text" id="edit-spotify" placeholder="username">
+                    </div>
+                    <div class="input-group" style="margin-bottom: 0; grid-column: 1 / -1;">
+                        <label>Last.fm</label>
+                        <input type="text" id="display-lastfm-username" disabled style="background: rgba(0,0,0,0.2); color: #9ab; cursor: not-allowed;">
+                        <p id="lastfm-profile-status" class="meta" style="margin: 6px 0 0;">Not shown on profile</p>
+                    </div>
                 </div>
             </div>
             <div class="input-group" style="margin-top: 20px;">
@@ -284,6 +325,10 @@
             <div class="import-block" style="margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #2c3440;">
                 <label>Last.fm Username</label>
                 <input type="text" id="lastfm-username-input" placeholder="Enter Last.fm Username" style="margin-top: 5px; margin-bottom: 10px;">
+                <label class="lastfm-visibility-toggle" style="display: flex; align-items: center; gap: 8px; margin: 0 0 10px;">
+                    <input type="checkbox" id="lastfm-show-profile" style="width: auto; margin: 0;">
+                    Show on Profile
+                </label>
                 
                 <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                     <div class="input-group" style="flex: 1;">
