@@ -293,6 +293,10 @@ window.toggleKeywordPill = function(element) {
 function checkDuration(item, detailData) {
     if (item.media_type === 'movie' && activeMovieDurations.size > 0) {
         const runtime = detailData.runtime || 0;
+        
+        // Failsafe: if TMDB is missing movie runtime data, let it pass so it isn't hidden
+        if (runtime === 0) return true;
+        
         return Array.from(activeMovieDurations).some(id => {
             const el = document.querySelector(`.pill[data-id="${id}"]`);
             return runtime >= Number.parseInt(el.dataset.min) && runtime <= Number.parseInt(el.dataset.max);
@@ -301,7 +305,10 @@ function checkDuration(item, detailData) {
     if (item.media_type === 'tv' && activeTvDurations.size > 0) {
         const runtimes = detailData.episode_run_time || [];
         const avgRuntime = runtimes.length > 0 ? Math.round(runtimes.reduce((a,b)=>a+b,0)/runtimes.length) : 0;
-        if (avgRuntime === 0) return false;
+        
+        // Failsafe: If TMDB returns an empty array for a varying-length show, let it pass
+        if (avgRuntime === 0) return true;
+        
         return Array.from(activeTvDurations).some(id => {
             const el = document.querySelector(`.pill[data-id="${id}"]`);
             return avgRuntime >= Number.parseInt(el.dataset.min) && avgRuntime <= Number.parseInt(el.dataset.max);
@@ -371,11 +378,18 @@ function buildBaseUrl(mediaType, filters) {
 
 function buildDiscoverUrls(mediaTypes, textQuery, filters) {
     const urls = [];
-    const pages = textQuery ? [currentPage, currentPage + 1, currentPage + 2, currentPage + 3, currentPage + 4] : [currentPage];
+    const pages = textQuery ? [currentPage, currentPage + 1, currentPage + 2] : [currentPage];
     
     mediaTypes.forEach(mediaType => {
-        const baseUrl = buildBaseUrl(mediaType, filters);
-        pages.forEach(page => urls.push({ url: `${baseUrl}&page=${page}`, type: mediaType }));
+        if (textQuery) {
+            // Use TMDB's specific Search API instead of Discover API when text is present
+            const url = `https://api.themoviedb.org/3/search/${mediaType}?query=${encodeURIComponent(textQuery)}&language=en-US`;
+            pages.forEach(page => urls.push({ url: `${url}&page=${page}`, type: mediaType }));
+        } else {
+            // Use Discover API for standard filter-based browsing
+            const baseUrl = buildBaseUrl(mediaType, filters);
+            pages.forEach(page => urls.push({ url: `${baseUrl}&page=${page}`, type: mediaType }));
+        }
     });
     return urls;
 }
@@ -388,11 +402,36 @@ function deduplicateResults(results) {
 }
 
 async function fetchDetailedResults(results) {
-    return Promise.all(results.map(item => 
-        fetch(`https://api.themoviedb.org/3/${item.media_type}/${item.id}?append_to_response=watch/providers,translations`, { 
-            headers: { Authorization: `Bearer ${TMDB_TOKEN}` } 
-        }).then(r => r.json()).catch(() => null)
-    ));
+    const batchSize = 10; // Number of concurrent requests
+    const delayMs = 250;  // Pause between batches in milliseconds
+    const detailedResults = [];
+
+    for (let i = 0; i < results.length; i += batchSize) {
+        const batch = results.slice(i, i + batchSize);
+        const batchPromises = batch.map(item => 
+            fetch(`https://api.themoviedb.org/3/${item.media_type}/${item.id}?append_to_response=watch/providers,translations`, { 
+                headers: { Authorization: `Bearer ${TMDB_TOKEN}` } 
+            })
+            .then(r => {
+                if (!r.ok) {
+                    if (r.status === 429) console.warn(`Rate limited on ${item.id}`);
+                    return null;
+                }
+                return r.json();
+            })
+            .catch(() => null)
+        );
+
+        const batchData = await Promise.all(batchPromises);
+        detailedResults.push(...batchData);
+
+        // Wait briefly before sending the next batch to respect rate limits
+        if (i + batchSize < results.length) {
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+    }
+    
+    return detailedResults;
 }
 
 function applyTextFilter(results, textQuery) {
@@ -439,7 +478,7 @@ async function executeSearch(isLoadMore = false) {
     
     if (characterQuery && !isLoadMore) {
         try {
-            if (await executeCharacterSearch(characterQuery)) return;
+            if (await executeCharacterSearch(characterQuery, textQuery)) return;
         } catch (err) {
             console.error("[Qdrant Fallback] Character search failed:", err.message);
         }
@@ -531,7 +570,7 @@ function renderResults(items) {
     });
 }
 
-async function executeCharacterSearch(characterQuery) {
+async function executeCharacterSearch(characterQuery, textQuery) {
     resultsGrid.innerHTML = '';
     loader.style.display = 'block';
     loadMoreBtn.style.display = 'none';
@@ -544,6 +583,11 @@ async function executeCharacterSearch(characterQuery) {
             .ilike('characters', `%${characterQuery}%`)
             .order('popularity', { ascending: false })
             .limit(40);
+
+        // If there is text in the main search bar, filter by title or overview
+        if (textQuery) {
+            query = query.or(`title.ilike.%${textQuery}%,overview.ilike.%${textQuery}%`);
+        }
 
         // 2. Filter by selected media type(s) ('movie' / 'tv')
         if (activeTypes.size > 0) {
@@ -578,6 +622,22 @@ async function executeCharacterSearch(characterQuery) {
                     ? requiredTags.every(tag => payloadTags.includes(tag))
                     : requiredTags.some(tag => payloadTags.includes(tag));
             });
+        }
+
+        const filters = {
+            langRule: document.querySelector('input[name="lang-rule"]:checked').value,
+            selectedIsos: Array.from(activeLanguages).map(name => languageIsoMap[name]),
+            includeFree: document.getElementById('include-free-checkbox')?.checked || false,
+            movieBounds: getDurationBounds(activeMovieDurations),
+            tvBounds: getDurationBounds(activeTvDurations)
+        };
+
+        // Only fetch TMDB details if user actually has duration/provider/language filters active
+        if (activeProviders.size > 0 || activeLanguages.size > 0 || activeMovieDurations.size > 0 || activeTvDurations.size > 0) {
+            const detailsResults = await fetchDetailedResults(matches);
+            matches = matches.filter((item, index) => 
+                evaluateItemDetail(item, detailsResults[index], filters.langRule, filters.selectedIsos, filters.includeFree)
+            );
         }
 
         // 4. Handle empty state
