@@ -337,12 +337,23 @@ function checkProviders(detailData, includeFree) {
     return isOnSelectedServices;
 }
 
-function evaluateItemDetail(item, detailData, langRule, selectedIsos, includeFree) {
+function checkYearLocally(item, filters) {
+    if (!filters.minYear && !filters.maxYear) return true;
+    const year = parseInt((item.release_date || item.first_air_date || '').split('-')[0]);
+    if (isNaN(year)) return true; // Let it pass if API data is missing
+    
+    if (filters.minYear && year < parseInt(filters.minYear)) return false;
+    if (filters.maxYear && year > parseInt(filters.maxYear)) return false;
+    return true;
+}
+
+function evaluateItemDetail(item, detailData, filters) {
     if (!detailData) return false;
     return checkDuration(item, detailData) && 
-           checkLanguage(detailData, langRule, selectedIsos) && 
-           checkProviders(detailData, includeFree);
-} 
+           checkLanguage(detailData, filters.langRule, filters.selectedIsos) && 
+           checkProviders(detailData, filters.includeFree) &&
+           checkYearLocally(item, filters); // Check dates locally!
+}
 
 // --- URL Builder Helpers (Fixes S3776) ---
 function getDurationParams(mediaType, filters) {
@@ -372,6 +383,15 @@ function buildBaseUrl(mediaType, filters) {
         url += `&with_original_language=${filters.selectedIsos.join('|')}`;
     }
     
+    if (filters.minYear) {
+        if (mediaType === 'movie') url += `&primary_release_date.gte=${filters.minYear}-01-01`;
+        if (mediaType === 'tv') url += `&first_air_date.gte=${filters.minYear}-01-01`;
+    }
+    if (filters.maxYear) {
+        if (mediaType === 'movie') url += `&primary_release_date.lte=${filters.maxYear}-12-31`;
+        if (mediaType === 'tv') url += `&first_air_date.lte=${filters.maxYear}-12-31`;
+    }
+
     url += getDurationParams(mediaType, filters);
     return url;
 }
@@ -454,7 +474,7 @@ async function processCombinedResults(fetchPromises, textQuery, filters) {
     const detailsResults = await fetchDetailedResults(combinedResults);
     
     combinedResults = combinedResults.filter((item, index) => 
-        evaluateItemDetail(item, detailsResults[index], filters.langRule, filters.selectedIsos, filters.includeFree)
+        evaluateItemDetail(item, detailsResults[index], filters)
     );
 
     return applyTextFilter(combinedResults, textQuery);
@@ -476,14 +496,7 @@ async function executeSearch(isLoadMore = false) {
     const textQuery = document.getElementById('text-search-input').value.toLowerCase().trim();
     const characterQuery = document.getElementById('character-search-input') ? document.getElementById('character-search-input').value.trim() : '';
     
-    if (characterQuery && !isLoadMore) {
-        try {
-            if (await executeCharacterSearch(characterQuery, textQuery)) return;
-        } catch (err) {
-            console.error("[Qdrant Fallback] Character search failed:", err.message);
-        }
-    }
-
+    // MOVED UP & ADDED YEARS: Construct filters *before* character search
     const filters = {
         coreGenresStr: Array.from(activeCoreGenres).join(document.querySelector('input[name="core-genre-logic"]:checked').value === 'all' ? ',' : '|'),
         keywordsStr: Array.from(activeKeywords.keys()).join(document.querySelector('input[name="theme-logic"]:checked').value === 'all' ? ',' : '|'),
@@ -492,8 +505,19 @@ async function executeSearch(isLoadMore = false) {
         langRule: document.querySelector('input[name="lang-rule"]:checked').value,
         selectedIsos: Array.from(activeLanguages).map(name => languageIsoMap[name]),
         movieBounds: getDurationBounds(activeMovieDurations),
-        tvBounds: getDurationBounds(activeTvDurations)
+        tvBounds: getDurationBounds(activeTvDurations),
+        minYear: document.getElementById('min-year')?.value || null,
+        maxYear: document.getElementById('max-year')?.value || null
     };
+
+    if (characterQuery && !isLoadMore) {
+        try {
+            // Pass filters as the third argument
+            if (await executeCharacterSearch(characterQuery, textQuery, filters)) return;
+        } catch (err) {
+            console.error("[Qdrant Fallback] Character search failed:", err.message);
+        }
+    }
 
     try {
         const requests = buildDiscoverUrls(activeTypes, textQuery, filters);
@@ -570,13 +594,12 @@ function renderResults(items) {
     });
 }
 
-async function executeCharacterSearch(characterQuery, textQuery) {
+async function executeCharacterSearch(characterQuery, textQuery, filters) {
     resultsGrid.innerHTML = '';
     loader.style.display = 'block';
     loadMoreBtn.style.display = 'none';
 
     try {
-        // 1. Build Supabase query against `global_movies`
         let query = supabaseClient
             .from('global_movies')
             .select('tmdb_id, title, release_year, popularity, overview, tags, media_type, characters')
@@ -584,12 +607,17 @@ async function executeCharacterSearch(characterQuery, textQuery) {
             .order('popularity', { ascending: false })
             .limit(40);
 
-        // If there is text in the main search bar, filter by title or overview
         if (textQuery) {
             query = query.or(`title.ilike.%${textQuery}%,overview.ilike.%${textQuery}%`);
         }
 
-        // 2. Filter by selected media type(s) ('movie' / 'tv')
+        if (filters.minYear) {
+            query = query.gte('release_year', filters.minYear);
+        }
+        if (filters.maxYear) {
+            query = query.lte('release_year', filters.maxYear);
+        }
+
         if (activeTypes.size > 0) {
             query = query.in('media_type', Array.from(activeTypes));
         }
@@ -607,7 +635,6 @@ async function executeCharacterSearch(characterQuery, textQuery) {
             tags: m.tags
         }));
 
-        // 3. Filter locally by selected Core Genres & Themes if active
         const requiredTags = [
             ...Array.from(activeCoreGenres).map(id => document.querySelector(`.pill[data-id="${id}"]`)?.innerText?.trim()),
             ...Array.from(activeKeywords.values())
@@ -623,30 +650,19 @@ async function executeCharacterSearch(characterQuery, textQuery) {
                     : requiredTags.some(tag => payloadTags.includes(tag));
             });
         }
-
-        const filters = {
-            langRule: document.querySelector('input[name="lang-rule"]:checked').value,
-            selectedIsos: Array.from(activeLanguages).map(name => languageIsoMap[name]),
-            includeFree: document.getElementById('include-free-checkbox')?.checked || false,
-            movieBounds: getDurationBounds(activeMovieDurations),
-            tvBounds: getDurationBounds(activeTvDurations)
-        };
-
-        // Only fetch TMDB details if user actually has duration/provider/language filters active
+        
         if (activeProviders.size > 0 || activeLanguages.size > 0 || activeMovieDurations.size > 0 || activeTvDurations.size > 0) {
             const detailsResults = await fetchDetailedResults(matches);
             matches = matches.filter((item, index) => 
-                evaluateItemDetail(item, detailsResults[index], filters.langRule, filters.selectedIsos, filters.includeFree)
+                evaluateItemDetail(item, detailsResults[index], filters)
             );
         }
 
-        // 4. Handle empty state
         if (matches.length === 0) {
             resultsGrid.innerHTML = '<p class="meta" style="grid-column: 1/-1; text-align:center;">No matches found for that character with your current filters.</p>';
             return true;
         }
 
-        // 5. Render results using dynamic TMDB poster loader
         renderQdrantResults(matches);
         return true;
 
