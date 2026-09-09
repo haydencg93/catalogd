@@ -61,13 +61,18 @@ async function initDiary() {
             
             pageTitle.textContent = profile ? `${profile.display_name}'s Diary` : "Diary";
             
-            // HIDE Action column (Edit/Delete) for non-owners via CSS injection
+            // HIDE Action/Tags columns for non-owners via CSS injection
             const style = document.createElement('style');
             style.innerHTML = `
+                #diary-table th:nth-child(7),
+                #diary-table td:nth-child(7),
                 #diary-table th:nth-child(8), 
                 #diary-table td:nth-child(8) { display: none !important; }
             `;
             document.head.appendChild(style);
+
+            const tagFilter = document.getElementById('tag-filter');
+            if (tagFilter) tagFilter.style.display = 'none';
             
             // --- NEW: Inject the "Back to Profile" Context Button ---
             const navActions = document.querySelector('.nav-actions');
@@ -85,9 +90,10 @@ async function initDiary() {
         }
 
         // 3. Fetch logs for the SPECIFIC user
+        const diaryLogFields = isViewerOwner ? '*' : 'id,user_id,media_id,media_type,media_title,watched_on,created_at,rating,is_liked,is_rewatch,notes,release_year,season_number,episode_number,log_level,is_finished,ep_count_in_season,runtime';
         const { data: logs } = await supabaseClient
             .from('media_logs')
-            .select('*')
+            .select(diaryLogFields)
             .eq('user_id', diaryOwnerId) 
             .order('watched_on', { ascending: false })
             .order('created_at', { ascending: false });

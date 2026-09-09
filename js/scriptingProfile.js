@@ -385,7 +385,8 @@ async function initProfile() {
         setupSocialUI(loggedInUserId, profileUserId);
 
         // 5. Fetch Activity & Stats
-        const { data: logs } = await supabaseClient.from('media_logs').select('*').eq('user_id', profileUserId);
+        const profileLogFields = isOwner ? '*' : 'id,user_id,media_id,media_type,media_title,watched_on,created_at,rating,is_liked,is_rewatch,notes,release_year,season_number,episode_number,log_level,is_finished,ep_count_in_season,runtime';
+        const { data: logs } = await supabaseClient.from('media_logs').select(profileLogFields).eq('user_id', profileUserId);
         if (logs) {
             allUserLogs = logs; 
             document.getElementById('stat-count').textContent = logs.length;
