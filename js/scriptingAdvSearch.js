@@ -510,12 +510,11 @@ async function executeSearch(isLoadMore = false) {
         maxYear: document.getElementById('max-year')?.value || null
     };
 
-    if (characterQuery && !isLoadMore) {
+    if ((characterQuery || textQuery) && !isLoadMore) {
         try {
-            // Pass filters as the third argument
             if (await executeCharacterSearch(characterQuery, textQuery, filters)) return;
         } catch (err) {
-            console.error("[Qdrant Fallback] Character search failed:", err.message);
+            console.error("Supabase search failed:", err.message);
         }
     }
 
@@ -603,10 +602,15 @@ async function executeCharacterSearch(characterQuery, textQuery, filters) {
         let query = supabaseClient
             .from('global_movies')
             .select('tmdb_id, title, release_year, popularity, overview, tags, media_type, characters')
-            .ilike('characters', `%${characterQuery}%`)
             .order('popularity', { ascending: false })
             .limit(40);
 
+        // Only search characters if the user typed a character
+        if (characterQuery) {
+            query = query.ilike('characters', `%${characterQuery}%`);
+        }
+
+        // Search title and overview if the user typed a general text search
         if (textQuery) {
             query = query.or(`title.ilike.%${textQuery}%,overview.ilike.%${textQuery}%`);
         }
