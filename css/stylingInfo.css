@@ -107,6 +107,17 @@ app-header {
 	box-shadow: 0 0 10px var(--accent-glow);
 }
 
+#how-to-section {
+    grid-column: 1 / -1;
+}
+
+#section-divider {
+    border: 1px solid #ccc;
+    margin: 20px 0;
+    grid-column: 1 / -1;
+    width: 100%;
+}
+
 @keyframes infoFadeIn {
 	from {
 		opacity: 0;
