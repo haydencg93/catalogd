@@ -139,7 +139,16 @@ async function initSettings() {
         currentFavs = profile.favorites || { movie: [], tv: [], book: [], youtube: [], album: [], all: [] };
         renderFavManager();
         
-        currentServices = profile.services || { streaming: [], buying: [], listening: [], languages: [] };
+        // Ensure all provider arrays exist even if the profile object is partially defined
+        const defaultServices = { streaming: [], buying: [], listening: [], languages: [] };
+        currentServices = {
+            ...defaultServices,
+            ...(profile.services || {})
+        };
+        // Ensure nested keys are arrays if they were saved as null/undefined
+        ['streaming', 'buying', 'listening', 'languages'].forEach(key => {
+            if (!Array.isArray(currentServices[key])) currentServices[key] = [];
+        });
         if (!currentServices.languages) currentServices.languages = [];
 
         await fetchAndRenderProviders();
@@ -403,8 +412,6 @@ async function fetchAndRenderProviders() {
         // Render to the UI
         document.getElementById('settings-streaming-container').innerHTML = topStreaming.map(p => generatePillHTML(p, 'streaming')).join('');
         document.getElementById('settings-buying-container').innerHTML = topBuying.map(p => generatePillHTML(p, 'buying')).join('');
-        bindServicePills();
-
     } catch (e) {
         document.getElementById('settings-streaming-container').innerHTML = '<p class="meta">Failed to load streaming providers.</p>';
         document.getElementById('settings-buying-container').innerHTML = '<p class="meta">Failed to load buying providers.</p>';
@@ -428,7 +435,6 @@ async function fetchAndRenderLanguages() {
                 </div>
             `;
         }).join('');
-        bindServicePills();
     } catch (e) {
         document.getElementById('settings-languages-container').innerHTML = '<p class="meta">Failed to load languages.</p>';
     }
@@ -445,16 +451,28 @@ function renderActiveServicePills() {
     });
 }
 
-function bindServicePills() {
-    document.querySelectorAll('[data-service-category]').forEach((pill) => {
-        const toggle = () => window.toggleServicePill(pill, pill.dataset.serviceCategory);
-        pill.addEventListener('click', toggle);
-        pill.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter' || event.key === ' ') {
+function initServicePillDelegation() {
+    const handlePillActivation = (pill) => {
+        const category = pill.dataset.serviceCategory;
+        if (!category) return;
+        window.toggleServicePill(pill, category);
+    };
+
+    document.addEventListener('click', (event) => {
+        const pill = event.target.closest('.pill[data-service-category]');
+        if (pill) {
+            handlePillActivation(pill);
+        }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            const pill = event.target.closest('.pill[data-service-category]');
+            if (pill) {
                 event.preventDefault();
-                toggle();
+                handlePillActivation(pill);
             }
-        });
+        }
     });
 }
 
@@ -1868,7 +1886,7 @@ window.removeFavorite = (type, index) => {
     renderFavManager();
 };
 
-bindServicePills();
+initServicePillDelegation();
 document.querySelectorAll('[data-import-type]').forEach((button) => {
     button.addEventListener('click', () => window.handleAdvancedImport(button.dataset.importType));
 });
