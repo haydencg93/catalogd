@@ -1,0 +1,38 @@
+name: Hourly Email Queue Worker
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '19 * * * *'
+  workflow_dispatch:
+
+jobs:
+  process-emails:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: './emailWorker/package-lock.json'
+
+      - name: Install Dependencies
+        run: |
+          cd emailWorker
+          npm ci
+
+      - name: Run Email Processor Script
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          cd emailWorker
+          node process_emails.js
