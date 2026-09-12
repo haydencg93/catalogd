@@ -16,6 +16,7 @@ const closeModal = document.getElementById('close-auth');
 const modalTitle = document.getElementById('modal-title');
 const authName = document.getElementById('auth-name');
 const authUsername = document.getElementById('auth-username');
+const authReferral = document.getElementById('auth-referral');
 const authRetype = document.getElementById('auth-retype');
 const signupFields = document.getElementById('signup-fields');
 const profileBtn = document.getElementById('profile-btn');
@@ -62,6 +63,8 @@ function throwIfContentAborted() {
 async function loadConfig() {
     try {
         const config = await fetchConfig();
+
+        await checkEmailConfirmation();
         
         TMDB_TOKEN = config.tmdb_token;
         LASTFM_KEY = config.lastfm_key;
@@ -105,6 +108,30 @@ async function loadConfig() {
     } catch (err) {
         console.error("Critical Start Error:", err);
         loader.textContent = "Error: " + err.message;
+    }
+}
+
+function checkEmailConfirmation() {
+    const hash = window.location.hash;
+    if (!hash) return;
+
+    // Supabase passes session data and errors in the URL hash fragment
+    const hashParams = new URLSearchParams(hash.substring(1));
+    
+    if (hashParams.has('error')) {
+        const errorDesc = hashParams.get('error_description') || 'Unknown error';
+        console.error("Email confirmation failed:", errorDesc);
+        alert("Failed to confirm email. The link may be invalid or has expired.");
+        
+        // Clean the URL so the alert doesn't show again on refresh
+        window.history.replaceState(null, null, window.location.pathname + window.location.search);
+    } else if (hashParams.has('access_token')) {
+        const type = hashParams.get('type');
+        // 'signup' handles standard registration, 'invite' handles the queue worker invites
+        if (type === 'signup' || type === 'invite') {
+            alert("Email successfully confirmed! Welcome to Catalogd.");
+            window.history.replaceState(null, null, window.location.pathname + window.location.search);
+        }
     }
 }
 
@@ -215,22 +242,74 @@ async function checkUserStatus() {
     } 
 }
 
-async function performSignUp(email, password, name, username, retype) {
-    if (!email || !password || !name || !username) return alert("Please fill in all fields.");
+async function performSignUp(email, password, name, username, retype, referral) {
+    if (!email || !password || !name || !username || !referral) return alert("Please fill in all fields.");
     if (password !== retype) return alert("Passwords do not match!");
     if (password.length < 6) return alert("Password must be at least 6 characters.");
 
+    // 1. Verify the Referral Code matches the master config (ID = 1)
+    const { data: configRow, error: configError } = await supabaseClient
+        .from('email_managament')
+        .select('referral')
+        .eq('id', 1)
+        .single();
+
+    if (configError || configRow?.referral !== referral) {
+        return alert("Invalid referral code.");
+    }
+
+    // 2. Check the Rate Limit (Rolling 1-Hour Window)
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    
+    // Count all successfully processed emails in the last hour
+    const { count, error: countError } = await supabaseClient
+        .from('email_managament')
+        .select('*', { count: 'exact', head: true })
+        .gte('time_stamp_curr', oneHourAgo)
+        .eq('done', true); 
+
+    if (countError) return alert("Error checking server capacity.");
+
+    // Supabase's default SMTP server only allows 2 emails per hour
+    if (count >= 2) {
+        // LIMIT MET: Safely queue the invite and discard the password
+        const { error: insertError } = await supabaseClient
+            .from('email_managament')
+            .insert({
+                person_id: email,
+                action: 'invite_scheduled',
+                referral: referral
+            });
+
+        if (insertError) throw insertError;
+
+        alert("Due to high traffic, we have reserved your spot! You will receive an invite link via email shortly to complete your account setup.");
+        closeAuthModal();
+        return;
+    }
+
+    // 3. LIMIT NOT MET: Proceed with standard Sign-Up
     const { data: signUpData, error } = await supabaseClient.auth.signUp({
         email,
         password,
         options: { data: { display_name: name, username: username } }
     });
+    
     if (error) throw error;
+
+    // Log the successful action to keep the rate limit count accurate
+    await supabaseClient.from('email_managament').insert({
+        person_id: email,
+        action: 'signup',
+        done: true,
+        success: true,
+        referral: referral
+    });
 
     if (signUpData?.user) {
         await ensureCatalogdFollow(signUpData.user);
     }
-
+    
     alert("Success! Check your email for a confirmation link.");
     closeAuthModal();
 }
@@ -245,10 +324,9 @@ async function performSignIn(email, password) {
 async function handleAuth() {
     const email = authEmail.value;
     const password = authPassword.value;
-
     try {
         if (isSignUpMode) {
-            await performSignUp(email, password, authName.value, authUsername.value, authRetype.value);
+            await performSignUp(email, password, authName.value, authUsername.value, authRetype.value, authReferral.value);
         } else {
             await performSignIn(email, password);
         }
