@@ -33,13 +33,15 @@ jobs:
             --exclude='.github/workflows/update-stats.yml' \
             --exclude='.github/workflows/nightly-vibes.yml' \
             --exclude='.github/workflows/nightly-embed.yml' \
+            --exclude='.github/workflows/hourly-emails.yml' \
             "$GITHUB_WORKSPACE/" "$beta_dir/"
 
           rm -f \
             "$beta_dir/.github/workflows/scrape-anime.yml" \
             "$beta_dir/.github/workflows/update-stats.yml" \
             "$beta_dir/.github/workflows/nightly-vibes.yml" \
-            "$beta_dir/.github/workflows/nightly-embed.yml"
+            "$beta_dir/.github/workflows/nightly-embed.yml" \
+            "$beta_dir/.github/workflows/hourly-emails.yml"
 
           git -C "$beta_dir" config user.name "github-actions[bot]"
           git -C "$beta_dir" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
