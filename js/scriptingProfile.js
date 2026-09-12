@@ -357,21 +357,22 @@ async function initProfile() {
             const socialsContainer = document.getElementById('social-icons-container');
             socialsContainer.innerHTML = ''; // Clear it out
             const socials = profile.socials || {};
+            
             appendSocialLink(socialsContainer, 'Instagram', socials.instagram, `https://instagram.com/${socials.instagram}`);
             appendSocialLink(socialsContainer, 'Snapchat', socials.snapchat, `https://snapchat.com/add/${socials.snapchat}`);
-            appendSocialLink(socialsContainer, 'TikTok', socials.tiktok, `https://tiktok.com/@${socials.tiktok.replace('@', '')}`);
+            appendSocialLink(socialsContainer, 'TikTok', socials.tiktok, `https://tiktok.com/@${(socials.tiktok || '').replace('@', '')}`);
             appendSocialLink(socialsContainer, 'YouTube', socials.youtube, `https://youtube.com/${socials.youtube}`);
             appendSocialLink(socialsContainer, 'GitHub', socials.github, `https://github.com/${socials.github}`);
 
-            appendSocialLink(socialsContainer, 'Reddit', socials.reddit, `https://reddit.com/user/${encodeURIComponent(socials.reddit)}`);
-            appendSocialLink(socialsContainer, 'Goodreads', socials.goodreads, `https://goodreads.com/${encodeURIComponent(socials.goodreads)}`);
-            appendSocialLink(socialsContainer, 'Facebook', socials.facebook, `https://facebook.com/${encodeURIComponent(socials.facebook)}`);
-            appendSocialLink(socialsContainer, 'X', socials.x, `https://x.com/${encodeURIComponent(socials.x.replace('@', ''))}`);
-            appendSocialLink(socialsContainer, 'Pinterest', socials.pinterest, `https://pinterest.com/${encodeURIComponent(socials.pinterest)}`);
-            appendSocialLink(socialsContainer, 'Letterboxd', socials.letterboxd, `https://letterboxd.com/${encodeURIComponent(socials.letterboxd)}`);
-            appendSocialLink(socialsContainer, 'Discord', socials.discord, `https://discord.com/users/${encodeURIComponent(socials.discord)}`);
-            appendSocialLink(socialsContainer, 'Apple Music', socials.apple_music, `https://music.apple.com/profile/${encodeURIComponent(socials.apple_music)}`);
-            appendSocialLink(socialsContainer, 'Spotify', socials.spotify, `https://open.spotify.com/user/${encodeURIComponent(socials.spotify)}`);
+            appendSocialLink(socialsContainer, 'Reddit', socials.reddit, `https://reddit.com/user/${encodeURIComponent(socials.reddit || '')}`);
+            appendSocialLink(socialsContainer, 'Goodreads', socials.goodreads, `https://goodreads.com/${encodeURIComponent(socials.goodreads || '')}`);
+            appendSocialLink(socialsContainer, 'Facebook', socials.facebook, `https://facebook.com/${encodeURIComponent(socials.facebook || '')}`);
+            appendSocialLink(socialsContainer, 'X', socials.x, `https://x.com/${encodeURIComponent((socials.x || '').replace('@', ''))}`);
+            appendSocialLink(socialsContainer, 'Pinterest', socials.pinterest, `https://pinterest.com/${encodeURIComponent(socials.pinterest || '')}`);
+            appendSocialLink(socialsContainer, 'Letterboxd', socials.letterboxd, `https://letterboxd.com/${encodeURIComponent(socials.letterboxd || '')}`);
+            appendSocialLink(socialsContainer, 'Discord', socials.discord, `https://discord.com/users/${encodeURIComponent(socials.discord || '')}`);
+            appendSocialLink(socialsContainer, 'Apple Music', socials.apple_music, `https://music.apple.com/profile/${encodeURIComponent(socials.apple_music || '')}`);
+            appendSocialLink(socialsContainer, 'Spotify', socials.spotify, `https://open.spotify.com/user/${encodeURIComponent(socials.spotify || '')}`);
             if (socials.show_lastfm && socials.lastfm_username) {
                 appendSocialLink(socialsContainer, 'Last.fm', socials.lastfm_username, `https://last.fm/user/${encodeURIComponent(socials.lastfm_username)}`);
             }
