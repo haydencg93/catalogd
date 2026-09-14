@@ -23,8 +23,7 @@ const profileBtn = document.getElementById('profile-btn');
 const profileMenu = document.getElementById('profile-menu');
 
 // 2. Global Variables
-let TMDB_TOKEN = '';
-let LASTFM_KEY = '';
+let PROXY_URL = 'https://catalogd-proxy.haydencg93.workers.dev';
 let supabaseClient = null;
 let isSignUpMode = false;
 let currentTab = 'movie';
@@ -66,8 +65,6 @@ async function loadConfig() {
 
         await checkEmailConfirmation();
         
-        TMDB_TOKEN = config.tmdb_token;
-        LASTFM_KEY = config.lastfm_key;
         supabaseClient = await getSupabaseClient();
         
         await checkUserStatus(); 
@@ -456,7 +453,7 @@ async function fetchTrendingBooks() {
 }
 
 async function fetchTrendingAlbums() {
-    const res = await contentFetch(`https://ws.audioscrobbler.com/2.0/?method=tag.gettopalbums&tag=pop&api_key=${LASTFM_KEY}&format=json&limit=15`);
+    const res = await contentFetch(`${PROXY_URL}/api/lastfm?method=tag.gettopalbums&tag=pop&limit=15`);
     const data = await res.json();
     return (data.albums.album || []).map(a => {
         let img = 'https://via.placeholder.com/500x750?text=No+Image';
@@ -475,9 +472,7 @@ async function getTrendingItems(type) {
         if (type === 'book') return await fetchTrendingBooks();
         if (type === 'album') return await fetchTrendingAlbums();
 
-        const res = await contentFetch(`https://api.themoviedb.org/3/trending/${type}/day`, {
-            headers: { accept: 'application/json', Authorization: `Bearer ${TMDB_TOKEN}` } 
-        });
+        const res = await contentFetch(`${PROXY_URL}/api/tmdb/trending/${type}/day`);
         const data = await res.json();
         
         return (data.results || []).map(item => ({
@@ -644,9 +639,7 @@ function calculateWeight(rating) {
 async function tallyMovieTvVibe(logs, mediaType) {
     let genreCounts = {}, keywordCounts = {}, genreNames = {}, keywordNames = {};
     const analyzePromises = logs.slice(0, 15).map(item => 
-        contentFetch(`https://api.themoviedb.org/3/${mediaType}/${item.media_id}?append_to_response=keywords`, {
-            headers: { Authorization: `Bearer ${TMDB_TOKEN}` }
-        }).then(r => r.json()).catch((error) => {
+        contentFetch(`${PROXY_URL}/api/tmdb/${mediaType}/${item.media_id}?append_to_response=keywords`).then(r => r.json()).catch((error) => {
             if (error.name === 'AbortError') throw error;
             return null;
         })
@@ -712,7 +705,7 @@ async function tallyAlbumVibe(logs) {
     const musicPromises = logs.map(log => {
         const decodedId = decodeURIComponent(log.media_id);
         const [artist, album] = decodedId.split('|||');
-        return contentFetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}&api_key=${LASTFM_KEY}&format=json`)
+        return contentFetch(`${PROXY_URL}/api/lastfm?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}`)
             .then(r => r.json()).catch(() => null);
     });
     const musicData = await Promise.all(musicPromises);
@@ -783,13 +776,13 @@ function buildDiscoverUrls(mediaType, topGenres, topKeywords) {
     const providerParams = `&with_watch_monetization_types=flatrate|free|ads`;
     
     const keywordUrls = topKeywords.map(keywordId => {
-        let url = `https://api.themoviedb.org/3/discover/${mediaType}?language=en-US&sort_by=popularity.desc&watch_region=US&page=1`;
+        let url = `${PROXY_URL}/api/tmdb/discover/${mediaType}?language=en-US&sort_by=popularity.desc&watch_region=US&page=1`;
         url += `&with_genres=${topGenres.join('|')}&with_keywords=${keywordId}${providerParams}`;
         return url;
     });
 
     const genreOnlyUrls = [1, 2].map(page => {
-        let url = `https://api.themoviedb.org/3/discover/${mediaType}?language=en-US&sort_by=popularity.desc&watch_region=US&page=${page}`;
+        let url = `${PROXY_URL}/api/tmdb/discover/${mediaType}?language=en-US&sort_by=popularity.desc&watch_region=US&page=${page}`;
         url += `&with_genres=${topGenres.join('|')}${providerParams}`;
         return url;
     });
@@ -817,7 +810,7 @@ async function processDiscoverCandidates(urls, requireTheme, contextData, unique
     const { topGenres, topKeywords, keywordCounts, genreCounts, loggedIds, userStreamingProviderIds, mediaType } = contextData;
     
     const pages = await Promise.all(
-        urls.map(u => contentFetch(u, { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } }).then(r => r.json()).catch((error) => {
+        urls.map(u => contentFetch(u).then(r => r.json()).catch((error) => {
             if (error.name === 'AbortError') throw error;
             return {};
         }))
@@ -836,9 +829,7 @@ async function processDiscoverCandidates(urls, requireTheme, contextData, unique
     for (const id of newIds) {
         try {
             throwIfContentAborted();
-            const res = await contentFetch(`https://api.themoviedb.org/3/${mediaType}/${id}?append_to_response=keywords,watch/providers`, {
-                headers: { Authorization: `Bearer ${TMDB_TOKEN}` }
-            });
+            const res = await contentFetch(`${PROXY_URL}/api/tmdb/${mediaType}/${id}?append_to_response=keywords,watch/providers`);
             if (res.status === 429) {
                 console.warn(`[WARNING] TMDB Rate Limit hit for item ID: ${id}. Waiting before retry...`);
                 await waitMs(500); // Back off if a 429 slips through
@@ -903,9 +894,7 @@ async function getForYouItems(mediaType) {
 
         let genreCounts = {}, keywordCounts = {}, genreNames = {}, keywordNames = {};
         const analyzePromises = highlyRated.map(item => 
-            contentFetch(`https://api.themoviedb.org/3/${mediaType}/${item.media_id}?append_to_response=keywords`, {
-                headers: { Authorization: `Bearer ${TMDB_TOKEN}` }
-            }).then(r => r.json()).catch((error) => {
+            contentFetch(`${PROXY_URL}/api/tmdb/${mediaType}/${item.media_id}?append_to_response=keywords`).then(r => r.json()).catch((error) => {
                 if (error.name === 'AbortError') throw error;
                 return null;
             })
@@ -1085,15 +1074,13 @@ window.switchTab = function(type) {
 };
 
 // --- UNIFIED SEARCH HELPERS ---
-
 async function fetchSearchData(query, filterValue, payload) {
     const fetchPromises = [];
-    const options = { method: 'GET', headers: { accept: 'application/json', Authorization: `Bearer ${TMDB_TOKEN}` } };
 
     if (['all', 'movie', 'tv', 'person'].includes(filterValue)) {
         let endpoint = filterValue === 'all' ? 'search/multi' : `search/${filterValue}`;
         fetchPromises.push(
-            contentFetch(`https://api.themoviedb.org/3/${endpoint}?query=${encodeURIComponent(query)}`, options)
+            contentFetch(`${PROXY_URL}/api/tmdb/${endpoint}?query=${encodeURIComponent(query)}`)
                 .then(r => r.json()).then(d => payload.tmdbRes = d)
         );
     }
@@ -1112,7 +1099,7 @@ async function fetchSearchData(query, filterValue, payload) {
     }
     if (['all', 'album'].includes(filterValue)) {
         fetchPromises.push(
-            contentFetch(`https://ws.audioscrobbler.com/2.0/?method=album.search&album=${encodeURIComponent(query)}&api_key=${LASTFM_KEY}&format=json`)
+            contentFetch(`${PROXY_URL}/api/lastfm?method=album.search&album=${encodeURIComponent(query)}`)
                 .then(r => r.json()).then(res => {
                     if (res.results?.albummatches?.album) {
                         payload.lastfmAlbums = res.results.albummatches.album.map(a => ({
