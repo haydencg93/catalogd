@@ -1,4 +1,5 @@
 {
   "supabase_url": "https://hgkonnveazfdqnwlfncp.supabase.co",
-  "supabase_key": "sb_publishable_nZMHCX63xJGxm0ehfZdGhQ_bDdh97Q-"
+  "supabase_key": "sb_publishable_nZMHCX63xJGxm0ehfZdGhQ_bDdh97Q-",
+  "proxy_url": "https://catalogd-proxy.haydencg93.workers.dev"
 }

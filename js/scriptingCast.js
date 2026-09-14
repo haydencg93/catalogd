@@ -10,6 +10,7 @@ const mediaId = params.get('mediaId');
 const mediaType = params.get('mediaType');
 const mediaTitle = params.get('mediaTitle');
 
+let PROXY_URL = '';
 let supabaseClient = null;
 let currentUser = null; // Track the logged-in user
 
@@ -17,6 +18,8 @@ async function initCastPage() {
     try {
         const config = await loadConfig();
         
+        PROXY_URL = config.proxy_url;
+
         supabaseClient = await getSupabaseClient();
         currentUser = await document.querySelector('app-header')?.initializeAuth(supabaseClient);
 
@@ -25,9 +28,9 @@ async function initCastPage() {
         } else if (authorId) {
             await initAuthorPage(authorId);
         } else if (personId) {
-            await initPersonPage(personId, config.tmdb_token);
+            await initPersonPage(personId);
         } else if (artistName) {
-            await initArtistPage(artistName, config.lastfm_key);
+            await initArtistPage(artistName);
         } else {
             document.getElementById('person-name').textContent = "No person selected.";
         }
@@ -225,9 +228,8 @@ async function initAuthorPage(id) {
     });
 }
 
-async function initPersonPage(id, token) {
-    const headers = { Authorization: `Bearer ${token}` };
-    const person = await fetch(`https://api.themoviedb.org/3/person/${id}`, { headers }).then(r => r.json());
+async function initPersonPage(id) {
+    const person = await fetch(`${PROXY_URL}/api/tmdb/person/${id}`).then(r => r.json());
     document.getElementById('person-name').textContent = person.name;
     document.getElementById('person-biography').textContent = person.biography || "No biography available.";
     
@@ -241,7 +243,7 @@ async function initPersonPage(id, token) {
     await setupPersonImage(id, category, defaultImg, person.name);
     setupFollowBtn(id, person.name, category, defaultImg, null, null);
 
-    const credits = await fetch(`https://api.themoviedb.org/3/person/${id}/combined_credits`, { headers }).then(r => r.json());
+    const credits = await fetch(`${PROXY_URL}/api/tmdb/person/${id}/combined_credits`).then(r => r.json());
     
     // For Crew members, use the crew array instead of cast for the known-for/filmography
     const creditArray = category === 'actor' ? (credits.cast || []) : (credits.crew || []);
@@ -319,10 +321,10 @@ async function initPersonPage(id, token) {
     }).join('');
 }
 
-async function initArtistPage(name, apiKey) {
+async function initArtistPage(name) {
     try {
-        const infoRes = await fetch(`https://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist=${encodeURIComponent(name)}&api_key=${apiKey}&format=json`).then(r => r.json());
-        const albumsRes = await fetch(`https://ws.audioscrobbler.com/2.0/?method=artist.gettopalbums&artist=${encodeURIComponent(name)}&api_key=${apiKey}&format=json&limit=50`).then(r => r.json());
+        const infoRes = await fetch(`${PROXY_URL}/api/lastfm?method=artist.getinfo&artist=${encodeURIComponent(name)}`).then(r => r.json());
+        const albumsRes = await fetch(`${PROXY_URL}/api/lastfm?method=artist.gettopalbums&artist=${encodeURIComponent(name)}&limit=50`).then(r => r.json());
 
         const artist = infoRes.artist;
         const albums = albumsRes.topalbums?.album || [];

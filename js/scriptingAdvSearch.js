@@ -1,7 +1,7 @@
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
 
-let TMDB_TOKEN = '';
+let PROXY_URL = '';
 let supabaseClient = null;
 let configData = null;
 
@@ -41,7 +41,7 @@ async function initAdvSearch() {
     try {
         configData = await loadConfig();
         
-        TMDB_TOKEN = configData.tmdb_token;
+        PROXY_URL = configData.proxy_url;
         supabaseClient = await getSupabaseClient();
 
         // Initialize the AppHeader Web Component so it catches the auth state
@@ -100,8 +100,8 @@ async function initAdvSearch() {
 async function fetchTopProviders() {
     try {
         const [movieProvRes, tvProvRes] = await Promise.all([
-            fetch(`https://api.themoviedb.org/3/watch/providers/movie?language=en-US&watch_region=US`, { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } }).then(r => r.json()),
-            fetch(`https://api.themoviedb.org/3/watch/providers/tv?language=en-US&watch_region=US`, { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } }).then(r => r.json())
+            fetch(`${PROXY_URL}/api/tmdb/watch/providers/movie?language=en-US&watch_region=US`).then(r => r.json()),
+            fetch(`${PROXY_URL}/api/tmdb/watch/providers/tv?language=en-US&watch_region=US`).then(r => r.json())
         ]);
 
         const providerMap = new Map();
@@ -129,9 +129,7 @@ async function fetchTopProviders() {
 
 async function fetchLanguages() {
     try {
-        const langRes = await fetch(`https://api.themoviedb.org/3/configuration/languages`, { 
-            headers: { Authorization: `Bearer ${TMDB_TOKEN}` } 
-        }).then(r => r.json());
+        const langRes = await fetch(`${PROXY_URL}/api/tmdb/configuration/languages`).then(r => r.json());
 
         const sortedLangs = langRes.sort((a, b) => a.english_name.localeCompare(b.english_name));
         
@@ -153,8 +151,8 @@ async function fetchLanguages() {
 async function fetchCoreGenres() {
     try {
         const [movieGenRes, tvGenRes] = await Promise.all([
-            fetch(`https://api.themoviedb.org/3/genre/movie/list?language=en-US`, { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } }).then(r => r.json()),
-            fetch(`https://api.themoviedb.org/3/genre/tv/list?language=en-US`, { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } }).then(r => r.json())
+            fetch(`${PROXY_URL}/api/tmdb/genre/movie/list?language=en-US`).then(r => r.json()),
+            fetch(`${PROXY_URL}/api/tmdb/genre/tv/list?language=en-US`).then(r => r.json())
         ]);
 
         // Merge and deduplicate the core genres
@@ -179,9 +177,7 @@ async function fetchCoreGenres() {
 
 async function fetchKeywordResults(query) {
     try {
-        const res = await fetch(`https://api.themoviedb.org/3/search/keyword?query=${encodeURIComponent(query)}&page=1`, {
-            headers: { Authorization: `Bearer ${TMDB_TOKEN}` }
-        }).then(r => r.json());
+        const res = await fetch(`${PROXY_URL}/api/tmdb/search/keyword?query=${encodeURIComponent(query)}&page=1`).then(r => r.json());
 
         const matches = res.results || [];
 
@@ -374,7 +370,7 @@ function getProviderParams(filters) {
 }
 
 function buildBaseUrl(mediaType, filters) {
-    let url = `https://api.themoviedb.org/3/discover/${mediaType}?language=en-US&sort_by=popularity.desc&watch_region=US`;
+    let url = `${PROXY_URL}/api/tmdb/discover/${mediaType}?language=en-US&sort_by=popularity.desc&watch_region=US`;
     
     url += getProviderParams(filters);
     if (filters.keywordsStr) url += `&with_keywords=${filters.keywordsStr}`;
@@ -403,7 +399,7 @@ function buildDiscoverUrls(mediaTypes, textQuery, filters) {
     mediaTypes.forEach(mediaType => {
         if (textQuery) {
             // Use TMDB's specific Search API instead of Discover API when text is present
-            const url = `https://api.themoviedb.org/3/search/${mediaType}?query=${encodeURIComponent(textQuery)}&language=en-US`;
+            const url = `${PROXY_URL}/api/tmdb/search/${mediaType}?query=${encodeURIComponent(textQuery)}&language=en-US`;
             pages.forEach(page => urls.push({ url: `${url}&page=${page}`, type: mediaType }));
         } else {
             // Use Discover API for standard filter-based browsing
@@ -429,9 +425,7 @@ async function fetchDetailedResults(results) {
     for (let i = 0; i < results.length; i += batchSize) {
         const batch = results.slice(i, i + batchSize);
         const batchPromises = batch.map(item => 
-            fetch(`https://api.themoviedb.org/3/${item.media_type}/${item.id}?append_to_response=watch/providers,translations`, { 
-                headers: { Authorization: `Bearer ${TMDB_TOKEN}` } 
-            })
+            fetch(`${PROXY_URL}/api/tmdb/${item.media_type}/${item.id}?append_to_response=watch/providers,translations`)
             .then(r => {
                 if (!r.ok) {
                     if (r.status === 429) console.warn(`Rate limited on ${item.id}`);
@@ -521,7 +515,7 @@ async function executeSearch(isLoadMore = false) {
     try {
         const requests = buildDiscoverUrls(activeTypes, textQuery, filters);
         const fetchPromises = requests.map(req => 
-            fetch(req.url, { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } })
+            fetch(req.url)
                 .then(r => r.json())
                 .then(data => (data.results || []).map(item => ({ ...item, media_type: req.type })))
         );
@@ -721,9 +715,7 @@ async function fetchDynamicPoster(rec, imgElementId) {
 
     try {
         if (rec.media_type === 'movie' || rec.media_type === 'tv') {
-            const res = await fetch(`https://api.themoviedb.org/3/${rec.media_type}/${rec.id}`, {
-                headers: { Authorization: `Bearer ${TMDB_TOKEN}` }
-            }).then(r => r.json());
+            const res = await fetch(`${PROXY_URL}/api/tmdb/${rec.media_type}/${rec.id}`).then(r => r.json());
             
             if (res.poster_path) {
                 imgEl.src = `https://image.tmdb.org/t/p/w500${res.poster_path}`;

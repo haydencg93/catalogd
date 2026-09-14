@@ -23,7 +23,7 @@ const profileBtn = document.getElementById('profile-btn');
 const profileMenu = document.getElementById('profile-menu');
 
 // 2. Global Variables
-let PROXY_URL = 'https://catalogd-proxy.haydencg93.workers.dev';
+let PROXY_URL = '';
 let supabaseClient = null;
 let isSignUpMode = false;
 let currentTab = 'movie';
@@ -62,6 +62,8 @@ function throwIfContentAborted() {
 async function loadConfig() {
     try {
         const config = await fetchConfig();
+
+        PROXY_URL = config.proxy_url;
 
         await checkEmailConfirmation();
         
