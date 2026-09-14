@@ -2,6 +2,7 @@ import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
 import { normalizeOpenLibraryId } from './core/media.js';
 
+let PROXY_URL = '';
 const params = new URLSearchParams(window.location.search);
 const id = params.get('id');
 const type = params.get('type');
@@ -32,11 +33,10 @@ async function initDetails() {
     try {
         const config = await loadConfig();
         supabaseClient = await getSupabaseClient();
-        await document.querySelector('app-header')?.initializeAuth(supabaseClient);
 
-        const tmdbOptions = { 
-            headers: { Authorization: `Bearer ${config.tmdb_token}` } 
-        };
+        PROXY_URL = config.proxy_url;
+
+        await document.querySelector('app-header')?.initializeAuth(supabaseClient);
 
         let data;
         
@@ -76,7 +76,7 @@ async function initDetails() {
             const decodedId = decodeURIComponent(id);
             const [artistName, albumName] = decodedId.split('|||');
             
-            const res = await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artistName)}&album=${encodeURIComponent(albumName)}&api_key=${config.lastfm_key}&format=json`).then(r => r.json());
+            const res = await fetch(`${PROXY_URL}/api/lastfm?method=album.getinfo&artist=${encodeURIComponent(artistName)}&album=${encodeURIComponent(albumName)}`).then(r => r.json());
             
             if (res.error) {
                 alert("Error loading album data.");
@@ -178,12 +178,12 @@ async function initDetails() {
         }
         // --- 3. MOVIE & TV FETCH ---
         else {
-            const res = await fetch(`https://api.themoviedb.org/3/${type}/${id}`, tmdbOptions).then(r => r.json());
+            const res = await fetch(`${PROXY_URL}/api/tmdb/${type}/${id}`).then(r => r.json());
             
             // ISO Language name mapper
             let mainLanguageName = res.original_language ? res.original_language.toUpperCase() : 'Unknown';
             try {
-                const langRes = await fetch(`https://api.themoviedb.org/3/configuration/languages`, tmdbOptions).then(r => r.json());
+                const langRes = await fetch(`${PROXY_URL}/api/tmdb/configuration/languages`).then(r => r.json());
                 const matchedLang = langRes.find(l => l.iso_639_1 === res.original_language);
                 if (matchedLang) mainLanguageName = matchedLang.english_name;
             } catch(e) { console.warn("Language config error", e); }
@@ -191,7 +191,7 @@ async function initDetails() {
             // Fetch Translations dynamically
             let translationArray = [];
             try {
-                const transRes = await fetch(`https://api.themoviedb.org/3/${type}/${id}/translations`, tmdbOptions).then(r => r.json());
+                const transRes = await fetch(`${PROXY_URL}/api/tmdb/${type}/${id}/translations`).then(r => r.json());
                 if (transRes.translations) {
                     // Extract just the english names and sort them alphabetically
                     translationArray = transRes.translations.map(t => t.english_name).sort();
@@ -476,8 +476,8 @@ async function initDetails() {
 
         let isAnime = false;
         if (type === 'tv' || type === 'movie') {
-            const keywordUrl = `https://api.themoviedb.org/3/${type}/${id}/keywords`;
-            const kwRes = await fetch(keywordUrl, tmdbOptions).then(r => r.json());
+            const keywordUrl = `${PROXY_URL}/api/tmdb/${type}/${id}/keywords`;
+            const kwRes = await fetch(keywordUrl).then(r => r.json());
             const keywords = type === 'tv' ? kwRes.results : kwRes.keywords;
             isAnime = keywords.some(k => k.name.toLowerCase() === 'anime');
         }
@@ -719,13 +719,10 @@ async function fetchCredits(config, mediaId, mediaType) {
     
     // Switch to aggregate_credits for TV shows to get total episode counts
     const endpoint = mediaType === 'tv' ? 'aggregate_credits' : 'credits';
-    const url = `https://api.themoviedb.org/3/${mediaType}/${mediaId}/${endpoint}?language=en-US`;
+    const url = `${PROXY_URL}/api/tmdb/${mediaType}/${mediaId}/${endpoint}?language=en-US`;
 
     try {
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` }
-        });
+        const response = await fetch(url);
 
         const text = await response.text();
         if (text.startsWith('\x1F\x8B')) throw new Error("TMDB returned raw corrupted GZIP data.");
@@ -1397,17 +1394,13 @@ async function setupTVTracker(config, seriesId) {
     }
     
     try {
-        const response = await fetch(`https://api.themoviedb.org/3/tv/${seriesId}?language=en-US`, {
-            headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` }
-        });
+        const response = await fetch(`${PROXY_URL}/api/tmdb/tv/${seriesId}?language=en-US`);
         const res = await response.json();
 
         // 1. Fetch TVMaze data matching via external IMDB or TMDB ID mappings
         let tvmazeId = null;
         try {
-            const extRes = await fetch(`https://api.themoviedb.org/3/tv/${seriesId}/external_ids`, {
-                headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` }
-            }).then(r => r.json());
+            const extRes = await fetch(`${PROXY_URL}/api/tmdb/tv/${seriesId}/external_ids`).then(r => r.json());
 
             let lookupUrl = '';
             if (extRes.imdb_id) lookupUrl = `https://api.tvmaze.com/lookup/shows?imdb=${extRes.imdb_id}`;
@@ -1605,9 +1598,7 @@ async function loadEpisodes(config, seriesId, seasonNum, tvmazeId) {
     tvmazeEpisodesMap = {}; // Reset local cache frame
     
     try {
-        const response = await fetch(`https://api.themoviedb.org/3/tv/${seriesId}/season/${seasonNum}?language=en-US`, {
-            headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` }
-        });
+        const response = await fetch(`${PROXY_URL}/api/tmdb/tv/${seriesId}/season/${seasonNum}?language=en-US`);
         const res = await response.json();
 
         // Populate TVMaze episode data cache framework asynchronously
@@ -1680,9 +1671,7 @@ async function openEpisodeModal(epNum, fallbackTitle, seasonNum) {
         // Deep-fetch Guest Cast structure directly from TMDB natively to ensure flawless Actor Cast routing
         try {
             const config = await loadConfig();
-            const tmdbRes = await fetch(`https://api.themoviedb.org/3/tv/${id}/season/${seasonNum}/episode/${epNum}/credits?language=en-US`, {
-                headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` }
-            }).then(r => r.json());
+            const tmdbRes = await fetch(`${PROXY_URL}/api/tmdb/tv/${id}/season/${seasonNum}/episode/${epNum}/credits?language=en-US`).then(r => r.json());
             
             if (tmdbRes && tmdbRes.guest_stars && tmdbRes.guest_stars.length > 0) {
                 castContainer.innerHTML = tmdbRes.guest_stars.map(g => {
@@ -1732,9 +1721,7 @@ async function markSeasonAsWatched() {
     const config = await loadConfig();
     
     try {
-        const response = await fetch(`https://api.themoviedb.org/3/tv/${id}/season/${seasonNum}?language=en-US`, { 
-            headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` } 
-        });
+        const response = await fetch(`${PROXY_URL}/api/tmdb/tv/${id}/season/${seasonNum}?language=en-US`);
         
         const text = await response.text();
         const res = JSON.parse(text);
@@ -1790,9 +1777,7 @@ async function fetchWatchProviders(config) {
     if (type === 'book') return; 
     
     try {
-        const res = await fetch(`https://api.themoviedb.org/3/${type}/${id}/watch/providers`, { 
-            headers: { Authorization: `Bearer ${config.tmdb_token}` } 
-        }).then(r => r.json());
+        const res = await fetch(`${PROXY_URL}/api/tmdb/${type}/${id}/watch/providers`).then(r => r.json());
         
         const results = res.results?.US || {};
         
@@ -2380,9 +2365,7 @@ async function fetchSimPoster(rec, imgId, config) {
     
     try {
         if (rec.media_type === 'movie' || rec.media_type === 'tv') {
-            const res = await fetch(`https://api.themoviedb.org/3/${rec.media_type}/${rec.id}`, {
-                headers: { Authorization: `Bearer ${config.tmdb_token}` }
-            }).then(r => r.json());
+            const res = await fetch(`${PROXY_URL}/api/tmdb/${rec.media_type}/${rec.id}`).then(r => r.json());
             imgEl.src = res.poster_path ? `https://image.tmdb.org/t/p/w342${res.poster_path}` : 'https://via.placeholder.com/500x750/1b2228/9ab?text=No+Poster';
         } else if (rec.media_type === 'book') {
             const rawNum = parseInt(rec.id) - 100000000;
@@ -2441,9 +2424,7 @@ async function checkAndQueueMedia(mediaId, mediaType, config) {
 
         // 2. Fetch the rich tag data based on type
         if (mediaType === 'movie' || mediaType === 'tv') {
-            const res = await fetch(`https://api.themoviedb.org/3/${mediaType}/${mediaId}?append_to_response=keywords`, { 
-                headers: { Authorization: `Bearer ${config.tmdb_token}` } 
-            }).then(r => r.json());
+            const res = await fetch(`${PROXY_URL}/api/tmdb/${mediaType}/${mediaId}?append_to_response=keywords`).then(r => r.json());
             
             title = res.title || res.name || 'Unknown Title';
             year = (res.release_date || res.first_air_date || '').split('-')[0];

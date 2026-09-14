@@ -2,6 +2,7 @@ import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
 import { normalizeOpenLibraryId } from './core/media.js';
 
+let PROXY_URL = '';
 let supabaseClient = null;
 
 let allLogs = [];
@@ -19,6 +20,9 @@ async function initDiary() {
     try {
         const config = await loadConfig();
         supabaseClient = await getSupabaseClient();
+
+        PROXY_URL = config.proxy_url;
+
         await customElements.whenDefined('app-header');
         await document.querySelector('app-header').initializeAuth(supabaseClient);
 
@@ -351,7 +355,7 @@ async function updateStatsDisplay(config) {
                 try {
                     const decodedId = decodeURIComponent(log.media_id);
                     const [artistName, albumName] = decodedId.split('|||');
-                    const res = await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artistName)}&album=${encodeURIComponent(albumName)}&api_key=${config.lastfm_key}&format=json`).then(r => r.json());
+                    const res = await fetch(`${PROXY_URL}/api/lastfm?method=album.getinfo&artist=${encodeURIComponent(artistName)}&album=${encodeURIComponent(albumName)}`).then(r => r.json());
                     const trackCount = res.album?.tracks?.track?.length || 0;
                     albumTrackCache[log.media_id] = trackCount;
                     totalSongs += trackCount;
@@ -452,7 +456,7 @@ async function fetchAndFormatRow(log, config) {
             const decodedId = decodeURIComponent(log.media_id);
             const [artistName, albumName] = decodedId.split('|||');
             
-            const res = await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artistName)}&album=${encodeURIComponent(albumName)}&api_key=${config.lastfm_key}&format=json`).then(r => r.json());
+            const res = await fetch(`${PROXY_URL}/api/lastfm?method=album.getinfo&artist=${encodeURIComponent(artistName)}&album=${encodeURIComponent(albumName)}`).then(r => r.json());
             
             title = res.album?.name || 'Unknown Album';
             
@@ -474,9 +478,7 @@ async function fetchAndFormatRow(log, config) {
             year = res.first_publish_date || 'N/A';
             image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-S.jpg` : 'https://placehold.co/92x138/1b2228/9ab?text=No+Cover';
         } else {
-            const res = await fetch(`https://api.themoviedb.org/3/${log.media_type}/${log.media_id}?language=en-US`, {
-                headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` } 
-            }).then(r => r.json());
+            const res = await fetch(`${PROXY_URL}/api/tmdb/${log.media_type}/${log.media_id}?language=en-US`).then(r => r.json());
             
             if (res.success === false) throw new Error("TMDB returned an error JSON");
             
