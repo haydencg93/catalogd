@@ -4,9 +4,9 @@ import { normalizeOpenLibraryId } from './core/media.js';
 
 let supabaseClient = null;
 
+let PROXY_URL = '';
+
 let allWatchlistItems = [];
-let tmdbToken = null;
-let lastfmKey = null;
 let watchlistOwnerId = null;
 let isViewerOwner = false;
 let currentWatchlistPage = 1;
@@ -16,8 +16,7 @@ let customImgsMap = new Map();
 
 async function initWatchlist() {
     const config = await loadConfig();
-    tmdbToken = config.tmdb_token;
-    lastfmKey = config.lastfm_key;
+    PROXY_URL = config.proxy_url;
     supabaseClient = await getSupabaseClient();
     await customElements.whenDefined('app-header');
     await document.querySelector('app-header').initializeAuth(supabaseClient);
@@ -121,14 +120,14 @@ window.filterWatchlist = (type) => {
         return; // Don't call render if there's nothing to render
     }
 
-    renderWatchlist(filtered, tmdbToken, type);
+    renderWatchlist(filtered, type);
 };
 
 document.querySelectorAll('[data-watchlist-filter]').forEach((button) => {
     button.addEventListener('click', () => window.filterWatchlist(button.dataset.watchlistFilter));
 });
 
-async function renderWatchlist(items, token, typeLabel) {
+async function renderWatchlist(items, typeLabel) {
     const grid = document.getElementById('watchlist-grid');
     const subtitle = document.getElementById('watchlist-subtitle');
 
@@ -151,15 +150,13 @@ async function renderWatchlist(items, token, typeLabel) {
                     
                     // Fetch from Last.fm dynamically!
                     try {
-                        const res = await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(albumName)}&api_key=${lastfmKey}&format=json`).then(r => r.json());
+                        const res = await fetch(`${PROXY_URL}/api/lastfm?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(albumName)}`).then(r => r.json());
                         image = res.album?.image?.[3]['#text'] || `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`;
                     } catch (e) {
                         image = `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`; 
                     }
                 } else {
-                    const res = await fetch(`https://api.themoviedb.org/3/${item.media_type}/${item.media_id}`, {
-                        headers: { Authorization: `Bearer ${token}` }
-                    }).then(r => r.json());
+                    const res = await fetch(`${PROXY_URL}/api/tmdb/${item.media_type}/${item.media_id}`).then(r => r.json());
                     title = item.media_title || res.title || res.name || 'Unknown Title';
                     image = res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : 'https://placehold.co/500x750/1b2228/9ab?text=No+Image';
                 }
@@ -264,7 +261,7 @@ async function renderWatchlistPage() {
     subtitle.textContent = `${totalItems} ${currentWatchlistFilter === 'all' ? 'items' : currentWatchlistFilter + 's'} saved.`;
 
     // 5. Pass the small chunk to your existing render engine
-    await renderWatchlist(itemsToRender, tmdbToken, currentWatchlistFilter);
+    await renderWatchlist(itemsToRender, currentWatchlistFilter);
 
     // 6. Update the UI Pagination Buttons
     const paginationContainer = document.getElementById('watchlist-pagination');

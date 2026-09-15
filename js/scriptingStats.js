@@ -16,7 +16,6 @@ let isOngoingPeriod = true;
 
 async function initStats() {
     try {
-        const config = await loadConfig();
         supabaseClient = await getSupabaseClient();
         await document.querySelector('app-header')?.initializeAuth(supabaseClient);
 
