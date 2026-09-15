@@ -49,6 +49,7 @@ jobs:
           OPENVERSE_CLIENT_SECRET: ${{ secrets.OPENVERSE_CLIENT_SECRET }}
           QDRANT_URL: ${{ secrets.QDRANT_URL }}
           QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+          TMDB_TOKEN: ${{ secrets.TMDB_TOKEN }}
         run: |
           cd seederAi
           node fill_characters.js
