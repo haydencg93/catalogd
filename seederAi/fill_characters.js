@@ -25,7 +25,7 @@ async function fillMissingCharacters() {
         method: 'GET',
         headers: {
             accept: 'application/json',
-            Authorization: `Bearer ${config.tmdb_token}`
+            Authorization: `Bearer ${process.env.TMDB_TOKEN}`
         }
     };
 

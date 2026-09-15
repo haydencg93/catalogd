@@ -16,10 +16,8 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY 
 );
 
-const configPath = path.resolve(__dirname, '../config/config.json');
-const configData = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-const TMDB_TOKEN = configData.tmdb_token;
-const LASTFM_KEY = configData.lastfm_key;
+const TMDB_TOKEN = process.env.TMDB_TOKEN;
+const LASTFM_KEY = process.env.LASTFM_KEY;
 
 const OPENVERSE_CLIENT_ID = process.env.OPENVERSE_CLIENT_ID;
 const OPENVERSE_CLIENT_SECRET = process.env.OPENVERSE_CLIENT_SECRET;
