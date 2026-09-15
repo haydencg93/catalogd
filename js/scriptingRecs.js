@@ -5,6 +5,8 @@ let favoriteInputs = [];
 let configData = null;
 let searchTimeout = null;
 let supabaseClient = null;
+let PROXY_URL = '';
+
 let userStreamingServices = [];
 
 // DOM Elements
@@ -20,7 +22,7 @@ const resultsHeader = document.getElementById('results-header');
 async function initRecs() {
     try {
         configData = await loadConfig();
-        
+        PROXY_URL = configData.proxy_url;
         supabaseClient = await getSupabaseClient();
         await document.querySelector('app-header')?.initializeAuth(supabaseClient);
         
@@ -56,13 +58,11 @@ function setupLiveSearch() {
         }
 
         searchTimeout = setTimeout(async () => {
-            const options = { headers: { Authorization: `Bearer ${configData.tmdb_token}` } };
-
             try {
                 // Fetch from TMDB and OpenLibrary
                 const [movieRes, tvRes, bookRes] = await Promise.all([
-                    fetch(`https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(query)}`, options).then(r => r.json()),
-                    fetch(`https://api.themoviedb.org/3/search/tv?query=${encodeURIComponent(query)}`, options).then(r => r.json()),
+                    fetch(`${PROXY_URL}/api/tmdb/search/movie?query=${encodeURIComponent(query)}`).then(r => r.json()),
+                    fetch(`${PROXY_URL}/api/tmdb/search/tv?query=${encodeURIComponent(query)}`).then(r => r.json()),
                     fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=5`).then(r => r.json())
                 ]);
 
@@ -255,9 +255,7 @@ async function renderRecommendations(recs) {
 
         if (rec.media_type === 'movie' || rec.media_type === 'tv') {
             try {
-                const res = await fetch(`https://api.themoviedb.org/3/${rec.media_type}/${rec.id}?append_to_response=watch/providers`, {
-                    headers: { Authorization: `Bearer ${configData.tmdb_token}` }
-                }).then(r => r.json());
+                const res = await fetch(`${PROXY_URL}/api/tmdb/${rec.media_type}/${rec.id}?append_to_response=watch/providers`).then(r => r.json());
 
                 if (filterStreaming) {
                     const providers = res['watch/providers']?.results?.US;
@@ -346,9 +344,7 @@ async function fetchPosterAndAvail(rec, imgElementId, cardId) {
         if (rec.media_type === 'movie' || rec.media_type === 'tv') {
             
             // Appends the providers payload to the standard details fetch
-            const res = await fetch(`https://api.themoviedb.org/3/${rec.media_type}/${rec.id}?append_to_response=watch/providers`, {
-                headers: { Authorization: `Bearer ${configData.tmdb_token}` }
-            }).then(r => r.json());
+            const res = await fetch(`${PROXY_URL}/api/tmdb/${rec.media_type}/${rec.id}?append_to_response=watch/providers`).then(r => r.json());
             
             // Availability Filter Logic
             const toggle = document.getElementById('services-toggle');

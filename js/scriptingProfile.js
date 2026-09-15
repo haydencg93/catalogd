@@ -4,6 +4,7 @@ import { normalizeOpenLibraryId } from './core/media.js';
 import { socialLogoSvgs as exactSocialLogoSvgs } from './components/socialIcons.js';
 
 let supabaseClient = null;
+let PROXY_URL = '';
 
 let allUserLogs = [];
 let allLibraryItems = [];
@@ -43,6 +44,7 @@ function appendSocialLink(container, name, username, href) {
 async function initProfile() {
     try {
         const config = await loadConfig();
+        PROXY_URL = config.proxy_url;
 
         // 1. Initialize Supabase
         supabaseClient = await getSupabaseClient({
@@ -699,12 +701,10 @@ window.filterRevisit = async (type) => {
                     image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : '';
                  } else if (item.media_type === 'album') {
                     const [artist, albumName] = decodeURIComponent(item.media_id).split('|||');
-                    const res = await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(albumName)}&api_key=${config.lastfm_key}&format=json`).then(r=>r.json()).catch(()=>({}));
+                    const res = await fetch(`${PROXY_URL}/api/lastfm?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(albumName)}`).then(r=>r.json()).catch(()=>({}));
                     image = res.album?.image?.[3]['#text'] || '';
                  } else {
-                    const res = await fetch(`https://api.themoviedb.org/3/${item.media_type}/${item.media_id}?language=en-US`, {
-                        headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` }
-                    }).then(r=>r.json()).catch(()=>({}));
+                    const res = await fetch(`${PROXY_URL}/api/tmdb/${item.media_type}/${item.media_id}?language=en-US`).then(r=>r.json()).catch(()=>({}));
                     image = res.poster_path ? `https://image.tmdb.org/t/p/w200${res.poster_path}` : '';
                  }
             }
@@ -795,15 +795,13 @@ async function renderStatusItems(items, gridId) {
                 const [artist, albumName] = decodedId.split('|||');
                 title = albumName;
                 try {
-                    const res = await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(albumName)}&api_key=${config.lastfm_key}&format=json`).then(r => r.json());
+                    const res = await fetch(`${PROXY_URL}/api/lastfm?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(albumName)}`).then(r => r.json());
                     image = res.album?.image?.[3]['#text'] || `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`;
                 } catch (e) {
                     image = `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`; 
                 }
             } else {
-                const res = await fetch(`https://api.themoviedb.org/3/${item.media_type}/${item.media_id}?language=en-US`, {
-                    headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` } 
-                }).then(r => r.json());
+                const res = await fetch(`${PROXY_URL}/api/tmdb/${item.media_type}/${item.media_id}?language=en-US`).then(r => r.json());
                 if (res.success === false) throw new Error("TMDB returned an error JSON");
                 title = item.media_title || res.title || res.name || 'Unknown Title';
                 image = res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : '';
@@ -1302,15 +1300,13 @@ window.openTagDetails = async (tag) => {
                     const [artist, albumName] = decodedId.split('|||');
                     title = albumName;
                     try {
-                        const res = await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(albumName)}&api_key=${config.lastfm_key}&format=json`).then(r => r.json());
+                        const res = await fetch(`${PROXY_URL}/api/lastfm?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(albumName)}`).then(r => r.json());
                         image = res.album?.image?.[3]['#text'] || `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`;
                     } catch (e) {
                         image = `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`;
                     }
                 } else {
-                    const res = await fetch(`https://api.themoviedb.org/3/${log.media_type}/${log.media_id}?language=en-US`, {
-                        headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` } 
-                    }).then(r => r.json());
+                    const res = await fetch(`${PROXY_URL}/api/tmdb/${log.media_type}/${log.media_id}?language=en-US`).then(r => r.json());
                     if (res.success === false) throw new Error("TMDB returned an error JSON");
                     title = res.title || res.name || 'Unknown Title';
                     image = res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : '';
@@ -1395,15 +1391,13 @@ async function renderRecent(logs) {
                     const [artist, albumName] = decodedId.split('|||');
                     title = albumName;
                     try {
-                        const res = await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(albumName)}&api_key=${config.lastfm_key}&format=json`).then(r => r.json());
+                        const res = await fetch(`${PROXY_URL}/api/lastfm?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(albumName)}`).then(r => r.json());
                         image = res.album?.image?.[3]['#text'] || `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`;
                     } catch (e) {
                         image = `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`;
                     }
                 } else {
-                    const res = await fetch(`https://api.themoviedb.org/3/${log.media_type}/${log.media_id}?language=en-US`, {
-                        headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` } 
-                    }).then(r => r.json());
+                    const res = await fetch(`${PROXY_URL}/api/tmdb/${log.media_type}/${log.media_id}?language=en-US`).then(r => r.json());
                     if (res.success === false) throw new Error("TMDB returned an error JSON");
                     title = res.title || res.name || 'Unknown Title';
                     image = res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : '';
@@ -1658,15 +1652,13 @@ async function renderLibrary(items) {
                     title = albumName;
                     
                     try {
-                        const res = await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(albumName)}&api_key=${config.lastfm_key}&format=json`).then(r => r.json());
+                        const res = await fetch(`${PROXY_URL}/api/lastfm?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(albumName)}`).then(r => r.json());
                         image = res.album?.image?.[3]['#text'] || `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`;
                     } catch (e) {
                         image = `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`;
                     }
                 } else {
-                    const res = await fetch(`https://api.themoviedb.org/3/${item.media_type}/${item.media_id}?language=en-US`, {
-                        headers: { accept: 'application/json', Authorization: `Bearer ${config.tmdb_token}` } 
-                    }).then(r => r.json());
+                    const res = await fetch(`${PROXY_URL}/api/tmdb/${item.media_type}/${item.media_id}?language=en-US`).then(r => r.json());
                     if (res.success === false) throw new Error("TMDB returned an error JSON");
                     title = item.media_title || res.title || res.name || 'Unknown Title';
                     image = res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : '';

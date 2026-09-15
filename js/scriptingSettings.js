@@ -3,8 +3,7 @@ import { getSupabaseClient } from './core/supabase.js';
 
 let supabaseClient = null;
 
-let tmdbToken = null;
-let lastfmKey = null;
+let PROXY_URL = '';
 let currentUser = null;
 
 let currentFavs = { movie: [], tv: [], book: [], album: [], youtube: [], all: [] };
@@ -38,9 +37,6 @@ async function initSettings() {
         }
     });
     await document.querySelector('app-header')?.initializeAuth(supabaseClient);
-
-    tmdbToken = config.tmdb_token;
-    lastfmKey = config.lastfm_key;
 
     const { data: { user } } = await supabaseClient.auth.getUser();
     currentUser = user;
@@ -323,8 +319,7 @@ favSearchInput.oninput = async () => {
     }
 
     // Search TMDB (Movies/TV)
-    const options = { headers: { Authorization: `Bearer ${tmdbToken}` } };
-    const res = await fetch(`https://api.themoviedb.org/3/search/multi?query=${encodeURIComponent(query)}`, options);
+    const res = await fetch(`${PROXY_URL}/api/tmdb/search/multi?query=${encodeURIComponent(query)}`);
     const data = await res.json();
 
     favSearchResults.innerHTML = '';
@@ -357,8 +352,8 @@ favSearchInput.oninput = async () => {
 async function fetchAndRenderProviders() {
     try {
         const [movieProvRes, tvProvRes] = await Promise.all([
-            fetch(`https://api.themoviedb.org/3/watch/providers/movie?language=en-US&watch_region=US`, { headers: { Authorization: `Bearer ${tmdbToken}` } }).then(r => r.json()),
-            fetch(`https://api.themoviedb.org/3/watch/providers/tv?language=en-US&watch_region=US`, { headers: { Authorization: `Bearer ${tmdbToken}` } }).then(r => r.json())
+            fetch(`${PROXY_URL}/api/tmdb/watch/providers/movie?language=en-US&watch_region=US`).then(r => r.json()),
+            fetch(`${PROXY_URL}/api/tmdb/watch/providers/tv?language=en-US&watch_region=US`).then(r => r.json())
         ]);
 
         const providerMap = new Map();
@@ -420,9 +415,7 @@ async function fetchAndRenderProviders() {
 
 async function fetchAndRenderLanguages() {
     try {
-        const langRes = await fetch(`https://api.themoviedb.org/3/configuration/languages`, { 
-            headers: { Authorization: `Bearer ${tmdbToken}` } 
-        }).then(r => r.json());
+        const langRes = await fetch(`${PROXY_URL}/api/tmdb/configuration/languages`).then(r => r.json());
 
         // Sort alphabetically by English name
         const sortedLangs = langRes.sort((a, b) => a.english_name.localeCompare(b.english_name));
@@ -632,13 +625,11 @@ async function getExportTitle(id, type) {
 
     let title = "Unknown Title";
     try {
-        const options = { headers: { Authorization: `Bearer ${tmdbToken}` } };
-        
         if (type === 'movie') {
-            const res = await fetch(`https://api.themoviedb.org/3/movie/${id}`, options).then(r=>r.json());
+            const res = await fetch(`${PROXY_URL}/api/tmdb/movie/${id}`).then(r=>r.json());
             title = res.title || title;
         } else if (type === 'tv') {
-            const res = await fetch(`https://api.themoviedb.org/3/tv/${id}`, options).then(r=>r.json());
+            const res = await fetch(`${PROXY_URL}/api/tmdb/tv/${id}`).then(r=>r.json());
             title = res.name || title;
         } else if (type === 'book') {
             const formattedId = id.startsWith('/') ? id : `/works/${id}`;
@@ -1150,9 +1141,9 @@ document.getElementById('start-lastfm-sync-btn').onclick = async () => {
     try {
         let url = '';
         if (syncType === 'top') {
-            url = `https://ws.audioscrobbler.com/2.0/?method=user.gettopalbums&user=${encodeURIComponent(username)}&api_key=${lastfmKey}&format=json&limit=${limit}`;
+            url = `${PROXY_URL}/api/lastfm?method=user.gettopalbums&user=${encodeURIComponent(username)}&limit=${limit}`;
         } else {
-            url = `https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=${encodeURIComponent(username)}&api_key=${lastfmKey}&format=json&limit=${limit}`;
+            url = `${PROXY_URL}/api/lastfm?method=user.getrecenttracks&user=${encodeURIComponent(username)}&limit=${limit}`;
         }
 
         const res = await fetch(url).then(r => r.json());
@@ -1292,7 +1283,7 @@ document.getElementById('save-bulk-logs-btn').onclick = async () => {
 
         if (isTrack) {
             try {
-                const albumRes = await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}&api_key=${lastfmKey}&format=json`).then(r => r.json());
+                const albumRes = await fetch(`${PROXY_URL}/api/lastfm?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}`).then(r => r.json());
                 
                 if (albumRes.album && albumRes.album.tracks && albumRes.album.tracks.track) {
                     const trackList = Array.isArray(albumRes.album.tracks.track) ? albumRes.album.tracks.track : [albumRes.album.tracks.track];
@@ -1609,20 +1600,15 @@ async function resolveMedia(title, year) {
     if (!title) return null;
     
     const query = encodeURIComponent(title);
-    const movieUrl = `https://api.themoviedb.org/3/search/movie?query=${query}&year=${year || ''}`;
+    const movieUrl = `${PROXY_URL}/api/tmdb/search/movie?query=${query}&year=${year || ''}`;
     
     try {
-        const res = await fetch(movieUrl, {
-            headers: { Authorization: `Bearer ${tmdbToken}` }
-        }).then(r => r.json());
+        const res = await fetch(movieUrl).then(r => r.json());
 
         if (res.results && res.results.length > 0) {
             const movieId = res.results[0].id;
             // Fetch full details to get the runtime
-            const detailUrl = `https://api.themoviedb.org/3/movie/${movieId}?api_key=`; // Bearer token in headers works better
-            const details = await fetch(`https://api.themoviedb.org/3/movie/${movieId}`, {
-                headers: { Authorization: `Bearer ${tmdbToken}` }
-            }).then(r => r.json());
+            const details = await fetch(`${PROXY_URL}/api/tmdb/movie/${movieId}`).then(r => r.json());
 
             return { 
                 id: movieId, 
@@ -1632,16 +1618,12 @@ async function resolveMedia(title, year) {
         }
         
         // Fallback for TV
-        const tvUrl = `https://api.themoviedb.org/3/search/tv?query=${query}&first_air_date_year=${year || ''}`;
-        const tvRes = await fetch(tvUrl, {
-            headers: { Authorization: `Bearer ${tmdbToken}` }
-        }).then(r => r.json());
+        const tvUrl = `${PROXY_URL}/api/tmdb/search/tv?query=${query}&first_air_date_year=${year || ''}`;
+        const tvRes = await fetch(tvUrl).then(r => r.json());
 
         if (tvRes.results && tvRes.results.length > 0) {
             const tvId = tvRes.results[0].id;
-            const details = await fetch(`https://api.themoviedb.org/3/tv/${tvId}`, {
-                headers: { Authorization: `Bearer ${tmdbToken}` }
-            }).then(r => r.json());
+            const details = await fetch(`${PROXY_URL}/api/tmdb/tv/${tvId}`).then(r => r.json());
 
             return { 
                 id: tvId, 
@@ -1707,15 +1689,13 @@ function setupFavoritesSearch() {
         }
 
         timeout = setTimeout(async () => {
-            const options = { headers: { Authorization: `Bearer ${tmdbToken}` } };
-
             try {
                 // Fetch everything in parallel
                 const [movieRes, tvRes, bookRes, albumRes] = await Promise.all([
-                    fetch(`https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(query)}`, options).then(r => r.json()),
-                    fetch(`https://api.themoviedb.org/3/search/tv?query=${encodeURIComponent(query)}`, options).then(r => r.json()),
+                    fetch(`${PROXY_URL}/api/tmdb/search/movie?query=${encodeURIComponent(query)}`).then(r => r.json()),
+                    fetch(`${PROXY_URL}/api/tmdb/search/tv?query=${encodeURIComponent(query)}`).then(r => r.json()),
                     fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=5`).then(r => r.json()),
-                    fetch(`https://ws.audioscrobbler.com/2.0/?method=album.search&album=${encodeURIComponent(query)}&api_key=${lastfmKey}&format=json`).then(r => r.json()).catch(() => null)
+                    fetch(`${PROXY_URL}/api/lastfm?method=album.search&album=${encodeURIComponent(query)}`).then(r => r.json()).catch(() => null)
                 ]);
 
                 // Clear UI once before rendering new results
