@@ -4,7 +4,7 @@ const WebSocket = require('ws');
 
 // Load configuration and environment variables
 const config = require('../config/config.json');
-require('dotenv').config({ path: path.join(__dirname, '.env') });
+require('dotenv').config({ path: path.join(__dirname, '../misc/.env') });
 
 // Initialize Supabase Client
 const supabase = createClient(config.supabase_url, process.env.SUPABASE_SERVICE_ROLE_KEY, {
