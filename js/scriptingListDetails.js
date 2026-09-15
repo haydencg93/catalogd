@@ -5,7 +5,7 @@ import { normalizeOpenLibraryId } from './core/media.js';
 const params = new URLSearchParams(window.location.search);
 const listId = params.get('id');
 let supabaseClient = null;
-let tmdbToken = "";
+let PROXY_URL = '';
 let isRanked = false;
 let isTiered = false;
 let tierColors = {};
@@ -14,7 +14,6 @@ let currentItems = [];
 let sortableInstance = null;
 let sortableInstances = [];
 let isOwner = false;
-let lastfmKey = "";
 let customImgsMap = new Map();
 
 async function initListDetails() {
@@ -24,8 +23,7 @@ async function initListDetails() {
     await customElements.whenDefined('app-header');
     await document.querySelector('app-header').initializeAuth(supabaseClient);
 
-    tmdbToken = config.tmdb_token;
-    lastfmKey = config.lastfm_key;
+    PROXY_URL = config.proxy_url;
 
     if (!listId) {
         window.location.href = 'index.html';
@@ -598,15 +596,13 @@ async function setupSearch() {
             }
         }
 
-        const tmdbRes = await fetch(`https://api.themoviedb.org/3/search/multi?query=${encodeURIComponent(query)}`, {
-            headers: { Authorization: `Bearer ${tmdbToken}` }
-        }).then(r => r.json());
+        const tmdbRes = await fetch(`${PROXY_URL}/api/tmdb/search/multi?query=${encodeURIComponent(query)}`).then(r => r.json());
 
         const bookRes = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=3`).then(r => r.json());
         
         let albumRes = { results: { albummatches: { album: [] } } };
         try {
-            albumRes = await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.search&album=${encodeURIComponent(query)}&api_key=${lastfmKey}&format=json`).then(r => r.json());
+            albumRes = await fetch(`${PROXY_URL}/api/lastfm?method=album.search&album=${encodeURIComponent(query)}`).then(r => r.json());
         } catch (e) { console.error("Last.fm search failed", e); }
 
         renderSearchResults(tmdbRes.results, bookRes.docs, albumRes);
@@ -712,23 +708,19 @@ async function fetchMediaDetails(item) {
         } else if (type === 'album') {
             const decodedId = decodeURIComponent(id);
             const [artist, albumName] = decodedId.split('|||');
-            const res = await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(albumName)}&api_key=${lastfmKey}&format=json`).then(r => r.json());
+            const res = await fetch(`${PROXY_URL}/api/lastfm?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(albumName)}`).then(r => r.json());
             return {
                 title: res.album?.name || albumName,
                 poster: res.album?.image?.[3]['#text'] || `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`
             };
         } else if (type === 'person') {
-            const res = await fetch(`https://api.themoviedb.org/3/person/${id}`, {
-                headers: { Authorization: `Bearer ${tmdbToken}` }
-            }).then(r => r.json());
+            const res = await fetch(`${PROXY_URL}/api/tmdb/person/${id}`).then(r => r.json());
             return {
                 title: res.name,
                 poster: res.profile_path ? `https://image.tmdb.org/t/p/w500${res.profile_path}` : 'https://placehold.co/500x750/1b2228/9ab?text=No+Photo'
             };
         } else {
-            const res = await fetch(`https://api.themoviedb.org/3/${type}/${id}`, {
-                headers: { Authorization: `Bearer ${tmdbToken}` }
-            }).then(r => r.json());
+            const res = await fetch(`${PROXY_URL}/api/tmdb/${type}/${id}`).then(r => r.json());
             return {
                 title: item.media_title || res.title || res.name || 'Unknown Title',
                 poster: res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : 'https://placehold.co/500x750/1b2228/9ab?text=No+Image'

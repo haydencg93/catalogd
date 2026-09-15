@@ -2,7 +2,7 @@ import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
 import { normalizeOpenLibraryId } from './core/media.js';
 
-let TMDB_TOKEN = '';
+let PROXY_URL = '';
 let supabaseClient = null;
 let configData = null;
 let userStreamingProviderIds = [];
@@ -35,7 +35,7 @@ let currentWinnerMediaId = null;
 async function initPicker() {
     try {
         configData = await loadConfig();
-        TMDB_TOKEN = configData.tmdb_token;
+        PROXY_URL = configData.proxy_url;
         supabaseClient = await getSupabaseClient();
 
         await setupHeaderAndUser();
@@ -291,7 +291,7 @@ async function fetchMediaDetails(type, id) {
 
     if (type === 'album') {
         const [artist, album] = decodeURIComponent(id).split('|||');
-        const response = await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}&api_key=${configData.lastfm_key}&format=json`);
+        const response = await fetch(`${PROXY_URL}/api/lastfm?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}`);
         const result = await response.json();
         if (!result.album || result.error) return null;
         const albumData = result.album;
@@ -305,9 +305,7 @@ async function fetchMediaDetails(type, id) {
     }
 
     const tmdbType = type === 'anime' ? 'tv' : type;
-    const details = await fetch(`https://api.themoviedb.org/3/${tmdbType}/${id}?append_to_response=watch/providers`, {
-        headers: { Authorization: `Bearer ${TMDB_TOKEN}` }
-    }).then(r => r.json()).catch(() => null);
+    const details = await fetch(`${PROXY_URL}/api/tmdb/${tmdbType}/${id}?append_to_response=watch/providers`).then(r => r.json()).catch(() => null);
     if (type === 'anime' && details && !isAnime(details)) return null;
     return details;
 }
@@ -318,7 +316,7 @@ async function getTastePool(type) {
     const tmdbType = type === 'anime' ? 'tv' : type;
     if (!currentUser) {
         // Fallback for non-logged in users: just grab trending
-        const res = await fetch(`https://api.themoviedb.org/3/trending/${tmdbType}/week`, { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } }).then(r => r.json());
+        const res = await fetch(`${PROXY_URL}/api/tmdb/trending/${tmdbType}/week`).then(r => r.json());
         return (res.results || []).filter(item => type !== 'anime' || isAnime(item)).map(i => String(i.id));
     }
 
@@ -332,13 +330,13 @@ async function getTastePool(type) {
 
     if (!highlyRated || highlyRated.length === 0) {
         // Fallback: Trending
-        const res = await fetch(`https://api.themoviedb.org/3/trending/${tmdbType}/week`, { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } }).then(r => r.json());
+        const res = await fetch(`${PROXY_URL}/api/tmdb/trending/${tmdbType}/week`).then(r => r.json());
         return (res.results || []).filter(item => type !== 'anime' || isAnime(item)).map(i => String(i.id));
     }
 
     let genreCounts = {};
     const analyzedItems = await Promise.all(highlyRated.map(item => 
-        fetch(`https://api.themoviedb.org/3/${tmdbType}/${item.media_id}`, { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } }).then(r => r.json()).catch(() => null)
+        fetch(`${PROXY_URL}/api/tmdb/${tmdbType}/${item.media_id}`).then(r => r.json()).catch(() => null)
     ));
 
     analyzedItems.forEach((res, index) => {
@@ -355,8 +353,8 @@ async function getTastePool(type) {
     for(let i = 1; i <= 3; i++) {
         const animeFilter = type === 'anime' ? '&with_genres=16&with_origin_country=JP' : '';
         const genreFilter = type === 'anime' ? '' : `&with_genres=${genreStr}`;
-        const discoverUrl = `https://api.themoviedb.org/3/discover/${tmdbType}?language=en-US&sort_by=popularity.desc&watch_region=US${genreFilter}${animeFilter}&page=${i}`;
-        const pageData = await fetch(discoverUrl, { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } }).then(r => r.json()).catch(() => ({}));
+        const discoverUrl = `${PROXY_URL}/api/tmdb/discover/${tmdbType}?language=en-US&sort_by=popularity.desc&watch_region=US${genreFilter}${animeFilter}&page=${i}`;
+        const pageData = await fetch(discoverUrl).then(r => r.json()).catch(() => ({}));
         if(pageData.results) pool.push(...pageData.results.map(item => String(item.id)));
     }
     return pool;

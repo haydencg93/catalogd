@@ -2,7 +2,8 @@ import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
 import { normalizeOpenLibraryId } from './core/media.js';
 
-let supabaseClient, tmdbToken;
+let supabaseClient;
+let PROXY_URL = '';
 
 const params = new URLSearchParams(window.location.search);
 const id = params.get('id');
@@ -19,7 +20,7 @@ let mediaReleaseYear = null;
 async function initLog() {
     const config = await loadConfig();
     supabaseClient = await getSupabaseClient();
-    tmdbToken = config.tmdb_token;
+    PROXY_URL = config.proxy_url;
     await customElements.whenDefined('app-header');
     await document.querySelector('app-header')?.initializeAuth(supabaseClient);
 
@@ -101,7 +102,7 @@ async function initLog() {
     } else if (type === 'album') {
         const decodedId = decodeURIComponent(id);
         const [artistName, albumName] = decodedId.split('|||');
-        const res = await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artistName)}&album=${encodeURIComponent(albumName)}&api_key=${config.lastfm_key}&format=json`).then(r => r.json());
+        const res = await fetch(`${PROXY_URL}/api/lastfm?method=album.getinfo&artist=${encodeURIComponent(artistName)}&album=${encodeURIComponent(albumName)}`).then(r => r.json());
         
         document.getElementById('media-title').textContent = res.album.name;
 
@@ -121,9 +122,7 @@ async function initLog() {
         
         setupAlbumDropdowns();
     } else {
-        const res = await fetch(`https://api.themoviedb.org/3/${type}/${id}`, {
-            headers: { Authorization: `Bearer ${tmdbToken}` }
-        }).then(r => r.json());
+        const res = await fetch(`${PROXY_URL}/api/tmdb/${type}/${id}`).then(r => r.json());
 
         document.getElementById('media-title').textContent = res.title || res.name;
         
@@ -265,9 +264,7 @@ function setupDropdowns(seasons) {
 async function loadEpisodeList() {
     const sNum = document.getElementById('season-select').value;
     const eSelect = document.getElementById('episode-select');
-    const res = await fetch(`https://api.themoviedb.org/3/tv/${id}/season/${sNum}`, {
-        headers: { Authorization: `Bearer ${tmdbToken}` }
-    }).then(r => r.json());
+    const res = await fetch(`${PROXY_URL}/api/tmdb/tv/${id}/season/${sNum}`).then(r => r.json());
 
     eSelect.innerHTML = res.episodes.map(e => `<option value="${e.episode_number}">E${e.episode_number}: ${e.name}</option>`).join('');
 }
@@ -487,9 +484,7 @@ async function saveLog() {
 
                 if (currentScopeValue === 'entire') {
                     // Fetch full TV details to grab total seasons and episodes
-                    const tvData = await fetch(`https://api.themoviedb.org/3/tv/${id}`, {
-                        headers: { Authorization: `Bearer ${tmdbToken}` }
-                    }).then(r => r.json());
+                    const tvData = await fetch(`${PROXY_URL}/api/tmdb/tv/${id}`).then(r => r.json());
                     
                     payload.ep_count_in_season = tvData.number_of_episodes || 0;
                     payload.season_number = null;

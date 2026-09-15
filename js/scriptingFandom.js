@@ -6,6 +6,8 @@ let mediaId = params.get('id');
 let mediaType = params.get('type');
 let supabaseClient = null;
 
+let PROXY_URL = '';
+
 let currentUser = null;
 
 // Unblockable Inline SVG Placeholders
@@ -26,6 +28,8 @@ async function initFandomPage() {
     const config = await loadConfig();
     supabaseClient = await getSupabaseClient();
     currentUser = await document.querySelector('app-header')?.initializeAuth(supabaseClient);
+
+    PROXY_URL = config.proxy_url;
 
     const urlListId = params.get('listId');
     const isCollection = (mediaType === 'collection' || !!urlListId);
@@ -64,9 +68,7 @@ async function initFandomPage() {
         let overrideTitle = null; // Store the official TMDB title
         if (mediaType === 'movie' || mediaType === 'tv') {
             try {
-                const tmdbRes = await fetch(`https://api.themoviedb.org/3/${mediaType}/${mediaId}?language=en-US`, {
-                    headers: { Authorization: `Bearer ${config.tmdb_token}` }
-                }).then(r => r.json());
+                const tmdbRes = await fetch(`${PROXY_URL}/api/tmdb/${mediaType}/${mediaId}?language=en-US`).then(r => r.json());
                 
                 if (tmdbRes.poster_path) {
                     document.getElementById('fandom-image').src = `https://image.tmdb.org/t/p/w500${tmdbRes.poster_path}`;
@@ -102,12 +104,10 @@ async function initFandomPage() {
 }
 
 // Ask TMDB to find a record by an external id (imdb_id or tvdb_id).
-async function tmdbFindByExternalId(externalId, source, mediaKind, tmdbToken) {
-    if (!externalId || !tmdbToken) return null;
+async function tmdbFindByExternalId(externalId, source, mediaKind) {
+    if (!externalId) return null;
     try {
-        const res = await fetch(`https://api.themoviedb.org/3/find/${externalId}?external_source=${source}`, {
-            headers: { Authorization: `Bearer ${tmdbToken}` }
-        }).then(r => r.json());
+        const res = await fetch(`${PROXY_URL}/api/tmdb/find/${externalId}?external_source=${source}`).then(r => r.json());
 
         if (mediaKind === 'movie' && res.movie_results && res.movie_results.length > 0) {
             return res.movie_results[0].id;
@@ -123,19 +123,11 @@ async function tmdbFindByExternalId(externalId, source, mediaKind, tmdbToken) {
 
 // Resolve a TVDB movie/series entity to its matching TMDB id, so collection cards
 // can deep-link into this app's own (TMDB-id-keyed) details pages.
-//
-// IMPORTANT: TMDB's /find endpoint only supports external_source=tvdb_id for TV/season/episode
-// lookups - it does NOT support tvdb_id for movies at all (movies on TMDB only cross-reference
-// imdb_id, wikidata_id, facebook_id, instagram_id, twitter_id). That's why movie items were
-// never linking: every /find?external_source=tvdb_id call for a movie silently returns an
-// empty movie_results array, with no error to catch. So for movies we go two hops instead:
-// pull the IMDB id off TVDB's own 'remoteIds' (only present on the /extended movie record),
-// then ask TMDB to find it via imdb_id, which movies DO support.
-async function resolveTmdbId(entData, tvdbAuthHeaders, tmdbToken) {
-    if (!tmdbToken || !entData.id) return null;
+async function resolveTmdbId(entData) {
+    if (!entData.id) return null;
 
     if (entData.__type === 'series') {
-        return await tmdbFindByExternalId(entData.id, 'tvdb_id', 'tv', tmdbToken);
+        return await tmdbFindByExternalId(entData.id, 'tvdb_id', 'tv');
     }
 
     // Movie path: make sure we have remoteIds (present if this item came from a /movies/{id}/extended
@@ -143,9 +135,7 @@ async function resolveTmdbId(entData, tvdbAuthHeaders, tmdbToken) {
     let remoteIds = entData.remoteIds;
     if (!remoteIds) {
         try {
-            const res = await fetch(`https://api4.thetvdb.com/v4/movies/${entData.id}/extended`, {
-                headers: tvdbAuthHeaders
-            }).then(r => r.json());
+            const res = await fetch(`${PROXY_URL}/api/tvdb/movies/${entData.id}/extended`).then(r => r.json());
             remoteIds = res && res.data && res.data.remoteIds;
         } catch (e) {
             console.warn(`Failed to fetch remoteIds for movie ${entData.id}`, e);
@@ -157,7 +147,7 @@ async function resolveTmdbId(entData, tvdbAuthHeaders, tmdbToken) {
         : null;
 
     if (!imdbEntry) return null;
-    return await tmdbFindByExternalId(imdbEntry.id, 'imdb_id', 'movie', tmdbToken);
+    return await tmdbFindByExternalId(imdbEntry.id, 'imdb_id', 'movie');
 }
 
 // Fetch & Render Official TVDB Lists
@@ -167,21 +157,8 @@ async function fetchListFandom(listId, config) {
     document.getElementById('fandom-plot-section').style.display = 'none';
     document.getElementById('fandom-meta').textContent = "Official Collection";
     
-    // Login to TVDB v4
-    const loginRes = await fetch('https://api4.thetvdb.com/v4/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apikey: config.tvdb_key, pin: config.tvdb_pin || "" })
-    }).then(r => r.json());
-    
-    if (!loginRes.data || !loginRes.data.token) throw new Error("TVDB auth failed");
-    const tvdbToken = loginRes.data.token;
-    const tvdbAuthHeaders = { Authorization: `Bearer ${tvdbToken}` };
-    
-    // Fetch Extended List Details
-    const listRes = await fetch(`https://api4.thetvdb.com/v4/lists/${listId}/extended`, {
-        headers: tvdbAuthHeaders
-    }).then(r => r.json());
+    // Fetch Extended List Details directly through proxy
+    const listRes = await fetch(`${PROXY_URL}/api/tvdb/lists/${listId}/extended`).then(r => r.json());
     
     if (!listRes.data) throw new Error("List not found");
     const list = listRes.data;
@@ -238,9 +215,9 @@ async function fetchListFandom(listId, config) {
             const resolved = await Promise.all(toResolve.map(async (stub) => {
                 try {
                     const endpoint = stub.type === 'movie'
-                        ? `https://api4.thetvdb.com/v4/movies/${stub.id}/extended`
-                        : `https://api4.thetvdb.com/v4/series/${stub.id}/extended`;
-                    const res = await fetch(endpoint, { headers: tvdbAuthHeaders }).then(r => r.json());
+                        ? `${PROXY_URL}/api/tvdb/movies/${stub.id}/extended`
+                        : `${PROXY_URL}/api/tvdb/series/${stub.id}/extended`;
+                    const res = await fetch(endpoint).then(r => r.json());
                     if (res && res.data) {
                         return { ...res.data, __type: stub.type };
                     }
@@ -267,20 +244,19 @@ async function fetchListFandom(listId, config) {
     if (collectionItems.length > 0) {
         await Promise.all(collectionItems.map(async (entData) => {
             entData.__linkType = entData.__type === 'series' ? 'tv' : 'movie';
-            entData.__tmdbId = await resolveTmdbId(entData, tvdbAuthHeaders, config.tmdb_token);
+            entData.__tmdbId = await resolveTmdbId(entData);
         }));
     }
 
     // If TVDB only gave us a fallback poster (or nothing at all), source a real banner from TMDB's
     // "Collection" artwork instead - a dedicated, curated saga/franchise poster that's completely
     // independent of TVDB's fallback bug - using the TMDB id of the first movie we just resolved.
-    if ((tvdbImageIsFallback || !listImage) && config.tmdb_token) {
+    if (tvdbImageIsFallback || !listImage) {
         const firstMovie = collectionItems.find(i => i.__linkType === 'movie' && i.__tmdbId);
         if (firstMovie) {
             try {
-                const movieRes = await fetch(`https://api.themoviedb.org/3/movie/${firstMovie.__tmdbId}?language=en-US`, {
-                    headers: { Authorization: `Bearer ${config.tmdb_token}` }
-                }).then(r => r.json());
+                const movieRes = await fetch(`${PROXY_URL}/api/tmdb/movie/${firstMovie.__tmdbId}?language=en-US`).then(r => r.json());
+
                 const collectionPoster = movieRes.belongs_to_collection && movieRes.belongs_to_collection.poster_path;
                 if (collectionPoster) {
                     listImage = `https://image.tmdb.org/t/p/w780${collectionPoster}`;
@@ -363,7 +339,7 @@ function scrubWikipediaHeaders(htmlString) {
                 link.setAttribute('href', `https://en.wikipedia.org${href}`);
                 link.setAttribute('target', '_blank'); 
                 link.setAttribute('rel', 'noopener noreferrer'); 
-            } 
+            }
             // Wikipedia's REST API sometimes returns paths starting with "./"
             else if (href.startsWith('./')) {
                 link.setAttribute('href', `https://en.wikipedia.org/wiki/${href.substring(2)}`);
@@ -548,20 +524,8 @@ async function fetchTVDBLists(mId, mType, config) {
     if (mType !== 'movie' && mType !== 'tv') return;
 
     try {
-        // 1. Authorize with TVDB v4
-        const loginRes = await fetch('https://api4.thetvdb.com/v4/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ apikey: config.tvdb_key, pin: config.tvdb_pin || "" })
-        }).then(r => r.json());
-        
-        if (!loginRes.data || !loginRes.data.token) return;
-        const tvdbToken = loginRes.data.token;
-        const tvdbHeaders = { Authorization: `Bearer ${tvdbToken}` };
-
-        // 2. Get External IDs from TMDB
-        const tmdbHeaders = { Authorization: `Bearer ${config.tmdb_token}` };
-        const extIds = await fetch(`https://api.themoviedb.org/3/${mType}/${mId}/external_ids`, { headers: tmdbHeaders }).then(r => r.json()).catch(() => ({}));
+        // 1. Get External IDs from TMDB
+        const extIds = await fetch(`${PROXY_URL}/api/tmdb/${mType}/${mId}/external_ids`).then(r => r.json()).catch(() => ({}));
 
         let tvdbId = null;
 
@@ -571,8 +535,9 @@ async function fetchTVDBLists(mId, mType, config) {
         }
 
         // ATTEMPT 2: Search TVDB using the IMDB ID
+        // ATTEMPT 2: Search TVDB using the IMDB ID
         if (!tvdbId && extIds.imdb_id) {
-            const imdbSearch = await fetch(`https://api4.thetvdb.com/v4/search/remoteid/${extIds.imdb_id}`, { headers: tvdbHeaders }).then(r => r.json()).catch(()=>({}));
+            const imdbSearch = await fetch(`${PROXY_URL}/api/tvdb/search/remoteid/${extIds.imdb_id}`).then(r => r.json()).catch(()=>({}));
             if (imdbSearch.data && imdbSearch.data.length > 0) {
                 // Safely extract from TVDB's nested remote ID structure
                 const item = imdbSearch.data[0];
@@ -582,7 +547,7 @@ async function fetchTVDBLists(mId, mType, config) {
 
         // ATTEMPT 3: Search TVDB natively using the TMDB ID
         if (!tvdbId) {
-            const tmdbSearch = await fetch(`https://api4.thetvdb.com/v4/search/remoteid/${mId}`, { headers: tvdbHeaders }).then(r => r.json()).catch(()=>({}));
+            const tmdbSearch = await fetch(`${PROXY_URL}/api/tvdb/search/remoteid/${mId}`).then(r => r.json()).catch(()=>({}));
             if (tmdbSearch.data && tmdbSearch.data.length > 0) {
                 // Find matching media type to avoid crossing Movie/TV wires
                 const validMatch = tmdbSearch.data.find(d => (mType === 'movie' && d.movie) || (mType === 'tv' && d.series));
@@ -600,7 +565,7 @@ async function fetchTVDBLists(mId, mType, config) {
             const titleToSearch = document.getElementById('fandom-title').textContent;
             if (titleToSearch && titleToSearch !== "Loading Wikipedia Lore...") {
                 const typeFilter = mType === 'tv' ? 'series' : 'movie';
-                const textSearch = await fetch(`https://api4.thetvdb.com/v4/search?query=${encodeURIComponent(titleToSearch)}&type=${typeFilter}`, { headers: tvdbHeaders }).then(r=>r.json()).catch(()=>({}));
+                const textSearch = await fetch(`${PROXY_URL}/api/tvdb/search?query=${encodeURIComponent(titleToSearch)}&type=${typeFilter}`).then(r=>r.json()).catch(()=>({}));
                 if (textSearch.data && textSearch.data.length > 0) {
                     tvdbId = textSearch.data[0].tvdb_id || textSearch.data[0].id;
                 }
@@ -614,7 +579,7 @@ async function fetchTVDBLists(mId, mType, config) {
 
         // 3. Fetch TVDB extended details using the resolved ID
         const endpointType = mType === 'tv' ? 'series' : 'movies';
-        const extendedRes = await fetch(`https://api4.thetvdb.com/v4/${endpointType}/${tvdbId}/extended`, { headers: tvdbHeaders }).then(r => r.json());
+        const extendedRes = await fetch(`${PROXY_URL}/api/tvdb/${endpointType}/${tvdbId}/extended`).then(r => r.json());
 
         if (extendedRes.data && extendedRes.data.lists && extendedRes.data.lists.length > 0) {
             
@@ -693,9 +658,7 @@ async function fetchStructuredCharacters(externalId, type) {
     try {
         const config = await loadConfig();
         const endpoint = type === 'tv' ? 'aggregate_credits' : 'credits';
-        const res = await fetch(`https://api.themoviedb.org/3/${type}/${externalId}/${endpoint}?language=en-US`, {
-            headers: { Authorization: `Bearer ${config.tmdb_token}` }
-        }).then(r => r.json());
+        const res = await fetch(`${PROXY_URL}/api/tmdb/${type}/${externalId}/${endpoint}?language=en-US`).then(r => r.json());
         
         if (!res.cast || res.cast.length === 0) {
             gridContainer.innerHTML = `<p class="meta">No structured character data found.</p>`;

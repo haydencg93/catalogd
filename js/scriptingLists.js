@@ -4,10 +4,10 @@ import { normalizeOpenLibraryId } from './core/media.js';
 
 let supabaseClient = null;
 
+let PROXY_URL = '';
+
 let listOwnerId = null;
 let isViewerOwner = false;
-let lastfmKey = null;
-let tmdbToken = null; 
 let customImgsMap = new Map();
 
 // NEW GLOBALS FOR FILTERING & REORDERING
@@ -18,8 +18,7 @@ let listsSortableInstance = null;
 
 async function initLists() {
     const config = await loadConfig();
-    lastfmKey = config.lastfm_key;
-    tmdbToken = config.tmdb_token;
+    PROXY_URL = config.proxy_url;
     supabaseClient = await getSupabaseClient();
     await customElements.whenDefined('app-header');
     await document.querySelector('app-header').initializeAuth(supabaseClient);
@@ -257,12 +256,10 @@ async function renderFilteredLists() {
                 } else if (item.media_type === 'album') {
                     const decodedId = decodeURIComponent(item.media_id);
                     const [artist, albumName] = decodedId.split('|||');
-                    const res = await fetch(`https://ws.audioscrobbler.com/2.0/?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(albumName)}&api_key=${lastfmKey}&format=json`).then(r => r.json());
+                    const res = await fetch(`${PROXY_URL}/api/lastfm?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(albumName)}`).then(r => r.json());
                     if (res.album?.image?.[3]['#text']) posterUrl = res.album.image[3]['#text'];
                 } else if (item.media_type === 'movie' || item.media_type === 'tv') {
-                    const res = await fetch(`https://api.themoviedb.org/3/${item.media_type}/${item.media_id}`, {
-                        headers: { Authorization: `Bearer ${tmdbToken}` }
-                    }).then(r => r.json());
+                    const res = await fetch(`${PROXY_URL}/api/tmdb/${item.media_type}/${item.media_id}`).then(r => r.json());
                     if (res.poster_path) posterUrl = `https://image.tmdb.org/t/p/w185${res.poster_path}`;
                 } else if (['character', 'author', 'artist'].includes(item.media_type) || (item.media_type === 'person' && !/^\d+$/.test(item.media_id))) {
                     posterUrl = item.custom_image_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.media_title || item.media_id)}&background=1b2228&color=9ab`;
