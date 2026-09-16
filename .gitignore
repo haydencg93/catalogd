@@ -8,3 +8,4 @@ eslint.config.mjs
 .vscode/
 .vscode/settings.json
 supabase/
+misc/
