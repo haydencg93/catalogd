@@ -41,12 +41,16 @@ jobs:
             --exclude='vibes/' \
             "$GITHUB_WORKSPACE/" "$beta_dir/"
 
+          # Use rm -f for workflow files
           rm -f \
             "$beta_dir/.github/workflows/scrape-anime.yml" \
             "$beta_dir/.github/workflows/update-stats.yml" \
             "$beta_dir/.github/workflows/nightly-vibes.yml" \
             "$beta_dir/.github/workflows/nightly-embed.yml" \
-            "$beta_dir/.github/workflows/hourly-emails.yml" \
+            "$beta_dir/.github/workflows/hourly-emails.yml"
+
+          # Use rm -rf to recursively remove the specified directories and their contents
+          rm -rf \
             "$beta_dir/animeFillerListApi/" \
             "$beta_dir/emailWorker/" \
             "$beta_dir/seederAi/" \
