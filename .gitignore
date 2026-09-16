@@ -3,4 +3,7 @@ misc/todo.md
 misc/newIdeaOffline.md
 misc/node_modules/
 misc/info.pdf
-# my-api-proxy/
+node_modules/
+eslint.config.mjs
+.vscode/
+.vscode/settings.json
