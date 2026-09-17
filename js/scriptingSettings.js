@@ -9,8 +9,6 @@ let currentUser = null;
 let currentFavs = { movie: [], tv: [], book: [], album: [], youtube: [], all: [] };
 let currentServices = { streaming: [], buying: [], listening: [], languages: [] };
 
-/* global Papa, JSZip, Sortable */
-
 // --- GLOBAL EXPORT CACHE ---
 const exportTitleCache = new Map();
 
