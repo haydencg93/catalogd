@@ -1,9 +1,9 @@
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
+import { debounce } from './core/utils.js';
 
 let favoriteInputs = [];
 let configData = null;
-let searchTimeout = null;
 let supabaseClient = null;
 let PROXY_URL = '';
 
@@ -47,83 +47,80 @@ function getUniversalId(id, type) {
 }
 
 function setupLiveSearch() {
-    searchInput.addEventListener('input', () => {
-        clearTimeout(searchTimeout);
-        const query = searchInput.value.trim();
-        
+    searchInput.addEventListener('input', debounce(async (e) => {
+        const query = e.target.value.trim();
+
         if (query.length < 3) {
             searchResults.innerHTML = '';
             searchResults.style.display = 'none';
             return;
         }
 
-        searchTimeout = setTimeout(async () => {
-            try {
-                // Fetch from TMDB and OpenLibrary
-                const [movieRes, tvRes, bookRes] = await Promise.all([
-                    fetch(`${PROXY_URL}/api/tmdb/search/movie?query=${encodeURIComponent(query)}`).then(r => r.json()),
-                    fetch(`${PROXY_URL}/api/tmdb/search/tv?query=${encodeURIComponent(query)}`).then(r => r.json()),
-                    fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=5`).then(r => r.json())
-                ]);
+        try {
+            // Fetch from TMDB and OpenLibrary
+            const [movieRes, tvRes, bookRes] = await Promise.all([
+                fetch(`${PROXY_URL}/api/tmdb/search/movie?query=${encodeURIComponent(query)}`).then(r => r.json()),
+                fetch(`${PROXY_URL}/api/tmdb/search/tv?query=${encodeURIComponent(query)}`).then(r => r.json()),
+                fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=5`).then(r => r.json())
+            ]);
 
-                searchResults.innerHTML = '';
-                searchResults.style.display = 'block';
+            searchResults.innerHTML = '';
+            searchResults.style.display = 'block';
 
-                const createSearchRow = (id, title, year, type, imageUrl, subtitle) => {
-                    const div = document.createElement('div');
-                    div.className = 'search-item-dropdown';
-                    div.style.cssText = `display: flex; align-items: center; gap: 12px; padding: 10px; cursor: pointer; border-bottom: 1px solid #2c3440;`;
-                    div.innerHTML = `
-                        <img src="${imageUrl}" style="width: 40px; height: 60px; object-fit: cover; border-radius: 4px; background: #1a1d23;" alt="cover">
-                        <div style="flex: 1;">
-                            <div style="display: flex; align-items: baseline; gap: 6px;">
-                                <strong style="font-size: 1rem;">${title}${year}</strong>
-                                <span style="opacity:0.5; font-size: 0.7rem; text-transform: uppercase;">— ${type}</span>
-                            </div>
-                            <div style="font-size: 0.75rem; color: #9ab; margin-top: 2px;">${subtitle}</div>
+            const createSearchRow = (id, title, year, type, imageUrl, subtitle) => {
+                const div = document.createElement('div');
+                div.className = 'search-item-dropdown';
+                div.style.cssText = `display: flex; align-items: center; gap: 12px; padding: 10px; cursor: pointer; border-bottom: 1px solid #2c3440;`;
+                div.innerHTML = `
+                    <img src="${imageUrl}" style="width: 40px; height: 60px; object-fit: cover; border-radius: 4px; background: #1a1d23;" alt="cover">
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: baseline; gap: 6px;">
+                            <strong style="font-size: 1rem;">${title}${year}</strong>
+                            <span style="opacity:0.5; font-size: 0.7rem; text-transform: uppercase;">— ${type}</span>
                         </div>
-                    `;
-                    div.onclick = () => {
-                        addVibeInput({ 
-                            id: id, 
-                            universalId: getUniversalId(id, type),
-                            title: title, 
-                            type: type 
-                        });
-                        searchResults.innerHTML = ''; 
-                        searchInput.value = '';
-                        searchResults.style.display = 'none';
-                    };
-                    return div;
+                        <div style="font-size: 0.75rem; color: #9ab; margin-top: 2px;">${subtitle}</div>
+                    </div>
+                `;
+                div.onclick = () => {
+                    addVibeInput({ 
+                        id: id, 
+                        universalId: getUniversalId(id, type),
+                        title: title, 
+                        type: type 
+                    });
+                    searchResults.innerHTML = ''; 
+                    searchInput.value = '';
+                    searchResults.style.display = 'none';
                 };
+                return div;
+            };
 
-                // Populate Movies
-                (movieRes.results || []).slice(0, 3).forEach(item => {
-                    const year = item.release_date ? ` (${item.release_date.split('-')[0]})` : "";
-                    const img = item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : 'https://placehold.co/92x138/1b2228/9ab?text=No+Image';
-                    searchResults.appendChild(createSearchRow(item.id, item.title, year, 'movie', img, "Movie"));
-                });
+            // Populate Movies
+            (movieRes.results || []).slice(0, 3).forEach(item => {
+                const year = item.release_date ? ` (${item.release_date.split('-')[0]})` : "";
+                const img = item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : 'https://placehold.co/92x138/1b2228/9ab?text=No+Image';
+                searchResults.appendChild(createSearchRow(item.id, item.title, year, 'movie', img, "Movie"));
+            });
 
-                // Populate TV
-                (tvRes.results || []).slice(0, 3).forEach(item => {
-                    const year = item.first_air_date ? ` (${item.first_air_date.split('-')[0]})` : "";
-                    const img = item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : 'https://placehold.co/92x138/1b2228/9ab?text=No+Image';
-                    searchResults.appendChild(createSearchRow(item.id, item.name, year, 'tv', img, "TV Show"));
-                });
+            // Populate TV
+            (tvRes.results || []).slice(0, 3).forEach(item => {
+                const year = item.first_air_date ? ` (${item.first_air_date.split('-')[0]})` : "";
+                const img = item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : 'https://placehold.co/92x138/1b2228/9ab?text=No+Image';
+                searchResults.appendChild(createSearchRow(item.id, item.name, year, 'tv', img, "TV Show"));
+            });
 
-                // Populate Books
-                (bookRes.docs || []).slice(0, 3).forEach(book => {
-                    const year = book.first_publish_year ? ` (${book.first_publish_year})` : "";
-                    const img = book.cover_i ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg` : 'https://placehold.co/92x138/1b2228/9ab?text=No+Cover';
-                    const author = book.author_name ? book.author_name[0] : "Unknown Author";
-                    searchResults.appendChild(createSearchRow(book.key, book.title, year, 'book', img, author));
-                });
+            // Populate Books
+            (bookRes.docs || []).slice(0, 3).forEach(book => {
+                const year = book.first_publish_year ? ` (${book.first_publish_year})` : "";
+                const img = book.cover_i ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg` : 'https://placehold.co/92x138/1b2228/9ab?text=No+Cover';
+                const author = book.author_name ? book.author_name[0] : "Unknown Author";
+                searchResults.appendChild(createSearchRow(book.key, book.title, year, 'book', img, author));
+            });
 
-            } catch (error) {
-                console.error("Search error:", error);
-            }
-        }, 300);
-    });
+        } catch (error) {
+            console.error("Search error:", error);
+        }
+    }, 300));
 
     // Close dropdown if clicked outside
     document.addEventListener('click', (e) => {
