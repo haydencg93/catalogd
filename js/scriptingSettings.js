@@ -9,6 +9,8 @@ let currentUser = null;
 let currentFavs = { movie: [], tv: [], book: [], album: [], youtube: [], all: [] };
 let currentServices = { streaming: [], buying: [], listening: [], languages: [] };
 
+/* global Papa, JSZip, Sortable */
+
 // --- GLOBAL EXPORT CACHE ---
 const exportTitleCache = new Map();
 
@@ -775,7 +777,7 @@ async function exportAccountSettings(zip, user, customImgMap) {
         ["Bio", profile.bio || ""],
         ["Website", profile.website_url || ""]
     ];
-    folder.file("HeaderInfo.csv", convertToCSV(headerInfo));
+    folder.file("HeaderInfo.csv", Papa.unparse(headerInfo));
 
     // Favorites
     const favsData = [["Type", "Title", "ID", "Rank", "Custom Poster", "Custom Background"]];
@@ -789,7 +791,7 @@ async function exportAccountSettings(zip, user, customImgMap) {
             }
         }
     }
-    folder.file("Favorites.csv", convertToCSV(favsData));
+    folder.file("Favorites.csv", Papa.unparse(favsData));
     addExportLog("Account Settings", "Exported profile & favorites", "success");
 }
 
@@ -802,7 +804,7 @@ async function exportListDetails(zip, user) {
         listCsv.push([l.id, l.name, l.description || "", l.is_public, l.is_ranked, l.created_at]);
     });
     
-    folder.file("List Details.csv", convertToCSV(listCsv));
+    folder.file("List Details.csv", Papa.unparse(listCsv));
     addExportLog("List Details", `Exported metadata for ${lists?.length || 0} lists`, "success");
 }
 
@@ -903,7 +905,7 @@ async function generateMediaData(folder, user, typesArray, filters, customImgMap
                 diaryCsv.push([log.media_id, title, log.rating || "", date, log.is_rewatch ? 'Yes' : 'No', tags, log.notes || "", custom.poster, custom.bg]);
             }
         }
-        folder.file("Diary.csv", convertToCSV(diaryCsv));
+        folder.file("Diary.csv", Papa.unparse(diaryCsv));
 
         // 2. WATCHLIST
         console.log(`[Export] Fetching Watchlist for ${typeLabel}`);
@@ -922,7 +924,7 @@ async function generateMediaData(folder, user, typesArray, filters, customImgMap
             const date = log.created_at ? log.created_at.split('T')[0] : "";
             wlCsv.push([log.media_id, title, date, custom.poster, custom.bg]);
         }
-        folder.file("Watchlist.csv", convertToCSV(wlCsv));
+        folder.file("Watchlist.csv", Papa.unparse(wlCsv));
 
         // 3. STATUSES
         console.log(`[Export] Fetching Statuses for ${typeLabel}`);
@@ -941,7 +943,7 @@ async function generateMediaData(folder, user, typesArray, filters, customImgMap
             const date = log.updated_at ? log.updated_at.split('T')[0] : "";
             statCsv.push([log.media_id, title, log.status, date, custom.poster, custom.bg]);
         }
-        folder.file("Statuses.csv", convertToCSV(statCsv));
+        folder.file("Statuses.csv", Papa.unparse(statCsv));
 
         addExportLog(typeLabel, `Core data exported`, "success");
     } catch (error) {
@@ -984,7 +986,7 @@ async function generateListFiles(parentFolder, user, typesArray, customImgMap, p
                 }
                 
                 const safeFileName = list.name.replace(/[/\\?%*:|"<>]/g, '-');
-                listFolder.file(`${safeFileName}.csv`, convertToCSV(listCsv));
+                listFolder.file(`${safeFileName}.csv`, Papa.unparse(listCsv));
                 addExportLog("List", `Created ${safeFileName}.csv`, "success");
             }
         }
@@ -992,17 +994,6 @@ async function generateListFiles(parentFolder, user, typesArray, customImgMap, p
         console.error(`[Export Error] generateListFiles failure:`, error);
         throw error;
     }
-}
-
-// Helper to convert array to CSV string
-function convertToCSV(rows) {
-    return rows.map(row => 
-        row.map(cell => {
-            // Safely handle null, undefined, or empty values
-            const stringCell = (cell === null || cell === undefined) ? "" : String(cell);
-            return `"${stringCell.replace(/"/g, '""')}"`;
-        }).join(",")
-    ).join("\n");
 }
 
 function addExportLog(title, message, type) {
