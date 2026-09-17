@@ -1,5 +1,6 @@
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
+import { debounce } from './core/utils.js';
 
 let PROXY_URL = '';
 let supabaseClient = null;
@@ -31,7 +32,6 @@ let languageIsoMap = {}; // Maps 'English' -> 'en'
 
 // Global Data & Pagination
 let allProviders = [];
-let searchTimeout = null;
 let currentPage = 1;
 
 // ----------------------------------------
@@ -61,16 +61,16 @@ async function initAdvSearch() {
             await loadUserPreferences(currentUser);
         }
 
-        genreSearchInput.addEventListener('input', (e) => {
+        genreSearchInput.addEventListener('input', debounce((e) => {
             const query = e.target.value.trim();
-            clearTimeout(searchTimeout);
-            
+
             if (query === '') {
                 genresSearchResults.style.display = 'none';
                 return;
             }
-            searchTimeout = setTimeout(() => fetchKeywordResults(query), 300);
-        });
+
+            fetchKeywordResults(query);
+        }, 300));
 
         // Search Execution Listeners
         findBtn.addEventListener('click', () => executeSearch(false));
