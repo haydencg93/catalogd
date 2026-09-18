@@ -1,10 +1,13 @@
+// Import necessary modules and functions
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
 import { normalizeOpenLibraryId } from './core/media.js';
 
+// Load configuration and initialize Supabase client
 let PROXY_URL = '';
 let supabaseClient = null;
 
+// Global Data & Pagination
 let allLogs = [];
 let filteredLogs = [];
 let currentPage = 1;
@@ -15,7 +18,24 @@ let diaryOwnerId = null;
 let isViewerOwner = false;
 let customImgsMap = new Map();
 let currentSortColumn = 'date';
+const albumTrackCache = {};
 
+// Header Fields
+const dateHeader = document.getElementById('th-sort-date');
+if (dateHeader) dateHeader.addEventListener('click', () => toggleSort('date'));
+
+const nameHeader = document.getElementById('th-sort-name');
+if (nameHeader) nameHeader.addEventListener('click', () => toggleSort('name'));
+
+const releasedHeader = document.getElementById('th-sort-released');
+if (releasedHeader) releasedHeader.addEventListener('click', () => toggleSort('released'));
+
+const ratingHeader = document.getElementById('th-sort-rating');
+if (ratingHeader) ratingHeader.addEventListener('click', () => toggleSort('rating'));
+
+// ----------------------------------------
+// Initizalization
+// ----------------------------------------
 async function initDiary() {
     try {
         const config = await loadConfig();
@@ -152,295 +172,9 @@ async function initDiary() {
     }
 }
 
-// --- BIND TABLE SORTING EVENTS ---
-// By assigning these directly in JS, we bypass browser policies blocking inline HTML onclicks.
-const dateHeader = document.getElementById('th-sort-date');
-if (dateHeader) dateHeader.addEventListener('click', () => toggleSort('date'));
-
-const nameHeader = document.getElementById('th-sort-name');
-if (nameHeader) nameHeader.addEventListener('click', () => toggleSort('name'));
-
-const releasedHeader = document.getElementById('th-sort-released');
-if (releasedHeader) releasedHeader.addEventListener('click', () => toggleSort('released'));
-
-const ratingHeader = document.getElementById('th-sort-rating');
-if (ratingHeader) ratingHeader.addEventListener('click', () => toggleSort('rating'));
-
-// --- FOOLPROOF SORTING LISTENER (EVENT DELEGATION) ---
-document.addEventListener('click', function(event) {
-    // 1. Check if the click happened on (or inside) a sortable header
-    const th = event.target.closest('th.sortable');
-    if (!th) return; // Ignore clicks anywhere else on the page
-
-    // 2. Identify which column was clicked using our data attribute
-    const column = th.getAttribute('data-sort');
-    if (!column) return;
-
-    console.log(`[CLICK CAPTURED] Firing sort for: ${column}`);
-    
-    // 3. Clear all other icons
-    ['date', 'name', 'released', 'rating'].forEach(col => {
-        if (col !== column) {
-            const icon = document.getElementById(`${col}-sort-icon`);
-            if (icon) icon.textContent = '';
-        }
-    });
-
-    // 4. Toggle the sort order
-    if (currentSortColumn === column) {
-        sortOrder = sortOrder === 'desc' ? 'asc' : 'desc';
-    } else {
-        currentSortColumn = column;
-        sortOrder = column === 'name' ? 'asc' : 'desc'; 
-    }
-
-    // 5. Update the correct icon
-    const iconSpan = document.getElementById(`${column}-sort-icon`);
-    if (iconSpan) iconSpan.textContent = sortOrder === 'desc' ? '↓' : '↑';
-    
-    // 6. Reset page to 1, sort the array, and redraw the table
-    currentPage = 1; 
-    
-    if (typeof window.applyCurrentSort === 'function') {
-        window.applyCurrentSort();
-    }
-    
-    loadConfig()
-        .then(c => renderDiary(c))
-        .catch(err => console.error("Config fetch failed:", err));
-});
-
-// 1. Unified Filter Logic
-window.applyFilters = async () => {
-    const searchTerm = document.getElementById('diary-search').value.toLowerCase();
-    const ratingLimit = document.getElementById('rating-filter').value;
-    const yearLimit = document.getElementById('year-filter').value;
-    const likedLimit = document.getElementById('liked-filter').value;
-    const reviewLimit = document.getElementById('review-filter').value;
-    const rewatchLimit = document.getElementById('rewatch-filter').value;
-    const tagLimit = document.getElementById('tag-filter').value;
-    
-    const config = await loadConfig();
-
-    filteredLogs = allLogs.filter(log => {
-        const matchesType = currentType === 'all' || log.media_type === currentType;
-        const matchesRating = ratingLimit === 'all' || Math.floor(log.rating) == parseInt(ratingLimit);
-        
-        const matchesLiked = likedLimit === 'all' || (likedLimit === 'liked' ? log.is_liked : !log.is_liked);
-        const matchesReview = reviewLimit === 'all' || (reviewLimit === 'reviewed' ? (log.notes && log.notes.trim() !== '') : (!log.notes || log.notes.trim() === ''));
-        const matchesRewatch = rewatchLimit === 'all' || (rewatchLimit === 'rewatch' ? log.is_rewatch : !log.is_rewatch);
-        const matchesTag = tagLimit === 'all' || (log.tags && log.tags.includes(tagLimit));
-        const matchesYear = yearLimit === 'all' || 
-            (yearLimit === 'unknown' ? (!log.release_year || isNaN(log.release_year) || log.release_year.toString().trim() === '') :
-            (yearLimit.endsWith('s') ? 
-                (log.release_year && log.release_year.toString().startsWith(yearLimit.substring(0,3))) : 
-                log.release_year == yearLimit));
-
-        // Text Search
-        const matchesSearch = searchTerm === '' || (log.media_title && log.media_title.toLowerCase().includes(searchTerm));
-
-        return matchesType && matchesRating && matchesYear && matchesLiked && matchesReview && matchesRewatch && matchesTag && matchesSearch;
-    });
-
-    applyCurrentSort();
-
-    currentPage = 1;
-    await renderDiary(config); 
-    updateStatsDisplay(config);
-};
-
-function applyCurrentSort() {
-    console.log(`[APPLY SORT] Sorting ${filteredLogs.length} items by ${currentSortColumn} in ${sortOrder} order.`);
-    
-    filteredLogs.sort((a, b) => {
-        let valA, valB;
-        
-        if (currentSortColumn === 'date') {
-            valA = a.watched_on ? new Date(a.watched_on).getTime() : 0;
-            valB = b.watched_on ? new Date(b.watched_on).getTime() : 0;
-        } else if (currentSortColumn === 'name') {
-            valA = (a.media_title || '').toString().toLowerCase();
-            valB = (b.media_title || '').toString().toLowerCase();
-        } else if (currentSortColumn === 'released') {
-            valA = parseInt(a.release_year);
-            valB = parseInt(b.release_year);
-        } else if (currentSortColumn === 'rating') {
-            valA = parseFloat(a.rating) || 0;
-            valB = parseFloat(b.rating) || 0;
-        }
-
-        // Safety fallback: Treat NaN values as 0 so sort doesn't crash
-        if (typeof valA === 'number' && isNaN(valA)) valA = 0;
-        if (typeof valB === 'number' && isNaN(valB)) valB = 0;
-
-        // Secondary fallback to Date
-        if (valA === valB) {
-            const tA = a.watched_on ? new Date(a.watched_on).getTime() : 0;
-            const tB = b.watched_on ? new Date(b.watched_on).getTime() : 0;
-            const safeTA = isNaN(tA) ? 0 : tA;
-            const safeTB = isNaN(tB) ? 0 : tB;
-
-            if (safeTA === safeTB) {
-                const cA = new Date(a.created_at).getTime();
-                const cB = new Date(b.created_at).getTime();
-                const diff = (isNaN(cB) ? 0 : cB) - (isNaN(cA) ? 0 : cA);
-                // Respect the asc/desc toggle even on the tie-breaker
-                return sortOrder === 'desc' ? diff : -diff; 
-            }
-            
-            const diff2 = safeTB - safeTA;
-            // Respect the asc/desc toggle even on the tie-breaker
-            return sortOrder === 'desc' ? diff2 : -diff2; 
-        }
-
-        if (valA < valB) return sortOrder === 'desc' ? 1 : -1;
-        if (valA > valB) return sortOrder === 'desc' ? -1 : 1;
-        return 0;
-    });
-}
-
-const albumTrackCache = {};
-
-async function updateStatsDisplay(config) {
-    const totalLogs = filteredLogs.length;
-    const totalRatingSum = filteredLogs.reduce((acc, log) => acc + (log.rating || 0), 0);
-    const avgRating = totalLogs > 0 ? (totalRatingSum / totalLogs).toFixed(1) : "0.0";
-    const totalMovies = filteredLogs.filter(l => l.media_type === 'movie').length;
-    const totalBooks = filteredLogs.filter(l => l.media_type === 'book' && l.is_finished === true).length;
-    
-    // Split Albums and Songs
-    const albumLogs = filteredLogs.filter(l => l.media_type === 'album' && !l.episode_number);
-    const songLogs = filteredLogs.filter(l => l.media_type === 'album' && l.episode_number);
-    const totalAlbums = albumLogs.length; 
-
-    const totalYoutube = filteredLogs.filter(l => l.media_type === 'youtube').length;
-    const uniqueSeries = filteredLogs.filter(l => l.media_type === 'tv' && (l.log_level === 'entire' || (!l.season_number && !l.episode_number))).length;
-    const totalSeasons = filteredLogs.filter(l => l.media_type === 'tv' && l.season_number && !l.episode_number).length;
-    const directEpisodes = filteredLogs.filter(l => l.episode_number && l.media_type === 'tv').length;
-    const episodesInSeasons = filteredLogs.reduce((acc, l) => acc + (l.ep_count_in_season || 0), 0);
-    const totalEpisodes = directEpisodes + episodesInSeasons;
-    const totalMinutes = filteredLogs.reduce((acc, log) => acc + (log.runtime || 0), 0);
-
-    const d = Math.floor(totalMinutes / 1440);
-    const h = Math.floor((totalMinutes % 1440) / 60);
-    const m = totalMinutes % 60;
-
-    document.getElementById('total-logs').textContent = totalLogs;
-    document.getElementById('avg-rating').textContent = avgRating;
-    document.getElementById('total-movies').textContent = totalMovies;
-    document.getElementById('total-series').textContent = uniqueSeries;
-    document.getElementById('total-books').textContent = totalBooks;
-    
-    const albumStat = document.getElementById('total-albums');
-    if (albumStat) albumStat.textContent = totalAlbums; 
-    
-    const ytStat = document.getElementById('total-youtube');
-    if (ytStat) ytStat.textContent = totalYoutube;
-    
-    const timeElement = document.getElementById('total-time');
-    if (timeElement) timeElement.textContent = `${d}d ${h}h ${m}m`;
-
-    // --- NEW: ASYNC SONG CALCULATION ---
-    const songStat = document.getElementById('total-songs');
-    if (songStat) {
-        songStat.textContent = "..."; // Show a loading state briefly
-        
-        let totalSongs = songLogs.length; // Start with individually logged tracks
-        
-        // Asynchronously fetch the track counts for full albums
-        for (const log of albumLogs) {
-            if (albumTrackCache[log.media_id]) {
-                totalSongs += albumTrackCache[log.media_id];
-            } else {
-                try {
-                    const decodedId = decodeURIComponent(log.media_id);
-                    const [artistName, albumName] = decodedId.split('|||');
-                    const res = await fetch(`${PROXY_URL}/api/lastfm?method=album.getinfo&artist=${encodeURIComponent(artistName)}&album=${encodeURIComponent(albumName)}`).then(r => r.json());
-                    const trackCount = res.album?.tracks?.track?.length || 0;
-                    albumTrackCache[log.media_id] = trackCount;
-                    totalSongs += trackCount;
-                } catch (e) {
-                    console.error("Failed to fetch track count for", log.media_id);
-                }
-            }
-        }
-        songStat.textContent = totalSongs;
-    }
-}
-
-// 2. Type Switcher (All/Movie/TV/Book)
-window.filterType = (type) => {
-    currentType = type;
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.classList.remove('active');
-        if (btn.id === `btn-${type}`) btn.classList.add('active');
-    });
-    applyFilters();
-};
-
-// 3. Date Sorting Logic
-window.toggleSort = (column) => {
-    if (column === 'date') {
-        sortOrder = sortOrder === 'desc' ? 'asc' : 'desc';
-        document.getElementById('date-sort-icon').textContent = sortOrder === 'desc' ? '↓' : '↑';
-        
-        filteredLogs.sort((a, b) => {
-            const dateA = new Date(a.watched_on || 0);
-            const dateB = new Date(b.watched_on || 0);
-            if (dateA.getTime() === dateB.getTime()) {
-                const createA = new Date(a.created_at);
-                const createB = new Date(b.created_at);
-                return sortOrder === 'desc' ? createB - createA : createA - createB;
-            }
-            return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
-        });
-
-        loadConfig().then(c => renderDiary(c));
-    }
-};
-
-async function renderDiary(config, append = false) {
-    const tbody = document.getElementById('diary-body');
-    const loadMoreContainer = document.getElementById('load-more-container');
-    const searchTerm = document.getElementById('diary-search').value.toLowerCase();
-    
-    if (!append) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center">Loading...</td></tr>';
-        currentPage = 1;
-    }
-
-    const start = (currentPage - 1) * PAGE_SIZE;
-    const end = start + PAGE_SIZE;
-    let pageItems = filteredLogs.slice(start, end);
-
-    try {
-        const rowPromises = pageItems.map(log => fetchAndFormatRow(log, config));
-        const rows = await Promise.all(rowPromises);
-
-        let html = '';
-        for (const rowHtml of rows) {
-            if (!rowHtml) continue;
-            if (searchTerm.trim() !== "") {
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = rowHtml;
-                if (!tempDiv.textContent.toLowerCase().includes(searchTerm)) continue;
-            }
-            html += rowHtml;
-        }
-
-        if (!append) {
-            tbody.innerHTML = html || '<tr><td colspan="6" style="text-align:center">No matches found.</td></tr>';
-        } else {
-            tbody.innerHTML += html;
-        }
-
-        loadMoreContainer.style.display = end < filteredLogs.length ? 'block' : 'none';
-    } catch (err) {
-        console.error("Render error:", err);
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: red;">Error loading data.</td></tr>';
-    }
-}
-
+// ----------------------------------------
+// Data Fetching & Integration
+// ----------------------------------------
 async function fetchAndFormatRow(log, config) { 
     try {
         let title, year, image, displayTitle;
@@ -577,6 +311,290 @@ function setupLoadMore(config) {
     }
 }
 
+// ----------------------------------------
+// Business Logic & Filtering
+// ----------------------------------------
+window.applyFilters = async () => {
+    const searchTerm = document.getElementById('diary-search').value.toLowerCase();
+    const ratingLimit = document.getElementById('rating-filter').value;
+    const yearLimit = document.getElementById('year-filter').value;
+    const likedLimit = document.getElementById('liked-filter').value;
+    const reviewLimit = document.getElementById('review-filter').value;
+    const rewatchLimit = document.getElementById('rewatch-filter').value;
+    const tagLimit = document.getElementById('tag-filter').value;
+    
+    const config = await loadConfig();
+
+    filteredLogs = allLogs.filter(log => {
+        const matchesType = currentType === 'all' || log.media_type === currentType;
+        const matchesRating = ratingLimit === 'all' || Math.floor(log.rating) == parseInt(ratingLimit);
+        
+        const matchesLiked = likedLimit === 'all' || (likedLimit === 'liked' ? log.is_liked : !log.is_liked);
+        const matchesReview = reviewLimit === 'all' || (reviewLimit === 'reviewed' ? (log.notes && log.notes.trim() !== '') : (!log.notes || log.notes.trim() === ''));
+        const matchesRewatch = rewatchLimit === 'all' || (rewatchLimit === 'rewatch' ? log.is_rewatch : !log.is_rewatch);
+        const matchesTag = tagLimit === 'all' || (log.tags && log.tags.includes(tagLimit));
+        const matchesYear = yearLimit === 'all' || 
+            (yearLimit === 'unknown' ? (!log.release_year || isNaN(log.release_year) || log.release_year.toString().trim() === '') :
+            (yearLimit.endsWith('s') ? 
+                (log.release_year && log.release_year.toString().startsWith(yearLimit.substring(0,3))) : 
+                log.release_year == yearLimit));
+
+        // Text Search
+        const matchesSearch = searchTerm === '' || (log.media_title && log.media_title.toLowerCase().includes(searchTerm));
+
+        return matchesType && matchesRating && matchesYear && matchesLiked && matchesReview && matchesRewatch && matchesTag && matchesSearch;
+    });
+
+    applyCurrentSort();
+
+    currentPage = 1;
+    await renderDiary(config); 
+    updateStatsDisplay(config);
+};
+
+function applyCurrentSort() {
+    console.log(`[APPLY SORT] Sorting ${filteredLogs.length} items by ${currentSortColumn} in ${sortOrder} order.`);
+    
+    filteredLogs.sort((a, b) => {
+        let valA, valB;
+        
+        if (currentSortColumn === 'date') {
+            valA = a.watched_on ? new Date(a.watched_on).getTime() : 0;
+            valB = b.watched_on ? new Date(b.watched_on).getTime() : 0;
+        } else if (currentSortColumn === 'name') {
+            valA = (a.media_title || '').toString().toLowerCase();
+            valB = (b.media_title || '').toString().toLowerCase();
+        } else if (currentSortColumn === 'released') {
+            valA = parseInt(a.release_year);
+            valB = parseInt(b.release_year);
+        } else if (currentSortColumn === 'rating') {
+            valA = parseFloat(a.rating) || 0;
+            valB = parseFloat(b.rating) || 0;
+        }
+
+        // Safety fallback: Treat NaN values as 0 so sort doesn't crash
+        if (typeof valA === 'number' && isNaN(valA)) valA = 0;
+        if (typeof valB === 'number' && isNaN(valB)) valB = 0;
+
+        // Secondary fallback to Date
+        if (valA === valB) {
+            const tA = a.watched_on ? new Date(a.watched_on).getTime() : 0;
+            const tB = b.watched_on ? new Date(b.watched_on).getTime() : 0;
+            const safeTA = isNaN(tA) ? 0 : tA;
+            const safeTB = isNaN(tB) ? 0 : tB;
+
+            if (safeTA === safeTB) {
+                const cA = new Date(a.created_at).getTime();
+                const cB = new Date(b.created_at).getTime();
+                const diff = (isNaN(cB) ? 0 : cB) - (isNaN(cA) ? 0 : cA);
+                // Respect the asc/desc toggle even on the tie-breaker
+                return sortOrder === 'desc' ? diff : -diff; 
+            }
+            
+            const diff2 = safeTB - safeTA;
+            // Respect the asc/desc toggle even on the tie-breaker
+            return sortOrder === 'desc' ? diff2 : -diff2; 
+        }
+
+        if (valA < valB) return sortOrder === 'desc' ? 1 : -1;
+        if (valA > valB) return sortOrder === 'desc' ? -1 : 1;
+        return 0;
+    });
+}
+
+
+async function updateStatsDisplay(config) {
+    const totalLogs = filteredLogs.length;
+    const totalRatingSum = filteredLogs.reduce((acc, log) => acc + (log.rating || 0), 0);
+    const avgRating = totalLogs > 0 ? (totalRatingSum / totalLogs).toFixed(1) : "0.0";
+    const totalMovies = filteredLogs.filter(l => l.media_type === 'movie').length;
+    const totalBooks = filteredLogs.filter(l => l.media_type === 'book' && l.is_finished === true).length;
+    
+    // Split Albums and Songs
+    const albumLogs = filteredLogs.filter(l => l.media_type === 'album' && !l.episode_number);
+    const songLogs = filteredLogs.filter(l => l.media_type === 'album' && l.episode_number);
+    const totalAlbums = albumLogs.length; 
+
+    const totalYoutube = filteredLogs.filter(l => l.media_type === 'youtube').length;
+    const uniqueSeries = filteredLogs.filter(l => l.media_type === 'tv' && (l.log_level === 'entire' || (!l.season_number && !l.episode_number))).length;
+    const totalSeasons = filteredLogs.filter(l => l.media_type === 'tv' && l.season_number && !l.episode_number).length;
+    const directEpisodes = filteredLogs.filter(l => l.episode_number && l.media_type === 'tv').length;
+    const episodesInSeasons = filteredLogs.reduce((acc, l) => acc + (l.ep_count_in_season || 0), 0);
+    const totalEpisodes = directEpisodes + episodesInSeasons;
+    const totalMinutes = filteredLogs.reduce((acc, log) => acc + (log.runtime || 0), 0);
+
+    const d = Math.floor(totalMinutes / 1440);
+    const h = Math.floor((totalMinutes % 1440) / 60);
+    const m = totalMinutes % 60;
+
+    document.getElementById('total-logs').textContent = totalLogs;
+    document.getElementById('avg-rating').textContent = avgRating;
+    document.getElementById('total-movies').textContent = totalMovies;
+    document.getElementById('total-series').textContent = uniqueSeries;
+    document.getElementById('total-books').textContent = totalBooks;
+    
+    const albumStat = document.getElementById('total-albums');
+    if (albumStat) albumStat.textContent = totalAlbums; 
+    
+    const ytStat = document.getElementById('total-youtube');
+    if (ytStat) ytStat.textContent = totalYoutube;
+    
+    const timeElement = document.getElementById('total-time');
+    if (timeElement) timeElement.textContent = `${d}d ${h}h ${m}m`;
+
+    // ASYNC SONG CALCULATION
+    const songStat = document.getElementById('total-songs');
+    if (songStat) {
+        songStat.textContent = "..."; // Show a loading state briefly
+        
+        let totalSongs = songLogs.length; // Start with individually logged tracks
+        
+        // Asynchronously fetch the track counts for full albums
+        for (const log of albumLogs) {
+            if (albumTrackCache[log.media_id]) {
+                totalSongs += albumTrackCache[log.media_id];
+            } else {
+                try {
+                    const decodedId = decodeURIComponent(log.media_id);
+                    const [artistName, albumName] = decodedId.split('|||');
+                    const res = await fetch(`${PROXY_URL}/api/lastfm?method=album.getinfo&artist=${encodeURIComponent(artistName)}&album=${encodeURIComponent(albumName)}`).then(r => r.json());
+                    const trackCount = res.album?.tracks?.track?.length || 0;
+                    albumTrackCache[log.media_id] = trackCount;
+                    totalSongs += trackCount;
+                } catch (e) {
+                    console.error("Failed to fetch track count for", log.media_id);
+                }
+            }
+        }
+        songStat.textContent = totalSongs;
+    }
+}
+
+// ----------------------------------------
+// UI Rendering
+// ----------------------------------------
+async function renderDiary(config, append = false) {
+    const tbody = document.getElementById('diary-body');
+    const loadMoreContainer = document.getElementById('load-more-container');
+    const searchTerm = document.getElementById('diary-search').value.toLowerCase();
+    
+    if (!append) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center">Loading...</td></tr>';
+        currentPage = 1;
+    }
+
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const end = start + PAGE_SIZE;
+    let pageItems = filteredLogs.slice(start, end);
+
+    try {
+        const rowPromises = pageItems.map(log => fetchAndFormatRow(log, config));
+        const rows = await Promise.all(rowPromises);
+
+        let html = '';
+        for (const rowHtml of rows) {
+            if (!rowHtml) continue;
+            if (searchTerm.trim() !== "") {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = rowHtml;
+                if (!tempDiv.textContent.toLowerCase().includes(searchTerm)) continue;
+            }
+            html += rowHtml;
+        }
+
+        if (!append) {
+            tbody.innerHTML = html || '<tr><td colspan="6" style="text-align:center">No matches found.</td></tr>';
+        } else {
+            tbody.innerHTML += html;
+        }
+
+        loadMoreContainer.style.display = end < filteredLogs.length ? 'block' : 'none';
+    } catch (err) {
+        console.error("Render error:", err);
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: red;">Error loading data.</td></tr>';
+    }
+}
+
+
+// ----------------------------------------
+// Event Delegation
+// ----------------------------------------
+// Sorting Listener
+document.addEventListener('click', function(event) {
+    // 1. Check if the click happened on (or inside) a sortable header
+    const th = event.target.closest('th.sortable');
+    if (!th) return; // Ignore clicks anywhere else on the page
+
+    // 2. Identify which column was clicked using our data attribute
+    const column = th.getAttribute('data-sort');
+    if (!column) return;
+
+    console.log(`[CLICK CAPTURED] Firing sort for: ${column}`);
+    
+    // 3. Clear all other icons
+    ['date', 'name', 'released', 'rating'].forEach(col => {
+        if (col !== column) {
+            const icon = document.getElementById(`${col}-sort-icon`);
+            if (icon) icon.textContent = '';
+        }
+    });
+
+    // 4. Toggle the sort order
+    if (currentSortColumn === column) {
+        sortOrder = sortOrder === 'desc' ? 'asc' : 'desc';
+    } else {
+        currentSortColumn = column;
+        sortOrder = column === 'name' ? 'asc' : 'desc'; 
+    }
+
+    // 5. Update the correct icon
+    const iconSpan = document.getElementById(`${column}-sort-icon`);
+    if (iconSpan) iconSpan.textContent = sortOrder === 'desc' ? '↓' : '↑';
+    
+    // 6. Reset page to 1, sort the array, and redraw the table
+    currentPage = 1; 
+    
+    if (typeof window.applyCurrentSort === 'function') {
+        window.applyCurrentSort();
+    }
+    
+    loadConfig()
+        .then(c => renderDiary(c))
+        .catch(err => console.error("Config fetch failed:", err));
+});
+
+// Type Swicther
+window.filterType = (type) => {
+    currentType = type;
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.id === `btn-${type}`) btn.classList.add('active');
+    });
+    applyFilters();
+};
+
+// Date Sorting Logic
+window.toggleSort = (column) => {
+    if (column === 'date') {
+        sortOrder = sortOrder === 'desc' ? 'asc' : 'desc';
+        document.getElementById('date-sort-icon').textContent = sortOrder === 'desc' ? '↓' : '↑';
+        
+        filteredLogs.sort((a, b) => {
+            const dateA = new Date(a.watched_on || 0);
+            const dateB = new Date(b.watched_on || 0);
+            if (dateA.getTime() === dateB.getTime()) {
+                const createA = new Date(a.created_at);
+                const createB = new Date(b.created_at);
+                return sortOrder === 'desc' ? createB - createA : createA - createB;
+            }
+            return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+        });
+
+        loadConfig().then(c => renderDiary(c));
+    }
+};
+
+// Review Modal
 window.showReviewModal = (title, notes) => {
     const modal = document.getElementById('review-modal');
     document.getElementById('modal-title').textContent = `Review: ${title}`;
@@ -584,7 +602,7 @@ window.showReviewModal = (title, notes) => {
     modal.style.display = 'block';
 };
 
-// Close modal logic
+// Closing of Modal 
 document.querySelector('.close-modal').onclick = () => {
     document.getElementById('review-modal').style.display = 'none';
 };
@@ -603,6 +621,7 @@ document.addEventListener('click', (event) => {
     const deleteTarget = event.target.closest('[data-delete-diary]');
     if (deleteTarget) window.deleteDiaryEntry(decodeURIComponent(deleteTarget.dataset.deleteDiary));
 });
+
 document.addEventListener('error', (event) => {
     const image = event.target;
     if (image instanceof HTMLImageElement && image.dataset.fallback) {
@@ -627,17 +646,23 @@ window.onclick = (event) => {
     }
 };
 
-document.getElementById('diary-search')?.addEventListener('input', () => applyFilters());
+document.getElementById('diary-search')?.addEventListener('input', () => 
+    applyFilters());
+
 document.querySelectorAll('#advanced-filters select').forEach((select) => {
-    select.addEventListener('change', () => applyFilters());
+    select.addEventListener('change', () => 
+        applyFilters());
 });
+
 document.getElementById('toggle-filters-btn')?.addEventListener('click', () => {
     document.getElementById('advanced-filters')?.classList.toggle('show');
 });
+
 document.querySelectorAll('[data-diary-type]').forEach((button) => {
     button.addEventListener('click', () => window.filterType(button.dataset.diaryType));
 });
 
+// Delete Diary Entry
 window.deleteDiaryEntry = async (logId) => {
     if (!confirm("Are you sure you want to delete this entry from your diary?")) return;
 
