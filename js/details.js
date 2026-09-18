@@ -2628,15 +2628,11 @@ window.expandTranslations = function() {
     ).join('');
 };
 
-
-
 window.deleteLog = async (logId) => {
     if (!confirm("Delete this log?")) return;
     await supabaseClient.from('media_logs').delete().eq('id', logId);
     document.getElementById(`log-${logId}`)?.remove();
 };
-
-
 
 window.toggleListItem = async (listId, mediaId, mediaType, btnElement) => {
     // Determine if we are adding or removing based on the button's current text
