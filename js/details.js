@@ -1,34 +1,26 @@
+// Import necessary modules and functions
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
 import { normalizeOpenLibraryId } from './core/media.js';
 
+// Global vars
 let PROXY_URL = '';
 const params = new URLSearchParams(window.location.search);
-const id = params.get('id');
-const type = params.get('type');
 let supabaseClient = null;
 let globalData = null;
 let tvmazeEpisodesMap = {};
 let fullCastData = [];
 let fullCrewData = [];
 let directorData = null;
+let allLogsData = [];
 
-function buildYoutubeFallbackData(id) {
-    const youtubeId = String(id || '').trim();
-    const hasValidId = /^[A-Za-z0-9_-]{11}$/.test(youtubeId);
+// 
+const id = params.get('id');
+const type = params.get('type');
 
-    return {
-        title: 'Unknown YouTube video',
-        overview: 'This video is unavailable, deleted, or no longer accessible. The YouTube metadata for it could not be loaded.',
-        poster_path: 'https://placehold.co/500x750/1b2228/ff0000?text=YouTube',
-        meta: 'YouTube Video',
-        author_name: 'Unknown Channel',
-        isUnavailable: true,
-        youtubeId: youtubeId,
-        isValidId: hasValidId
-    };
-}
-
+// ----------------------------------------
+// Initialization
+// ----------------------------------------
 async function initDetails() {
     try {
         const config = await loadConfig();
@@ -603,6 +595,384 @@ async function initDetails() {
     }
 }
 
+// ----------------------------------------
+// Primary Data Fetching
+// ----------------------------------------
+// Rendering Logic
+function renderLogs(logsToRender) {
+    const historyList = document.getElementById('history-list');
+    
+    historyList.innerHTML = logsToRender.map(log => {
+        // Use the new centralized helper function
+        const label = getLogScopeLabel(log);
+
+        let rewatchText = 'Rewatch';
+        let actionVerb = 'Watched';
+        
+        if (type === 'book') {
+            rewatchText = 'Reread';
+            actionVerb = 'Read';
+        } else if (type === 'album') {
+            rewatchText = 'Relisten';
+            actionVerb = 'Listened';
+        }
+        
+        const heartBadge = log.is_liked ? `<span title="Liked" style="display: flex; align-items: center;">❤️</span>` : '';
+        const rewatchBadge = log.is_rewatch ? 
+            `<span title="${rewatchText}" style="font-size: 0.85rem; display: flex; align-items: center;">🔁</span>` 
+            : '';
+            
+        const badgeRow = (log.is_liked || log.is_rewatch) ? 
+            `<div style="display: flex; gap: 10px; margin-top: 6px; margin-bottom: 2px;">
+                ${heartBadge}
+                ${rewatchBadge}
+            </div>` : '';
+        
+        const stars = '★'.repeat(Math.floor(log.rating)) + (log.rating % 1 !== 0 ? '½' : '');
+
+        const targetDate = log.watched_on ? log.watched_on : log.created_at.split('T')[0];
+        const logDate = new Date(targetDate + 'T00:00:00').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+
+        const reviewPreview = log.notes ? `<div class="history-notes">"${log.notes}"</div>` : '';
+        
+        const tagsHtml = (log.tags && log.tags.length > 0) ? 
+            `<div class="log-tags-container">
+                ${log.tags.map(tag => `<span class="log-tag-pill">${tag}</span>`).join('')}
+            </div>` : '';
+
+        return `
+            <div class="history-item" id="log-${log.id}">
+                <div class="history-header">
+                    <span class="history-label" style="margin: 0; padding-right: 15px;">${label}</span>
+                    <div style="display: flex; gap: 12px; align-items: center;">
+                        <span class="history-stars">${stars}</span>
+                        <span data-details-route="log.html?id=${encodeURIComponent(id)}&type=${encodeURIComponent(type)}&logId=${encodeURIComponent(log.id)}"
+                              style="cursor:pointer; font-size: 0.8rem;" title="Edit Log">✏️</span>
+                        <span data-delete-log="${encodeURIComponent(log.id)}"
+                              style="cursor:pointer; color:#ff4d4d; font-size: 0.8rem;" title="Delete Log">🗑️</span>
+                    </div>
+                </div>
+                ${badgeRow}
+                <div class="history-date">${actionVerb} on ${logDate}</div>
+                ${reviewPreview}
+                ${tagsHtml}
+            </div>
+        `;
+    }).join('');
+}
+
+function renderMainPageCast() {
+    const castList = document.getElementById('cast-list');
+    const castSection = document.getElementById('cast-section');
+    let finalDisplayList = [];
+
+    // 1. Add Director First
+    if (directorData) {
+        finalDisplayList.push({
+            ...directorData,
+            isDirector: true
+        });
+    }
+
+    // 2. Render Top 11
+    const castToShow = fullCastData.slice(0, 11);
+    castToShow.forEach(actor => finalDisplayList.push(actor));
+
+    castList.innerHTML = finalDisplayList.map(person => `
+        <div class="cast-card ${person.isDirector ? 'director-highlight' : ''}" 
+             data-details-route="cast.html?personId=${encodeURIComponent(person.id)}">
+            <img src="${person.profile_path ? 'https://image.tmdb.org/t/p/w185' + person.profile_path : 'https://via.placeholder.com/185x278?text=No+Photo'}" alt="${person.name}">
+            <div class="cast-info">
+                <span class="cast-name">${person.name}</span>
+                <span class="cast-role">${person.displayRole} ${person.isDirector ? '🎬' : ''}</span>
+                ${person.epCountStr ? `<span style="display:block; font-size: 0.75rem; color: var(--accent); margin-top: 2px;">${person.epCountStr}</span>` : ''}
+            </div>
+        </div>
+    `).join('');
+
+    // 3. Add Modal Trigger Button
+    let viewAllBtn = document.getElementById('view-all-cast-btn');
+    if (!viewAllBtn && (fullCastData.length > 11 || fullCrewData.length > 1)) {
+        viewAllBtn = document.createElement('button');
+        viewAllBtn.id = 'view-all-cast-btn';
+        viewAllBtn.textContent = 'View Full Cast & Crew';
+        viewAllBtn.style.cssText = `
+            background: rgba(255, 255, 255, 0.05); border: 1px solid #2c3440;
+            color: #9ab; padding: 12px; border-radius: 8px; cursor: pointer;
+            transition: all 0.2s ease; width: 100%; margin-top: 20px; font-weight: bold; font-size: 0.9rem;
+        `;
+        
+        viewAllBtn.onmouseover = () => {
+            viewAllBtn.style.color = '#fff'; viewAllBtn.style.background = 'rgba(255, 255, 255, 0.1)'; viewAllBtn.style.borderColor = 'var(--accent)';
+        };
+        viewAllBtn.onmouseout = () => {
+            viewAllBtn.style.color = '#9ab'; viewAllBtn.style.background = 'rgba(255, 255, 255, 0.05)'; viewAllBtn.style.borderColor = '#2c3440';
+        };
+
+        viewAllBtn.onclick = () => openCastModal();
+        castSection.appendChild(viewAllBtn);
+    }
+}
+
+async function loadEpisodes(config, seriesId, seasonNum, tvmazeId) {
+    const list = document.getElementById('episode-list');
+    list.innerHTML = 'Loading episodes...';
+    tvmazeEpisodesMap = {}; // Reset local cache frame
+    
+    try {
+        const response = await fetch(`${PROXY_URL}/api/tmdb/tv/${seriesId}/season/${seasonNum}?language=en-US`);
+        const res = await response.json();
+
+        // Populate TVMaze episode data cache framework asynchronously
+        if (tvmazeId) {
+            try {
+                const tvmazeEps = await fetch(`https://api.tvmaze.com/shows/${tvmazeId}/episodes?special=1`).then(r => r.json());
+                tvmazeEps.forEach(ep => {
+                    if (String(ep.season) === String(seasonNum)) {
+                        tvmazeEpisodesMap[String(ep.number)] = ep;
+                    }
+                });
+            } catch(e) { console.warn("Failed caching TVMaze episode metadata structures.", e); }
+        }
+
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        let watchedSet = new Set();
+        if (user) {
+            const { data: watched } = await supabaseClient.from('episode_logs')
+                .select('episode_number').eq('series_id', String(seriesId)).eq('season_number', seasonNum).eq('user_id', user.id);
+            if (watched) watchedSet = new Set(watched.map(w => w.episode_number));
+        }
+
+        list.innerHTML = res.episodes.map(ep => `
+            <div class="episode-item" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px;">
+                <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0;">
+                    <input type="checkbox" id="ep-${ep.episode_number}" ${watchedSet.has(ep.episode_number) ? 'checked' : ''} 
+                        data-toggle-episode="${encodeURIComponent(seriesId)}" data-season-number="${seasonNum}" data-episode-number="${ep.episode_number}">
+                    <label style="cursor: pointer; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" 
+                           data-open-episode="${encodeURIComponent(ep.name || 'Untitled')}" data-episode-number="${ep.episode_number}" data-season-number="${seasonNum}">
+                        E${ep.episode_number}: <span style="text-decoration: underline; color: var(--accent);">${ep.name || 'Untitled'}</span>
+                    </label>
+                </div>
+            </div>
+        `).join('');
+        updateUnifiedProgress(watchedSet.size, res.episodes.length, "episodes watched");
+    } catch (err) { 
+        console.error("Episode load error:", err);
+        list.innerHTML = "<p class='meta'>Error loading episodes.</p>"; 
+    }
+}
+
+// ----------------------------------------
+// Secondary Feature Fetching
+// ----------------------------------------
+async function fetchWatchProviders(config) {
+    if (type === 'book') return; 
+    
+    try {
+        const res = await fetch(`${PROXY_URL}/api/tmdb/${type}/${id}/watch/providers`).then(r => r.json());
+        
+        const results = res.results?.US || {};
+        
+        // Grab ALL possible monetization arrays from TMDB to ensure maximum library depth
+        const flatrate = results.flatrate || [];
+        const free = results.free || [];
+        const ads = results.ads || [];
+        const buy = results.buy || [];
+        const rent = results.rent || [];
+
+        // 1. Compile the "FREE TO WATCH" category (AVOD + Completely Free models)
+        // We combine 'free' and 'ads' arrays, then de-duplicate by provider_id
+        const freeToWatchMap = new Map();
+        [...free, ...ads].forEach(p => freeToWatchMap.set(p.provider_id, p));
+        const freeToWatchList = Array.from(freeToWatchMap.values());
+
+        // 2. Compile the standard "STREAM" subscriptions (SVOD)
+        const streamList = [...flatrate];
+
+        // 3. Compile the "BUY / RENT" marketplaces (TVOD)
+        // Combine buy and rent, then de-duplicate by provider_id
+        const buyRentMap = new Map();
+        [...buy, ...rent].forEach(p => buyRentMap.set(p.provider_id, p));
+        const buyRentList = Array.from(buyRentMap.values());
+
+        // 4. Compile the "OTHER" catch-all array
+        // Check if TMDB outputs other unexpected transactional styles (like premium add-on channels)
+        const handledIds = new Set([
+            ...freeToWatchList.map(p => p.provider_id),
+            ...streamList.map(p => p.provider_id),
+            ...buyRentList.map(p => p.provider_id)
+        ]);
+        
+        const otherList = [];
+        for (const key in results) {
+            if (Array.isArray(results[key])) {
+                results[key].forEach(p => {
+                    if (!handledIds.has(p.provider_id)) {
+                        otherList.push(p);
+                        handledIds.add(p.provider_id); // Prevent self-duplication inside other
+                    }
+                });
+            }
+        }
+
+        const container = document.getElementById('providers-list');
+        let html = '';
+
+        if (!freeToWatchList.length && !streamList.length && !buyRentList.length && !otherList.length) {
+            html += "<p class='meta' style='margin-bottom: 15px; font-size: 0.9rem;'>Not available to stream or buy.</p>";
+        } else {
+            // Helper generator to build uniform icon markup blocks cleanly
+            const generateGroupHtml = (label, providersArray) => {
+                if (!providersArray.length) return '';
+                return `
+                    <div class="provider-group">
+                        <span class="provider-type-label">${label}</span>
+                        <div class="provider-icons">
+                            ${providersArray.map(p => `
+                                <img src="https://image.tmdb.org/t/p/original${p.logo_path}" 
+                                     title="${p.provider_name}" class="provider-logo" alt="${p.provider_name}">
+                            `).join('')}
+                        </div>
+                    </div>`;
+            };
+
+            // Inject structural rows matching your prioritized design order
+            html += generateGroupHtml("Free to Watch", freeToWatchList);
+            html += generateGroupHtml("Stream", streamList);
+            html += generateGroupHtml("Buy / Rent", buyRentList);
+            html += generateGroupHtml("Other Services", otherList); // Automatically hidden if empty!
+        }
+
+        // Build Dynamic Trailer Link (Appended cleanly underneath layouts)
+        let yearPart = globalData.meta.split(' • ')[0].trim();
+        if (yearPart === 'Unknown Year' || !/^\d{4}$/.test(yearPart)) yearPart = '';
+        
+        const typeStr = type === 'tv' ? 'tv show' : 'movie';
+        const query = encodeURIComponent(`${globalData.title} ${yearPart ? yearPart + ' ' : ''}${typeStr} trailer`);
+        
+        html += `
+            <div class="provider-group">
+                <span class="provider-type-label">Trailer</span>
+                <div class="provider-icons">
+                    <a href="https://www.youtube.com/results?search_query=${query}" target="_blank">
+                        <img src="https://www.youtube.com/s/desktop/40cd5ddc/img/favicon_144x144.png" class="provider-logo" title="Watch Trailer on YouTube" style="background: transparent; border: none; object-fit: contain;">
+                    </a>
+                </div>
+            </div>`;
+
+        container.innerHTML = html;
+    } catch (err) {
+        console.error("Watch providers panel failed to render:", err);
+        document.getElementById('providers-list').innerHTML = "<p class='meta'>Availability data currently updating.</p>";
+    }
+}
+
+async function fetchCredits(config, mediaId, mediaType) {
+    if (mediaType === 'book' || mediaType === 'youtube' || mediaType === 'album') return;
+    const castList = document.getElementById('cast-list');
+    
+    // Switch to aggregate_credits for TV shows to get total episode counts
+    const endpoint = mediaType === 'tv' ? 'aggregate_credits' : 'credits';
+    const url = `${PROXY_URL}/api/tmdb/${mediaType}/${mediaId}/${endpoint}?language=en-US`;
+
+    try {
+        const response = await fetch(url);
+
+        const text = await response.text();
+        if (text.startsWith('\x1F\x8B')) throw new Error("TMDB returned raw corrupted GZIP data.");
+        
+        const res = JSON.parse(text);
+        if (!res || !res.crew || !res.cast) return;
+
+        // Normalize TV vs Movie data structures so the rest of the app doesn't have to guess
+        if (mediaType === 'tv') {
+            fullCastData = res.cast.map(p => ({
+                ...p,
+                displayRole: p.roles && p.roles.length > 0 ? p.roles[0].character : 'Cast',
+                epCountStr: p.total_episode_count ? `${p.total_episode_count} Ep${p.total_episode_count > 1 ? 's' : ''}` : ''
+            }));
+
+            fullCrewData = res.crew.map(p => ({
+                ...p,
+                job: p.jobs && p.jobs.length > 0 ? p.jobs[0].job : 'Crew',
+                displayRole: p.jobs && p.jobs.length > 0 ? p.jobs[0].job : 'Crew',
+                epCountStr: p.total_episode_count ? `${p.total_episode_count} Ep${p.total_episode_count > 1 ? 's' : ''}` : ''
+            }));
+        } else {
+            fullCastData = res.cast.map(p => ({
+                ...p,
+                displayRole: p.character || 'Cast',
+                epCountStr: ''
+            }));
+
+            fullCrewData = res.crew.map(p => ({
+                ...p,
+                job: p.job,
+                displayRole: p.job || 'Crew',
+                epCountStr: ''
+            }));
+        }
+
+        // Store the global data
+        directorData = fullCrewData.find(person => 
+            person.job === 'Director' || (person.job === 'Executive Producer' && mediaType === 'tv')
+        );
+
+        renderMainPageCast();
+
+    } catch (err) { 
+        console.error("Credits error:", err); 
+        castList.innerHTML = `<p class="meta">Cast information is currently unavailable.</p>`;
+    }
+}
+
+async function fetchMediaHistory() {
+    const historyList = document.getElementById('history-list');
+    const showMoreBtn = document.getElementById('show-more-logs');
+    const { data: { user } } = await supabaseClient.auth.getUser();
+
+    if (!user) { 
+        if (historyList) historyList.innerHTML = "<p class='meta'>Sign in to see history.</p>"; 
+        return; 
+    }
+
+    const { data: logs } = await supabaseClient.from('media_logs')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('media_id', id)
+        .order('created_at', { ascending: false });
+
+    if (!logs || logs.length === 0) { 
+        if (historyList) historyList.innerHTML = "<p class='meta'>No logs yet.</p>"; 
+        if (showMoreBtn) showMoreBtn.style.display = 'none';
+        return; 
+    }
+
+    allLogsData = logs; 
+
+    // 1. Initial render of top 5 (Change the 3 to a 5 here!)
+    renderLogs(allLogsData.slice(0, 5));
+
+    // 2. Setup the "Show More" button logic
+    if (showMoreBtn) {
+        if (allLogsData.length > 5) {
+            showMoreBtn.style.display = 'block';
+            showMoreBtn.textContent = `Show More (+${allLogsData.length - 5})`;
+            
+            showMoreBtn.onclick = (e) => {
+                e.preventDefault();
+                renderLogs(allLogsData); 
+                showMoreBtn.style.display = 'none'; 
+            };
+        } else {
+            showMoreBtn.style.display = 'none';
+        }
+    }
+}
+
+// ----------------------------------------
+// UI Component Managers (Modals/State)
+// ----------------------------------------
 async function setupStatusManager(mediaId, mediaType) {
     const statusBtn = document.getElementById('status-btn');
     const modal = document.getElementById('status-modal');
@@ -713,63 +1083,131 @@ async function setupStatusManager(mediaId, mediaType) {
     });
 }
 
-async function fetchCredits(config, mediaId, mediaType) {
-    if (mediaType === 'book' || mediaType === 'youtube' || mediaType === 'album') return;
-    const castList = document.getElementById('cast-list');
+async function setupWatchlist(mediaId, mediaType) {
+    const btn = document.getElementById('watchlist-btn');
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) { btn.style.display = 'none'; return; }
+
+    const { data: exists } = await supabaseClient.from('user_watchlist').select('id').eq('user_id', user.id).eq('media_id', String(mediaId)).maybeSingle();
     
-    // Switch to aggregate_credits for TV shows to get total episode counts
-    const endpoint = mediaType === 'tv' ? 'aggregate_credits' : 'credits';
-    const url = `${PROXY_URL}/api/tmdb/${mediaType}/${mediaId}/${endpoint}?language=en-US`;
+    if (exists) { btn.classList.add('active'); btn.textContent = 'On Watchlist'; }
 
-    try {
-        const response = await fetch(url);
-
-        const text = await response.text();
-        if (text.startsWith('\x1F\x8B')) throw new Error("TMDB returned raw corrupted GZIP data.");
-        
-        const res = JSON.parse(text);
-        if (!res || !res.crew || !res.cast) return;
-
-        // Normalize TV vs Movie data structures so the rest of the app doesn't have to guess
-        if (mediaType === 'tv') {
-            fullCastData = res.cast.map(p => ({
-                ...p,
-                displayRole: p.roles && p.roles.length > 0 ? p.roles[0].character : 'Cast',
-                epCountStr: p.total_episode_count ? `${p.total_episode_count} Ep${p.total_episode_count > 1 ? 's' : ''}` : ''
-            }));
-
-            fullCrewData = res.crew.map(p => ({
-                ...p,
-                job: p.jobs && p.jobs.length > 0 ? p.jobs[0].job : 'Crew',
-                displayRole: p.jobs && p.jobs.length > 0 ? p.jobs[0].job : 'Crew',
-                epCountStr: p.total_episode_count ? `${p.total_episode_count} Ep${p.total_episode_count > 1 ? 's' : ''}` : ''
-            }));
+    btn.onclick = async () => {
+        if (btn.classList.contains('active')) {
+            await supabaseClient.from('user_watchlist').delete().eq('user_id', user.id).eq('media_id', String(mediaId));
+            btn.classList.remove('active'); btn.textContent = 'Add to Watchlist';
         } else {
-            fullCastData = res.cast.map(p => ({
-                ...p,
-                displayRole: p.character || 'Cast',
-                epCountStr: ''
-            }));
+            await supabaseClient.from('user_watchlist').insert({ 
+                user_id: user.id, 
+                media_id: String(mediaId), 
+                media_type: mediaType,
+                media_title: globalData.title,
+                image_url: globalData.poster_path
+            });
+            btn.classList.add('active'); btn.textContent = 'On Watchlist';
+        }
+    };
+}
 
-            fullCrewData = res.crew.map(p => ({
-                ...p,
-                job: p.job,
-                displayRole: p.job || 'Crew',
-                epCountStr: ''
-            }));
+async function setupListManager(mediaId, mediaType) {
+    const btn = document.getElementById('add-to-list-btn');
+    const modal = document.getElementById('list-modal');
+    const close = document.getElementById('close-list-modal');
+    const container = document.getElementById('user-lists-selection');
+    const filterBtns = modal.querySelectorAll('.filter-btn');
+    
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) { 
+        btn.style.display = 'none'; 
+        return; 
+    }
+
+    let allAvailableLists = [];
+    let itemsInLists = new Set();
+    let currentDetailsListTab = 'owned';
+
+    const renderDetailsListModal = () => {
+        let filtered = [];
+        if (currentDetailsListTab === 'owned') {
+            filtered = allAvailableLists.filter(l => l.user_id === user.id && !l.is_tiered);
+        } else if (currentDetailsListTab === 'shared') {
+            filtered = allAvailableLists.filter(l => l.user_id !== user.id && !l.is_tiered);
+        } else if (currentDetailsListTab === 'tier') {
+            filtered = allAvailableLists.filter(l => l.is_tiered);
         }
 
-        // Store the global data
-        directorData = fullCrewData.find(person => 
-            person.job === 'Director' || (person.job === 'Executive Producer' && mediaType === 'tv')
-        );
+        if (filtered.length === 0) {
+            container.innerHTML = '<p class="meta">No lists found in this category.</p>';
+            return;
+        }
 
-        renderMainPageCast();
+        container.innerHTML = filtered.map(l => {
+            const isAdded = itemsInLists.has(l.id);
+            const btnClass = isAdded ? 'danger-btn' : 'primary-btn';
+            const btnText = isAdded ? 'Remove' : 'Add';
+            
+            return `
+                <div class="list-select-item">
+                    <span>${l.name}</span>
+                    <button data-list-id="${l.id}" data-media-id="${encodeURIComponent(mediaId)}" data-media-type="${encodeURIComponent(mediaType)}" class="${btnClass}">${btnText}</button>
+                </div>
+            `;
+        }).join('');
+    };
 
-    } catch (err) { 
-        console.error("Credits error:", err); 
-        castList.innerHTML = `<p class="meta">Cast information is currently unavailable.</p>`;
-    }
+    filterBtns.forEach(fBtn => {
+        fBtn.onclick = () => {
+            filterBtns.forEach(b => b.classList.remove('active'));
+            fBtn.classList.add('active');
+            currentDetailsListTab = fBtn.getAttribute('data-filter');
+            if (allAvailableLists.length > 0) renderDetailsListModal();
+        };
+    });
+
+    btn.onclick = async () => {
+        modal.style.display = 'flex';
+        container.innerHTML = '<p class="meta">Loading your lists...</p>';
+
+        // STEP 1: Fetch lists the user owns
+        const { data: owned } = await supabaseClient
+            .from('media_lists')
+            .select('id, name, is_tiered, user_id')
+            .eq('user_id', user.id);
+
+        // STEP 2: Fetch lists where the user is a collaborator
+        const { data: collabEntries } = await supabaseClient
+            .from('list_collaborators')
+            .select('list_id, media_lists(id, name, is_tiered, user_id)')
+            .eq('user_id', user.id);
+
+        const collaborative = collabEntries?.map(e => e.media_lists).filter(Boolean) || [];
+
+        // STEP 3: Merge and de-duplicate
+        const listMap = new Map();
+        [...(owned || []), ...collaborative].forEach(l => listMap.set(l.id, l));
+        allAvailableLists = Array.from(listMap.values());
+
+        if (allAvailableLists.length === 0) {
+            container.innerHTML = '<p class="meta">No editable lists found.</p>';
+            return;
+        }
+
+        // STEP 4: Check which lists already contain this item
+        const listIds = allAvailableLists.map(l => l.id);
+        const { data: currentItems } = await supabaseClient
+            .from('list_items')
+            .select('list_id')
+            .in('list_id', listIds)
+            .eq('media_id', String(mediaId));
+            
+        itemsInLists = new Set(currentItems?.map(item => item.list_id) || []);
+
+        // STEP 5: Render
+        renderDetailsListModal();
+    };
+
+    close.onclick = () => modal.style.display = 'none';
+    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
 }
 
 async function setupFavoritesManager(mediaId, mediaType) {
@@ -905,59 +1343,6 @@ async function setupFavoritesManager(mediaId, mediaType) {
     };
 }
 
-function renderMainPageCast() {
-    const castList = document.getElementById('cast-list');
-    const castSection = document.getElementById('cast-section');
-    let finalDisplayList = [];
-
-    // 1. Add Director First
-    if (directorData) {
-        finalDisplayList.push({
-            ...directorData,
-            isDirector: true
-        });
-    }
-
-    // 2. Render Top 11
-    const castToShow = fullCastData.slice(0, 11);
-    castToShow.forEach(actor => finalDisplayList.push(actor));
-
-    castList.innerHTML = finalDisplayList.map(person => `
-        <div class="cast-card ${person.isDirector ? 'director-highlight' : ''}" 
-             data-details-route="cast.html?personId=${encodeURIComponent(person.id)}">
-            <img src="${person.profile_path ? 'https://image.tmdb.org/t/p/w185' + person.profile_path : 'https://via.placeholder.com/185x278?text=No+Photo'}" alt="${person.name}">
-            <div class="cast-info">
-                <span class="cast-name">${person.name}</span>
-                <span class="cast-role">${person.displayRole} ${person.isDirector ? '🎬' : ''}</span>
-                ${person.epCountStr ? `<span style="display:block; font-size: 0.75rem; color: var(--accent); margin-top: 2px;">${person.epCountStr}</span>` : ''}
-            </div>
-        </div>
-    `).join('');
-
-    // 3. Add Modal Trigger Button
-    let viewAllBtn = document.getElementById('view-all-cast-btn');
-    if (!viewAllBtn && (fullCastData.length > 11 || fullCrewData.length > 1)) {
-        viewAllBtn = document.createElement('button');
-        viewAllBtn.id = 'view-all-cast-btn';
-        viewAllBtn.textContent = 'View Full Cast & Crew';
-        viewAllBtn.style.cssText = `
-            background: rgba(255, 255, 255, 0.05); border: 1px solid #2c3440;
-            color: #9ab; padding: 12px; border-radius: 8px; cursor: pointer;
-            transition: all 0.2s ease; width: 100%; margin-top: 20px; font-weight: bold; font-size: 0.9rem;
-        `;
-        
-        viewAllBtn.onmouseover = () => {
-            viewAllBtn.style.color = '#fff'; viewAllBtn.style.background = 'rgba(255, 255, 255, 0.1)'; viewAllBtn.style.borderColor = 'var(--accent)';
-        };
-        viewAllBtn.onmouseout = () => {
-            viewAllBtn.style.color = '#9ab'; viewAllBtn.style.background = 'rgba(255, 255, 255, 0.05)'; viewAllBtn.style.borderColor = '#2c3440';
-        };
-
-        viewAllBtn.onclick = () => openCastModal();
-        castSection.appendChild(viewAllBtn);
-    }
-}
-
 function openCastModal() {
     const modal = document.getElementById('cast-modal');
     const closeBtn = document.getElementById('close-cast-modal');
@@ -1008,37 +1393,258 @@ function openCastModal() {
     modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
 }
 
-async function fetchBookAuthors(authorsList) {
-    const castSection = document.getElementById('cast-section');
-    const castList = document.getElementById('cast-list');
-    castSection.querySelector('h3').textContent = "Authors & Writers";
+async function openEpisodeModal(epNum, fallbackTitle, seasonNum) {
+    const modal = document.getElementById('episode-modal');
+    const closeBtn = document.getElementById('close-episode-modal');
+    
+    const imgEl = document.getElementById('modal-episode-img');
+    const titleEl = document.getElementById('modal-episode-title');
+    const metaEl = document.getElementById('modal-episode-meta');
+    const overviewEl = document.getElementById('modal-episode-overview');
+    const castContainer = document.getElementById('modal-episode-cast');
 
-    if (!authorsList || authorsList.length === 0) {
-        castList.innerHTML = "<p class='meta'>Author information not available.</p>";
-        return;
+    titleEl.textContent = fallbackTitle;
+    metaEl.textContent = `Episode ${epNum}`;
+    overviewEl.textContent = "No overview description available.";
+    castContainer.innerHTML = '';
+    imgEl.src = 'https://via.placeholder.com/320x180/1b2228/9ab?text=No+Image';
+
+    const localData = tvmazeEpisodesMap[String(epNum)];
+    if (localData) {
+        if (localData.name) titleEl.textContent = localData.name;
+        if (localData.image && localData.image.medium) imgEl.src = localData.image.medium;
+        if (localData.airdate) metaEl.textContent = `Episode ${epNum} • Aired ${localData.airdate}`;
+        
+        if (localData.summary) {
+            const div = document.createElement('div');
+            div.innerHTML = localData.summary;
+            overviewEl.textContent = div.textContent || div.innerText;
+        }
+
+        // Deep-fetch Guest Cast structure directly from TMDB natively to ensure flawless Actor Cast routing
+        try {
+            const config = await loadConfig();
+            const tmdbRes = await fetch(`${PROXY_URL}/api/tmdb/tv/${id}/season/${seasonNum}/episode/${epNum}/credits?language=en-US`).then(r => r.json());
+            
+            if (tmdbRes && tmdbRes.guest_stars && tmdbRes.guest_stars.length > 0) {
+                castContainer.innerHTML = tmdbRes.guest_stars.map(g => {
+                    const img = g.profile_path ? `https://image.tmdb.org/t/p/w185${g.profile_path}` : 'https://via.placeholder.com/60x60/1b2228/9ab?text=No+Photo';
+                    
+                    // Route using personId (TMDB ID) instead of characterWiki!
+                    return `
+                        <div data-details-route="cast.html?personId=${encodeURIComponent(g.id)}"
+                            style="cursor: pointer; background: rgba(255,255,255,0.03); padding: 8px; border-radius: 6px; font-size: 0.8rem; display: flex; flex-direction: column; align-items: center; text-align: center; transition: background 0.2s, transform 0.2s;"
+                            >
+                            <img src="${img}" style="width: 45px; height: 45px; object-fit: cover; border-radius: 50%; margin-bottom: 6px; border: 1px solid #2c3440;">
+                            <span style="font-weight: bold; color: #fff; display: block; overflow: hidden; text-overflow: ellipsis; max-width: 100%; white-space: nowrap;">${g.name}</span>
+                            <span style="color: #9ab; font-size: 0.7rem; display: block; overflow: hidden; text-overflow: ellipsis; max-width: 100%; white-space: nowrap; margin-top: 2px;">${g.character || 'Guest'}</span>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                castContainer.innerHTML = '<p class="meta" style="font-size: 0.8rem; margin: 0;">No guest cast recorded.</p>';
+            }
+        } catch(e) { 
+            console.error(e);
+            castContainer.innerHTML = '<p class="meta" style="font-size: 0.8rem; margin: 0;">Guest cast lookups failed.</p>'; 
+        }
     }
 
-    try {
-        const authorCards = await Promise.all(authorsList.map(async (auth) => {
-            const authorKey = auth.author.key;
-            const details = await fetch(`https://openlibrary.org${authorKey}.json`).then(r => r.json());
-            const authorId = authorKey.split('/').pop();
-            const photoUrl = details.photos 
-                ? `https://covers.openlibrary.org/a/id/${details.photos[0]}-M.jpg` 
-                : `https://ui-avatars.com/api/?name=${encodeURIComponent(details.name)}&background=1b2228&color=9ab&size=512`;
+    modal.style.display = 'flex';
+    closeBtn.onclick = () => modal.style.display = 'none';
+    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+}
 
-            return `
-                <div class="cast-card" data-details-route="cast.html?authorId=${encodeURIComponent(authorId)}">
-                    <img src="${photoUrl}" alt="${details.name}">
-                    <div class="cast-info">
-                        <span class="cast-name">${details.name}</span>
-                        <span class="cast-role">Author</span>
+function openHelpScraperModal(originalSlug) {
+    const modal = document.getElementById('help-scraper-modal');
+    const closeBtn = document.getElementById('close-help-scraper-modal');
+    const submitBtn = document.getElementById('submit-manual-slug-btn');
+    const input = document.getElementById('manual-slug-input');
+
+    input.value = '';
+    modal.style.display = 'flex';
+
+    closeBtn.onclick = () => modal.style.display = 'none';
+    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+
+    submitBtn.onclick = async () => {
+        const url = input.value.trim();
+        if (!url) return alert("Please enter a valid link.");
+
+        // Extract the slug (everything after /shows/) using Regex
+        const match = url.match(/\/shows\/([^\/?#]+)/);
+        if (!match || !match[1]) {
+            return alert("Invalid format. Please paste a link like: https://www.animefillerlist.com/shows/jujutsu-kaisen");
+        }
+        
+        const manualSlug = match[1];
+
+        submitBtn.textContent = "Submitting...";
+        submitBtn.disabled = true;
+
+        // Update DB: clear notes (resets queue status) and append manual_slug
+        const { error } = await supabaseClient
+            .from('filler_list_mgnt')
+            .update({ manual_slug: manualSlug, notes: null })
+            .eq('name', originalSlug);
+
+        if (!error) {
+            alert("Thank you! The scraper will check this link shortly.");
+            window.location.reload();
+        } else {
+            console.error(error);
+            alert("Error submitting link.");
+            submitBtn.textContent = "Submit Link";
+            submitBtn.disabled = false;
+        }
+    };
+}
+
+// ----------------------------------------
+// Specialty Integrations
+// ----------------------------------------
+window.loadSimilar = async function(filterType = 'all') {
+    const simSection = document.getElementById('similar-section');
+    const loader = document.getElementById('similar-loader');
+    const grid = document.getElementById('similar-grid');
+    
+    // Safety check: Only run this for movies, tv, and books
+    if (!['movie', 'tv', 'book'].includes(type)) return;
+    
+    simSection.style.display = 'block';
+    
+    // Update active filter button
+    document.querySelectorAll('#similar-section .filter-btn').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(`sim-btn-${filterType}`).classList.add('active');
+
+    loader.style.display = 'block';
+    grid.innerHTML = '';
+    
+    // Convert OpenLibrary string keys into Universal IDs just like our mass seeders did
+    const universalId = type === 'book' ? parseInt(String(id).replace(/\D/g, ''), 10) + 100000000 : parseInt(id, 10);
+    
+    // Tell the Edge Function what we want back
+    let desiredOutputs = ['movie', 'tv', 'book'];
+    if (filterType !== 'all') {
+        desiredOutputs = [filterType];
+    }
+
+    document.querySelectorAll('[data-similar-filter]').forEach((button) => {
+        button.addEventListener('click', () => window.loadSimilar(button.dataset.similarFilter));
+    });
+    
+    try {
+        const config = await loadConfig();
+        
+        const response = await fetch(`${config.supabase_url}/functions/v1/get-recommendations`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${config.supabase_key}` 
+            },
+            body: JSON.stringify({
+                favoriteIds: [universalId], // Pass the current page's ID to the AI
+                desiredOutputs: desiredOutputs
+            })
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+
+        // Limit to 12 items so the grid looks perfectly balanced (2 rows of 6 on desktop)
+        const toShow = data.recommendations.slice(0, 12);
+        
+        if (toShow.length === 0) {
+            grid.innerHTML = `<p class="meta" style="grid-column: 1/-1; text-align:center;">No similar ${filterType === 'all' ? 'items' : filterType + 's'} found in the database yet.</p>`;
+        } else {
+            toShow.forEach(rec => {
+                const card = document.createElement('div');
+                card.className = 'media-card';
+                card.setAttribute('data-type', rec.media_type);
+                card.onclick = () => window.location.href = `details.html?id=${encodeURIComponent(rec.id)}&type=${rec.media_type}`;
+                
+                const imgId = `sim-poster-${rec.id}`;
+                
+                card.innerHTML = `
+                    <div class="poster-wrapper">
+                        <img id="${imgId}" src="https://via.placeholder.com/500x750/1b2228/9ab?text=Loading..." alt="${rec.title}" loading="lazy">
+                        <span class="badge badge-${rec.media_type}">${rec.media_type}</span>
                     </div>
-                </div>
-            `;
-        }));
-        castList.innerHTML = authorCards.join('');
-    } catch (err) { console.error("Error fetching authors:", err); }
+                    <div class="media-info">
+                        <div class="title" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${rec.title}</div>
+                        <div class="meta" style="color: var(--accent); font-weight: bold; margin-top: 4px;">${rec.match_percentage}% Match</div>
+                    </div>`;
+                    
+                grid.appendChild(card);
+                
+                // Fire off the lazy-loader to grab the poster
+                fetchSimPoster(rec, imgId, config);
+            });
+        }
+    } catch (e) {
+        console.error("AI Recommendation Fetch Error:", e);
+        grid.innerHTML = `<p class="meta" style="grid-column: 1/-1; text-align:center;">AI Engine is currently unavailable.</p>`;
+    } finally {
+        loader.style.display = 'none';
+    }
+};
+
+async function setupTVTracker(config, seriesId) {
+    const trackerSection = document.getElementById('tv-tracker');
+    trackerSection.style.display = 'block';
+    const seasonSelector = document.getElementById('season-selector');
+    const markBtn = document.getElementById('mark-season-btn');
+    const clearBtn = document.getElementById('clear-season-btn');
+    
+    // Inject dynamic season description container if it doesn't exist yet
+    let seasonDescEl = document.getElementById('season-description');
+    if (!seasonDescEl) {
+        seasonDescEl = document.createElement('p');
+        seasonDescEl.id = 'season-description';
+        seasonDescEl.className = 'meta';
+        seasonDescEl.style.cssText = 'margin: 10px 0 20px 0; font-style: italic; font-size: 0.95rem; line-height: 1.5; color: #ccd6e0;';
+        seasonSelector.parentNode.insertAdjacentElement('afterend', seasonDescEl);
+    }
+    
+    try {
+        const response = await fetch(`${PROXY_URL}/api/tmdb/tv/${seriesId}?language=en-US`);
+        const res = await response.json();
+
+        // 1. Fetch TVMaze data matching via external IMDB or TMDB ID mappings
+        let tvmazeId = null;
+        try {
+            const extRes = await fetch(`${PROXY_URL}/api/tmdb/tv/${seriesId}/external_ids`).then(r => r.json());
+
+            let lookupUrl = '';
+            if (extRes.imdb_id) lookupUrl = `https://api.tvmaze.com/lookup/shows?imdb=${extRes.imdb_id}`;
+            else lookupUrl = `https://api.tvmaze.com/lookup/shows?thetvdb=${extRes.thetvdb_id}`;
+
+            const tvmazeShow = await fetch(lookupUrl).then(r => r.json());
+            if (tvmazeShow && tvmazeShow.id) tvmazeId = tvmazeShow.id;
+        } catch(e) { console.warn("TVMaze show link unavailable, falling back.", e); }
+
+        seasonSelector.innerHTML = res.seasons.map(s => `<option value="${s.season_number}">${s.name}</option>`).join('');
+        
+        // Define clean event handler wrapper
+        const onSeasonChange = () => {
+            const currentSeason = seasonSelector.value;
+            loadEpisodes(config, seriesId, currentSeason, tvmazeId);
+            updateSeasonDescription(tvmazeId, currentSeason);
+        };
+        
+        seasonSelector.onchange = onSeasonChange;
+        
+        const defaultSeason = res.seasons.find(s => s.season_number === 1) || res.seasons[0];
+        if (defaultSeason) {
+            seasonSelector.value = defaultSeason.season_number;
+            onSeasonChange();
+        }
+
+        markBtn.onclick = () => markSeasonAsWatched();
+        clearBtn.onclick = () => clearSeasonProgress();
+    } catch (err) {
+        trackerSection.innerHTML = `<h3>Episode Tracker</h3><p class="meta">Error connecting to tracker pipeline.</p>`;
+    }
 }
 
 async function setupBookTracker(automaticTotalPages) {
@@ -1184,6 +1790,151 @@ async function setupBookTracker(automaticTotalPages) {
 
     renderTracker(useManualPages, savedManualTotal);
 }
+
+// Anime Filler List Integration
+function openFillerModal(data) {
+    const modal = document.getElementById('filler-modal');
+    const tbody = document.getElementById('filler-table-body');
+    const closeBtn = document.getElementById('close-filler-modal');
+
+    document.getElementById('filler-modal-title').textContent = `${data.anime} Filler List`;
+    
+    // Clear and build table
+    tbody.innerHTML = data.episodes.map(ep => {
+        // Determine class based on type string
+        let typeClass = 'type-canon'; // Default to green
+        const typeStr = ep.type.toLowerCase();
+
+        // Check for mixed first!
+        if (typeStr.includes('mixed')) {
+            typeClass = 'type-mixed';
+        } 
+        else if (typeStr.includes('filler')) {
+            typeClass = 'type-filler';
+        }
+        else if (typeStr.includes('canon')) {
+            typeClass = 'type-canon';
+        }
+
+        return `
+            <tr>
+                <td>${ep.number}</td>
+                <td>${ep.title}</td>
+                <td class="${typeClass}">${ep.type}</td>
+            </tr>
+        `;
+    }).join('');
+
+    modal.style.display = 'flex';
+    closeBtn.onclick = () => modal.style.display = 'none';
+    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+    document.getElementById('filler-modal-title').innerHTML = `
+        ${data.anime} Filler List
+        <div style="font-size: 0.9rem; color: #9ab; font-weight: normal; margin-top: 5px;">
+            Provided Through <a href="https://www.animefillerlist.com" target="_blank" style="color: #ff9800; text-decoration: none;">AnimeFillerList.com</a>
+        </div>
+    `;
+}
+
+async function requestFiller(slug, isUpdate) {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) return alert("Please sign in to request filler lists!");
+
+    // Use UPSERT and clear the notes to put it back into a "pending" state for your scraper
+    const { error } = await supabaseClient
+        .from('filler_list_mgnt')
+        .upsert(
+            { name: slug, filler_exists: isUpdate, notes: null }, 
+            { onConflict: 'name' }
+        );
+
+    if (!error) {
+        alert(isUpdate ? "Update request sent! We'll check for new episodes." : "Request sent! Our scraper will look for this soon.");
+        setTimeout(() => window.location.reload(), 100);
+    } else {
+        console.error(error);
+        alert("There was an error sending your request.");
+    }
+}
+
+async function checkIfAlreadyRequested(slug, originalName, actionArea) {
+    const { data: existingRequest } = await supabaseClient
+        .from('filler_list_mgnt')
+        .select('filler_exists, notes')
+        .eq('name', slug)
+        .maybeSingle();
+
+    if (existingRequest) {
+        if (existingRequest.notes) {
+            actionArea.innerHTML = `<span class="meta">Status: ${existingRequest.notes}</span>`;
+        } else {
+            actionArea.innerHTML = `<span class="meta">Request pending... check back soon!</span>`;
+        }
+    } else {
+        // Show the Request Button
+        actionArea.innerHTML = `
+            <button id="request-filler-btn" class="secondary-btn" style="background: #ff9800; color: #fff;">
+                Request Filler List
+            </button>`;
+        
+        document.getElementById('request-filler-btn').onclick = () => requestFiller(slug);
+    }
+}
+
+// 
+// Helpers
+// 
+
+function buildYoutubeFallbackData(id) {
+    const youtubeId = String(id || '').trim();
+    const hasValidId = /^[A-Za-z0-9_-]{11}$/.test(youtubeId);
+
+    return {
+        title: 'Unknown YouTube video',
+        overview: 'This video is unavailable, deleted, or no longer accessible. The YouTube metadata for it could not be loaded.',
+        poster_path: 'https://placehold.co/500x750/1b2228/ff0000?text=YouTube',
+        meta: 'YouTube Video',
+        author_name: 'Unknown Channel',
+        isUnavailable: true,
+        youtubeId: youtubeId,
+        isValidId: hasValidId
+    };
+}
+
+async function fetchBookAuthors(authorsList) {
+    const castSection = document.getElementById('cast-section');
+    const castList = document.getElementById('cast-list');
+    castSection.querySelector('h3').textContent = "Authors & Writers";
+
+    if (!authorsList || authorsList.length === 0) {
+        castList.innerHTML = "<p class='meta'>Author information not available.</p>";
+        return;
+    }
+
+    try {
+        const authorCards = await Promise.all(authorsList.map(async (auth) => {
+            const authorKey = auth.author.key;
+            const details = await fetch(`https://openlibrary.org${authorKey}.json`).then(r => r.json());
+            const authorId = authorKey.split('/').pop();
+            const photoUrl = details.photos 
+                ? `https://covers.openlibrary.org/a/id/${details.photos[0]}-M.jpg` 
+                : `https://ui-avatars.com/api/?name=${encodeURIComponent(details.name)}&background=1b2228&color=9ab&size=512`;
+
+            return `
+                <div class="cast-card" data-details-route="cast.html?authorId=${encodeURIComponent(authorId)}">
+                    <img src="${photoUrl}" alt="${details.name}">
+                    <div class="cast-info">
+                        <span class="cast-name">${details.name}</span>
+                        <span class="cast-role">Author</span>
+                    </div>
+                </div>
+            `;
+        }));
+        castList.innerHTML = authorCards.join('');
+    } catch (err) { console.error("Error fetching authors:", err); }
+}
+
+
 
 async function updatePageProgress() {
     const currentPageInput = document.getElementById('quick-page-input');
@@ -1376,64 +2127,6 @@ function displayBookLinks(title, authorName) {
     `;
 }
 
-async function setupTVTracker(config, seriesId) {
-    const trackerSection = document.getElementById('tv-tracker');
-    trackerSection.style.display = 'block';
-    const seasonSelector = document.getElementById('season-selector');
-    const markBtn = document.getElementById('mark-season-btn');
-    const clearBtn = document.getElementById('clear-season-btn');
-    
-    // Inject dynamic season description container if it doesn't exist yet
-    let seasonDescEl = document.getElementById('season-description');
-    if (!seasonDescEl) {
-        seasonDescEl = document.createElement('p');
-        seasonDescEl.id = 'season-description';
-        seasonDescEl.className = 'meta';
-        seasonDescEl.style.cssText = 'margin: 10px 0 20px 0; font-style: italic; font-size: 0.95rem; line-height: 1.5; color: #ccd6e0;';
-        seasonSelector.parentNode.insertAdjacentElement('afterend', seasonDescEl);
-    }
-    
-    try {
-        const response = await fetch(`${PROXY_URL}/api/tmdb/tv/${seriesId}?language=en-US`);
-        const res = await response.json();
-
-        // 1. Fetch TVMaze data matching via external IMDB or TMDB ID mappings
-        let tvmazeId = null;
-        try {
-            const extRes = await fetch(`${PROXY_URL}/api/tmdb/tv/${seriesId}/external_ids`).then(r => r.json());
-
-            let lookupUrl = '';
-            if (extRes.imdb_id) lookupUrl = `https://api.tvmaze.com/lookup/shows?imdb=${extRes.imdb_id}`;
-            else lookupUrl = `https://api.tvmaze.com/lookup/shows?thetvdb=${extRes.thetvdb_id}`;
-
-            const tvmazeShow = await fetch(lookupUrl).then(r => r.json());
-            if (tvmazeShow && tvmazeShow.id) tvmazeId = tvmazeShow.id;
-        } catch(e) { console.warn("TVMaze show link unavailable, falling back.", e); }
-
-        seasonSelector.innerHTML = res.seasons.map(s => `<option value="${s.season_number}">${s.name}</option>`).join('');
-        
-        // Define clean event handler wrapper
-        const onSeasonChange = () => {
-            const currentSeason = seasonSelector.value;
-            loadEpisodes(config, seriesId, currentSeason, tvmazeId);
-            updateSeasonDescription(tvmazeId, currentSeason);
-        };
-        
-        seasonSelector.onchange = onSeasonChange;
-        
-        const defaultSeason = res.seasons.find(s => s.season_number === 1) || res.seasons[0];
-        if (defaultSeason) {
-            seasonSelector.value = defaultSeason.season_number;
-            onSeasonChange();
-        }
-
-        markBtn.onclick = () => markSeasonAsWatched();
-        clearBtn.onclick = () => clearSeasonProgress();
-    } catch (err) {
-        trackerSection.innerHTML = `<h3>Episode Tracker</h3><p class="meta">Error connecting to tracker pipeline.</p>`;
-    }
-}
-
 async function updateSeasonDescription(tvmazeId, seasonNum) {
     const descEl = document.getElementById('season-description');
     if (!descEl) return;
@@ -1460,114 +2153,6 @@ async function updateSeasonDescription(tvmazeId, seasonNum) {
     }
 }
 
-// Add a global variable to track log visibility
-let allLogsData = [];
-async function fetchMediaHistory() {
-    const historyList = document.getElementById('history-list');
-    const showMoreBtn = document.getElementById('show-more-logs');
-    const { data: { user } } = await supabaseClient.auth.getUser();
-
-    if (!user) { 
-        if (historyList) historyList.innerHTML = "<p class='meta'>Sign in to see history.</p>"; 
-        return; 
-    }
-
-    const { data: logs } = await supabaseClient.from('media_logs')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('media_id', id)
-        .order('created_at', { ascending: false });
-
-    if (!logs || logs.length === 0) { 
-        if (historyList) historyList.innerHTML = "<p class='meta'>No logs yet.</p>"; 
-        if (showMoreBtn) showMoreBtn.style.display = 'none';
-        return; 
-    }
-
-    allLogsData = logs; 
-
-    // 1. Initial render of top 5 (Change the 3 to a 5 here!)
-    renderLogs(allLogsData.slice(0, 5));
-
-    // 2. Setup the "Show More" button logic
-    if (showMoreBtn) {
-        if (allLogsData.length > 5) {
-            showMoreBtn.style.display = 'block';
-            showMoreBtn.textContent = `Show More (+${allLogsData.length - 5})`;
-            
-            showMoreBtn.onclick = (e) => {
-                e.preventDefault();
-                renderLogs(allLogsData); 
-                showMoreBtn.style.display = 'none'; 
-            };
-        } else {
-            showMoreBtn.style.display = 'none';
-        }
-    }
-}
-
-function renderLogs(logsToRender) {
-    const historyList = document.getElementById('history-list');
-    
-    historyList.innerHTML = logsToRender.map(log => {
-        // Use the new centralized helper function
-        const label = getLogScopeLabel(log);
-
-        let rewatchText = 'Rewatch';
-        let actionVerb = 'Watched';
-        
-        if (type === 'book') {
-            rewatchText = 'Reread';
-            actionVerb = 'Read';
-        } else if (type === 'album') {
-            rewatchText = 'Relisten';
-            actionVerb = 'Listened';
-        }
-        
-        const heartBadge = log.is_liked ? `<span title="Liked" style="display: flex; align-items: center;">❤️</span>` : '';
-        const rewatchBadge = log.is_rewatch ? 
-            `<span title="${rewatchText}" style="font-size: 0.85rem; display: flex; align-items: center;">🔁</span>` 
-            : '';
-            
-        const badgeRow = (log.is_liked || log.is_rewatch) ? 
-            `<div style="display: flex; gap: 10px; margin-top: 6px; margin-bottom: 2px;">
-                ${heartBadge}
-                ${rewatchBadge}
-            </div>` : '';
-        
-        const stars = '★'.repeat(Math.floor(log.rating)) + (log.rating % 1 !== 0 ? '½' : '');
-
-        const targetDate = log.watched_on ? log.watched_on : log.created_at.split('T')[0];
-        const logDate = new Date(targetDate + 'T00:00:00').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
-
-        const reviewPreview = log.notes ? `<div class="history-notes">"${log.notes}"</div>` : '';
-        
-        const tagsHtml = (log.tags && log.tags.length > 0) ? 
-            `<div class="log-tags-container">
-                ${log.tags.map(tag => `<span class="log-tag-pill">${tag}</span>`).join('')}
-            </div>` : '';
-
-        return `
-            <div class="history-item" id="log-${log.id}">
-                <div class="history-header">
-                    <span class="history-label" style="margin: 0; padding-right: 15px;">${label}</span>
-                    <div style="display: flex; gap: 12px; align-items: center;">
-                        <span class="history-stars">${stars}</span>
-                        <span data-details-route="log.html?id=${encodeURIComponent(id)}&type=${encodeURIComponent(type)}&logId=${encodeURIComponent(log.id)}"
-                              style="cursor:pointer; font-size: 0.8rem;" title="Edit Log">✏️</span>
-                        <span data-delete-log="${encodeURIComponent(log.id)}"
-                              style="cursor:pointer; color:#ff4d4d; font-size: 0.8rem;" title="Delete Log">🗑️</span>
-                    </div>
-                </div>
-                ${badgeRow}
-                <div class="history-date">${actionVerb} on ${logDate}</div>
-                ${reviewPreview}
-                ${tagsHtml}
-            </div>
-        `;
-    }).join('');
-}
-
 function getLogScopeLabel(log) {
     let label = type.charAt(0).toUpperCase() + type.slice(1); // Default to media type
     
@@ -1590,116 +2175,6 @@ function getLogScopeLabel(log) {
         }
     }
     return label;
-}
-
-async function loadEpisodes(config, seriesId, seasonNum, tvmazeId) {
-    const list = document.getElementById('episode-list');
-    list.innerHTML = 'Loading episodes...';
-    tvmazeEpisodesMap = {}; // Reset local cache frame
-    
-    try {
-        const response = await fetch(`${PROXY_URL}/api/tmdb/tv/${seriesId}/season/${seasonNum}?language=en-US`);
-        const res = await response.json();
-
-        // Populate TVMaze episode data cache framework asynchronously
-        if (tvmazeId) {
-            try {
-                const tvmazeEps = await fetch(`https://api.tvmaze.com/shows/${tvmazeId}/episodes?special=1`).then(r => r.json());
-                tvmazeEps.forEach(ep => {
-                    if (String(ep.season) === String(seasonNum)) {
-                        tvmazeEpisodesMap[String(ep.number)] = ep;
-                    }
-                });
-            } catch(e) { console.warn("Failed caching TVMaze episode metadata structures.", e); }
-        }
-
-        const { data: { user } } = await supabaseClient.auth.getUser();
-        let watchedSet = new Set();
-        if (user) {
-            const { data: watched } = await supabaseClient.from('episode_logs')
-                .select('episode_number').eq('series_id', String(seriesId)).eq('season_number', seasonNum).eq('user_id', user.id);
-            if (watched) watchedSet = new Set(watched.map(w => w.episode_number));
-        }
-
-        list.innerHTML = res.episodes.map(ep => `
-            <div class="episode-item" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px;">
-                <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0;">
-                    <input type="checkbox" id="ep-${ep.episode_number}" ${watchedSet.has(ep.episode_number) ? 'checked' : ''} 
-                        data-toggle-episode="${encodeURIComponent(seriesId)}" data-season-number="${seasonNum}" data-episode-number="${ep.episode_number}">
-                    <label style="cursor: pointer; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" 
-                           data-open-episode="${encodeURIComponent(ep.name || 'Untitled')}" data-episode-number="${ep.episode_number}" data-season-number="${seasonNum}">
-                        E${ep.episode_number}: <span style="text-decoration: underline; color: var(--accent);">${ep.name || 'Untitled'}</span>
-                    </label>
-                </div>
-            </div>
-        `).join('');
-        updateUnifiedProgress(watchedSet.size, res.episodes.length, "episodes watched");
-    } catch (err) { 
-        console.error("Episode load error:", err);
-        list.innerHTML = "<p class='meta'>Error loading episodes.</p>"; 
-    }
-}
-
-async function openEpisodeModal(epNum, fallbackTitle, seasonNum) {
-    const modal = document.getElementById('episode-modal');
-    const closeBtn = document.getElementById('close-episode-modal');
-    
-    const imgEl = document.getElementById('modal-episode-img');
-    const titleEl = document.getElementById('modal-episode-title');
-    const metaEl = document.getElementById('modal-episode-meta');
-    const overviewEl = document.getElementById('modal-episode-overview');
-    const castContainer = document.getElementById('modal-episode-cast');
-
-    titleEl.textContent = fallbackTitle;
-    metaEl.textContent = `Episode ${epNum}`;
-    overviewEl.textContent = "No overview description available.";
-    castContainer.innerHTML = '';
-    imgEl.src = 'https://via.placeholder.com/320x180/1b2228/9ab?text=No+Image';
-
-    const localData = tvmazeEpisodesMap[String(epNum)];
-    if (localData) {
-        if (localData.name) titleEl.textContent = localData.name;
-        if (localData.image && localData.image.medium) imgEl.src = localData.image.medium;
-        if (localData.airdate) metaEl.textContent = `Episode ${epNum} • Aired ${localData.airdate}`;
-        
-        if (localData.summary) {
-            const div = document.createElement('div');
-            div.innerHTML = localData.summary;
-            overviewEl.textContent = div.textContent || div.innerText;
-        }
-
-        // Deep-fetch Guest Cast structure directly from TMDB natively to ensure flawless Actor Cast routing
-        try {
-            const config = await loadConfig();
-            const tmdbRes = await fetch(`${PROXY_URL}/api/tmdb/tv/${id}/season/${seasonNum}/episode/${epNum}/credits?language=en-US`).then(r => r.json());
-            
-            if (tmdbRes && tmdbRes.guest_stars && tmdbRes.guest_stars.length > 0) {
-                castContainer.innerHTML = tmdbRes.guest_stars.map(g => {
-                    const img = g.profile_path ? `https://image.tmdb.org/t/p/w185${g.profile_path}` : 'https://via.placeholder.com/60x60/1b2228/9ab?text=No+Photo';
-                    
-                    // Route using personId (TMDB ID) instead of characterWiki!
-                    return `
-                        <div data-details-route="cast.html?personId=${encodeURIComponent(g.id)}"
-                            style="cursor: pointer; background: rgba(255,255,255,0.03); padding: 8px; border-radius: 6px; font-size: 0.8rem; display: flex; flex-direction: column; align-items: center; text-align: center; transition: background 0.2s, transform 0.2s;"
-                            >
-                            <img src="${img}" style="width: 45px; height: 45px; object-fit: cover; border-radius: 50%; margin-bottom: 6px; border: 1px solid #2c3440;">
-                            <span style="font-weight: bold; color: #fff; display: block; overflow: hidden; text-overflow: ellipsis; max-width: 100%; white-space: nowrap;">${g.name}</span>
-                            <span style="color: #9ab; font-size: 0.7rem; display: block; overflow: hidden; text-overflow: ellipsis; max-width: 100%; white-space: nowrap; margin-top: 2px;">${g.character || 'Guest'}</span>
-                        </div>
-                    `;
-                }).join('');
-            } else {
-                castContainer.innerHTML = '<p class="meta" style="font-size: 0.8rem; margin: 0;">No guest cast recorded.</p>';
-            }
-        } catch(e) { 
-            console.error(e);
-            castContainer.innerHTML = '<p class="meta" style="font-size: 0.8rem; margin: 0;">Guest cast lookups failed.</p>'; 
-        }
-    }
-
-    modal.style.display = 'flex';
-    closeBtn.onclick = () => modal.style.display = 'none';
-    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
 }
 
 window.toggleEpisode = async function(seriesId, seasonNum, epNum) {
@@ -1773,386 +2248,6 @@ async function clearSeasonProgress() {
     document.querySelectorAll('.episode-item input').forEach(i => i.checked = false);
 }
 
-async function fetchWatchProviders(config) {
-    if (type === 'book') return; 
-    
-    try {
-        const res = await fetch(`${PROXY_URL}/api/tmdb/${type}/${id}/watch/providers`).then(r => r.json());
-        
-        const results = res.results?.US || {};
-        
-        // Grab ALL possible monetization arrays from TMDB to ensure maximum library depth
-        const flatrate = results.flatrate || [];
-        const free = results.free || [];
-        const ads = results.ads || [];
-        const buy = results.buy || [];
-        const rent = results.rent || [];
-
-        // 1. Compile the "FREE TO WATCH" category (AVOD + Completely Free models)
-        // We combine 'free' and 'ads' arrays, then de-duplicate by provider_id
-        const freeToWatchMap = new Map();
-        [...free, ...ads].forEach(p => freeToWatchMap.set(p.provider_id, p));
-        const freeToWatchList = Array.from(freeToWatchMap.values());
-
-        // 2. Compile the standard "STREAM" subscriptions (SVOD)
-        const streamList = [...flatrate];
-
-        // 3. Compile the "BUY / RENT" marketplaces (TVOD)
-        // Combine buy and rent, then de-duplicate by provider_id
-        const buyRentMap = new Map();
-        [...buy, ...rent].forEach(p => buyRentMap.set(p.provider_id, p));
-        const buyRentList = Array.from(buyRentMap.values());
-
-        // 4. Compile the "OTHER" catch-all array
-        // Check if TMDB outputs other unexpected transactional styles (like premium add-on channels)
-        const handledIds = new Set([
-            ...freeToWatchList.map(p => p.provider_id),
-            ...streamList.map(p => p.provider_id),
-            ...buyRentList.map(p => p.provider_id)
-        ]);
-        
-        const otherList = [];
-        for (const key in results) {
-            if (Array.isArray(results[key])) {
-                results[key].forEach(p => {
-                    if (!handledIds.has(p.provider_id)) {
-                        otherList.push(p);
-                        handledIds.add(p.provider_id); // Prevent self-duplication inside other
-                    }
-                });
-            }
-        }
-
-        const container = document.getElementById('providers-list');
-        let html = '';
-
-        if (!freeToWatchList.length && !streamList.length && !buyRentList.length && !otherList.length) {
-            html += "<p class='meta' style='margin-bottom: 15px; font-size: 0.9rem;'>Not available to stream or buy.</p>";
-        } else {
-            // Helper generator to build uniform icon markup blocks cleanly
-            const generateGroupHtml = (label, providersArray) => {
-                if (!providersArray.length) return '';
-                return `
-                    <div class="provider-group">
-                        <span class="provider-type-label">${label}</span>
-                        <div class="provider-icons">
-                            ${providersArray.map(p => `
-                                <img src="https://image.tmdb.org/t/p/original${p.logo_path}" 
-                                     title="${p.provider_name}" class="provider-logo" alt="${p.provider_name}">
-                            `).join('')}
-                        </div>
-                    </div>`;
-            };
-
-            // Inject structural rows matching your prioritized design order
-            html += generateGroupHtml("Free to Watch", freeToWatchList);
-            html += generateGroupHtml("Stream", streamList);
-            html += generateGroupHtml("Buy / Rent", buyRentList);
-            html += generateGroupHtml("Other Services", otherList); // Automatically hidden if empty!
-        }
-
-        // Build Dynamic Trailer Link (Appended cleanly underneath layouts)
-        let yearPart = globalData.meta.split(' • ')[0].trim();
-        if (yearPart === 'Unknown Year' || !/^\d{4}$/.test(yearPart)) yearPart = '';
-        
-        const typeStr = type === 'tv' ? 'tv show' : 'movie';
-        const query = encodeURIComponent(`${globalData.title} ${yearPart ? yearPart + ' ' : ''}${typeStr} trailer`);
-        
-        html += `
-            <div class="provider-group">
-                <span class="provider-type-label">Trailer</span>
-                <div class="provider-icons">
-                    <a href="https://www.youtube.com/results?search_query=${query}" target="_blank">
-                        <img src="https://www.youtube.com/s/desktop/40cd5ddc/img/favicon_144x144.png" class="provider-logo" title="Watch Trailer on YouTube" style="background: transparent; border: none; object-fit: contain;">
-                    </a>
-                </div>
-            </div>`;
-
-        container.innerHTML = html;
-    } catch (err) {
-        console.error("Watch providers panel failed to render:", err);
-        document.getElementById('providers-list').innerHTML = "<p class='meta'>Availability data currently updating.</p>";
-    }
-}
-
-window.expandTranslations = function() {
-    const container = document.getElementById('translations-container');
-    if (!container || !globalData || !globalData.translations) return;
-
-    const pillStyle = `background: rgba(255,255,255,0.05); border: 1px solid #2c3440; color: #ccd6e0; padding: 4px 10px; border-radius: 8px; font-size: 0.8rem; cursor: default; transition: all 0.2s ease; display: inline-block;`;
-    const hoverEvents = '';
-    
-    // Re-render the container with ALL translations
-    container.innerHTML = globalData.translations.map(lang => 
-        `<span style="${pillStyle}" ${hoverEvents}>${lang}</span>`
-    ).join('');
-};
-
-async function setupWatchlist(mediaId, mediaType) {
-    const btn = document.getElementById('watchlist-btn');
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) { btn.style.display = 'none'; return; }
-
-    const { data: exists } = await supabaseClient.from('user_watchlist').select('id').eq('user_id', user.id).eq('media_id', String(mediaId)).maybeSingle();
-    
-    if (exists) { btn.classList.add('active'); btn.textContent = 'On Watchlist'; }
-
-    btn.onclick = async () => {
-        if (btn.classList.contains('active')) {
-            await supabaseClient.from('user_watchlist').delete().eq('user_id', user.id).eq('media_id', String(mediaId));
-            btn.classList.remove('active'); btn.textContent = 'Add to Watchlist';
-        } else {
-            await supabaseClient.from('user_watchlist').insert({ 
-                user_id: user.id, 
-                media_id: String(mediaId), 
-                media_type: mediaType,
-                media_title: globalData.title,
-                image_url: globalData.poster_path
-            });
-            btn.classList.add('active'); btn.textContent = 'On Watchlist';
-        }
-    };
-}
-
-async function setupListManager(mediaId, mediaType) {
-    const btn = document.getElementById('add-to-list-btn');
-    const modal = document.getElementById('list-modal');
-    const close = document.getElementById('close-list-modal');
-    const container = document.getElementById('user-lists-selection');
-    const filterBtns = modal.querySelectorAll('.filter-btn');
-    
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) { 
-        btn.style.display = 'none'; 
-        return; 
-    }
-
-    let allAvailableLists = [];
-    let itemsInLists = new Set();
-    let currentDetailsListTab = 'owned';
-
-    const renderDetailsListModal = () => {
-        let filtered = [];
-        if (currentDetailsListTab === 'owned') {
-            filtered = allAvailableLists.filter(l => l.user_id === user.id && !l.is_tiered);
-        } else if (currentDetailsListTab === 'shared') {
-            filtered = allAvailableLists.filter(l => l.user_id !== user.id && !l.is_tiered);
-        } else if (currentDetailsListTab === 'tier') {
-            filtered = allAvailableLists.filter(l => l.is_tiered);
-        }
-
-        if (filtered.length === 0) {
-            container.innerHTML = '<p class="meta">No lists found in this category.</p>';
-            return;
-        }
-
-        container.innerHTML = filtered.map(l => {
-            const isAdded = itemsInLists.has(l.id);
-            const btnClass = isAdded ? 'danger-btn' : 'primary-btn';
-            const btnText = isAdded ? 'Remove' : 'Add';
-            
-            return `
-                <div class="list-select-item">
-                    <span>${l.name}</span>
-                    <button data-list-id="${l.id}" data-media-id="${encodeURIComponent(mediaId)}" data-media-type="${encodeURIComponent(mediaType)}" class="${btnClass}">${btnText}</button>
-                </div>
-            `;
-        }).join('');
-    };
-
-    filterBtns.forEach(fBtn => {
-        fBtn.onclick = () => {
-            filterBtns.forEach(b => b.classList.remove('active'));
-            fBtn.classList.add('active');
-            currentDetailsListTab = fBtn.getAttribute('data-filter');
-            if (allAvailableLists.length > 0) renderDetailsListModal();
-        };
-    });
-
-    btn.onclick = async () => {
-        modal.style.display = 'flex';
-        container.innerHTML = '<p class="meta">Loading your lists...</p>';
-
-        // STEP 1: Fetch lists the user owns
-        const { data: owned } = await supabaseClient
-            .from('media_lists')
-            .select('id, name, is_tiered, user_id')
-            .eq('user_id', user.id);
-
-        // STEP 2: Fetch lists where the user is a collaborator
-        const { data: collabEntries } = await supabaseClient
-            .from('list_collaborators')
-            .select('list_id, media_lists(id, name, is_tiered, user_id)')
-            .eq('user_id', user.id);
-
-        const collaborative = collabEntries?.map(e => e.media_lists).filter(Boolean) || [];
-
-        // STEP 3: Merge and de-duplicate
-        const listMap = new Map();
-        [...(owned || []), ...collaborative].forEach(l => listMap.set(l.id, l));
-        allAvailableLists = Array.from(listMap.values());
-
-        if (allAvailableLists.length === 0) {
-            container.innerHTML = '<p class="meta">No editable lists found.</p>';
-            return;
-        }
-
-        // STEP 4: Check which lists already contain this item
-        const listIds = allAvailableLists.map(l => l.id);
-        const { data: currentItems } = await supabaseClient
-            .from('list_items')
-            .select('list_id')
-            .in('list_id', listIds)
-            .eq('media_id', String(mediaId));
-            
-        itemsInLists = new Set(currentItems?.map(item => item.list_id) || []);
-
-        // STEP 5: Render
-        renderDetailsListModal();
-    };
-
-    close.onclick = () => modal.style.display = 'none';
-    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
-}
-
-window.deleteLog = async (logId) => {
-    if (!confirm("Delete this log?")) return;
-    await supabaseClient.from('media_logs').delete().eq('id', logId);
-    document.getElementById(`log-${logId}`)?.remove();
-};
-
-async function checkIfAlreadyRequested(slug, originalName, actionArea) {
-    const { data: existingRequest } = await supabaseClient
-        .from('filler_list_mgnt')
-        .select('filler_exists, notes')
-        .eq('name', slug)
-        .maybeSingle();
-
-    if (existingRequest) {
-        if (existingRequest.notes) {
-            actionArea.innerHTML = `<span class="meta">Status: ${existingRequest.notes}</span>`;
-        } else {
-            actionArea.innerHTML = `<span class="meta">Request pending... check back soon!</span>`;
-        }
-    } else {
-        // Show the Request Button
-        actionArea.innerHTML = `
-            <button id="request-filler-btn" class="secondary-btn" style="background: #ff9800; color: #fff;">
-                Request Filler List
-            </button>`;
-        
-        document.getElementById('request-filler-btn').onclick = () => requestFiller(slug);
-    }
-}
-
-async function requestFiller(slug, isUpdate) {
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) return alert("Please sign in to request filler lists!");
-
-    // Use UPSERT and clear the notes to put it back into a "pending" state for your scraper
-    const { error } = await supabaseClient
-        .from('filler_list_mgnt')
-        .upsert(
-            { name: slug, filler_exists: isUpdate, notes: null }, 
-            { onConflict: 'name' }
-        );
-
-    if (!error) {
-        alert(isUpdate ? "Update request sent! We'll check for new episodes." : "Request sent! Our scraper will look for this soon.");
-        setTimeout(() => window.location.reload(), 100);
-    } else {
-        console.error(error);
-        alert("There was an error sending your request.");
-    }
-}
-
-function openFillerModal(data) {
-    const modal = document.getElementById('filler-modal');
-    const tbody = document.getElementById('filler-table-body');
-    const closeBtn = document.getElementById('close-filler-modal');
-
-    document.getElementById('filler-modal-title').textContent = `${data.anime} Filler List`;
-    
-    // Clear and build table
-    tbody.innerHTML = data.episodes.map(ep => {
-        // Determine class based on type string
-        let typeClass = 'type-canon'; // Default to green
-        const typeStr = ep.type.toLowerCase();
-
-        // Check for mixed first!
-        if (typeStr.includes('mixed')) {
-            typeClass = 'type-mixed';
-        } 
-        else if (typeStr.includes('filler')) {
-            typeClass = 'type-filler';
-        }
-        else if (typeStr.includes('canon')) {
-            typeClass = 'type-canon';
-        }
-
-        return `
-            <tr>
-                <td>${ep.number}</td>
-                <td>${ep.title}</td>
-                <td class="${typeClass}">${ep.type}</td>
-            </tr>
-        `;
-    }).join('');
-
-    modal.style.display = 'flex';
-    closeBtn.onclick = () => modal.style.display = 'none';
-    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
-    document.getElementById('filler-modal-title').innerHTML = `
-        ${data.anime} Filler List
-        <div style="font-size: 0.9rem; color: #9ab; font-weight: normal; margin-top: 5px;">
-            Provided Through <a href="https://www.animefillerlist.com" target="_blank" style="color: #ff9800; text-decoration: none;">AnimeFillerList.com</a>
-        </div>
-    `;
-}
-
-window.toggleListItem = async (listId, mediaId, mediaType, btnElement) => {
-    // Determine if we are adding or removing based on the button's current text
-    const isAdding = btnElement.textContent === 'Add';
-    btnElement.textContent = '...'; // Show a loading state
-
-    if (isAdding) {
-        // ADD to list
-        const { error } = await supabaseClient
-            .from('list_items')
-            .insert({ 
-                list_id: listId, 
-                media_id: String(mediaId), 
-                media_type: mediaType,
-                media_title: globalData.title
-            });
-        
-        if (!error) {
-            btnElement.textContent = 'Remove';
-            btnElement.className = 'danger-btn'; // Changes it to the red style
-        } else {
-            console.error("Error adding to list:", error);
-            alert("Failed to add to list.");
-            btnElement.textContent = 'Add';
-        }
-    } else {
-        // REMOVE from list
-        const { error } = await supabaseClient
-            .from('list_items')
-            .delete()
-            .eq('list_id', listId)
-            .eq('media_id', String(mediaId));
-        
-        if (!error) {
-            btnElement.textContent = 'Add';
-            btnElement.className = 'primary-btn'; // Changes it back to the green/default style
-        } else {
-            console.error("Error removing from list:", error);
-            alert("Failed to remove from list.");
-            btnElement.textContent = 'Remove';
-        }
-    }
-};
-
 async function setupCustomArt(mediaId, mediaType) {
     const editBtn = document.getElementById('edit-art-btn');
     const modal = document.getElementById('custom-art-modal');
@@ -2216,148 +2311,6 @@ async function setupCustomArt(mediaId, mediaType) {
     };
 }
 
-// ==========================================
-// AI RECOMMENDATIONS ENGINE (If You Liked This...)
-// ==========================================
-
-document.addEventListener('click', (event) => {
-    const routeTarget = event.target.closest('[data-details-route]');
-    if (routeTarget) {
-        window.location.href = routeTarget.dataset.detailsRoute;
-        return;
-    }
-    const expandTarget = event.target.closest('[data-expand-translations]');
-    if (expandTarget) {
-        window.expandTranslations();
-        return;
-    }
-    const progressTarget = event.target.closest('[data-update-page-progress]');
-    if (progressTarget) {
-        window.updatePageProgress();
-        return;
-    }
-    const deleteTarget = event.target.closest('[data-delete-log]');
-    if (deleteTarget) {
-        window.deleteLog(decodeURIComponent(deleteTarget.dataset.deleteLog));
-        return;
-    }
-    const toggleEpisodeTarget = event.target.closest('[data-toggle-episode]');
-    if (toggleEpisodeTarget) {
-        event.stopPropagation();
-        toggleEpisode(
-            decodeURIComponent(toggleEpisodeTarget.dataset.toggleEpisode),
-            Number(toggleEpisodeTarget.dataset.seasonNumber),
-            Number(toggleEpisodeTarget.dataset.episodeNumber)
-        );
-        return;
-    }
-    const openEpisodeTarget = event.target.closest('[data-open-episode]');
-    if (openEpisodeTarget) {
-        event.stopPropagation();
-        openEpisodeModal(
-            openEpisodeTarget.dataset.episodeNumber,
-            decodeURIComponent(openEpisodeTarget.dataset.openEpisode),
-            openEpisodeTarget.dataset.seasonNumber
-        );
-        return;
-    }
-    const listTarget = event.target.closest('[data-list-id]');
-    if (listTarget) {
-        window.toggleListItem(
-            listTarget.dataset.listId,
-            decodeURIComponent(listTarget.dataset.mediaId),
-            decodeURIComponent(listTarget.dataset.mediaType),
-            listTarget
-        );
-    }
-});
-
-window.loadSimilar = async function(filterType = 'all') {
-    const simSection = document.getElementById('similar-section');
-    const loader = document.getElementById('similar-loader');
-    const grid = document.getElementById('similar-grid');
-    
-    // Safety check: Only run this for movies, tv, and books
-    if (!['movie', 'tv', 'book'].includes(type)) return;
-    
-    simSection.style.display = 'block';
-    
-    // Update active filter button
-    document.querySelectorAll('#similar-section .filter-btn').forEach(btn => btn.classList.remove('active'));
-    document.getElementById(`sim-btn-${filterType}`).classList.add('active');
-
-    loader.style.display = 'block';
-    grid.innerHTML = '';
-    
-    // Convert OpenLibrary string keys into Universal IDs just like our mass seeders did
-    const universalId = type === 'book' ? parseInt(String(id).replace(/\D/g, ''), 10) + 100000000 : parseInt(id, 10);
-    
-    // Tell the Edge Function what we want back
-    let desiredOutputs = ['movie', 'tv', 'book'];
-    if (filterType !== 'all') {
-        desiredOutputs = [filterType];
-    }
-
-    document.querySelectorAll('[data-similar-filter]').forEach((button) => {
-        button.addEventListener('click', () => window.loadSimilar(button.dataset.similarFilter));
-    });
-    
-    try {
-        const config = await loadConfig();
-        
-        const response = await fetch(`${config.supabase_url}/functions/v1/get-recommendations`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${config.supabase_key}` 
-            },
-            body: JSON.stringify({
-                favoriteIds: [universalId], // Pass the current page's ID to the AI
-                desiredOutputs: desiredOutputs
-            })
-        });
-
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
-
-        // Limit to 12 items so the grid looks perfectly balanced (2 rows of 6 on desktop)
-        const toShow = data.recommendations.slice(0, 12);
-        
-        if (toShow.length === 0) {
-            grid.innerHTML = `<p class="meta" style="grid-column: 1/-1; text-align:center;">No similar ${filterType === 'all' ? 'items' : filterType + 's'} found in the database yet.</p>`;
-        } else {
-            toShow.forEach(rec => {
-                const card = document.createElement('div');
-                card.className = 'media-card';
-                card.setAttribute('data-type', rec.media_type);
-                card.onclick = () => window.location.href = `details.html?id=${encodeURIComponent(rec.id)}&type=${rec.media_type}`;
-                
-                const imgId = `sim-poster-${rec.id}`;
-                
-                card.innerHTML = `
-                    <div class="poster-wrapper">
-                        <img id="${imgId}" src="https://via.placeholder.com/500x750/1b2228/9ab?text=Loading..." alt="${rec.title}" loading="lazy">
-                        <span class="badge badge-${rec.media_type}">${rec.media_type}</span>
-                    </div>
-                    <div class="media-info">
-                        <div class="title" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${rec.title}</div>
-                        <div class="meta" style="color: var(--accent); font-weight: bold; margin-top: 4px;">${rec.match_percentage}% Match</div>
-                    </div>`;
-                    
-                grid.appendChild(card);
-                
-                // Fire off the lazy-loader to grab the poster
-                fetchSimPoster(rec, imgId, config);
-            });
-        }
-    } catch (e) {
-        console.error("AI Recommendation Fetch Error:", e);
-        grid.innerHTML = `<p class="meta" style="grid-column: 1/-1; text-align:center;">AI Engine is currently unavailable.</p>`;
-    } finally {
-        loader.style.display = 'none';
-    }
-};
-
 // Lazy loader specifically for the grid posters
 async function fetchSimPoster(rec, imgId, config) {
     const imgEl = document.getElementById(imgId);
@@ -2377,9 +2330,6 @@ async function fetchSimPoster(rec, imgId, config) {
     }
 }
 
-// ==========================================
-// SILENT JIT (Just-In-Time) QUEUE
-// ==========================================
 async function checkAndQueueMedia(mediaId, mediaType, config) {
     if (!['movie', 'tv', 'book'].includes(mediaType)) return;
 
@@ -2607,49 +2557,128 @@ async function fetchFollowingLogs() {
     }
 }
 
-function openHelpScraperModal(originalSlug) {
-    const modal = document.getElementById('help-scraper-modal');
-    const closeBtn = document.getElementById('close-help-scraper-modal');
-    const submitBtn = document.getElementById('submit-manual-slug-btn');
-    const input = document.getElementById('manual-slug-input');
+// ----------------------------------------
+// Event Delegation
+// ----------------------------------------
+document.addEventListener('click', (event) => {
+    const routeTarget = event.target.closest('[data-details-route]');
+    if (routeTarget) {
+        window.location.href = routeTarget.dataset.detailsRoute;
+        return;
+    }
+    const expandTarget = event.target.closest('[data-expand-translations]');
+    if (expandTarget) {
+        window.expandTranslations();
+        return;
+    }
+    const progressTarget = event.target.closest('[data-update-page-progress]');
+    if (progressTarget) {
+        window.updatePageProgress();
+        return;
+    }
+    const deleteTarget = event.target.closest('[data-delete-log]');
+    if (deleteTarget) {
+        window.deleteLog(decodeURIComponent(deleteTarget.dataset.deleteLog));
+        return;
+    }
+    const toggleEpisodeTarget = event.target.closest('[data-toggle-episode]');
+    if (toggleEpisodeTarget) {
+        event.stopPropagation();
+        toggleEpisode(
+            decodeURIComponent(toggleEpisodeTarget.dataset.toggleEpisode),
+            Number(toggleEpisodeTarget.dataset.seasonNumber),
+            Number(toggleEpisodeTarget.dataset.episodeNumber)
+        );
+        return;
+    }
+    const openEpisodeTarget = event.target.closest('[data-open-episode]');
+    if (openEpisodeTarget) {
+        event.stopPropagation();
+        openEpisodeModal(
+            openEpisodeTarget.dataset.episodeNumber,
+            decodeURIComponent(openEpisodeTarget.dataset.openEpisode),
+            openEpisodeTarget.dataset.seasonNumber
+        );
+        return;
+    }
+    const listTarget = event.target.closest('[data-list-id]');
+    if (listTarget) {
+        window.toggleListItem(
+            listTarget.dataset.listId,
+            decodeURIComponent(listTarget.dataset.mediaId),
+            decodeURIComponent(listTarget.dataset.mediaType),
+            listTarget
+        );
+    }
+});
 
-    input.value = '';
-    modal.style.display = 'flex';
+// 
+// Window Object Functions
+// 
+window.expandTranslations = function() {
+    const container = document.getElementById('translations-container');
+    if (!container || !globalData || !globalData.translations) return;
 
-    closeBtn.onclick = () => modal.style.display = 'none';
-    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+    const pillStyle = `background: rgba(255,255,255,0.05); border: 1px solid #2c3440; color: #ccd6e0; padding: 4px 10px; border-radius: 8px; font-size: 0.8rem; cursor: default; transition: all 0.2s ease; display: inline-block;`;
+    const hoverEvents = '';
+    
+    // Re-render the container with ALL translations
+    container.innerHTML = globalData.translations.map(lang => 
+        `<span style="${pillStyle}" ${hoverEvents}>${lang}</span>`
+    ).join('');
+};
 
-    submitBtn.onclick = async () => {
-        const url = input.value.trim();
-        if (!url) return alert("Please enter a valid link.");
 
-        // Extract the slug (everything after /shows/) using Regex
-        const match = url.match(/\/shows\/([^\/?#]+)/);
-        if (!match || !match[1]) {
-            return alert("Invalid format. Please paste a link like: https://www.animefillerlist.com/shows/jujutsu-kaisen");
-        }
-        
-        const manualSlug = match[1];
 
-        submitBtn.textContent = "Submitting...";
-        submitBtn.disabled = true;
+window.deleteLog = async (logId) => {
+    if (!confirm("Delete this log?")) return;
+    await supabaseClient.from('media_logs').delete().eq('id', logId);
+    document.getElementById(`log-${logId}`)?.remove();
+};
 
-        // Update DB: clear notes (resets queue status) and append manual_slug
+
+
+window.toggleListItem = async (listId, mediaId, mediaType, btnElement) => {
+    // Determine if we are adding or removing based on the button's current text
+    const isAdding = btnElement.textContent === 'Add';
+    btnElement.textContent = '...'; // Show a loading state
+
+    if (isAdding) {
+        // ADD to list
         const { error } = await supabaseClient
-            .from('filler_list_mgnt')
-            .update({ manual_slug: manualSlug, notes: null })
-            .eq('name', originalSlug);
-
+            .from('list_items')
+            .insert({ 
+                list_id: listId, 
+                media_id: String(mediaId), 
+                media_type: mediaType,
+                media_title: globalData.title
+            });
+        
         if (!error) {
-            alert("Thank you! The scraper will check this link shortly.");
-            window.location.reload();
+            btnElement.textContent = 'Remove';
+            btnElement.className = 'danger-btn'; // Changes it to the red style
         } else {
-            console.error(error);
-            alert("Error submitting link.");
-            submitBtn.textContent = "Submit Link";
-            submitBtn.disabled = false;
+            console.error("Error adding to list:", error);
+            alert("Failed to add to list.");
+            btnElement.textContent = 'Add';
         }
-    };
-}
+    } else {
+        // REMOVE from list
+        const { error } = await supabaseClient
+            .from('list_items')
+            .delete()
+            .eq('list_id', listId)
+            .eq('media_id', String(mediaId));
+        
+        if (!error) {
+            btnElement.textContent = 'Add';
+            btnElement.className = 'primary-btn'; // Changes it back to the green/default style
+        } else {
+            console.error("Error removing from list:", error);
+            alert("Failed to remove from list.");
+            btnElement.textContent = 'Remove';
+        }
+    }
+};
 
 initDetails();

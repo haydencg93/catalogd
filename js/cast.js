@@ -1,7 +1,14 @@
+// Import necessary modules and functions
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
 
+// Load configuration and initialize Supabase client
+let PROXY_URL = '';
+let supabaseClient = null;
+let currentUser = null;
 const params = new URLSearchParams(window.location.search);
+
+// Get the query parameters from the URL
 const personId = params.get('personId');
 const authorId = params.get('authorId');
 const artistName = params.get('artist');
@@ -10,10 +17,9 @@ const mediaId = params.get('mediaId');
 const mediaType = params.get('mediaType');
 const mediaTitle = params.get('mediaTitle');
 
-let PROXY_URL = '';
-let supabaseClient = null;
-let currentUser = null; // Track the logged-in user
-
+// ----------------------------------------
+// Initizalization
+// ----------------------------------------
 async function initCastPage() {
     try {
         const config = await loadConfig();
@@ -40,7 +46,7 @@ async function initCastPage() {
     }
 }
 
-// --- CHARACTER PAGE LOGIC ---
+// CHARACTER PAGE LOGIC
 async function initCharacterPage(wikiId, mId, mType) {
     let name = wikiId.replace(/_/g, ' ');
     document.getElementById('person-name').textContent = name;
@@ -121,19 +127,7 @@ async function initCharacterPage(wikiId, mId, mType) {
     setupFollowBtn(wikiId, name, 'character', imageUrl, mId, mType, mediaTitle);
 }
 
-// Robust year extraction from various Open Library data shapes
-function extractYear(item) {
-    if (!item) return null;
-    const dateSources = [item.first_publish_date, item.publish_date, item.created?.value, item.last_modified?.value];
-    for (let dateStr of dateSources) {
-        if (dateStr) {
-            const match = String(dateStr).match(/\d{4}/);
-            if (match) return match[0];
-        }
-    }
-    return null;
-}
-
+// AUTHOR PAGE LOGIC
 async function initAuthorPage(id) {
     const author = await fetch(`https://openlibrary.org/authors/${id}.json`).then(r => r.json());
     document.getElementById('person-name').textContent = author.name;
@@ -228,6 +222,7 @@ async function initAuthorPage(id) {
     });
 }
 
+// PERSON PAGE LOGIC
 async function initPersonPage(id) {
     const person = await fetch(`${PROXY_URL}/api/tmdb/person/${id}`).then(r => r.json());
     document.getElementById('person-name').textContent = person.name;
@@ -321,6 +316,7 @@ async function initPersonPage(id) {
     }).join('');
 }
 
+// ARTIST PAGE LOGIC
 async function initArtistPage(name) {
     try {
         const infoRes = await fetch(`${PROXY_URL}/api/lastfm?method=artist.getinfo&artist=${encodeURIComponent(name)}`).then(r => r.json());
@@ -410,7 +406,10 @@ async function initArtistPage(name) {
     }
 }
 
-// --- UNIVERSAL PERSON UI LOGIC ---
+// ----------------------------------------
+//  Shared UI Rendering logic
+// ----------------------------------------
+// UNIVERSAL PERSON UI LOGIC
 async function setupPersonImage(id, category, defaultUrl, name) {
     let finalUrl = defaultUrl;
     
@@ -674,7 +673,22 @@ async function setupCustomArt(personId, category) {
     };
 }
 
-// --- HELPER LOGIC ---
+// ----------------------------------------
+// Utility Functions
+// ----------------------------------------
+// Robust year extraction from various Open Library data shapes
+function extractYear(item) {
+    if (!item) return null;
+    const dateSources = [item.first_publish_date, item.publish_date, item.created?.value, item.last_modified?.value];
+    for (let dateStr of dateSources) {
+        if (dateStr) {
+            const match = String(dateStr).match(/\d{4}/);
+            if (match) return match[0];
+        }
+    }
+    return null;
+}
+
 function formatPlays(numStr) {
     const num = parseInt(numStr);
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
@@ -682,6 +696,9 @@ function formatPlays(numStr) {
     return num.toString();
 }
 
+// ----------------------------------------
+// Global Event Listeners
+// ----------------------------------------
 document.addEventListener('click', (event) => {
     const routeTarget = event.target.closest('[data-cast-route]');
     if (routeTarget) window.location.href = routeTarget.dataset.castRoute;
