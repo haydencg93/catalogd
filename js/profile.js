@@ -1,11 +1,14 @@
+// Import necessary modules and functions
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
 import { normalizeOpenLibraryId } from './core/media.js';
 import { socialLogoSvgs as exactSocialLogoSvgs } from './components/socialIcons.js';
 
+// Load configuration and initialize Supabase client
 let supabaseClient = null;
 let PROXY_URL = '';
 
+// Global vars
 let allUserLogs = [];
 let allLibraryItems = [];
 let allTrackedPeople = [];
@@ -24,23 +27,15 @@ let fandomsSortableInstance = null;
 let currentPeopleCategory = 'character';
 let currentFandomsCategory = 'movie';
 
-function appendSocialLink(container, name, username, href) {
-    if (!username) return;
-    const link = document.createElement('a');
-    link.href = href;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    link.className = 'social-icon-btn';
-    link.title = name;
-    link.setAttribute('aria-label', name);
-    link.innerHTML = exactSocialLogoSvgs[name];
-    const icon = link.querySelector('svg');
-    if (icon) {
-        icon.classList.add('social-icon-svg');
-    }
-    container.appendChild(link);
-}
+// UI Elements
+const managePeopleOrderBtn = document.getElementById('manage-people-order-btn');
+const savePeopleOrderBtn = document.getElementById('save-people-order-btn');
+const manageFandomsOrderBtn = document.getElementById('manage-fandoms-order-btn');
+const saveFandomsOrderBtn = document.getElementById('save-fandoms-order-btn');
 
+// ----------------------------------------
+// Initialization
+// ----------------------------------------
 async function initProfile() {
     try {
         const config = await loadConfig();
@@ -519,20 +514,9 @@ async function initProfile() {
     }
 }
 
-window.onclick = (event) => {    
-    // Existing Settings Modal Logic
-    const settingsModal = document.getElementById('settings-modal');
-    if (settingsModal && event.target == settingsModal) {
-        settingsModal.style.display = 'none';
-    }
-    
-    // Existing Tag Details Modal Logic
-    const tagModal = document.getElementById('tag-details-modal');
-    if (tagModal && event.target == tagModal) {
-        tagModal.style.display = 'none';
-    }
-};
-
+// ----------------------------------------
+// Data Fetching & Integration
+// ----------------------------------------
 async function setupSocialUI(currentUserId, targetUserId) {
     const settingsBtnContainer = document.querySelector('.settings-section');
     
@@ -596,147 +580,6 @@ async function setupSocialUI(currentUserId, targetUserId) {
         };
     }
 }
-
-function setupSettingsUI() {
-    const settingsModal = document.getElementById('settings-modal');
-    const openSettingsBtn = document.getElementById('open-settings-btn');
-    const closeSettings = document.getElementById('close-settings');
-
-    if (!openSettingsBtn || !settingsModal) return; 
-
-    openSettingsBtn.onclick = () => {
-        settingsModal.style.display = 'flex';
-    };
-
-    closeSettings.onclick = () => {
-        settingsModal.style.display = 'none';
-    };
-
-    window.onclick = (event) => {
-        if (event.target == settingsModal) {
-            settingsModal.style.display = 'none';
-        }
-    };
-}
-
-function calculateRevisits() {
-    const now = new Date();
-    // Millisecond thresholds
-    const thresholds = {
-        movie: 365 * 24 * 60 * 60 * 1000,     // 1 Year
-        tv: 365 * 24 * 60 * 60 * 1000,        // 1 Year
-        book: 2 * 365 * 24 * 60 * 60 * 1000,  // 2 Years
-        album: 180 * 24 * 60 * 60 * 1000      // 6 Months (1/2 Year)
-    };
-
-    const latestLogs = {};
-
-    // 1. Deduplicate: Find the absolute latest watched_on date for each media
-    allUserLogs.forEach(log => {
-        const key = `${log.media_type}_${log.media_id}`;
-        const logDate = new Date(log.watched_on || log.created_at);
-        
-        if (!latestLogs[key] || logDate > latestLogs[key].date) {
-            latestLogs[key] = { ...log, date: logDate };
-        }
-    });
-
-    // 2. Filter: Compare the latest date against thresholds AND check rating
-    Object.values(latestLogs).forEach(log => {
-        // Excludes YouTube and any unmapped types
-        if (!thresholds[log.media_type]) return; 
-        
-        // Skip the item if it has no rating or the rating is less than 4
-        if (!log.rating || log.rating < 4) return;
-
-        const timeDiff = now - log.date;
-        if (timeDiff > thresholds[log.media_type]) {
-            revisitCandidates[log.media_type].push(log);
-        }
-    });
-
-    // 3. Sort: Furthest away date to the nearest one (Ascending Order)
-    ['movie', 'tv', 'book', 'album'].forEach(type => {
-        revisitCandidates[type].sort((a, b) => a.date - b.date);
-    });
-    
-    // Initial Render
-    filterRevisit('movie'); 
-}
-
-window.filterRevisit = async (type) => {
-    // 1. Update Header Text Based on Type
-    const heading = document.getElementById('revisit-heading');
-    let action = "Re-Watch";
-    let verb = "Watched";
-    if (type === 'book') { action = "Re-Read"; verb = "Read"; }
-    if (type === 'album') { action = "Re-Listen to"; verb = "Listened to"; }
-    heading.innerHTML = `Your Next<br><span style="color: var(--accent); font-size: 1.15rem;">${action}</span>`;
-
-    // 2. Toggle Active Button Class
-    const buttons = document.querySelectorAll('#revisit-section .filter-btn');
-    buttons.forEach(btn => {
-        const matchText = type === 'album' ? 'music' : type === 'tv' ? 'tv' : type;
-        btn.classList.toggle('active', btn.textContent.toLowerCase().includes(matchText));
-    });
-
-    const container = document.getElementById('revisit-covers');
-    container.innerHTML = '<p class="meta" style="font-size: 0.75rem; margin: 0;">Loading...</p>';
-
-    const items = revisitCandidates[type] || [];
-    if (items.length === 0) {
-        container.innerHTML = `<p class="meta" style="font-size: 0.75rem; margin: 0;">Nothing to ${action.toLowerCase()} yet!</p>`;
-        return;
-    }
-
-    const config = await loadConfig();
-    
-    // 3. Fetch Image Data
-    const itemsWithImages = await Promise.all(items.map(async (item) => {
-        let image = item.image_url;
-        try {
-            if (!image) {
-                 if (item.media_type === 'book') {
-                    const res = await fetch(`https://openlibrary.org${normalizeOpenLibraryId(item.media_id)}.json`).then(r=>r.json()).catch(()=>({}));
-                    image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : '';
-                 } else if (item.media_type === 'album') {
-                    const [artist, albumName] = decodeURIComponent(item.media_id).split('|||');
-                    const res = await fetch(`${PROXY_URL}/api/lastfm?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(albumName)}`).then(r=>r.json()).catch(()=>({}));
-                    image = res.album?.image?.[3]['#text'] || '';
-                 } else {
-                    const res = await fetch(`${PROXY_URL}/api/tmdb/${item.media_type}/${item.media_id}?language=en-US`).then(r=>r.json()).catch(()=>({}));
-                    image = res.poster_path ? `https://image.tmdb.org/t/p/w200${res.poster_path}` : '';
-                 }
-            }
-        } catch(e) {}
-        
-        const customArt = customImgsMap.get(`${item.media_type}_${item.media_id}`);
-        if (customArt && customArt.custom_poster) image = customArt.custom_poster;
-        
-        return { ...item, image: image || `https://placehold.co/100x150/1b2228/9ab?text=No+Img` };
-    }));
-
-    // 4. Render Covers
-    container.innerHTML = '';
-    itemsWithImages.forEach(item => {
-        const dateStr = item.date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-        
-        const card = document.createElement('div');
-        // Very tight formatting to keep the vertical height constrained to <= 1.25x the standard boxes
-        card.style.cssText = "flex: 0 0 45px; display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: transform 0.2s;";
-        card.onclick = () => window.location.href = `details.html?id=${encodeURIComponent(item.media_id)}&type=${item.media_type}`;
-        card.onmouseover = () => card.style.transform = 'translateY(-2px)';
-        card.onmouseout = () => card.style.transform = 'none';
-
-        card.innerHTML = `
-            <img src="${item.image}" style="width: 45px; height: 68px; object-fit: cover; border-radius: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.4); margin-bottom: 3px;">
-            <div style="font-size: 0.5rem; color: #9ab; text-align: center; line-height: 1.1; width: 55px; word-wrap: break-word;">
-                Last ${verb} on<br><span style="color: #fff; font-weight: bold;">${dateStr}</span>
-            </div>
-        `;
-        container.appendChild(card);
-    });
-};
 
 async function renderStatusItems(items, gridId) {
     const grid = document.getElementById(gridId);
@@ -861,9 +704,73 @@ async function renderStatusItems(items, gridId) {
     }).join('');
 }
 
-window.filterRecent = (type) => {
-    const activitySection = document.getElementById('recent-grid').previousElementSibling;
-    const buttons = activitySection.querySelectorAll('.filter-btn');
+function calculateRevisits() {
+    const now = new Date();
+    // Millisecond thresholds
+    const thresholds = {
+        movie: 365 * 24 * 60 * 60 * 1000,     // 1 Year
+        tv: 365 * 24 * 60 * 60 * 1000,        // 1 Year
+        book: 2 * 365 * 24 * 60 * 60 * 1000,  // 2 Years
+        album: 180 * 24 * 60 * 60 * 1000      // 6 Months (1/2 Year)
+    };
+
+    const latestLogs = {};
+
+    // 1. Deduplicate: Find the absolute latest watched_on date for each media
+    allUserLogs.forEach(log => {
+        const key = `${log.media_type}_${log.media_id}`;
+        const logDate = new Date(log.watched_on || log.created_at);
+        
+        if (!latestLogs[key] || logDate > latestLogs[key].date) {
+            latestLogs[key] = { ...log, date: logDate };
+        }
+    });
+
+    // 2. Filter: Compare the latest date against thresholds AND check rating
+    Object.values(latestLogs).forEach(log => {
+        // Excludes YouTube and any unmapped types
+        if (!thresholds[log.media_type]) return; 
+        
+        // Skip the item if it has no rating or the rating is less than 4
+        if (!log.rating || log.rating < 4) return;
+
+        const timeDiff = now - log.date;
+        if (timeDiff > thresholds[log.media_type]) {
+            revisitCandidates[log.media_type].push(log);
+        }
+    });
+
+    // 3. Sort: Furthest away date to the nearest one (Ascending Order)
+    ['movie', 'tv', 'book', 'album'].forEach(type => {
+        revisitCandidates[type].sort((a, b) => a.date - b.date);
+    });
+    
+    // Initial Render
+    filterRevisit('movie'); 
+}
+
+// ----------------------------------------
+// Tab & Filtering Logic
+// ----------------------------------------
+window.switchTab = (tabName) => {
+    // Update Buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent.toLowerCase().includes(tabName.replace('-', ' ')));
+    });
+
+    // Update Content Visibility
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    document.getElementById(`tab-${tabName}`).classList.add('active');
+};
+
+window.filterLibrary = (type) => {
+    currentLibraryFilter = type;
+    currentLibraryPage = 1; // Reset to page 1 whenever a filter changes
+
+    const librarySection = document.getElementById('tab-library');
+    const buttons = librarySection.querySelectorAll('.filter-btn');
     
     buttons.forEach(btn => {
         btn.classList.remove('active');
@@ -873,12 +780,11 @@ window.filterRecent = (type) => {
         else if (type === 'movie' && btnText === 'movies') btn.classList.add('active');
         else if (type === 'tv' && btnText === 'tv') btn.classList.add('active');
         else if (type === 'book' && btnText === 'books') btn.classList.add('active');
-        else if (type === 'album' && btnText === 'music') btn.classList.add('active'); // Added
+        else if (type === 'album' && btnText === 'music') btn.classList.add('active');
         else if (type === 'youtube' && btnText === 'youtube') btn.classList.add('active');
     });
 
-    const filtered = type === 'all' ? allUserLogs : allUserLogs.filter(l => l.media_type === type);
-    renderRecent(filtered);
+    renderLibraryPage(); // Triggers the paginated render
 };
 
 window.filterPeople = (type) => {
@@ -987,39 +893,6 @@ window.filterPeople = (type) => {
     }
 };
 
-// Background Database Saver
-async function savePeopleRank() {
-    const grid = document.getElementById('people-grid');
-    const cards = grid.querySelectorAll('.media-card');
-
-    const updates = [];
-    cards.forEach((card, index) => {
-        const dbId = card.getAttribute('data-dbid');
-        const rank = index + 1;
-
-        // Visually update the # UI instantly
-        const badge = card.querySelector('.rank-badge');
-        if (badge) badge.textContent = `#${rank}`;
-
-        // Update the global array so filtering doesn't scramble it back
-        const person = allTrackedPeople.find(p => p.id === dbId);
-        if (person) person.rank = rank;
-
-        updates.push({ id: dbId, rank: rank });
-    });
-
-    // Persist each row's new rank to the DB
-    for (const u of updates) {
-        const { error } = await supabaseClient.from('user_characters')
-            .update({ rank: u.rank })
-            .eq('id', u.id);
-        if (error) {
-            console.error('Error saving person rank:', error);
-            throw new Error(error.message || 'Failed to save one or more rows. Check that you are allowed to update this data.');
-        }
-    }
-}
-
 window.filterFandoms = (type) => {
     currentFandomsCategory = type;
     const fandomsSection = document.getElementById('tab-fandoms');
@@ -1120,105 +993,273 @@ window.filterFandoms = (type) => {
     }
 };
 
-async function saveFandomsRank() {
-    const grid = document.getElementById('fandoms-grid');
-    const cards = grid.querySelectorAll('.media-card');
-
-    const updates = [];
-    cards.forEach((card, index) => {
-        const dbId = card.getAttribute('data-dbid');
-        const rank = index + 1;
-
-        const badge = card.querySelector('.rank-badge');
-        if (badge) badge.textContent = `#${rank}`;
-
-        const fandom = allFandoms.find(f => f.id === dbId);
-        if (fandom) fandom.rank = rank;
-
-        updates.push({ id: dbId, rank: rank });
+window.filterRecent = (type) => {
+    const activitySection = document.getElementById('recent-grid').previousElementSibling;
+    const buttons = activitySection.querySelectorAll('.filter-btn');
+    
+    buttons.forEach(btn => {
+        btn.classList.remove('active');
+        const btnText = btn.textContent.toLowerCase();
+        
+        if (type === 'all' && btnText === 'all') btn.classList.add('active');
+        else if (type === 'movie' && btnText === 'movies') btn.classList.add('active');
+        else if (type === 'tv' && btnText === 'tv') btn.classList.add('active');
+        else if (type === 'book' && btnText === 'books') btn.classList.add('active');
+        else if (type === 'album' && btnText === 'music') btn.classList.add('active'); // Added
+        else if (type === 'youtube' && btnText === 'youtube') btn.classList.add('active');
     });
 
-    for (const u of updates) {
-        const { error } = await supabaseClient.from('user_fandoms')
-            .update({ rank: u.rank })
-            .eq('id', u.id);
-        if (error) {
-            console.error('Error saving fandom rank:', error);
-            throw new Error(error.message || 'Failed to save one or more rows. Check that you are allowed to update this data.');
-        }
+    const filtered = type === 'all' ? allUserLogs : allUserLogs.filter(l => l.media_type === type);
+    renderRecent(filtered);
+};
+
+// ----------------------------------------
+// UI Rendering
+// ----------------------------------------
+async function renderRecent(logs) {
+    const grid = document.getElementById('recent-grid');
+    grid.innerHTML = '<p class="meta">Loading activity...</p>';
+
+    if (!logs || logs.length === 0) {
+        grid.innerHTML = "<p class='meta'>No activity found.</p>";
+        return;
+    }
+
+    const sortedLogs = logs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 10);
+    const config = await loadConfig();
+
+    try {
+        const mediaPromises = sortedLogs.map(async (log) => {
+            let title, image;
+            try {
+                if (log.media_type === 'book') {
+                    const res = await fetch(`https://openlibrary.org${normalizeOpenLibraryId(log.media_id)}.json`).then(r => r.json()).catch(() => ({}));
+                    title = log.media_title || res.title || 'Unknown Book';
+                    image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : '';
+                } else if (log.media_type === 'youtube') {
+                    const res = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${log.media_id}`)}&format=json`).then(r => r.json());
+                    title = res.title || 'YouTube Video';
+                    image = res.thumbnail_url || '';
+                } else if (log.media_type === 'album') {
+                    const decodedId = decodeURIComponent(log.media_id);
+                    const [artist, albumName] = decodedId.split('|||');
+                    title = albumName;
+                    try {
+                        const res = await fetch(`${PROXY_URL}/api/lastfm?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(albumName)}`).then(r => r.json());
+                        image = res.album?.image?.[3]['#text'] || `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`;
+                    } catch (e) {
+                        image = `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`;
+                    }
+                } else {
+                    const res = await fetch(`${PROXY_URL}/api/tmdb/${log.media_type}/${log.media_id}?language=en-US`).then(r => r.json());
+                    if (res.success === false) throw new Error("TMDB returned an error JSON");
+                    title = res.title || res.name || 'Unknown Title';
+                    image = res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : '';
+                }
+                
+                // --- OVERRIDE WITH CUSTOM POSTER ---
+                const customArt = customImgsMap.get(`${log.media_type}_${log.media_id}`);
+                if (customArt && customArt.custom_poster) {
+                    image = customArt.custom_poster;
+                }
+                
+                return { ...log, title, image };
+            } catch (innerError) {
+                return { ...log, title: "Unknown", image: "" };
+            }
+        });
+
+        const fullLogs = await Promise.all(mediaPromises);
+        grid.innerHTML = ''; 
+
+        fullLogs.forEach(log => {
+            const card = document.createElement('div');
+            card.className = 'media-card';
+            card.onclick = () => window.location.href = `details.html?id=${encodeURIComponent(log.media_id)}&type=${log.media_type}`;
+
+            const stars = '★'.repeat(Math.floor(log.rating || 0)) + ((log.rating % 1 !== 0) ? '½' : '');
+            let rewatchText = 'Rewatch';
+            if (log.media_type === 'book') rewatchText = 'Reread';
+            else if (log.media_type === 'album') rewatchText = 'Relisten';
+
+            const reviewBadge = log.notes ? `<div class="card-icon-badge" title="Reviewed">📝</div>` : '';
+            const likeBadge = log.is_liked ? `<div class="card-icon-badge icon-heart" title="Liked">❤️</div>` : '';
+            const rewatchBadge = log.is_rewatch ? `<div class="card-icon-badge" title="${rewatchText}" style="font-size: 0.8rem;">🔁</div>` : '';
+
+            card.innerHTML = `
+                <div class="poster-wrapper">
+                    <div class="badge-container">
+                        ${likeBadge}
+                        ${reviewBadge}
+                        ${rewatchBadge}
+                    </div>
+                    <img src="${log.image || 'https://placehold.co/500x750/1b2228/9ab?text=No+Image'}" 
+                         alt="${log.title}"
+                         data-fallback="https://placehold.co/500x750/1b2228/9ab?text=No+Image">
+                    <span class="badge badge-${log.media_type}">${log.media_type}</span>
+                </div>
+                <div class="media-info">
+                    <div class="title" style="font-weight:bold; margin-bottom:5px;">${log.title}</div>
+                    <div class="meta">
+                        <span class="text-glow" style="margin-left: 0;">${stars}</span>
+                    </div>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    } catch (err) {
+        grid.innerHTML = "<p class='meta'>Error loading activity.</p>";
     }
 }
 
-// --- Reorder button wiring (People) ---
-const managePeopleOrderBtn = document.getElementById('manage-people-order-btn');
-const savePeopleOrderBtn = document.getElementById('save-people-order-btn');
-
-if (managePeopleOrderBtn) {
-    managePeopleOrderBtn.onclick = () => {
-        isManagingPeople = true;
-        managePeopleOrderBtn.style.display = 'none';
-        savePeopleOrderBtn.style.display = 'inline-block';
-        filterPeople(currentPeopleCategory);
-    };
+function appendSocialLink(container, name, username, href) {
+    if (!username) return;
+    const link = document.createElement('a');
+    link.href = href;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.className = 'social-icon-btn';
+    link.title = name;
+    link.setAttribute('aria-label', name);
+    link.innerHTML = exactSocialLogoSvgs[name];
+    const icon = link.querySelector('svg');
+    if (icon) {
+        icon.classList.add('social-icon-svg');
+    }
+    container.appendChild(link);
 }
 
-if (savePeopleOrderBtn) {
-    savePeopleOrderBtn.onclick = async () => {
-        savePeopleOrderBtn.textContent = 'Saving...';
-        savePeopleOrderBtn.disabled = true;
-        try {
-            await savePeopleRank();
-        } catch (err) {
-            alert('Error saving order: ' + err.message);
-        } finally {
-            isManagingPeople = false;
-            if (peopleSortableInstance) {
-                peopleSortableInstance.destroy();
-                peopleSortableInstance = null;
+async function renderLibraryPage() {
+    // 1. Filter the master list
+    const filtered = currentLibraryFilter === 'all' 
+        ? allLibraryItems 
+        : allLibraryItems.filter(l => l.media_type === currentLibraryFilter);
+        
+    // 2. Calculate Pagination
+    const totalItems = filtered.length;
+    const totalPages = Math.ceil(totalItems / LIBRARY_PAGE_SIZE) || 1;
+    
+    if (currentLibraryPage < 1) currentLibraryPage = 1;
+    if (currentLibraryPage > totalPages) currentLibraryPage = totalPages;
+
+    const startIndex = (currentLibraryPage - 1) * LIBRARY_PAGE_SIZE;
+    const endIndex = startIndex + LIBRARY_PAGE_SIZE;
+    
+    // 3. Slice out just the 50 items we need for this page
+    const itemsToRender = filtered.slice(startIndex, endIndex);
+
+    // 4. Pass the small chunk to your existing render engine
+    await renderLibrary(itemsToRender);
+
+    // 5. Update the UI Pagination Buttons
+    const paginationContainer = document.getElementById('library-pagination');
+    if (!paginationContainer) return;
+
+    if (totalItems > LIBRARY_PAGE_SIZE) {
+        paginationContainer.innerHTML = `
+            <button class="secondary-btn" data-library-page="-1" ${currentLibraryPage === 1 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>Previous</button>
+            <span class="meta" style="margin: 0 15px; font-weight: bold;">Page ${currentLibraryPage} of ${totalPages}</span>
+            <button class="secondary-btn" data-library-page="1" ${currentLibraryPage === totalPages ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>Next</button>
+        `;
+        paginationContainer.querySelectorAll('[data-library-page]').forEach((button) => {
+            button.addEventListener('click', () => window.changeLibraryPage(Number(button.dataset.libraryPage)));
+        });
+    } else {
+        paginationContainer.innerHTML = ''; // Hide if 50 items or fewer
+    }
+}
+
+async function renderLibrary(items) {
+    const grid = document.getElementById('library-grid');
+    grid.innerHTML = '<p class="meta">Loading library...</p>';
+
+    if (!items || items.length === 0) {
+        grid.innerHTML = "<p class='meta'>Library is empty.</p>";
+        return;
+    }
+
+    const config = await loadConfig();
+
+    try {
+        const mediaPromises = items.map(async (item) => {
+            let title, image;
+            try {
+                if (item.media_type === 'book') {
+                    const res = await fetch(`https://openlibrary.org${normalizeOpenLibraryId(item.media_id)}.json`).then(r => r.json()).catch(() => ({}));
+                    title = item.media_title || res.title || 'Unknown Book';
+                    image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : '';
+                } else if (item.media_type === 'youtube') {
+                    const res = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${item.media_id}`)}&format=json`).then(r => r.json());
+                    title = item.media_title || res.title || 'YouTube Video';
+                    image = res.thumbnail_url || '';
+                } else if (item.media_type === 'album') {
+                    const decodedId = decodeURIComponent(item.media_id);
+                    const [artist, albumName] = decodedId.split('|||');
+                    title = albumName;
+                    
+                    try {
+                        const res = await fetch(`${PROXY_URL}/api/lastfm?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(albumName)}`).then(r => r.json());
+                        image = res.album?.image?.[3]['#text'] || `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`;
+                    } catch (e) {
+                        image = `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`;
+                    }
+                } else {
+                    const res = await fetch(`${PROXY_URL}/api/tmdb/${item.media_type}/${item.media_id}?language=en-US`).then(r => r.json());
+                    if (res.success === false) throw new Error("TMDB returned an error JSON");
+                    title = item.media_title || res.title || res.name || 'Unknown Title';
+                    image = res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : '';
+                }
+                
+                // --- OVERRIDE WITH CUSTOM POSTER ---
+                const customArt = customImgsMap.get(`${item.media_type}_${item.media_id}`);
+                if (customArt && customArt.custom_poster) {
+                    image = customArt.custom_poster;
+                }
+                
+                return { ...item, title, image };
+            } catch (innerError) {
+                return { ...item, title: "Unknown", image: "" };
             }
-            savePeopleOrderBtn.style.display = 'none';
-            managePeopleOrderBtn.style.display = 'inline-block';
-            savePeopleOrderBtn.textContent = 'Save Order';
-            savePeopleOrderBtn.disabled = false;
-            filterPeople(currentPeopleCategory);
-        }
-    };
-}
+        });
 
-// --- Reorder button wiring (Fandoms) ---
-const manageFandomsOrderBtn = document.getElementById('manage-fandoms-order-btn');
-const saveFandomsOrderBtn = document.getElementById('save-fandoms-order-btn');
+        const fullItems = await Promise.all(mediaPromises);
+        grid.innerHTML = ''; 
 
-if (manageFandomsOrderBtn) {
-    manageFandomsOrderBtn.onclick = () => {
-        isManagingFandoms = true;
-        manageFandomsOrderBtn.style.display = 'none';
-        saveFandomsOrderBtn.style.display = 'inline-block';
-        filterFandoms(currentFandomsCategory);
-    };
-}
+        fullItems.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'media-card';
+            card.onclick = () => window.location.href = `details.html?id=${encodeURIComponent(item.media_id)}&type=${item.media_type}`;
 
-if (saveFandomsOrderBtn) {
-    saveFandomsOrderBtn.onclick = async () => {
-        saveFandomsOrderBtn.textContent = 'Saving...';
-        saveFandomsOrderBtn.disabled = true;
-        try {
-            await saveFandomsRank();
-        } catch (err) {
-            alert('Error saving order: ' + err.message);
-        } finally {
-            isManagingFandoms = false;
-            if (fandomsSortableInstance) {
-                fandomsSortableInstance.destroy();
-                fandomsSortableInstance = null;
+            let starsHtml = '';
+            if (item.rating > 0) {
+                const starString = '★'.repeat(Math.floor(item.rating)) + ((item.rating % 1 !== 0) ? '½' : '');
+                starsHtml = `<span class="text-glow">${starString}</span>`;
             }
-            saveFandomsOrderBtn.style.display = 'none';
-            manageFandomsOrderBtn.style.display = 'inline-block';
-            saveFandomsOrderBtn.textContent = 'Save Order';
-            saveFandomsOrderBtn.disabled = false;
-            filterFandoms(currentFandomsCategory);
-        }
-    };
+            
+            const likeBadge = item.is_liked ? `<div class="card-icon-badge icon-heart">❤️</div>` : '';
+
+            card.innerHTML = `
+                <div class="poster-wrapper">
+                    <div class="badge-container">
+                        ${likeBadge}
+                    </div>
+                    <img src="${item.image || 'https://placehold.co/500x750/1b2228/9ab?text=No+Image'}" 
+                         alt="${item.title}"
+                         data-fallback="https://placehold.co/500x750/1b2228/9ab?text=No+Image">
+                    <span class="badge badge-${item.media_type}">${item.media_type}</span>
+                </div>
+                <div class="media-info">
+                    <div class="title" style="font-weight:bold; margin-bottom:5px;">${item.title}</div>
+                    <div class="meta">
+                        ${starsHtml}
+                    </div>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    } catch (err) {
+        grid.innerHTML = "<p class='meta'>Error loading library.</p>";
+    }
 }
 
 function renderProfileTags() {
@@ -1252,6 +1293,213 @@ function renderProfileTags() {
             <span class="tag-count">${tagCounts[tag]}</span>
         </div>
     `).join('');
+}
+
+function setupSettingsUI() {
+    const settingsModal = document.getElementById('settings-modal');
+    const openSettingsBtn = document.getElementById('open-settings-btn');
+    const closeSettings = document.getElementById('close-settings');
+
+    if (!openSettingsBtn || !settingsModal) return; 
+
+    openSettingsBtn.onclick = () => {
+        settingsModal.style.display = 'flex';
+    };
+
+    closeSettings.onclick = () => {
+        settingsModal.style.display = 'none';
+    };
+
+    window.onclick = (event) => {
+        if (event.target == settingsModal) {
+            settingsModal.style.display = 'none';
+        }
+    };
+}
+
+// ----------------------------------------
+// Sorting & Ranking Mutations
+// ----------------------------------------
+async function savePeopleRank() {
+    const grid = document.getElementById('people-grid');
+    const cards = grid.querySelectorAll('.media-card');
+
+    const updates = [];
+    cards.forEach((card, index) => {
+        const dbId = card.getAttribute('data-dbid');
+        const rank = index + 1;
+
+        // Visually update the # UI instantly
+        const badge = card.querySelector('.rank-badge');
+        if (badge) badge.textContent = `#${rank}`;
+
+        // Update the global array so filtering doesn't scramble it back
+        const person = allTrackedPeople.find(p => p.id === dbId);
+        if (person) person.rank = rank;
+
+        updates.push({ id: dbId, rank: rank });
+    });
+
+    // Persist each row's new rank to the DB
+    for (const u of updates) {
+        const { error } = await supabaseClient.from('user_characters')
+            .update({ rank: u.rank })
+            .eq('id', u.id);
+        if (error) {
+            console.error('Error saving person rank:', error);
+            throw new Error(error.message || 'Failed to save one or more rows. Check that you are allowed to update this data.');
+        }
+    }
+}
+
+async function saveFandomsRank() {
+    const grid = document.getElementById('fandoms-grid');
+    const cards = grid.querySelectorAll('.media-card');
+
+    const updates = [];
+    cards.forEach((card, index) => {
+        const dbId = card.getAttribute('data-dbid');
+        const rank = index + 1;
+
+        const badge = card.querySelector('.rank-badge');
+        if (badge) badge.textContent = `#${rank}`;
+
+        const fandom = allFandoms.find(f => f.id === dbId);
+        if (fandom) fandom.rank = rank;
+
+        updates.push({ id: dbId, rank: rank });
+    });
+
+    for (const u of updates) {
+        const { error } = await supabaseClient.from('user_fandoms')
+            .update({ rank: u.rank })
+            .eq('id', u.id);
+        if (error) {
+            console.error('Error saving fandom rank:', error);
+            throw new Error(error.message || 'Failed to save one or more rows. Check that you are allowed to update this data.');
+        }
+    }
+}
+
+if (manageFandomsOrderBtn) {
+    manageFandomsOrderBtn.onclick = () => {
+        isManagingFandoms = true;
+        manageFandomsOrderBtn.style.display = 'none';
+        saveFandomsOrderBtn.style.display = 'inline-block';
+        filterFandoms(currentFandomsCategory);
+    };
+}
+
+if (saveFandomsOrderBtn) {
+    saveFandomsOrderBtn.onclick = async () => {
+        saveFandomsOrderBtn.textContent = 'Saving...';
+        saveFandomsOrderBtn.disabled = true;
+        try {
+            await saveFandomsRank();
+        } catch (err) {
+            alert('Error saving order: ' + err.message);
+        } finally {
+            isManagingFandoms = false;
+            if (fandomsSortableInstance) {
+                fandomsSortableInstance.destroy();
+                fandomsSortableInstance = null;
+            }
+            saveFandomsOrderBtn.style.display = 'none';
+            manageFandomsOrderBtn.style.display = 'inline-block';
+            saveFandomsOrderBtn.textContent = 'Save Order';
+            saveFandomsOrderBtn.disabled = false;
+            filterFandoms(currentFandomsCategory);
+        }
+    };
+}
+
+if (managePeopleOrderBtn) {
+    managePeopleOrderBtn.onclick = () => {
+        isManagingPeople = true;
+        managePeopleOrderBtn.style.display = 'none';
+        savePeopleOrderBtn.style.display = 'inline-block';
+        filterPeople(currentPeopleCategory);
+    };
+}
+
+if (savePeopleOrderBtn) {
+    savePeopleOrderBtn.onclick = async () => {
+        savePeopleOrderBtn.textContent = 'Saving...';
+        savePeopleOrderBtn.disabled = true;
+        try {
+            await savePeopleRank();
+        } catch (err) {
+            alert('Error saving order: ' + err.message);
+        } finally {
+            isManagingPeople = false;
+            if (peopleSortableInstance) {
+                peopleSortableInstance.destroy();
+                peopleSortableInstance = null;
+            }
+            savePeopleOrderBtn.style.display = 'none';
+            managePeopleOrderBtn.style.display = 'inline-block';
+            savePeopleOrderBtn.textContent = 'Save Order';
+            savePeopleOrderBtn.disabled = false;
+            filterPeople(currentPeopleCategory);
+        }
+    };
+}
+
+// ----------------------------------------
+// Modal Controllers
+// ----------------------------------------
+async function openSocialModal(type) {
+    const modal = document.getElementById('social-modal');
+    const body = document.getElementById('social-modal-body');
+    const title = document.getElementById('social-modal-title');
+    
+    title.textContent = type === 'followers' ? 'Followers' : 'Following';
+    body.innerHTML = '<p class="meta">Loading users...</p>';
+    modal.style.display = 'flex';
+
+    try {
+        let query;
+        if (type === 'followers') {
+            // "profiles:follower_id" tells Supabase to join profiles on the follower_id column
+            query = supabaseClient
+                .from('follows')
+                .select('profiles:follower_id(id, username, display_name, avatar_url)')
+                .eq('following_id', profileUserId);
+        } else {
+            query = supabaseClient
+                .from('follows')
+                .select('profiles:following_id(id, username, display_name, avatar_url)')
+                .eq('follower_id', profileUserId);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        body.innerHTML = '';
+        if (!data || data.length === 0) {
+            body.innerHTML = `<p class="meta">No ${type} yet.</p>`;
+            return;
+        }
+
+        data.forEach(entry => {
+            const u = entry.profiles;
+            if (!u) return;
+            const avatar = u.avatar_url || `https://ui-avatars.com/api/?name=${u.username}&background=1b2228&color=9ab`;
+            
+            const row = document.createElement('div');
+            row.className = 'social-user-row';
+            row.onclick = () => window.location.href = `profile.html?id=${u.id}`;
+            row.innerHTML = `
+                <img src="${avatar}" class="social-avatar">
+                <div class="social-info">
+                    <span class="social-name">${u.display_name || u.username}</span>
+                    <span class="social-username">@${u.username}</span>
+                </div>`;
+            body.appendChild(row);
+        });
+    } catch (err) {
+        body.innerHTML = `<p class="meta" style="color:red;">Error: ${err.message}</p>`;
+    }
 }
 
 window.openTagDetails = async (tag) => {
@@ -1362,109 +1610,22 @@ window.openTagDetails = async (tag) => {
     }
 };
 
-async function renderRecent(logs) {
-    const grid = document.getElementById('recent-grid');
-    grid.innerHTML = '<p class="meta">Loading activity...</p>';
-
-    if (!logs || logs.length === 0) {
-        grid.innerHTML = "<p class='meta'>No activity found.</p>";
-        return;
+// ----------------------------------------
+// Event Delegation
+// ----------------------------------------
+window.onclick = (event) => {    
+    // Existing Settings Modal Logic
+    const settingsModal = document.getElementById('settings-modal');
+    if (settingsModal && event.target == settingsModal) {
+        settingsModal.style.display = 'none';
     }
-
-    const sortedLogs = logs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 10);
-    const config = await loadConfig();
-
-    try {
-        const mediaPromises = sortedLogs.map(async (log) => {
-            let title, image;
-            try {
-                if (log.media_type === 'book') {
-                    const res = await fetch(`https://openlibrary.org${normalizeOpenLibraryId(log.media_id)}.json`).then(r => r.json()).catch(() => ({}));
-                    title = log.media_title || res.title || 'Unknown Book';
-                    image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : '';
-                } else if (log.media_type === 'youtube') {
-                    const res = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${log.media_id}`)}&format=json`).then(r => r.json());
-                    title = res.title || 'YouTube Video';
-                    image = res.thumbnail_url || '';
-                } else if (log.media_type === 'album') {
-                    const decodedId = decodeURIComponent(log.media_id);
-                    const [artist, albumName] = decodedId.split('|||');
-                    title = albumName;
-                    try {
-                        const res = await fetch(`${PROXY_URL}/api/lastfm?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(albumName)}`).then(r => r.json());
-                        image = res.album?.image?.[3]['#text'] || `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`;
-                    } catch (e) {
-                        image = `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`;
-                    }
-                } else {
-                    const res = await fetch(`${PROXY_URL}/api/tmdb/${log.media_type}/${log.media_id}?language=en-US`).then(r => r.json());
-                    if (res.success === false) throw new Error("TMDB returned an error JSON");
-                    title = res.title || res.name || 'Unknown Title';
-                    image = res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : '';
-                }
-                
-                // --- OVERRIDE WITH CUSTOM POSTER ---
-                const customArt = customImgsMap.get(`${log.media_type}_${log.media_id}`);
-                if (customArt && customArt.custom_poster) {
-                    image = customArt.custom_poster;
-                }
-                
-                return { ...log, title, image };
-            } catch (innerError) {
-                return { ...log, title: "Unknown", image: "" };
-            }
-        });
-
-        const fullLogs = await Promise.all(mediaPromises);
-        grid.innerHTML = ''; 
-
-        fullLogs.forEach(log => {
-            const card = document.createElement('div');
-            card.className = 'media-card';
-            card.onclick = () => window.location.href = `details.html?id=${encodeURIComponent(log.media_id)}&type=${log.media_type}`;
-
-            const stars = '★'.repeat(Math.floor(log.rating || 0)) + ((log.rating % 1 !== 0) ? '½' : '');
-            let rewatchText = 'Rewatch';
-            if (log.media_type === 'book') rewatchText = 'Reread';
-            else if (log.media_type === 'album') rewatchText = 'Relisten';
-
-            const reviewBadge = log.notes ? `<div class="card-icon-badge" title="Reviewed">📝</div>` : '';
-            const likeBadge = log.is_liked ? `<div class="card-icon-badge icon-heart" title="Liked">❤️</div>` : '';
-            const rewatchBadge = log.is_rewatch ? `<div class="card-icon-badge" title="${rewatchText}" style="font-size: 0.8rem;">🔁</div>` : '';
-
-            card.innerHTML = `
-                <div class="poster-wrapper">
-                    <div class="badge-container">
-                        ${likeBadge}
-                        ${reviewBadge}
-                        ${rewatchBadge}
-                    </div>
-                    <img src="${log.image || 'https://placehold.co/500x750/1b2228/9ab?text=No+Image'}" 
-                         alt="${log.title}"
-                         data-fallback="https://placehold.co/500x750/1b2228/9ab?text=No+Image">
-                    <span class="badge badge-${log.media_type}">${log.media_type}</span>
-                </div>
-                <div class="media-info">
-                    <div class="title" style="font-weight:bold; margin-bottom:5px;">${log.title}</div>
-                    <div class="meta">
-                        <span class="text-glow" style="margin-left: 0;">${stars}</span>
-                    </div>
-                </div>
-            `;
-            grid.appendChild(card);
-        });
-    } catch (err) {
-        grid.innerHTML = "<p class='meta'>Error loading activity.</p>";
+    
+    // Existing Tag Details Modal Logic
+    const tagModal = document.getElementById('tag-details-modal');
+    if (tagModal && event.target == tagModal) {
+        tagModal.style.display = 'none';
     }
-}
-
-function updateTopAll() {
-    const topMovie = currentFavs.movie?.[0];
-    const topTv = currentFavs.tv?.[0];
-    const topBook = currentFavs.book?.[0];
-    const topYoutube = currentFavs.youtube?.[0];
-    currentFavs.all = [topMovie, topTv, topBook, topYoutube].filter(Boolean);
-}
+};
 
 window.filterFavs = (type) => {
     const favSection = document.getElementById('favorites-section');
@@ -1494,7 +1655,7 @@ window.filterFavs = (type) => {
     }
 
     list.forEach(item => {
-        // --- OVERRIDE WITH CUSTOM POSTER ---
+        // OVERRIDE WITH CUSTOM POSTER
         let finalImage = item.image;
         const customArt = customImgsMap.get(`${item.type}_${item.id}`);
         if (customArt && customArt.custom_poster) {
@@ -1520,7 +1681,6 @@ window.filterFavs = (type) => {
     });
 };
 
-// Add these to your event listener setup or initProfile
 function setupSocialModalListeners() {
     const modal = document.getElementById('social-modal');
     const closeBtn = document.getElementById('close-social-modal');
@@ -1534,187 +1694,79 @@ function setupSocialModalListeners() {
     };
 }
 
-async function openSocialModal(type) {
-    const modal = document.getElementById('social-modal');
-    const body = document.getElementById('social-modal-body');
-    const title = document.getElementById('social-modal-title');
-    
-    title.textContent = type === 'followers' ? 'Followers' : 'Following';
-    body.innerHTML = '<p class="meta">Loading users...</p>';
-    modal.style.display = 'flex';
+window.filterRevisit = async (type) => {
+    // 1. Update Header Text Based on Type
+    const heading = document.getElementById('revisit-heading');
+    let action = "Re-Watch";
+    let verb = "Watched";
+    if (type === 'book') { action = "Re-Read"; verb = "Read"; }
+    if (type === 'album') { action = "Re-Listen to"; verb = "Listened to"; }
+    heading.innerHTML = `Your Next<br><span style="color: var(--accent); font-size: 1.15rem;">${action}</span>`;
 
-    try {
-        let query;
-        if (type === 'followers') {
-            // "profiles:follower_id" tells Supabase to join profiles on the follower_id column
-            query = supabaseClient
-                .from('follows')
-                .select('profiles:follower_id(id, username, display_name, avatar_url)')
-                .eq('following_id', profileUserId);
-        } else {
-            query = supabaseClient
-                .from('follows')
-                .select('profiles:following_id(id, username, display_name, avatar_url)')
-                .eq('follower_id', profileUserId);
-        }
-
-        const { data, error } = await query;
-        if (error) throw error;
-
-        body.innerHTML = '';
-        if (!data || data.length === 0) {
-            body.innerHTML = `<p class="meta">No ${type} yet.</p>`;
-            return;
-        }
-
-        data.forEach(entry => {
-            const u = entry.profiles;
-            if (!u) return;
-            const avatar = u.avatar_url || `https://ui-avatars.com/api/?name=${u.username}&background=1b2228&color=9ab`;
-            
-            const row = document.createElement('div');
-            row.className = 'social-user-row';
-            row.onclick = () => window.location.href = `profile.html?id=${u.id}`;
-            row.innerHTML = `
-                <img src="${avatar}" class="social-avatar">
-                <div class="social-info">
-                    <span class="social-name">${u.display_name || u.username}</span>
-                    <span class="social-username">@${u.username}</span>
-                </div>`;
-            body.appendChild(row);
-        });
-    } catch (err) {
-        body.innerHTML = `<p class="meta" style="color:red;">Error: ${err.message}</p>`;
-    }
-}
-
-window.switchTab = (tabName) => {
-    // Update Buttons
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.textContent.toLowerCase().includes(tabName.replace('-', ' ')));
-    });
-
-    // Update Content Visibility
-    document.querySelectorAll('.tab-content').forEach(content => {
-        content.classList.remove('active');
-    });
-    document.getElementById(`tab-${tabName}`).classList.add('active');
-};
-
-window.filterLibrary = (type) => {
-    currentLibraryFilter = type;
-    currentLibraryPage = 1; // Reset to page 1 whenever a filter changes
-
-    const librarySection = document.getElementById('tab-library');
-    const buttons = librarySection.querySelectorAll('.filter-btn');
-    
+    // 2. Toggle Active Button Class
+    const buttons = document.querySelectorAll('#revisit-section .filter-btn');
     buttons.forEach(btn => {
-        btn.classList.remove('active');
-        const btnText = btn.textContent.toLowerCase();
-        
-        if (type === 'all' && btnText === 'all') btn.classList.add('active');
-        else if (type === 'movie' && btnText === 'movies') btn.classList.add('active');
-        else if (type === 'tv' && btnText === 'tv') btn.classList.add('active');
-        else if (type === 'book' && btnText === 'books') btn.classList.add('active');
-        else if (type === 'album' && btnText === 'music') btn.classList.add('active');
-        else if (type === 'youtube' && btnText === 'youtube') btn.classList.add('active');
+        const matchText = type === 'album' ? 'music' : type === 'tv' ? 'tv' : type;
+        btn.classList.toggle('active', btn.textContent.toLowerCase().includes(matchText));
     });
 
-    renderLibraryPage(); // Triggers the paginated render
-};
+    const container = document.getElementById('revisit-covers');
+    container.innerHTML = '<p class="meta" style="font-size: 0.75rem; margin: 0;">Loading...</p>';
 
-async function renderLibrary(items) {
-    const grid = document.getElementById('library-grid');
-    grid.innerHTML = '<p class="meta">Loading library...</p>';
-
-    if (!items || items.length === 0) {
-        grid.innerHTML = "<p class='meta'>Library is empty.</p>";
+    const items = revisitCandidates[type] || [];
+    if (items.length === 0) {
+        container.innerHTML = `<p class="meta" style="font-size: 0.75rem; margin: 0;">Nothing to ${action.toLowerCase()} yet!</p>`;
         return;
     }
 
     const config = await loadConfig();
-
-    try {
-        const mediaPromises = items.map(async (item) => {
-            let title, image;
-            try {
-                if (item.media_type === 'book') {
-                    const res = await fetch(`https://openlibrary.org${normalizeOpenLibraryId(item.media_id)}.json`).then(r => r.json()).catch(() => ({}));
-                    title = item.media_title || res.title || 'Unknown Book';
+    
+    // 3. Fetch Image Data
+    const itemsWithImages = await Promise.all(items.map(async (item) => {
+        let image = item.image_url;
+        try {
+            if (!image) {
+                 if (item.media_type === 'book') {
+                    const res = await fetch(`https://openlibrary.org${normalizeOpenLibraryId(item.media_id)}.json`).then(r=>r.json()).catch(()=>({}));
                     image = res.covers ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : '';
-                } else if (item.media_type === 'youtube') {
-                    const res = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${item.media_id}`)}&format=json`).then(r => r.json());
-                    title = item.media_title || res.title || 'YouTube Video';
-                    image = res.thumbnail_url || '';
-                } else if (item.media_type === 'album') {
-                    const decodedId = decodeURIComponent(item.media_id);
-                    const [artist, albumName] = decodedId.split('|||');
-                    title = albumName;
-                    
-                    try {
-                        const res = await fetch(`${PROXY_URL}/api/lastfm?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(albumName)}`).then(r => r.json());
-                        image = res.album?.image?.[3]['#text'] || `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`;
-                    } catch (e) {
-                        image = `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`;
-                    }
-                } else {
-                    const res = await fetch(`${PROXY_URL}/api/tmdb/${item.media_type}/${item.media_id}?language=en-US`).then(r => r.json());
-                    if (res.success === false) throw new Error("TMDB returned an error JSON");
-                    title = item.media_title || res.title || res.name || 'Unknown Title';
-                    image = res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : '';
-                }
-                
-                // --- OVERRIDE WITH CUSTOM POSTER ---
-                const customArt = customImgsMap.get(`${item.media_type}_${item.media_id}`);
-                if (customArt && customArt.custom_poster) {
-                    image = customArt.custom_poster;
-                }
-                
-                return { ...item, title, image };
-            } catch (innerError) {
-                return { ...item, title: "Unknown", image: "" };
+                 } else if (item.media_type === 'album') {
+                    const [artist, albumName] = decodeURIComponent(item.media_id).split('|||');
+                    const res = await fetch(`${PROXY_URL}/api/lastfm?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(albumName)}`).then(r=>r.json()).catch(()=>({}));
+                    image = res.album?.image?.[3]['#text'] || '';
+                 } else {
+                    const res = await fetch(`${PROXY_URL}/api/tmdb/${item.media_type}/${item.media_id}?language=en-US`).then(r=>r.json()).catch(()=>({}));
+                    image = res.poster_path ? `https://image.tmdb.org/t/p/w200${res.poster_path}` : '';
+                 }
             }
-        });
+        } catch(e) {}
+        
+        const customArt = customImgsMap.get(`${item.media_type}_${item.media_id}`);
+        if (customArt && customArt.custom_poster) image = customArt.custom_poster;
+        
+        return { ...item, image: image || `https://placehold.co/100x150/1b2228/9ab?text=No+Img` };
+    }));
 
-        const fullItems = await Promise.all(mediaPromises);
-        grid.innerHTML = ''; 
+    // 4. Render Covers
+    container.innerHTML = '';
+    itemsWithImages.forEach(item => {
+        const dateStr = item.date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+        
+        const card = document.createElement('div');
+        // Very tight formatting to keep the vertical height constrained to <= 1.25x the standard boxes
+        card.style.cssText = "flex: 0 0 45px; display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: transform 0.2s;";
+        card.onclick = () => window.location.href = `details.html?id=${encodeURIComponent(item.media_id)}&type=${item.media_type}`;
+        card.onmouseover = () => card.style.transform = 'translateY(-2px)';
+        card.onmouseout = () => card.style.transform = 'none';
 
-        fullItems.forEach(item => {
-            const card = document.createElement('div');
-            card.className = 'media-card';
-            card.onclick = () => window.location.href = `details.html?id=${encodeURIComponent(item.media_id)}&type=${item.media_type}`;
-
-            let starsHtml = '';
-            if (item.rating > 0) {
-                const starString = '★'.repeat(Math.floor(item.rating)) + ((item.rating % 1 !== 0) ? '½' : '');
-                starsHtml = `<span class="text-glow">${starString}</span>`;
-            }
-            
-            const likeBadge = item.is_liked ? `<div class="card-icon-badge icon-heart">❤️</div>` : '';
-
-            card.innerHTML = `
-                <div class="poster-wrapper">
-                    <div class="badge-container">
-                        ${likeBadge}
-                    </div>
-                    <img src="${item.image || 'https://placehold.co/500x750/1b2228/9ab?text=No+Image'}" 
-                         alt="${item.title}"
-                         data-fallback="https://placehold.co/500x750/1b2228/9ab?text=No+Image">
-                    <span class="badge badge-${item.media_type}">${item.media_type}</span>
-                </div>
-                <div class="media-info">
-                    <div class="title" style="font-weight:bold; margin-bottom:5px;">${item.title}</div>
-                    <div class="meta">
-                        ${starsHtml}
-                    </div>
-                </div>
-            `;
-            grid.appendChild(card);
-        });
-    } catch (err) {
-        grid.innerHTML = "<p class='meta'>Error loading library.</p>";
-    }
-}
+        card.innerHTML = `
+            <img src="${item.image}" style="width: 45px; height: 68px; object-fit: cover; border-radius: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.4); margin-bottom: 3px;">
+            <div style="font-size: 0.5rem; color: #9ab; text-align: center; line-height: 1.1; width: 55px; word-wrap: break-word;">
+                Last ${verb} on<br><span style="color: #fff; font-weight: bold;">${dateStr}</span>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+};
 
 window.changeLibraryPage = (direction) => {
     currentLibraryPage += direction;
@@ -1722,46 +1774,6 @@ window.changeLibraryPage = (direction) => {
     // Smooth scroll back to the top of the library tab when changing pages
     document.getElementById('tab-library').scrollIntoView({ behavior: 'smooth' });
 };
-
-async function renderLibraryPage() {
-    // 1. Filter the master list
-    const filtered = currentLibraryFilter === 'all' 
-        ? allLibraryItems 
-        : allLibraryItems.filter(l => l.media_type === currentLibraryFilter);
-        
-    // 2. Calculate Pagination
-    const totalItems = filtered.length;
-    const totalPages = Math.ceil(totalItems / LIBRARY_PAGE_SIZE) || 1;
-    
-    if (currentLibraryPage < 1) currentLibraryPage = 1;
-    if (currentLibraryPage > totalPages) currentLibraryPage = totalPages;
-
-    const startIndex = (currentLibraryPage - 1) * LIBRARY_PAGE_SIZE;
-    const endIndex = startIndex + LIBRARY_PAGE_SIZE;
-    
-    // 3. Slice out just the 50 items we need for this page
-    const itemsToRender = filtered.slice(startIndex, endIndex);
-
-    // 4. Pass the small chunk to your existing render engine
-    await renderLibrary(itemsToRender);
-
-    // 5. Update the UI Pagination Buttons
-    const paginationContainer = document.getElementById('library-pagination');
-    if (!paginationContainer) return;
-
-    if (totalItems > LIBRARY_PAGE_SIZE) {
-        paginationContainer.innerHTML = `
-            <button class="secondary-btn" data-library-page="-1" ${currentLibraryPage === 1 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>Previous</button>
-            <span class="meta" style="margin: 0 15px; font-weight: bold;">Page ${currentLibraryPage} of ${totalPages}</span>
-            <button class="secondary-btn" data-library-page="1" ${currentLibraryPage === totalPages ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>Next</button>
-        `;
-        paginationContainer.querySelectorAll('[data-library-page]').forEach((button) => {
-            button.addEventListener('click', () => window.changeLibraryPage(Number(button.dataset.libraryPage)));
-        });
-    } else {
-        paginationContainer.innerHTML = ''; // Hide if 50 items or fewer
-    }
-}
 
 document.querySelectorAll('[data-profile-tab]').forEach((button) => {
     button.addEventListener('click', () => window.switchTab(button.dataset.profileTab));

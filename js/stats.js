@@ -1,19 +1,23 @@
+// Import necessary modules and functions
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
 
+// Load configuration and initialize Supabase client
 let supabaseClient = null;
 
+// Global vars
 let currentUser = null;
 let allMediaLogs = [];
 let earliestDate = new Date();
 let statsChartInstance = null;
-
-// Current State
 let currentDepth = 'all-time';
 let currentPeriod = 'all';
 let currentFilter = 'all'; 
 let isOngoingPeriod = true;
 
+// ----------------------------------------
+// Initialization
+// ----------------------------------------
 async function initStats() {
     try {
         supabaseClient = await getSupabaseClient();
@@ -50,32 +54,9 @@ async function initStats() {
     }
 }
 
-window.toggleProfileDropdown = function(event) {
-    if (event) event.stopPropagation();
-    const content = document.getElementById('dropdown-content');
-    const trigger = document.querySelector('.profile-trigger');
-    if (!content || !trigger) return;
-    
-    const isVisible = content.style.display === 'block';
-    content.style.display = isVisible ? 'none' : 'block';
-    trigger.classList.toggle('active', !isVisible);
-};
-
-window.onclick = function(event) {
-    const dropdown = document.getElementById('dropdown-content');
-    const trigger = document.querySelector('.profile-trigger');
-    if (dropdown && trigger && event.target !== trigger && !trigger.contains(event.target) && !dropdown.contains(event.target)) {
-        dropdown.style.display = 'none';
-        trigger.classList.remove('active');
-    }
-};
-
-window.signOut = async function() {
-    await supabaseClient.auth.signOut();
-    window.location.href = 'index.html';
-};
-
-// --- TIME & ONGOING LOGIC ---
+// ----------------------------------------
+// Time & Date Utilities
+// ----------------------------------------
 function checkIsOngoing(depth, period) {
     const now = new Date();
     const currentYear = now.getFullYear();
@@ -114,7 +95,23 @@ function checkIsOngoing(depth, period) {
     return false;
 }
 
-// --- UI ROUTING ---
+function getSafeDate(log) {
+    let d = log.watched_on || log.created_at;
+    if (d && d.length === 10) d += "T12:00:00"; // Fix timezone offset for YYYY-MM-DD
+    return new Date(d);
+}
+
+function getWeekNumber(d) {
+    d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
+    var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+    var weekNo = Math.ceil(( ( (d - yearStart) / 86400000) + 1)/7);
+    return weekNo;
+}
+
+// ----------------------------------------
+// UI Routing & Filters
+// ----------------------------------------
 window.switchStatsDepth = (depth) => {
     currentDepth = depth;
     
@@ -203,19 +200,9 @@ window.filterStats = (type) => {
     loadStatsData();
 };
 
-// --- DATA FETCHING & RENDERING ---
-function hasRealHeavyData(heavy) {
-    if (!heavy) return false;
-    if (heavy.top_actors && heavy.top_actors.length > 0) return true;
-    if (heavy.top_directors && heavy.top_directors.length > 0) return true;
-    if (heavy.top_genres && heavy.top_genres.length > 0) return true;
-    if (heavy.top_themes && heavy.top_themes.length > 0) return true;
-    if (heavy.vibe) return true;
-    return false;
-}
-
-// HELPER: This handles the actual database call to queue an update
-// separated from the UI logic so it can be called automatically
+// ----------------------------------------
+// Data Sync & Queueing
+// ----------------------------------------
 async function queueStatsForUpdate() {
     try {
         // 1. Check if a row already exists for this exact configuration
@@ -322,6 +309,200 @@ async function loadStatsData() {
     document.getElementById('stats-content').style.display = 'block';
 }
 
+function filterLogsLocally() {
+    return allMediaLogs.filter(log => {
+        // 1. Media Type Filter
+        if (currentFilter !== 'all' && log.media_type !== currentFilter) return false;
+
+        // 2. Timeframe Filter
+        const date = getSafeDate(log);
+        
+        if (currentDepth === 'by-year') {
+            return date.getFullYear() === parseInt(currentPeriod);
+        } 
+        else if (currentDepth === 'by-season') {
+            const parts = currentPeriod.split(' ');
+            const season = parts[0];
+            let start, end;
+
+            if (season === 'Winter') {
+                const years = parts[1].split('-');
+                start = new Date(years[0], 11, 1); // Dec 1
+                end = new Date(years[1], 2, 0, 23, 59, 59); // Last day of Feb
+            } else if (season === 'Spring') {
+                start = new Date(parts[1], 2, 1); 
+                end = new Date(parts[1], 5, 0, 23, 59, 59); 
+            } else if (season === 'Summer') {
+                start = new Date(parts[1], 5, 1); 
+                end = new Date(parts[1], 8, 0, 23, 59, 59);
+            } else if (season === 'Fall') {
+                start = new Date(parts[1], 8, 1); 
+                end = new Date(parts[1], 11, 0, 23, 59, 59);
+            }
+            return date >= start && date <= end;
+        }
+
+        return true; // all-time
+    });
+}
+
+// ----------------------------------------
+// Component Renderers
+// ----------------------------------------
+function renderBasicStats(logs) {
+    const grid = document.getElementById('basic-stats-grid');
+    if (!logs || logs.length === 0) {
+        grid.innerHTML = '<div class="stats-box" style="grid-column: 1/-1;"><span class="meta">No activity found for this period.</span></div>';
+        return;
+    }
+
+    const totalLogs = logs.length;
+    const totalReviews = logs.filter(l => l.notes && l.notes.trim() !== '').length;
+    const fiveStars = logs.filter(l => l.rating === 5).length;
+    // Calculate TV Show Stats (Only from ENTIRE series logs)
+    const entireTvLogs = logs.filter(l => l.media_type === 'tv' && (l.log_level === 'entire' || (!l.season_number && !l.episode_number)));
+    const totalShows = entireTvLogs.length;
+    
+    // Total episodes and seasons grabbed from the entire series log
+    const totalTvEpisodes = entireTvLogs.reduce((sum, l) => sum + (parseInt(l.ep_count_in_season) || 0), 0);
+    const totalTvSeasons = entireTvLogs.reduce((sum, l) => sum + (parseInt(l.season_number) || 0), 0);
+
+    // Calculate Pages for Books (Fallback to current_page if total_pages isn't set)
+    const totalPages = logs.reduce((sum, l) => {
+        if (l.media_type === 'book' && l.is_finished === true) {
+            return sum + (parseInt(l.total_pages) || 0);
+        }
+        return sum;
+    }, 0);
+
+    // Calculate Hours
+    const totalRuntimeMinutes = logs.reduce((sum, l) => {
+        if (l.media_type === 'movie' || l.media_type === 'youtube' || l.media_type === 'album') {
+            return sum + (parseInt(l.runtime) || 0);
+        } else if (l.media_type === 'tv' && (l.log_level === 'entire' || (!l.season_number && !l.episode_number))) {
+            // TV Show: multiply average episode runtime by total episodes in the show
+            const epRuntime = parseInt(l.runtime) || 30; 
+            const epCount = parseInt(l.ep_count_in_season) || 1; 
+            return sum + (epRuntime * epCount);
+        }
+        return sum;
+    }, 0);
+    const hoursWatched = (totalRuntimeMinutes / 60).toFixed(1);
+
+    // Build the dynamic HTML
+    let html = `
+        <div class="stats-box"><div class="stats-box-value">${totalLogs}</div><div class="stats-box-label">Logs</div></div>
+    `;
+
+    // Dynamic blocks based on current filter
+    if (currentFilter === 'book') {
+        const entireBooks = logs.filter(l => l.media_type === 'book' && l.is_finished === true).length;
+        html += `<div class="stats-box"><div class="stats-box-value">${entireBooks}</div><div class="stats-box-label">Entire Books Read</div></div>`;
+        html += `<div class="stats-box"><div class="stats-box-value">${totalPages.toLocaleString()}</div><div class="stats-box-label">Pages Read</div></div>`;
+    } else if (currentFilter === 'tv') {
+        html += `<div class="stats-box"><div class="stats-box-value">${totalShows}</div><div class="stats-box-label">Complete Shows</div></div>`;
+        html += `<div class="stats-box"><div class="stats-box-value">${totalTvSeasons}</div><div class="stats-box-label">Total Seasons</div></div>`;
+        html += `<div class="stats-box"><div class="stats-box-value">${totalTvEpisodes}</div><div class="stats-box-label">Total Episodes</div></div>`;
+        html += `<div class="stats-box"><div class="stats-box-value">${hoursWatched}</div><div class="stats-box-label">Hours</div></div>`;
+    } else if (currentFilter === 'all') {
+        html += `<div class="stats-box"><div class="stats-box-value">${hoursWatched}</div><div class="stats-box-label">Hours</div></div>`;
+        html += `<div class="stats-box"><div class="stats-box-value">${totalPages.toLocaleString()}</div><div class="stats-box-label">Pages Read</div></div>`;
+    } else {
+        html += `<div class="stats-box"><div class="stats-box-value">${hoursWatched}</div><div class="stats-box-label">Hours</div></div>`;
+    }
+
+    html += `
+        <div class="stats-box"><div class="stats-box-value">${totalReviews}</div><div class="stats-box-label">Reviews</div></div>
+        <div class="stats-box"><div class="stats-box-value">${fiveStars}</div><div class="stats-box-label">5-Star Ratings</div></div>
+    `;
+
+    // First and Last Logic
+    const sorted = [...logs].sort((a, b) => getSafeDate(a) - getSafeDate(b));
+    if (currentFilter === 'all') {
+        const firstWatch = sorted.find(l => l.media_type === 'movie' || l.media_type === 'tv');
+        const firstRead = sorted.find(l => l.media_type === 'book');
+        const firstListen = sorted.find(l => l.media_type === 'album');
+        const firstVid = sorted.find(l => l.media_type === 'youtube');
+
+        if (firstWatch) html += `<div class="stats-box context-box"><div class="stats-box-label">First Watch</div><div class="meta">${firstWatch.media_title || 'Unknown'}</div></div>`;
+        if (firstRead) html += `<div class="stats-box context-box"><div class="stats-box-label">First Read</div><div class="meta">${firstRead.media_title || 'Unknown'}</div></div>`;
+        if (firstListen) html += `<div class="stats-box context-box"><div class="stats-box-label">First Listen</div><div class="meta">${firstListen.media_title || 'Unknown'}</div></div>`;
+        if (firstVid) html += `<div class="stats-box context-box"><div class="stats-box-label">First Video</div><div class="meta">${firstVid.media_title || 'Unknown'}</div></div>`;
+    } else {
+        html += `
+            <div class="stats-box context-box"><div class="stats-box-label">First Log</div><div class="meta">${sorted[0].media_title || 'Unknown'}</div></div>
+            <div class="stats-box context-box"><div class="stats-box-label">Last Log</div><div class="meta">${sorted[sorted.length-1].media_title || 'Unknown'}</div></div>
+        `;
+    }
+
+    grid.innerHTML = html;
+}
+
+function renderChart(logs) {
+    const ctx = document.getElementById('statsChart');
+    if (!ctx) return;
+    
+    // Destroy existing chart if it exists
+    if (statsChartInstance) {
+        statsChartInstance.destroy();
+    }
+
+    if (!logs || logs.length === 0) return;
+
+    const labels = [];
+    const dataCounts = {};
+
+    if (currentDepth === 'all-time') {
+        // Bin by Year
+        logs.forEach(l => {
+            const y = getSafeDate(l).getFullYear();
+            dataCounts[y] = (dataCounts[y] || 0) + 1;
+        });
+    } else {
+        // Bin by Week
+        logs.forEach(l => {
+            const d = getSafeDate(l);
+            // Format: "Wk 12" or "Dec 1st Week" depending on preference, sticking to Wk #
+            const w = `Wk ${getWeekNumber(d)}`;
+            dataCounts[w] = (dataCounts[w] || 0) + 1;
+        });
+    }
+
+    // Sort Keys properly
+    const sortedKeys = Object.keys(dataCounts).sort((a, b) => {
+        if (currentDepth === 'all-time') return parseInt(a) - parseInt(b);
+        return parseInt(a.replace('Wk ', '')) - parseInt(b.replace('Wk ', ''));
+    });
+
+    const dataset = sortedKeys.map(k => dataCounts[k]);
+
+    statsChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: sortedKeys,
+            datasets: [{
+                label: 'Logs',
+                data: dataset,
+                backgroundColor: 'rgba(79, 70, 229, 0.6)',
+                borderColor: 'rgba(79, 70, 229, 1)',
+                borderWidth: 1,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: { beginAtZero: true, grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#9ab' } },
+                x: { grid: { display: false }, ticks: { color: '#9ab' } }
+            }
+        }
+    });
+}
+
 function renderHeavyStats(heavyData) {
     const area = document.getElementById('heavy-stats-area');
     
@@ -422,229 +603,14 @@ function renderHeavyStats(heavyData) {
     area.innerHTML = html;
 }
 
-// --- HELPERS ---
-function getSafeDate(log) {
-    let d = log.watched_on || log.created_at;
-    if (d && d.length === 10) d += "T12:00:00"; // Fix timezone offset for YYYY-MM-DD
-    return new Date(d);
-}
-
-function getWeekNumber(d) {
-    d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
-    var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
-    var weekNo = Math.ceil(( ( (d - yearStart) / 86400000) + 1)/7);
-    return weekNo;
-}
-
-// --- DATA FETCHING & RENDERING (COMPLETED) ---
-function filterLogsLocally() {
-    return allMediaLogs.filter(log => {
-        // 1. Media Type Filter
-        if (currentFilter !== 'all' && log.media_type !== currentFilter) return false;
-
-        // 2. Timeframe Filter
-        const date = getSafeDate(log);
-        
-        if (currentDepth === 'by-year') {
-            return date.getFullYear() === parseInt(currentPeriod);
-        } 
-        else if (currentDepth === 'by-season') {
-            const parts = currentPeriod.split(' ');
-            const season = parts[0];
-            let start, end;
-
-            if (season === 'Winter') {
-                const years = parts[1].split('-');
-                start = new Date(years[0], 11, 1); // Dec 1
-                end = new Date(years[1], 2, 0, 23, 59, 59); // Last day of Feb
-            } else if (season === 'Spring') {
-                start = new Date(parts[1], 2, 1); 
-                end = new Date(parts[1], 5, 0, 23, 59, 59); 
-            } else if (season === 'Summer') {
-                start = new Date(parts[1], 5, 1); 
-                end = new Date(parts[1], 8, 0, 23, 59, 59);
-            } else if (season === 'Fall') {
-                start = new Date(parts[1], 8, 1); 
-                end = new Date(parts[1], 11, 0, 23, 59, 59);
-            }
-            return date >= start && date <= end;
-        }
-
-        return true; // all-time
-    });
-}
-
-function renderBasicStats(logs) {
-    const grid = document.getElementById('basic-stats-grid');
-    if (!logs || logs.length === 0) {
-        grid.innerHTML = '<div class="stats-box" style="grid-column: 1/-1;"><span class="meta">No activity found for this period.</span></div>';
-        return;
-    }
-
-    const totalLogs = logs.length;
-    const totalReviews = logs.filter(l => l.notes && l.notes.trim() !== '').length;
-    const fiveStars = logs.filter(l => l.rating === 5).length;
-    // Calculate TV Show Stats (Only from ENTIRE series logs)
-    const entireTvLogs = logs.filter(l => l.media_type === 'tv' && (l.log_level === 'entire' || (!l.season_number && !l.episode_number)));
-    const totalShows = entireTvLogs.length;
-    
-    // Total episodes and seasons grabbed from the entire series log
-    const totalTvEpisodes = entireTvLogs.reduce((sum, l) => sum + (parseInt(l.ep_count_in_season) || 0), 0);
-    const totalTvSeasons = entireTvLogs.reduce((sum, l) => sum + (parseInt(l.season_number) || 0), 0);
-
-    // Calculate Pages for Books (Fallback to current_page if total_pages isn't set)
-    const totalPages = logs.reduce((sum, l) => {
-        if (l.media_type === 'book' && l.is_finished === true) {
-            return sum + (parseInt(l.total_pages) || 0);
-        }
-        return sum;
-    }, 0);
-
-    // Calculate Hours
-    const totalRuntimeMinutes = logs.reduce((sum, l) => {
-        if (l.media_type === 'movie' || l.media_type === 'youtube' || l.media_type === 'album') {
-            return sum + (parseInt(l.runtime) || 0);
-        } else if (l.media_type === 'tv' && (l.log_level === 'entire' || (!l.season_number && !l.episode_number))) {
-            // TV Show: multiply average episode runtime by total episodes in the show
-            const epRuntime = parseInt(l.runtime) || 30; 
-            const epCount = parseInt(l.ep_count_in_season) || 1; 
-            return sum + (epRuntime * epCount);
-        }
-        return sum;
-    }, 0);
-    const hoursWatched = (totalRuntimeMinutes / 60).toFixed(1);
-
-    // Build the dynamic HTML
-    let html = `
-        <div class="stats-box"><div class="stats-box-value">${totalLogs}</div><div class="stats-box-label">Logs</div></div>
-    `;
-
-    // Dynamic blocks based on current filter
-    if (currentFilter === 'book') {
-        const entireBooks = logs.filter(l => l.media_type === 'book' && l.is_finished === true).length;
-        html += `<div class="stats-box"><div class="stats-box-value">${entireBooks}</div><div class="stats-box-label">Entire Books Read</div></div>`;
-        html += `<div class="stats-box"><div class="stats-box-value">${totalPages.toLocaleString()}</div><div class="stats-box-label">Pages Read</div></div>`;
-    } else if (currentFilter === 'tv') {
-        html += `<div class="stats-box"><div class="stats-box-value">${totalShows}</div><div class="stats-box-label">Complete Shows</div></div>`;
-        html += `<div class="stats-box"><div class="stats-box-value">${totalTvSeasons}</div><div class="stats-box-label">Total Seasons</div></div>`;
-        html += `<div class="stats-box"><div class="stats-box-value">${totalTvEpisodes}</div><div class="stats-box-label">Total Episodes</div></div>`;
-        html += `<div class="stats-box"><div class="stats-box-value">${hoursWatched}</div><div class="stats-box-label">Hours</div></div>`;
-    } else if (currentFilter === 'all') {
-        html += `<div class="stats-box"><div class="stats-box-value">${hoursWatched}</div><div class="stats-box-label">Hours</div></div>`;
-        html += `<div class="stats-box"><div class="stats-box-value">${totalPages.toLocaleString()}</div><div class="stats-box-label">Pages Read</div></div>`;
-    } else {
-        html += `<div class="stats-box"><div class="stats-box-value">${hoursWatched}</div><div class="stats-box-label">Hours</div></div>`;
-    }
-
-    html += `
-        <div class="stats-box"><div class="stats-box-value">${totalReviews}</div><div class="stats-box-label">Reviews</div></div>
-        <div class="stats-box"><div class="stats-box-value">${fiveStars}</div><div class="stats-box-label">5-Star Ratings</div></div>
-    `;
-
-    // First and Last Logic
-    const sorted = [...logs].sort((a, b) => getSafeDate(a) - getSafeDate(b));
-    if (currentFilter === 'all') {
-        const firstWatch = sorted.find(l => l.media_type === 'movie' || l.media_type === 'tv');
-        const firstRead = sorted.find(l => l.media_type === 'book');
-        const firstListen = sorted.find(l => l.media_type === 'album');
-        const firstVid = sorted.find(l => l.media_type === 'youtube');
-
-        if (firstWatch) html += `<div class="stats-box context-box"><div class="stats-box-label">First Watch</div><div class="meta">${firstWatch.media_title || 'Unknown'}</div></div>`;
-        if (firstRead) html += `<div class="stats-box context-box"><div class="stats-box-label">First Read</div><div class="meta">${firstRead.media_title || 'Unknown'}</div></div>`;
-        if (firstListen) html += `<div class="stats-box context-box"><div class="stats-box-label">First Listen</div><div class="meta">${firstListen.media_title || 'Unknown'}</div></div>`;
-        if (firstVid) html += `<div class="stats-box context-box"><div class="stats-box-label">First Video</div><div class="meta">${firstVid.media_title || 'Unknown'}</div></div>`;
-    } else {
-        html += `
-            <div class="stats-box context-box"><div class="stats-box-label">First Log</div><div class="meta">${sorted[0].media_title || 'Unknown'}</div></div>
-            <div class="stats-box context-box"><div class="stats-box-label">Last Log</div><div class="meta">${sorted[sorted.length-1].media_title || 'Unknown'}</div></div>
-        `;
-    }
-
-    grid.innerHTML = html;
-}
-
-window.requestStatsUpdate = async () => {
-    const btn = document.getElementById('refresh-stats-btn');
-    const status = document.getElementById('refresh-status');
-    
-    btn.disabled = true;
-    btn.innerText = "Queuing...";
-
-    const success = await queueStatsForUpdate();
-
-    if (success) {
-        btn.style.display = 'none';
-        status.style.display = 'block';
-    } else {
-        btn.innerText = "Error - Try Again";
-        btn.disabled = false;
-    }
-};
-
-function renderChart(logs) {
-    const ctx = document.getElementById('statsChart');
-    if (!ctx) return;
-    
-    // Destroy existing chart if it exists
-    if (statsChartInstance) {
-        statsChartInstance.destroy();
-    }
-
-    if (!logs || logs.length === 0) return;
-
-    const labels = [];
-    const dataCounts = {};
-
-    if (currentDepth === 'all-time') {
-        // Bin by Year
-        logs.forEach(l => {
-            const y = getSafeDate(l).getFullYear();
-            dataCounts[y] = (dataCounts[y] || 0) + 1;
-        });
-    } else {
-        // Bin by Week
-        logs.forEach(l => {
-            const d = getSafeDate(l);
-            // Format: "Wk 12" or "Dec 1st Week" depending on preference, sticking to Wk #
-            const w = `Wk ${getWeekNumber(d)}`;
-            dataCounts[w] = (dataCounts[w] || 0) + 1;
-        });
-    }
-
-    // Sort Keys properly
-    const sortedKeys = Object.keys(dataCounts).sort((a, b) => {
-        if (currentDepth === 'all-time') return parseInt(a) - parseInt(b);
-        return parseInt(a.replace('Wk ', '')) - parseInt(b.replace('Wk ', ''));
-    });
-
-    const dataset = sortedKeys.map(k => dataCounts[k]);
-
-    statsChartInstance = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: sortedKeys,
-            datasets: [{
-                label: 'Logs',
-                data: dataset,
-                backgroundColor: 'rgba(79, 70, 229, 0.6)',
-                borderColor: 'rgba(79, 70, 229, 1)',
-                borderWidth: 1,
-                borderRadius: 4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false }
-            },
-            scales: {
-                y: { beginAtZero: true, grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#9ab' } },
-                x: { grid: { display: false }, ticks: { color: '#9ab' } }
-            }
-        }
-    });
+function hasRealHeavyData(heavy) {
+    if (!heavy) return false;
+    if (heavy.top_actors && heavy.top_actors.length > 0) return true;
+    if (heavy.top_directors && heavy.top_directors.length > 0) return true;
+    if (heavy.top_genres && heavy.top_genres.length > 0) return true;
+    if (heavy.top_themes && heavy.top_themes.length > 0) return true;
+    if (heavy.vibe) return true;
+    return false;
 }
 
 function renderMilestones(logs) {
@@ -713,12 +679,60 @@ function renderMilestones(logs) {
     area.innerHTML = html;
 }
 
+// ----------------------------------------
+// Event Delegation
+// ----------------------------------------
+window.toggleProfileDropdown = function(event) {
+    if (event) event.stopPropagation();
+    const content = document.getElementById('dropdown-content');
+    const trigger = document.querySelector('.profile-trigger');
+    if (!content || !trigger) return;
+    
+    const isVisible = content.style.display === 'block';
+    content.style.display = isVisible ? 'none' : 'block';
+    trigger.classList.toggle('active', !isVisible);
+};
+
+window.onclick = function(event) {
+    const dropdown = document.getElementById('dropdown-content');
+    const trigger = document.querySelector('.profile-trigger');
+    if (dropdown && trigger && event.target !== trigger && !trigger.contains(event.target) && !dropdown.contains(event.target)) {
+        dropdown.style.display = 'none';
+        trigger.classList.remove('active');
+    }
+};
+
+window.signOut = async function() {
+    await supabaseClient.auth.signOut();
+    window.location.href = 'index.html';
+};
+
+window.requestStatsUpdate = async () => {
+    const btn = document.getElementById('refresh-stats-btn');
+    const status = document.getElementById('refresh-status');
+    
+    btn.disabled = true;
+    btn.innerText = "Queuing...";
+
+    const success = await queueStatsForUpdate();
+
+    if (success) {
+        btn.style.display = 'none';
+        status.style.display = 'block';
+    } else {
+        btn.innerText = "Error - Try Again";
+        btn.disabled = false;
+    }
+};
+
 document.querySelectorAll('[data-stats-depth]').forEach((button) => {
     button.addEventListener('click', () => window.switchStatsDepth(button.dataset.statsDepth));
 });
+
 document.querySelectorAll('[data-stats-filter]').forEach((button) => {
     button.addEventListener('click', () => window.filterStats(button.dataset.statsFilter));
 });
+
 document.getElementById('refresh-stats-btn')?.addEventListener('click', () => window.requestStatsUpdate());
 
 initStats();
