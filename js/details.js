@@ -478,7 +478,6 @@ async function initDetails() {
 
         // If it is an Anime, handle the Filler Logic
         if (isAnime) {
-            const slug = slugify(data.title);
             const fillerContainer = document.getElementById('filler-status-container');
             const fillerInfo = document.getElementById('filler-info');
             const fillerAction = document.getElementById('filler-action-area');
@@ -487,6 +486,8 @@ async function initDetails() {
             fillerInfo.textContent = ""; // Clear default text
 
             try {
+                const slug = slugify(data.title); 
+                
                 // 1. Check DB for pending requests AND content
                 const { data: existingRequest } = await supabaseClient
                     .from('filler_list_mgnt')
