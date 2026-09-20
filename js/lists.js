@@ -1,21 +1,24 @@
+// Import necessary modules and functions
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
 import { normalizeOpenLibraryId } from './core/media.js';
 
+// Load configuration and initialize Supabase client
+let PROXY_URL = '';
 let supabaseClient = null;
 
-let PROXY_URL = '';
-
-let listOwnerId = null;
-let isViewerOwner = false;
-let customImgsMap = new Map();
-
-// NEW GLOBALS FOR FILTERING & REORDERING
+// Global vars
 let allFetchedLists = [];
 let currentListTab = 'owned';
 let isManagingLists = false;
 let listsSortableInstance = null;
+let listOwnerId = null;
+let isViewerOwner = false;
+const customImgsMap = new Map();
 
+// ----------------------------------------
+// Initialization
+// ----------------------------------------
 async function initLists() {
     const config = await loadConfig();
     PROXY_URL = config.proxy_url;
@@ -125,6 +128,9 @@ async function initLists() {
     fetchUserLists(listOwnerId, currentUserId);
 }
 
+// ----------------------------------------
+// Data Fetching
+// ----------------------------------------
 async function fetchUserLists(userId, currentUserId) {
     const container = document.getElementById('lists-container');
     
@@ -181,6 +187,9 @@ async function fetchUserLists(userId, currentUserId) {
     }
 }
 
+// ----------------------------------------
+// State Management & Filtering
+// ----------------------------------------
 // Window level filter function to handle tab clicks
 window.filterLists = (category) => {
     currentListTab = category;
@@ -199,10 +208,9 @@ window.filterLists = (category) => {
     renderFilteredLists();
 };
 
-document.querySelectorAll('[data-list-filter]').forEach((button) => {
-    button.addEventListener('click', () => window.filterLists(button.dataset.listFilter));
-});
-
+// ----------------------------------------
+// UI Rendering
+// ----------------------------------------
 async function renderFilteredLists() {
     const container = document.getElementById('lists-container');
     
@@ -240,7 +248,7 @@ async function renderFilteredLists() {
         if (isManagingLists) {
             listCard.style.cursor = 'grab';
         } else {
-            listCard.onclick = () => window.location.href = `listDetails.html?id=${list.id}&context=${listOwnerId}`;
+            listCard.onclick = () => window.location.href = `list-details.html?id=${list.id}&context=${listOwnerId}`;
         }
 
         let postersHtml = '<div class="list-poster-preview">';
@@ -303,28 +311,9 @@ async function renderFilteredLists() {
     }
 }
 
-async function saveListsOrder() {
-    const container = document.getElementById('lists-container');
-    const cards = container.querySelectorAll('.list-card');
-    
-    const updates = [];
-    cards.forEach((card, index) => {
-        const listId = card.getAttribute('data-list-id');
-        const rank = index + 1;
-        
-        // Update the global state so tab switching doesn't reset it
-        const listRef = allFetchedLists.find(l => l.id === listId);
-        if (listRef) listRef.sort_rank = rank;
-
-        updates.push({ id: listId, sort_rank: rank });
-    });
-
-    for (const u of updates) {
-        const { error } = await supabaseClient.from('media_lists').update({ sort_rank: u.sort_rank }).eq('id', u.id);
-        if (error) throw new Error(error.message);
-    }
-}
-
+// ----------------------------------------
+// CRUD Operations & Integrations
+// ----------------------------------------
 async function createList(userId) {
     const nameInput = document.getElementById('list-name-input');
     const name = nameInput.value.trim();
@@ -351,5 +340,34 @@ async function createList(userId) {
         fetchUserLists(userId, userId); 
     }
 }
+
+async function saveListsOrder() {
+    const container = document.getElementById('lists-container');
+    const cards = container.querySelectorAll('.list-card');
+    
+    const updates = [];
+    cards.forEach((card, index) => {
+        const listId = card.getAttribute('data-list-id');
+        const rank = index + 1;
+        
+        // Update the global state so tab switching doesn't reset it
+        const listRef = allFetchedLists.find(l => l.id === listId);
+        if (listRef) listRef.sort_rank = rank;
+
+        updates.push({ id: listId, sort_rank: rank });
+    });
+
+    for (const u of updates) {
+        const { error } = await supabaseClient.from('media_lists').update({ sort_rank: u.sort_rank }).eq('id', u.id);
+        if (error) throw new Error(error.message);
+    }
+}
+
+// ----------------------------------------
+// Event Delegation
+// ----------------------------------------
+document.querySelectorAll('[data-list-filter]').forEach((button) => {
+    button.addEventListener('click', () => window.filterLists(button.dataset.listFilter));
+});
 
 initLists();

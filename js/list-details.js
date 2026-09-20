@@ -1,11 +1,13 @@
+// Import necessary modules and functions
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
 import { normalizeOpenLibraryId } from './core/media.js';
 
-const params = new URLSearchParams(window.location.search);
-const listId = params.get('id');
-let supabaseClient = null;
+// Load configuration and initialize Supabase client
 let PROXY_URL = '';
+let supabaseClient = null;
+
+// Global vars
 let isRanked = false;
 let isTiered = false;
 let tierColors = {};
@@ -16,6 +18,13 @@ let sortableInstances = [];
 let isOwner = false;
 let customImgsMap = new Map();
 
+// Get parameters
+const params = new URLSearchParams(window.location.search);
+const listId = params.get('id');
+
+// ----------------------------------------
+// Initialization
+// ----------------------------------------
 async function initListDetails() {
     // 1. Initialize Supabase and Config
     const config = await loadConfig();
@@ -300,6 +309,9 @@ async function initListDetails() {
     }
 }
 
+// ----------------------------------------
+// Data Fetching & Rendering
+// ----------------------------------------
 async function fetchListItems() {
     const container = document.getElementById('list-content');
     
@@ -484,6 +496,9 @@ async function renderTieredList(container) {
     }
 }
 
+// ----------------------------------------
+// Rank & Sort Logic
+// ----------------------------------------
 function updateRankBadges() {
     document.querySelectorAll('.rank-badge').forEach((badge, index) => {
         badge.textContent = index + 1;
@@ -555,6 +570,9 @@ document.getElementById('save-order-btn').onclick = async () => {
     }
 };
 
+// ----------------------------------------
+// Search Integration (Adding Items)
+// ----------------------------------------
 async function setupSearch() {
     const input = document.getElementById('list-search-input');
     const resultsDiv = document.getElementById('search-results');
@@ -684,6 +702,9 @@ async function addItem(mediaId, mediaType, mediaTitle) {
     }
 }
 
+// ----------------------------------------
+// Media Definition (Fallback Data)
+// ----------------------------------------
 async function fetchMediaDetails(item) {
     const id = item.media_id;
     const type = item.media_type;
@@ -731,15 +752,9 @@ async function fetchMediaDetails(item) {
     }
 }
 
-window.removeItem = async (itemId, event) => {
-    if (event) event.stopPropagation();
-    if (!confirm("Remove this item?")) return;
-    
-    const { error } = await supabaseClient.from('list_items').delete().eq('id', itemId);
-    if (error) alert("Error removing item: " + error.message);
-    else fetchListItems();
-};
-
+// ----------------------------------------
+// Modal Managers
+// ----------------------------------------
 function setupCustomCardModal() {
     const openBtn = document.getElementById('open-custom-card-modal');
     const modal = document.getElementById('custom-card-modal');
@@ -845,5 +860,17 @@ async function setupCollabModal() {
         else { input.value = ''; refreshCollabList(); }
     };
 }
+
+// ----------------------------------------
+// Global Event Listeners
+// ----------------------------------------
+window.removeItem = async (itemId, event) => {
+    if (event) event.stopPropagation();
+    if (!confirm("Remove this item?")) return;
+    
+    const { error } = await supabaseClient.from('list_items').delete().eq('id', itemId);
+    if (error) alert("Error removing item: " + error.message);
+    else fetchListItems();
+};
 
 initListDetails();

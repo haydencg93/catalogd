@@ -1,22 +1,30 @@
+// Import necessary modules and functions
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
 import { normalizeOpenLibraryId } from './core/media.js';
 
+// Load configuration and initialize Supabase client
 let supabaseClient;
 let PROXY_URL = '';
 
-const params = new URLSearchParams(window.location.search);
-const id = params.get('id');
-const type = params.get('type');
+// Global vars
 let currentMediaRuntime = 0;
 let isLiked = false;
 let isRewatch = false;
 let currentRating = 0;
-const logId = params.get('logId');
 let albumTracks = [];
 let currentTags = [];
 let mediaReleaseYear = null;
 
+// Get parameters
+const params = new URLSearchParams(window.location.search);
+const id = params.get('id');
+const type = params.get('type');
+const logId = params.get('logId');
+
+// ----------------------------------------
+// Initialization
+// ----------------------------------------
 async function initLog() {
     const config = await loadConfig();
     supabaseClient = await getSupabaseClient();
@@ -186,6 +194,54 @@ async function initLog() {
     document.getElementById('save-log-btn').onclick = saveLog;
 }
 
+// ----------------------------------------
+// Media-Specific Routing
+// ----------------------------------------
+function setupAlbumDropdowns() {
+    const scope = document.getElementById('log-scope');
+    const trackGroup = document.getElementById('track-input-group');
+    const trackSelect = document.getElementById('track-select');
+
+    // Populate track dropdown
+    trackSelect.innerHTML = albumTracks.map((track, index) => {
+        const duration = parseInt(track.duration) || 0;
+        const mins = Math.floor(duration / 60);
+        const secs = (duration % 60).toString().padStart(2, '0');
+        return `<option value="${index + 1}">${index + 1}. ${track.name} (${mins}:${secs})</option>`;
+    }).join('');
+
+    const updateTotalRuntime = () => {
+        const totalSecs = albumTracks.reduce((sum, track) => sum + (parseInt(track.duration) || 0), 0);
+        currentMediaRuntime = Math.floor(totalSecs / 60);
+    };
+
+    const updateTrackRuntime = () => {
+        const selectedTrackIndex = parseInt(trackSelect.value) - 1;
+        const trackDuration = parseInt(albumTracks[selectedTrackIndex]?.duration) || 0;
+        currentMediaRuntime = Math.floor(trackDuration / 60);
+    };
+
+    // Initialize runtime for entire album
+    updateTotalRuntime();
+
+    scope.onchange = () => {
+        if (scope.value === 'track') {
+            trackGroup.style.display = 'block';
+            updateTrackRuntime();
+        } else {
+            trackGroup.style.display = 'none';
+            updateTotalRuntime();
+        }
+    };
+
+    trackSelect.onchange = () => {
+        if (scope.value === 'track') updateTrackRuntime();
+    };
+}
+
+// ----------------------------------------
+// UI Hydration (Edit Mode)
+// ----------------------------------------
 async function fetchExistingLogData() {
     const { data: log, error } = await supabaseClient
         .from('media_logs')
@@ -244,6 +300,18 @@ async function fetchExistingLogData() {
     }
 }
 
+function renderTags() {
+    const container = document.getElementById('tags-display-container');
+    container.innerHTML = currentTags.map((tag, index) => `
+        <span class="tag-pill">
+            ${tag} <span class="tag-remove" onclick="removeTag(${index})">×</span>
+        </span>
+    `).join('');
+}
+
+// ----------------------------------------
+// Component Listeners
+// ----------------------------------------
 function setupDropdowns(seasons) {
     const scope = document.getElementById('log-scope');
     const group = document.getElementById('dropdown-group');
@@ -259,14 +327,6 @@ function setupDropdowns(seasons) {
     };
 
     sSelect.onchange = loadEpisodeList;
-}
-
-async function loadEpisodeList() {
-    const sNum = document.getElementById('season-select').value;
-    const eSelect = document.getElementById('episode-select');
-    const res = await fetch(`${PROXY_URL}/api/tmdb/tv/${id}/season/${sNum}`).then(r => r.json());
-
-    eSelect.innerHTML = res.episodes.map(e => `<option value="${e.episode_number}">E${e.episode_number}: ${e.name}</option>`).join('');
 }
 
 function setupStars() {
@@ -299,26 +359,6 @@ function setupStars() {
     });
 }
 
-function updateStarUI() {
-    const stars = document.querySelectorAll('.star');
-    
-    stars.forEach(s => {
-        const val = parseInt(s.dataset.value);
-        
-        // Reset both classes first
-        s.classList.remove('active');
-        s.classList.remove('half-active');
-
-        if (val <= currentRating) {
-            // Full star: rating is equal or higher than star value
-            s.classList.add('active');
-        } else if (val - 0.5 === currentRating) {
-            // Half star: rating is exactly 0.5 less than star value
-            s.classList.add('half-active');
-        }
-    });
-}
-
 function setupTagsInput() {
     const tagInput = document.getElementById('log-tags-input');
     
@@ -340,20 +380,6 @@ function setupTagsInput() {
     });
 }
 
-function renderTags() {
-    const container = document.getElementById('tags-display-container');
-    container.innerHTML = currentTags.map((tag, index) => `
-        <span class="tag-pill">
-            ${tag} <span class="tag-remove" onclick="removeTag(${index})">×</span>
-        </span>
-    `).join('');
-}
-
-window.removeTag = function(index) {
-    currentTags.splice(index, 1);
-    renderTags();
-};
-
 function setupActionButtons() {
     const likeBtn = document.getElementById('like-btn');
     const watchlistBtn = document.getElementById('watchlist-btn');
@@ -370,6 +396,34 @@ function setupActionButtons() {
     };
 }
 
+function updateStarUI() {
+    const stars = document.querySelectorAll('.star');
+    
+    stars.forEach(s => {
+        const val = parseInt(s.dataset.value);
+        
+        // Reset both classes first
+        s.classList.remove('active');
+        s.classList.remove('half-active');
+
+        if (val <= currentRating) {
+            // Full star: rating is equal or higher than star value
+            s.classList.add('active');
+        } else if (val - 0.5 === currentRating) {
+            // Half star: rating is exactly 0.5 less than star value
+            s.classList.add('half-active');
+        }
+    });
+}
+
+window.removeTag = function(index) {
+    currentTags.splice(index, 1);
+    renderTags();
+};
+
+// ----------------------------------------
+// Database Mutations
+// ----------------------------------------
 async function saveLog() {
     // 1. Grab the button and disable it immediately to prevent duplicate clicks
     const saveBtn = document.getElementById('save-log-btn');
@@ -534,48 +588,6 @@ async function saveLog() {
         saveBtn.disabled = false;
         saveBtn.textContent = logId ? "Update Journal Entry" : "Save to Diary";
     }
-}
-
-function setupAlbumDropdowns() {
-    const scope = document.getElementById('log-scope');
-    const trackGroup = document.getElementById('track-input-group');
-    const trackSelect = document.getElementById('track-select');
-
-    // Populate track dropdown
-    trackSelect.innerHTML = albumTracks.map((track, index) => {
-        const duration = parseInt(track.duration) || 0;
-        const mins = Math.floor(duration / 60);
-        const secs = (duration % 60).toString().padStart(2, '0');
-        return `<option value="${index + 1}">${index + 1}. ${track.name} (${mins}:${secs})</option>`;
-    }).join('');
-
-    const updateTotalRuntime = () => {
-        const totalSecs = albumTracks.reduce((sum, track) => sum + (parseInt(track.duration) || 0), 0);
-        currentMediaRuntime = Math.floor(totalSecs / 60);
-    };
-
-    const updateTrackRuntime = () => {
-        const selectedTrackIndex = parseInt(trackSelect.value) - 1;
-        const trackDuration = parseInt(albumTracks[selectedTrackIndex]?.duration) || 0;
-        currentMediaRuntime = Math.floor(trackDuration / 60);
-    };
-
-    // Initialize runtime for entire album
-    updateTotalRuntime();
-
-    scope.onchange = () => {
-        if (scope.value === 'track') {
-            trackGroup.style.display = 'block';
-            updateTrackRuntime();
-        } else {
-            trackGroup.style.display = 'none';
-            updateTotalRuntime();
-        }
-    };
-
-    trackSelect.onchange = () => {
-        if (scope.value === 'track') updateTrackRuntime();
-    };
 }
 
 initLog();
