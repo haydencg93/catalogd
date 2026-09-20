@@ -1,35 +1,29 @@
+// Import necessary modules and functions
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
 import { debounce } from './core/utils.js';
 
+// Load configuration and initialize Supabase client
 let supabaseClient = null;
-
 let PROXY_URL = '';
-let currentUser = null;
 
+// Global vars
+let currentUser = null;
 let currentFavs = { movie: [], tv: [], book: [], album: [], youtube: [], all: [] };
 let currentServices = { streaming: [], buying: [], listening: [], languages: [] };
-
-// --- GLOBAL EXPORT CACHE ---
 const exportTitleCache = new Map();
 
+// UI Elements
 const favSearchInput = document.getElementById('fav-search-input');
 const favSearchResults = document.getElementById('fav-search-results');
 
-async function refreshCurrentUserState() {
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    currentUser = user;
-
-    const currentEmailInput = document.getElementById('current-email');
-    if (currentEmailInput) {
-        currentEmailInput.value = user?.email || '';
-    }
-
-    return user;
-}
-
+// ----------------------------------------
+// Initialization
+// ----------------------------------------
 async function initSettings() {
     const config = await loadConfig();
+    PROXY_URL = config.proxy_url;
+
     supabaseClient = await getSupabaseClient({
         auth: {
             persistSession: true,
@@ -216,7 +210,7 @@ async function initSettings() {
     const rangeSelect = document.getElementById('export-range-select');
     const dateInputs = document.getElementById('date-range-inputs');
 
-rangeSelect.onchange = async () => {
+    rangeSelect.onchange = async () => {
         const isRange = rangeSelect.value === 'range';
         dateInputs.style.display = isRange ? 'flex' : 'none';
         
@@ -311,143 +305,46 @@ rangeSelect.onchange = async () => {
     setupFavoritesSearch();
 }
 
-// Function to handle the Favorites search
-favSearchInput.oninput = debounce(async (event) => {
-    const query = event.target.value.trim();
+function initServicePillDelegation() {
+    const handlePillActivation = (pill) => {
+        const category = pill.dataset.serviceCategory;
+        if (!category) return;
+        window.toggleServicePill(pill, category);
+    };
 
-    if (query.length < 3) {
-        favSearchResults.innerHTML = '';
-        favSearchResults.style.display = 'none';
-        return;
-    }
-
-    const ytRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
-    const ytMatch = query.match(ytRegex);
-
-    if (ytMatch && ytMatch[1]) {
-        const ytId = ytMatch[1];
-        fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${ytId}`)}&format=json`).then(r => r.json()).then(res => {
-            if (res && res.title) {
-                favSearchResults.innerHTML = '';
-                favSearchResults.style.display = 'block';
-                
-                const div = document.createElement('div');
-                div.className = 'search-item-dropdown';
-                div.style.cssText = `display: flex; align-items: center; gap: 12px; padding: 10px; cursor: pointer; border-bottom: 1px solid #2c3440;`;
-                div.innerHTML = `
-                    <img src="${res.thumbnail_url}" style="width: 40px; height: 60px; object-fit: cover; border-radius: 4px;">
-                    <div style="flex: 1;">
-                        <strong style="font-size: 1rem;">${res.title}</strong>
-                        <div style="font-size: 0.75rem; color: #9ab;">YOUTUBE</div>
-                    </div>
-                `;
-                div.onclick = () => {
-                    addFavorite({ id: ytId, title: res.title, type: 'youtube', image: res.thumbnail_url });
-                    favSearchResults.innerHTML = ''; favSearchInput.value = '';
-                };
-                favSearchResults.appendChild(div);
-            }
-        });
-        return; // Stop here so it doesn't try to search TMDB for a URL
-    }
-
-    try {
-        // Fetch everything in parallel
-        const [movieRes, tvRes, bookRes, albumRes] = await Promise.all([
-            fetch(`${PROXY_URL}/api/tmdb/search/movie?query=${encodeURIComponent(query)}`).then(r => r.json()),
-            fetch(`${PROXY_URL}/api/tmdb/search/tv?query=${encodeURIComponent(query)}`).then(r => r.json()),
-            fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=5`).then(r => r.json()),
-            fetch(`${PROXY_URL}/api/lastfm?method=album.search&album=${encodeURIComponent(query)}`).then(r => r.json()).catch(() => null)
-        ]);
-
-        // Clear UI once before rendering new results
-        favSearchResults.innerHTML = '';
-        favSearchResults.style.display = 'block';
-
-        const seenIds = new Set();
-
-        const createSearchRow = (title, year, type, imageUrl, subtitle, clickAction) => {
-            const div = document.createElement('div');
-            div.className = 'search-item-dropdown';
-            div.style.cssText = `display: flex; align-items: center; gap: 12px; padding: 10px; cursor: pointer; border-bottom: 1px solid #2c3440;`;
-            div.innerHTML = `
-                <img src="${imageUrl}" style="width: 40px; height: 60px; object-fit: cover; border-radius: 4px; background: #1a1d23;" alt="cover">
-                <div style="flex: 1;">
-                    <div style="display: flex; align-items: baseline; gap: 6px;">
-                        <strong style="font-size: 1rem;">${title}${year}</strong>
-                        <span style="opacity:0.5; font-size: 0.7rem; text-transform: uppercase;">— ${type}</span>
-                    </div>
-                    <div style="font-size: 0.75rem; color: #9ab; margin-top: 2px;">${subtitle}</div>
-                </div>
-            `;
-            div.onclick = clickAction;
-            return div;
-        };
-
-        // --- MOVIES ---
-        for (const item of movieRes.results.slice(0, 5)) {
-            if (seenIds.has(item.id)) continue;
-            seenIds.add(item.id);
-
-            const year = item.release_date ? ` (${item.release_date.split('-')[0]})` : "";
-            const img = item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : 'https://via.placeholder.com/92x138?text=No+Image';
-            
-            favSearchResults.appendChild(createSearchRow(item.title, year, 'movie', img, "Movie", () => {
-                addFavorite({ id: item.id, title: `${item.title}${year}`, type: 'movie', image: img.replace('w92', 'w500') });
-                favSearchResults.innerHTML = ''; favSearchInput.value = '';
-            }));
+    document.addEventListener('click', (event) => {
+        const pill = event.target.closest('.pill[data-service-category]');
+        if (pill) {
+            handlePillActivation(pill);
         }
+    });
 
-        // --- TV ---
-        for (const item of tvRes.results.slice(0, 5)) {
-            if (seenIds.has(item.id)) continue;
-            seenIds.add(item.id);
-
-            const year = item.first_air_date ? ` (${item.first_air_date.split('-')[0]})` : "";
-            const img = item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : 'https://via.placeholder.com/92x138?text=No+Image';
-            
-            favSearchResults.appendChild(createSearchRow(item.name, year, 'tv', img, "TV Show", () => {
-                addFavorite({ id: item.id, title: `${item.name}${year}`, type: 'tv', image: img.replace('w92', 'w500') });
-                favSearchResults.innerHTML = ''; favSearchInput.value = '';
-            }));
-        }
-
-        // --- BOOKS ---
-        bookRes.docs.forEach(book => {
-            if (seenIds.has(book.key)) return;
-            seenIds.add(book.key);
-
-            const year = book.first_publish_year ? ` (${book.first_publish_year})` : "";
-            const img = book.cover_i ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg` : 'https://via.placeholder.com/92x138?text=No+Cover';
-            const author = book.author_name ? book.author_name[0] : "Unknown Author";
-
-            favSearchResults.appendChild(createSearchRow(book.title, year, 'book', img, author, () => {
-                addFavorite({ id: book.key, title: `${book.title}${year}`, type: 'book', image: img });
-                favSearchResults.innerHTML = ''; favSearchInput.value = '';
-            }));
-        });
-
-        // --- ALBUMS ---
-        if (albumRes?.results?.albummatches?.album) {
-            for (const a of albumRes.results.albummatches.album.slice(0, 5)) {
-                const compositeId = encodeURIComponent(`${a.artist}|||${a.name}`);
-                if (seenIds.has(compositeId)) continue;
-                seenIds.add(compositeId);
-
-                const img = a.image && a.image[2]['#text'] ? a.image[2]['#text'] : `https://placehold.co/92x138/1b2228/eb3486?text=Music`;
-                
-                favSearchResults.appendChild(createSearchRow(a.name, "", 'album', img, a.artist, () => {
-                    addFavorite({ id: compositeId, title: a.name, type: 'album', image: img.replace('92x138', '500x500') });
-                    favSearchResults.innerHTML = ''; favSearchInput.value = '';
-                }));
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            const pill = event.target.closest('.pill[data-service-category]');
+            if (pill) {
+                event.preventDefault();
+                handlePillActivation(pill);
             }
         }
+    });
+}
 
-    } catch (error) {
-        console.error("Search error:", error);
+async function refreshCurrentUserState() {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    currentUser = user;
+
+    const currentEmailInput = document.getElementById('current-email');
+    if (currentEmailInput) {
+        currentEmailInput.value = user?.email || '';
     }
-}, 300);
 
+    return user;
+}
+
+// ----------------------------------------
+// UI Component Rendering
+// ----------------------------------------
 async function fetchAndRenderProviders() {
     try {
         const [movieProvRes, tvProvRes] = await Promise.all([
@@ -532,6 +429,75 @@ async function fetchAndRenderLanguages() {
     }
 }
 
+function renderFavManager() {
+    const container = document.getElementById('favorites-manager');
+    container.innerHTML = ''; // Clear existing
+
+    // Reordered: 'album' before 'youtube'
+    const categories = ['movie', 'tv', 'book', 'album', 'youtube']; 
+    
+    categories.forEach(cat => {
+        const section = document.createElement('div');
+        section.className = 'fav-category-admin';
+        section.style.marginBottom = '20px';
+        
+        let label = "";
+        if (cat === 'youtube') label = "YouTube Videos";
+        else if (cat === 'tv') label = "TV Shows";
+        else if (cat === 'album') label = "Music Albums"; 
+        else label = cat.charAt(0).toUpperCase() + cat.slice(1) + 's';
+        
+        section.innerHTML = `<h4 style="color: #9ab; margin-bottom: 10px;">Top 5 ${label}</h4>`;
+        
+        const list = currentFavs[cat] || [];
+        
+        const itemContainer = document.createElement('div');
+        itemContainer.style.display = 'flex';
+        itemContainer.style.gap = '10px';
+        itemContainer.style.flexWrap = 'wrap';
+
+        list.forEach((item, index) => {
+            const itemDiv = document.createElement('div');
+            // Added data-id and a grab handle for SortableJS
+            itemDiv.style.cssText = "background: #14181c; padding: 5px 10px; border-radius: 6px; display: flex; align-items: center; gap: 8px; border: 1px solid #2c3440;";
+            itemDiv.innerHTML = `
+                <span class="drag-handle" style="cursor: grab; color: #678; margin-right: 5px;" title="Drag to reorder">☰</span>
+                <span class="fav-rank" style="color: var(--accent); font-weight: bold;">#${index + 1}</span>
+                <span style="font-size: 0.9rem;">${item.title}</span>
+                <span data-remove-favorite="${cat}" data-favorite-index="${index}" style="cursor: pointer; color: #ff4d4d; font-weight: bold; margin-left: auto;">×</span>
+            `;
+            itemContainer.appendChild(itemDiv);
+        });
+
+        if (list.length === 0) {
+            itemContainer.innerHTML = `<p style="font-size: 0.8rem; opacity: 0.5;">No ${cat}s added yet.</p>`;
+        }
+
+        section.appendChild(itemContainer);
+        container.appendChild(section);
+
+        // Initialize SortableJS on the container if there are items to sort
+        if (list.length > 0) {
+            new Sortable(itemContainer, {
+                animation: 150,
+                handle: '.drag-handle', // Only allow dragging from the hamburger icon
+                onEnd: (evt) => {
+                    // Update the underlying data array to match the new DOM order
+                    const movedItem = currentFavs[cat].splice(evt.oldIndex, 1)[0];
+                    currentFavs[cat].splice(evt.newIndex, 0, movedItem);
+                    
+                    // Visually update the #1, #2, #3 text without needing a full re-render
+                    itemContainer.querySelectorAll('.fav-rank').forEach((el, i) => {
+                        el.textContent = `#${i + 1}`;
+                    });
+                    
+                    updateTopAll();
+                }
+        });
+        }
+    });
+}
+
 function renderActiveServicePills() {
     // This handles visually updating the hardcoded Music pills on page load
     const musicPills = document.querySelectorAll('#settings-listening-container .pill');
@@ -543,59 +509,150 @@ function renderActiveServicePills() {
     });
 }
 
-function initServicePillDelegation() {
-    const handlePillActivation = (pill) => {
-        const category = pill.dataset.serviceCategory;
-        if (!category) return;
-        window.toggleServicePill(pill, category);
-    };
+function setupFavoritesSearch() {
+    const favSearchInput = document.getElementById('fav-search-input');
+    const favSearchResults = document.getElementById('fav-search-results');
 
-    document.addEventListener('click', (event) => {
-        const pill = event.target.closest('.pill[data-service-category]');
-        if (pill) {
-            handlePillActivation(pill);
+    favSearchInput.oninput = debounce(async (event) => {
+        const query = event.target.value.trim();
+
+        if (query.length < 3) {
+            favSearchResults.innerHTML = '';
+            favSearchResults.style.display = 'none';
+            return;
         }
-    });
 
-    document.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-            const pill = event.target.closest('.pill[data-service-category]');
-            if (pill) {
-                event.preventDefault();
-                handlePillActivation(pill);
+        const ytRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+        const ytMatch = query.match(ytRegex);
+
+        if (ytMatch && ytMatch[1]) {
+            const ytId = ytMatch[1];
+            fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${ytId}`)}&format=json`).then(r => r.json()).then(res => {
+                if (res && res.title) {
+                    favSearchResults.innerHTML = '';
+                    favSearchResults.style.display = 'block';
+                    
+                    const div = document.createElement('div');
+                    div.className = 'search-item-dropdown';
+                    div.style.cssText = `display: flex; align-items: center; gap: 12px; padding: 10px; cursor: pointer; border-bottom: 1px solid #2c3440;`;
+                    div.innerHTML = `
+                        <img src="${res.thumbnail_url}" style="width: 40px; height: 60px; object-fit: cover; border-radius: 4px;">
+                        <div style="flex: 1;">
+                            <strong style="font-size: 1rem;">${res.title}</strong>
+                            <div style="font-size: 0.75rem; color: #9ab;">YOUTUBE</div>
+                        </div>
+                    `;
+                    div.onclick = () => {
+                        addFavorite({ id: ytId, title: res.title, type: 'youtube', image: res.thumbnail_url });
+                        favSearchResults.innerHTML = ''; favSearchInput.value = '';
+                    };
+                    favSearchResults.appendChild(div);
+                }
+            });
+            return; // Stop here so it doesn't try to search TMDB for a URL
+        }
+
+        try {
+            // Fetch everything in parallel
+            const [movieRes, tvRes, bookRes, albumRes] = await Promise.all([
+                fetch(`${PROXY_URL}/api/tmdb/search/movie?query=${encodeURIComponent(query)}`).then(r => r.json()),
+                fetch(`${PROXY_URL}/api/tmdb/search/tv?query=${encodeURIComponent(query)}`).then(r => r.json()),
+                fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=5`).then(r => r.json()),
+                fetch(`${PROXY_URL}/api/lastfm?method=album.search&album=${encodeURIComponent(query)}`).then(r => r.json()).catch(() => null)
+            ]);
+
+            // Clear UI once before rendering new results
+            favSearchResults.innerHTML = '';
+            favSearchResults.style.display = 'block';
+
+            const seenIds = new Set();
+
+            const createSearchRow = (title, year, type, imageUrl, subtitle, clickAction) => {
+                const div = document.createElement('div');
+                div.className = 'search-item-dropdown';
+                div.style.cssText = `display: flex; align-items: center; gap: 12px; padding: 10px; cursor: pointer; border-bottom: 1px solid #2c3440;`;
+                div.innerHTML = `
+                    <img src="${imageUrl}" style="width: 40px; height: 60px; object-fit: cover; border-radius: 4px; background: #1a1d23;" alt="cover">
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: baseline; gap: 6px;">
+                            <strong style="font-size: 1rem;">${title}${year}</strong>
+                            <span style="opacity:0.5; font-size: 0.7rem; text-transform: uppercase;">— ${type}</span>
+                        </div>
+                        <div style="font-size: 0.75rem; color: #9ab; margin-top: 2px;">${subtitle}</div>
+                    </div>
+                `;
+                div.onclick = clickAction;
+                return div;
+            };
+
+            // --- MOVIES ---
+            for (const item of movieRes.results.slice(0, 5)) {
+                if (seenIds.has(item.id)) continue;
+                seenIds.add(item.id);
+
+                const year = item.release_date ? ` (${item.release_date.split('-')[0]})` : "";
+                const img = item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : 'https://via.placeholder.com/92x138?text=No+Image';
+                
+                favSearchResults.appendChild(createSearchRow(item.title, year, 'movie', img, "Movie", () => {
+                    addFavorite({ id: item.id, title: `${item.title}${year}`, type: 'movie', image: img.replace('w92', 'w500') });
+                    favSearchResults.innerHTML = ''; favSearchInput.value = '';
+                }));
             }
+
+            // --- TV ---
+            for (const item of tvRes.results.slice(0, 5)) {
+                if (seenIds.has(item.id)) continue;
+                seenIds.add(item.id);
+
+                const year = item.first_air_date ? ` (${item.first_air_date.split('-')[0]})` : "";
+                const img = item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : 'https://via.placeholder.com/92x138?text=No+Image';
+                
+                favSearchResults.appendChild(createSearchRow(item.name, year, 'tv', img, "TV Show", () => {
+                    addFavorite({ id: item.id, title: `${item.name}${year}`, type: 'tv', image: img.replace('w92', 'w500') });
+                    favSearchResults.innerHTML = ''; favSearchInput.value = '';
+                }));
+            }
+
+            // --- BOOKS ---
+            bookRes.docs.forEach(book => {
+                if (seenIds.has(book.key)) return;
+                seenIds.add(book.key);
+
+                const year = book.first_publish_year ? ` (${book.first_publish_year})` : "";
+                const img = book.cover_i ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg` : 'https://via.placeholder.com/92x138?text=No+Cover';
+                const author = book.author_name ? book.author_name[0] : "Unknown Author";
+
+                favSearchResults.appendChild(createSearchRow(book.title, year, 'book', img, author, () => {
+                    addFavorite({ id: book.key, title: `${book.title}${year}`, type: 'book', image: img });
+                    favSearchResults.innerHTML = ''; favSearchInput.value = '';
+                }));
+            });
+
+            // --- ALBUMS ---
+            if (albumRes?.results?.albummatches?.album) {
+                for (const a of albumRes.results.albummatches.album.slice(0, 5)) {
+                    const compositeId = encodeURIComponent(`${a.artist}|||${a.name}`);
+                    if (seenIds.has(compositeId)) continue;
+                    seenIds.add(compositeId);
+
+                    const img = a.image && a.image[2]['#text'] ? a.image[2]['#text'] : `https://placehold.co/92x138/1b2228/eb3486?text=Music`;
+                    
+                    favSearchResults.appendChild(createSearchRow(a.name, "", 'album', img, a.artist, () => {
+                        addFavorite({ id: compositeId, title: a.name, type: 'album', image: img.replace('92x138', '500x500') });
+                        favSearchResults.innerHTML = ''; favSearchInput.value = '';
+                    }));
+                }
+            }
+
+        } catch (error) {
+            console.error("Search error:", error);
         }
-    });
+    }, 300);
 }
 
-window.moveFavorite = (type, index, direction) => {
-    const list = currentFavs[type];
-    // Prevent moving out of bounds
-    if (index + direction < 0 || index + direction >= list.length) return;
-    
-    // Swap the items
-    const temp = list[index];
-    list[index] = list[index + direction];
-    list[index + direction] = temp;
-    
-    // Sync changes and re-render
-    updateTopAll();
-    renderFavManager();
-};
-
-window.toggleServicePill = function(element, category) {
-    const id = String(element.getAttribute('data-id'));
-    
-    if (currentServices[category].includes(id)) {
-        currentServices[category] = currentServices[category].filter(val => val !== id);
-        element.classList.remove('active');
-    } else {
-        currentServices[category].push(id);
-        element.classList.add('active');
-    }
-};
-
-// Update Profile
+// ----------------------------------------
+// Profile Mutations (Saves)
+// ----------------------------------------
 async function saveAllProfileData() {
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) return alert("Session lost. Please log in again.");
@@ -688,11 +745,6 @@ async function saveAllProfileData() {
     }
 }
 
-document.getElementById('lastfm-show-profile')?.addEventListener('change', (event) => {
-    const status = document.getElementById('lastfm-profile-status');
-    if (status) status.textContent = event.target.checked ? 'Shown on profile' : 'Not shown on profile';
-});
-
 function addFavorite(item) {
     if (!currentFavs[item.type]) {
         currentFavs[item.type] = [];
@@ -717,41 +769,9 @@ function updateTopAll() {
     currentFavs.all = [topMovie, topTv, topBook, topAlbum, topYoutube].filter(Boolean);
 }
 
-async function getExportTitle(id, type) {
-    if (!id) return "Unknown Title";
-    const cacheKey = `${type}_${id}`;
-    if (exportTitleCache.has(cacheKey)) return exportTitleCache.get(cacheKey);
-
-    let title = "Unknown Title";
-    try {
-        if (type === 'movie') {
-            const res = await fetch(`${PROXY_URL}/api/tmdb/movie/${id}`).then(r=>r.json());
-            title = res.title || title;
-        } else if (type === 'tv') {
-            const res = await fetch(`${PROXY_URL}/api/tmdb/tv/${id}`).then(r=>r.json());
-            title = res.name || title;
-        } else if (type === 'book') {
-            const formattedId = id.startsWith('/') ? id : `/works/${id}`;
-            const res = await fetch(`https://openlibrary.org${formattedId}.json`).then(r=>r.json());
-            title = res.title || title;
-        } else if (type === 'album') {
-            const parts = decodeURIComponent(id).split('|||');
-            title = parts[1] || parts[0] || title;
-        } else if (type === 'youtube') {
-            const res = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${id}`)}&format=json`).then(r=>r.json());
-            title = res.title || title;
-        }
-    } catch(e) {
-        console.warn(`Could not resolve title for ${type} ${id}`);
-    }
-    
-    exportTitleCache.set(cacheKey, title);
-    // 50ms buffer to respect API rate limits during bulk exports
-    await new Promise(r => setTimeout(r, 50)); 
-    return title;
-}
-
-// --- ORCHESTRATOR ---
+// ----------------------------------------
+// Data Export Pipelines
+// ----------------------------------------
 async function startFullAccountExport(user, rangeType, startDate, endDate, typeFilter) {
     const statusDiv = document.getElementById('export-status');
     const progressBar = document.getElementById('export-progress-bar');
@@ -858,8 +878,6 @@ async function startFullAccountExport(user, rangeType, startDate, endDate, typeF
     }
 }
 
-// --- SPECIFIC EXPORT FUNCTIONS ---
-
 async function exportAccountSettings(zip, user, customImgMap) {
     const folder = zip.folder("Account").folder("Settings");
     
@@ -892,20 +910,6 @@ async function exportAccountSettings(zip, user, customImgMap) {
     addExportLog("Account Settings", "Exported profile & favorites", "success");
 }
 
-async function exportListDetails(zip, user) {
-    const folder = zip.folder("Account").folder("Lists");
-    const { data: lists } = await supabaseClient.from('media_lists').select('*').eq('user_id', user.id);
-    
-    const listCsv = [["List ID", "Name", "Description", "Is Public", "Is Ranked", "Created At"]];
-    (lists || []).forEach(l => {
-        listCsv.push([l.id, l.name, l.description || "", l.is_public, l.is_ranked, l.created_at]);
-    });
-    
-    folder.file("List Details.csv", Papa.unparse(listCsv));
-    addExportLog("List Details", `Exported metadata for ${lists?.length || 0} lists`, "success");
-}
-
-// --- SPECIFIC EXPORT FUNCTIONS ---
 async function exportMovies(zip, user, filters, customImgMap, progress) {
     console.log("[Export] Starting Movies Export...");
     try {
@@ -958,7 +962,52 @@ async function exportYouTube(zip, user, filters, customImgMap, progress) {
     } catch (e) { console.error("YouTube Error:", e); }
 }
 
-// --- UTILITY DATA GENERATORS ---
+async function getExportTitle(id, type) {
+    if (!id) return "Unknown Title";
+    const cacheKey = `${type}_${id}`;
+    if (exportTitleCache.has(cacheKey)) return exportTitleCache.get(cacheKey);
+
+    let title = "Unknown Title";
+    try {
+        if (type === 'movie') {
+            const res = await fetch(`${PROXY_URL}/api/tmdb/movie/${id}`).then(r=>r.json());
+            title = res.title || title;
+        } else if (type === 'tv') {
+            const res = await fetch(`${PROXY_URL}/api/tmdb/tv/${id}`).then(r=>r.json());
+            title = res.name || title;
+        } else if (type === 'book') {
+            const formattedId = id.startsWith('/') ? id : `/works/${id}`;
+            const res = await fetch(`https://openlibrary.org${formattedId}.json`).then(r=>r.json());
+            title = res.title || title;
+        } else if (type === 'album') {
+            const parts = decodeURIComponent(id).split('|||');
+            title = parts[1] || parts[0] || title;
+        } else if (type === 'youtube') {
+            const res = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${id}`)}&format=json`).then(r=>r.json());
+            title = res.title || title;
+        }
+    } catch(e) {
+        console.warn(`Could not resolve title for ${type} ${id}`);
+    }
+    
+    exportTitleCache.set(cacheKey, title);
+    // 50ms buffer to respect API rate limits during bulk exports
+    await new Promise(r => setTimeout(r, 50)); 
+    return title;
+}
+
+async function exportListDetails(zip, user) {
+    const folder = zip.folder("Account").folder("Lists");
+    const { data: lists } = await supabaseClient.from('media_lists').select('*').eq('user_id', user.id);
+    
+    const listCsv = [["List ID", "Name", "Description", "Is Public", "Is Ranked", "Created At"]];
+    (lists || []).forEach(l => {
+        listCsv.push([l.id, l.name, l.description || "", l.is_public, l.is_ranked, l.created_at]);
+    });
+    
+    folder.file("List Details.csv", Papa.unparse(listCsv));
+    addExportLog("List Details", `Exported metadata for ${lists?.length || 0} lists`, "success");
+}
 
 async function generateMediaData(folder, user, typesArray, filters, customImgMap, progress, isLetterboxd) {
     const typeLabel = typesArray.join('/');
@@ -1105,6 +1154,94 @@ function addExportLog(title, message, type) {
     logList.prepend(li);
 }
 
+async function processListData(rawData, userId) {
+    const statusDiv = document.getElementById('import-status');
+    const progressBar = document.getElementById('import-progress-bar');
+    const progressText = document.getElementById('import-text');
+    const logList = document.getElementById('import-log-list');
+
+    statusDiv.style.display = 'block';
+    document.getElementById('import-log-container').style.display = 'block';
+    logList.innerHTML = '';
+
+    // 1. Extract List Metadata (Letterboxd format)
+    // Row 0 is often "Letterboxd list export v7"
+    // Row 1 is "Date, Name, Tags, URL, Description"
+    // Row 2 is the actual values for the list itself
+    const listName = rawData[2][1] || "Imported List";
+    const listDescription = rawData[2][4] || "";
+
+    // 2. Find where the actual movie data starts (usually after "Position, Name, Year...")
+    const headerRowIndex = rawData.findIndex(row => row.includes("Position") && row.includes("Name"));
+    if (headerRowIndex === -1) return alert("Could not find movie data in CSV.");
+
+    const movieRows = rawData.slice(headerRowIndex + 1);
+
+    try {
+        progressText.textContent = `Creating list: ${listName}...`;
+        
+        // 3. Create the List in media_lists
+        const { data: newList, error: listError } = await supabaseClient
+            .from('media_lists')
+            .insert({
+                user_id: userId,
+                name: listName,
+                description: listDescription,
+                is_public: true
+            })
+            .select()
+            .single();
+
+        if (listError) throw listError;
+
+        let successCount = 0;
+
+        // 4. Process each movie
+        for (let i = 0; i < movieRows.length; i++) {
+            const row = movieRows[i];
+            const title = row[1]; // Index 1 is 'Name'
+            const year = row[2];  // Index 2 is 'Year'
+
+            const progress = Math.round(((i + 1) / movieRows.length) * 100);
+            progressBar.style.width = `${progress}%`;
+            progressText.textContent = `Adding to ${listName}: ${title}`;
+
+            const mediaInfo = await resolveMedia(title, year);
+            if (mediaInfo) {
+                const { error: itemError } = await supabaseClient
+                    .from('list_items')
+                    .insert({
+                        list_id: newList.id,
+                        media_id: String(mediaInfo.id),
+                        media_type: mediaInfo.type,
+                        media_title: title
+                    });
+
+                if (!itemError) {
+                    addImportLog(title, "Added to list", "success");
+                    successCount++;
+                } else {
+                    addImportLog(title, "Error adding to list", "error");
+                }
+            } else {
+                addImportLog(title, "Not found on TMDB", "error");
+            }
+            // Small delay to respect TMDB rate limits
+            await new Promise(r => setTimeout(r, 150));
+        }
+
+        progressText.textContent = "List import complete!";
+        alert(`Imported "${listName}" with ${successCount} items.`);
+
+    } catch (err) {
+        console.error(err);
+        alert("Failed to create list: " + err.message);
+    }
+}
+
+// ----------------------------------------
+// Data Import Pipeline
+// ----------------------------------------
 async function startImport(data, userId) {
     const statusDiv = document.getElementById('import-status');
     const progressBar = document.getElementById('import-progress-bar');
@@ -1196,6 +1333,238 @@ async function startImport(data, userId) {
     alert(`Finished!\nNew: ${successCount}\nOverwritten: ${overwriteCount}\nSkipped: ${skipCount}\nFailed: ${failCount}`);
 }
 
+window.handleAdvancedImport = async (type) => {
+    const fileInput = document.getElementById(`import-${type}-input`);
+    const file = fileInput.files[0];
+    if (!file) return alert(`Please select the ${type} CSV file.`);
+
+    const { data: { user } } = await supabaseClient.auth.getUser();
+
+    Papa.parse(file, {
+        header: false, // Set to false first to handle the Letterboxd metadata rows
+        skipEmptyLines: true,
+        complete: (results) => {
+            if (type === 'list') {
+                processListData(results.data, user.id);
+            } else {
+                // For other types, convert back to header-based format or adjust processAdvancedData
+                const headers = results.data[0];
+                const rows = results.data.slice(1).map(row => {
+                    let obj = {};
+                    headers.forEach((h, i) => obj[h] = row[i]);
+                    return obj;
+                });
+                processAdvancedData(type, rows, user.id);
+            }
+        }
+    });
+};
+
+async function processAdvancedData(importType, data, userId) {
+    const statusDiv = document.getElementById('import-status');
+    const progressBar = document.getElementById('import-progress-bar');
+    const progressText = document.getElementById('import-text');
+    const logList = document.getElementById('import-log-list');
+
+    statusDiv.style.display = 'block';
+    document.getElementById('import-log-container').style.display = 'block';
+    logList.innerHTML = '';
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < data.length; i++) {
+        const row = data[i];
+        const title = row.Name || "Unknown";
+        const progress = Math.round(((i + 1) / data.length) * 100);
+        progressBar.style.width = `${progress}%`;
+        progressText.textContent = `Syncing ${importType}: ${title}`;
+
+        try {
+            const mediaInfo = await resolveMedia(title, row.Year);
+            if (!mediaInfo) {
+                addImportLog(title, "Not found on TMDB", "error");
+                failCount++;
+                continue;
+            }
+
+            if (importType === 'watchlist') {
+                // WATCHLIST: Insert into user_watchlist table
+                const { error } = await supabaseClient.from('user_watchlist').upsert({
+                    user_id: userId,
+                    media_id: String(mediaInfo.id),
+                    media_type: mediaInfo.type,
+                    media_title: title
+                }, { onConflict: 'user_id, media_id, media_type' }); // Prevents duplicates if constraint exists
+
+                if (error) throw error;
+                addImportLog(title, "Added to Watchlist", "success");
+            } 
+            else {
+                // REVIEWS or LIKES: Update existing logs in media_logs
+                const { data: existingLogs } = await supabaseClient
+                    .from('media_logs')
+                    .select('id')
+                    .eq('user_id', userId)
+                    .eq('media_id', String(mediaInfo.id));
+
+                if (!existingLogs || existingLogs.length === 0) {
+                    addImportLog(title, "No existing diary log found to update", "warning");
+                    failCount++;
+                } else {
+                    for (const log of existingLogs) {
+                        let updateData = {};
+                        if (importType === 'reviews') updateData.notes = row.Review;
+                        if (importType === 'likes') updateData.is_liked = true;
+
+                        await supabaseClient.from('media_logs').update(updateData).eq('id', log.id);
+                    }
+                    addImportLog(title, `Updated ${importType}`, "success");
+                }
+            }
+            successCount++;
+        } catch (err) {
+            console.error(err);
+            failCount++;
+        }
+        await new Promise(r => setTimeout(r, 150));
+    }
+
+    progressText.textContent = `${importType} sync complete!`;
+    alert(`Import Finished!\nSuccess: ${successCount}\nFailed/Skipped: ${failCount}`);
+}
+
+async function resolveMedia(title, year) {
+    if (!title) return null;
+    
+    const query = encodeURIComponent(title);
+    const movieUrl = `${PROXY_URL}/api/tmdb/search/movie?query=${query}&year=${year || ''}`;
+    
+    try {
+        const res = await fetch(movieUrl).then(r => r.json());
+
+        if (res.results && res.results.length > 0) {
+            const movieId = res.results[0].id;
+            // Fetch full details to get the runtime
+            const details = await fetch(`${PROXY_URL}/api/tmdb/movie/${movieId}`).then(r => r.json());
+
+            return { 
+                id: movieId, 
+                type: 'movie', 
+                runtime: details.runtime || 0 // Movies use .runtime
+            };
+        }
+        
+        // Fallback for TV
+        const tvUrl = `${PROXY_URL}/api/tmdb/search/tv?query=${query}&first_air_date_year=${year || ''}`;
+        const tvRes = await fetch(tvUrl).then(r => r.json());
+
+        if (tvRes.results && tvRes.results.length > 0) {
+            const tvId = tvRes.results[0].id;
+            const details = await fetch(`${PROXY_URL}/api/tmdb/tv/${tvId}`).then(r => r.json());
+
+            return { 
+                id: tvId, 
+                type: 'tv', 
+                // TV shows use episode_run_time (an array)
+                runtime: details.episode_run_time ? details.episode_run_time[0] : 0 
+            };
+        }
+    } catch (e) {
+        console.error("TMDB Resolve Error:", e);
+        return null;
+    }
+    return null;
+}
+
+function setupBulkInteractions(albumsArray) {
+    window.bulkRatings = new Array(albumsArray.length).fill(0);
+    window.bulkLikes = new Array(albumsArray.length).fill(false);
+
+    // 1. Setup Stars (With Half-Star Visuals)
+    document.querySelectorAll('.mini-star-rater').forEach(rater => {
+        const index = rater.dataset.index;
+        const stars = rater.querySelectorAll('.bulk-star');
+        
+        stars.forEach(star => {
+            star.onclick = (e) => {
+                const rect = star.getBoundingClientRect();
+                const isLeftHalf = (e.clientX - rect.left) < (rect.width / 2);
+                const val = parseInt(star.dataset.val);
+                
+                const rating = isLeftHalf ? val - 0.5 : val;
+                window.bulkRatings[index] = rating;
+
+                // Visually update the stars
+                stars.forEach(s => {
+                    const sVal = parseInt(s.dataset.val);
+                    
+                    // Reset all styles first
+                    s.style.color = '#2c3440';
+                    s.style.background = 'none';
+                    s.style.webkitBackgroundClip = 'initial';
+                    s.style.webkitTextFillColor = 'initial';
+
+                    if (sVal <= rating) {
+                        // Full Star
+                        s.style.color = 'var(--accent)';
+                    } else if (sVal - 0.5 === rating) {
+                        // Half Star (using CSS gradient text clipping)
+                        s.style.background = 'linear-gradient(90deg, var(--accent) 50%, #2c3440 50%)';
+                        s.style.webkitBackgroundClip = 'text';
+                        s.style.webkitTextFillColor = 'transparent';
+                    }
+                });
+            };
+        });
+    });
+
+    // 2. Setup Likes
+    document.querySelectorAll('.bulk-like-btn').forEach(btn => {
+        const index = btn.dataset.index;
+        btn.onclick = () => {
+            window.bulkLikes[index] = !window.bulkLikes[index];
+            btn.classList.toggle('active', window.bulkLikes[index]);
+            btn.style.color = window.bulkLikes[index] ? '#ff4d4d' : '';
+        };
+    });
+
+    // 3. Setup Toggle All Button
+    const toggleBtn = document.getElementById('bulk-toggle-all-btn');
+    if (toggleBtn) {
+        toggleBtn.onclick = () => {
+            const checkboxes = document.querySelectorAll('.bulk-import-checkbox');
+            const isDeselecting = toggleBtn.textContent === "Deselect All";
+            
+            checkboxes.forEach(cb => cb.checked = !isDeselecting);
+            toggleBtn.textContent = isDeselecting ? "Select All" : "Deselect All";
+        };
+    }
+}
+
+function addImportLog(title, message, type) {
+    const logList = document.getElementById('import-log-list');
+    const li = document.createElement('li');
+    li.style.cssText = "margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px solid #2c3440;";
+    
+    let color = '#ffb347'; // Default Orange
+    let icon = '⏭️';
+
+    if (type === 'error') {
+        color = '#ff4d4d'; // Red
+        icon = '❌';
+    } else if (type === 'success') {
+        color = '#4CAF50'; // Green
+        icon = '✅';
+    }
+
+    li.innerHTML = `<span style="color: ${color}">${icon} ${title}</span>: <span style="opacity: 0.7">${message}</span>`;
+    logList.prepend(li);
+}
+
+// ----------------------------------------
+// Event Delegation
+// ----------------------------------------
 document.getElementById('start-lastfm-sync-btn').onclick = async () => {
     const username = document.getElementById('lastfm-username-input').value.trim();
     const syncType = document.getElementById('lastfm-sync-type').value;
@@ -1407,549 +1776,10 @@ document.getElementById('save-bulk-logs-btn').onclick = async () => {
     btn.disabled = false;
 };
 
-function setupBulkInteractions(albumsArray) {
-    window.bulkRatings = new Array(albumsArray.length).fill(0);
-    window.bulkLikes = new Array(albumsArray.length).fill(false);
-
-    // 1. Setup Stars (With Half-Star Visuals)
-    document.querySelectorAll('.mini-star-rater').forEach(rater => {
-        const index = rater.dataset.index;
-        const stars = rater.querySelectorAll('.bulk-star');
-        
-        stars.forEach(star => {
-            star.onclick = (e) => {
-                const rect = star.getBoundingClientRect();
-                const isLeftHalf = (e.clientX - rect.left) < (rect.width / 2);
-                const val = parseInt(star.dataset.val);
-                
-                const rating = isLeftHalf ? val - 0.5 : val;
-                window.bulkRatings[index] = rating;
-
-                // Visually update the stars
-                stars.forEach(s => {
-                    const sVal = parseInt(s.dataset.val);
-                    
-                    // Reset all styles first
-                    s.style.color = '#2c3440';
-                    s.style.background = 'none';
-                    s.style.webkitBackgroundClip = 'initial';
-                    s.style.webkitTextFillColor = 'initial';
-
-                    if (sVal <= rating) {
-                        // Full Star
-                        s.style.color = 'var(--accent)';
-                    } else if (sVal - 0.5 === rating) {
-                        // Half Star (using CSS gradient text clipping)
-                        s.style.background = 'linear-gradient(90deg, var(--accent) 50%, #2c3440 50%)';
-                        s.style.webkitBackgroundClip = 'text';
-                        s.style.webkitTextFillColor = 'transparent';
-                    }
-                });
-            };
-        });
-    });
-
-    // 2. Setup Likes
-    document.querySelectorAll('.bulk-like-btn').forEach(btn => {
-        const index = btn.dataset.index;
-        btn.onclick = () => {
-            window.bulkLikes[index] = !window.bulkLikes[index];
-            btn.classList.toggle('active', window.bulkLikes[index]);
-            btn.style.color = window.bulkLikes[index] ? '#ff4d4d' : '';
-        };
-    });
-
-    // 3. Setup Toggle All Button
-    const toggleBtn = document.getElementById('bulk-toggle-all-btn');
-    if (toggleBtn) {
-        toggleBtn.onclick = () => {
-            const checkboxes = document.querySelectorAll('.bulk-import-checkbox');
-            const isDeselecting = toggleBtn.textContent === "Deselect All";
-            
-            checkboxes.forEach(cb => cb.checked = !isDeselecting);
-            toggleBtn.textContent = isDeselecting ? "Select All" : "Deselect All";
-        };
-    }
-}
-
-document.getElementById('cancel-bulk-log').onclick = () => {
-    document.getElementById('bulk-log-modal').style.display = 'none';
-};
-
-// Updated Helper for green "Success" logs
-function addImportLog(title, message, type) {
-    const logList = document.getElementById('import-log-list');
-    const li = document.createElement('li');
-    li.style.cssText = "margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px solid #2c3440;";
-    
-    let color = '#ffb347'; // Default Orange
-    let icon = '⏭️';
-
-    if (type === 'error') {
-        color = '#ff4d4d'; // Red
-        icon = '❌';
-    } else if (type === 'success') {
-        color = '#4CAF50'; // Green
-        icon = '✅';
-    }
-
-    li.innerHTML = `<span style="color: ${color}">${icon} ${title}</span>: <span style="opacity: 0.7">${message}</span>`;
-    logList.prepend(li);
-}
-
-// Add this to your scriptingSettings.js
-window.handleAdvancedImport = async (type) => {
-    const fileInput = document.getElementById(`import-${type}-input`);
-    const file = fileInput.files[0];
-    if (!file) return alert(`Please select the ${type} CSV file.`);
-
-    const { data: { user } } = await supabaseClient.auth.getUser();
-
-    Papa.parse(file, {
-        header: false, // Set to false first to handle the Letterboxd metadata rows
-        skipEmptyLines: true,
-        complete: (results) => {
-            if (type === 'list') {
-                processListData(results.data, user.id);
-            } else {
-                // For other types, convert back to header-based format or adjust processAdvancedData
-                const headers = results.data[0];
-                const rows = results.data.slice(1).map(row => {
-                    let obj = {};
-                    headers.forEach((h, i) => obj[h] = row[i]);
-                    return obj;
-                });
-                processAdvancedData(type, rows, user.id);
-            }
-        }
-    });
-};
-
-async function processAdvancedData(importType, data, userId) {
-    const statusDiv = document.getElementById('import-status');
-    const progressBar = document.getElementById('import-progress-bar');
-    const progressText = document.getElementById('import-text');
-    const logList = document.getElementById('import-log-list');
-
-    statusDiv.style.display = 'block';
-    document.getElementById('import-log-container').style.display = 'block';
-    logList.innerHTML = '';
-
-    let successCount = 0;
-    let failCount = 0;
-
-    for (let i = 0; i < data.length; i++) {
-        const row = data[i];
-        const title = row.Name || "Unknown";
-        const progress = Math.round(((i + 1) / data.length) * 100);
-        progressBar.style.width = `${progress}%`;
-        progressText.textContent = `Syncing ${importType}: ${title}`;
-
-        try {
-            const mediaInfo = await resolveMedia(title, row.Year);
-            if (!mediaInfo) {
-                addImportLog(title, "Not found on TMDB", "error");
-                failCount++;
-                continue;
-            }
-
-            if (importType === 'watchlist') {
-                // WATCHLIST: Insert into user_watchlist table
-                const { error } = await supabaseClient.from('user_watchlist').upsert({
-                    user_id: userId,
-                    media_id: String(mediaInfo.id),
-                    media_type: mediaInfo.type,
-                    media_title: title
-                }, { onConflict: 'user_id, media_id, media_type' }); // Prevents duplicates if constraint exists
-
-                if (error) throw error;
-                addImportLog(title, "Added to Watchlist", "success");
-            } 
-            else {
-                // REVIEWS or LIKES: Update existing logs in media_logs
-                const { data: existingLogs } = await supabaseClient
-                    .from('media_logs')
-                    .select('id')
-                    .eq('user_id', userId)
-                    .eq('media_id', String(mediaInfo.id));
-
-                if (!existingLogs || existingLogs.length === 0) {
-                    addImportLog(title, "No existing diary log found to update", "warning");
-                    failCount++;
-                } else {
-                    for (const log of existingLogs) {
-                        let updateData = {};
-                        if (importType === 'reviews') updateData.notes = row.Review;
-                        if (importType === 'likes') updateData.is_liked = true;
-
-                        await supabaseClient.from('media_logs').update(updateData).eq('id', log.id);
-                    }
-                    addImportLog(title, `Updated ${importType}`, "success");
-                }
-            }
-            successCount++;
-        } catch (err) {
-            console.error(err);
-            failCount++;
-        }
-        await new Promise(r => setTimeout(r, 150));
-    }
-
-    progressText.textContent = `${importType} sync complete!`;
-    alert(`Import Finished!\nSuccess: ${successCount}\nFailed/Skipped: ${failCount}`);
-}
-
-async function processListData(rawData, userId) {
-    const statusDiv = document.getElementById('import-status');
-    const progressBar = document.getElementById('import-progress-bar');
-    const progressText = document.getElementById('import-text');
-    const logList = document.getElementById('import-log-list');
-
-    statusDiv.style.display = 'block';
-    document.getElementById('import-log-container').style.display = 'block';
-    logList.innerHTML = '';
-
-    // 1. Extract List Metadata (Letterboxd format)
-    // Row 0 is often "Letterboxd list export v7"
-    // Row 1 is "Date, Name, Tags, URL, Description"
-    // Row 2 is the actual values for the list itself
-    const listName = rawData[2][1] || "Imported List";
-    const listDescription = rawData[2][4] || "";
-
-    // 2. Find where the actual movie data starts (usually after "Position, Name, Year...")
-    const headerRowIndex = rawData.findIndex(row => row.includes("Position") && row.includes("Name"));
-    if (headerRowIndex === -1) return alert("Could not find movie data in CSV.");
-
-    const movieRows = rawData.slice(headerRowIndex + 1);
-
-    try {
-        progressText.textContent = `Creating list: ${listName}...`;
-        
-        // 3. Create the List in media_lists
-        const { data: newList, error: listError } = await supabaseClient
-            .from('media_lists')
-            .insert({
-                user_id: userId,
-                name: listName,
-                description: listDescription,
-                is_public: true
-            })
-            .select()
-            .single();
-
-        if (listError) throw listError;
-
-        let successCount = 0;
-
-        // 4. Process each movie
-        for (let i = 0; i < movieRows.length; i++) {
-            const row = movieRows[i];
-            const title = row[1]; // Index 1 is 'Name'
-            const year = row[2];  // Index 2 is 'Year'
-
-            const progress = Math.round(((i + 1) / movieRows.length) * 100);
-            progressBar.style.width = `${progress}%`;
-            progressText.textContent = `Adding to ${listName}: ${title}`;
-
-            const mediaInfo = await resolveMedia(title, year);
-            if (mediaInfo) {
-                const { error: itemError } = await supabaseClient
-                    .from('list_items')
-                    .insert({
-                        list_id: newList.id,
-                        media_id: String(mediaInfo.id),
-                        media_type: mediaInfo.type,
-                        media_title: title
-                    });
-
-                if (!itemError) {
-                    addImportLog(title, "Added to list", "success");
-                    successCount++;
-                } else {
-                    addImportLog(title, "Error adding to list", "error");
-                }
-            } else {
-                addImportLog(title, "Not found on TMDB", "error");
-            }
-            // Small delay to respect TMDB rate limits
-            await new Promise(r => setTimeout(r, 150));
-        }
-
-        progressText.textContent = "List import complete!";
-        alert(`Imported "${listName}" with ${successCount} items.`);
-
-    } catch (err) {
-        console.error(err);
-        alert("Failed to create list: " + err.message);
-    }
-}
-
-async function resolveMedia(title, year) {
-    if (!title) return null;
-    
-    const query = encodeURIComponent(title);
-    const movieUrl = `${PROXY_URL}/api/tmdb/search/movie?query=${query}&year=${year || ''}`;
-    
-    try {
-        const res = await fetch(movieUrl).then(r => r.json());
-
-        if (res.results && res.results.length > 0) {
-            const movieId = res.results[0].id;
-            // Fetch full details to get the runtime
-            const details = await fetch(`${PROXY_URL}/api/tmdb/movie/${movieId}`).then(r => r.json());
-
-            return { 
-                id: movieId, 
-                type: 'movie', 
-                runtime: details.runtime || 0 // Movies use .runtime
-            };
-        }
-        
-        // Fallback for TV
-        const tvUrl = `${PROXY_URL}/api/tmdb/search/tv?query=${query}&first_air_date_year=${year || ''}`;
-        const tvRes = await fetch(tvUrl).then(r => r.json());
-
-        if (tvRes.results && tvRes.results.length > 0) {
-            const tvId = tvRes.results[0].id;
-            const details = await fetch(`${PROXY_URL}/api/tmdb/tv/${tvId}`).then(r => r.json());
-
-            return { 
-                id: tvId, 
-                type: 'tv', 
-                // TV shows use episode_run_time (an array)
-                runtime: details.episode_run_time ? details.episode_run_time[0] : 0 
-            };
-        }
-    } catch (e) {
-        console.error("TMDB Resolve Error:", e);
-        return null;
-    }
-    return null;
-}
-
-// --- Favorites Search Logic ---
-function setupFavoritesSearch() {
-    const favSearchInput = document.getElementById('fav-search-input');
-    const favSearchResults = document.getElementById('fav-search-results');
-
-    favSearchInput.oninput = debounce(async (event) => {
-        const query = event.target.value.trim();
-
-        if (query.length < 3) {
-            favSearchResults.innerHTML = '';
-            favSearchResults.style.display = 'none';
-            return;
-        }
-
-        const ytRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
-        const ytMatch = query.match(ytRegex);
-
-        if (ytMatch && ytMatch[1]) {
-            const ytId = ytMatch[1];
-            fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${ytId}`)}&format=json`).then(r => r.json()).then(res => {
-                if (res && res.title) {
-                    favSearchResults.innerHTML = '';
-                    favSearchResults.style.display = 'block';
-                    
-                    const div = document.createElement('div');
-                    div.className = 'search-item-dropdown';
-                    div.style.cssText = `display: flex; align-items: center; gap: 12px; padding: 10px; cursor: pointer; border-bottom: 1px solid #2c3440;`;
-                    div.innerHTML = `
-                        <img src="${res.thumbnail_url}" style="width: 40px; height: 60px; object-fit: cover; border-radius: 4px;">
-                        <div style="flex: 1;">
-                            <strong style="font-size: 1rem;">${res.title}</strong>
-                            <div style="font-size: 0.75rem; color: #9ab;">YOUTUBE</div>
-                        </div>
-                    `;
-                    div.onclick = () => {
-                        addFavorite({ id: ytId, title: res.title, type: 'youtube', image: res.thumbnail_url });
-                        favSearchResults.innerHTML = ''; favSearchInput.value = '';
-                    };
-                    favSearchResults.appendChild(div);
-                }
-            });
-            return; // Stop here so it doesn't try to search TMDB for a URL
-        }
-
-        try {
-            // Fetch everything in parallel
-            const [movieRes, tvRes, bookRes, albumRes] = await Promise.all([
-                fetch(`${PROXY_URL}/api/tmdb/search/movie?query=${encodeURIComponent(query)}`).then(r => r.json()),
-                fetch(`${PROXY_URL}/api/tmdb/search/tv?query=${encodeURIComponent(query)}`).then(r => r.json()),
-                fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=5`).then(r => r.json()),
-                fetch(`${PROXY_URL}/api/lastfm?method=album.search&album=${encodeURIComponent(query)}`).then(r => r.json()).catch(() => null)
-            ]);
-
-            // Clear UI once before rendering new results
-            favSearchResults.innerHTML = '';
-            favSearchResults.style.display = 'block';
-
-            const seenIds = new Set();
-
-            const createSearchRow = (title, year, type, imageUrl, subtitle, clickAction) => {
-                const div = document.createElement('div');
-                div.className = 'search-item-dropdown';
-                div.style.cssText = `display: flex; align-items: center; gap: 12px; padding: 10px; cursor: pointer; border-bottom: 1px solid #2c3440;`;
-                div.innerHTML = `
-                    <img src="${imageUrl}" style="width: 40px; height: 60px; object-fit: cover; border-radius: 4px; background: #1a1d23;" alt="cover">
-                    <div style="flex: 1;">
-                        <div style="display: flex; align-items: baseline; gap: 6px;">
-                            <strong style="font-size: 1rem;">${title}${year}</strong>
-                            <span style="opacity:0.5; font-size: 0.7rem; text-transform: uppercase;">— ${type}</span>
-                        </div>
-                        <div style="font-size: 0.75rem; color: #9ab; margin-top: 2px;">${subtitle}</div>
-                    </div>
-                `;
-                div.onclick = clickAction;
-                return div;
-            };
-
-            // --- MOVIES ---
-            for (const item of movieRes.results.slice(0, 5)) {
-                if (seenIds.has(item.id)) continue;
-                seenIds.add(item.id);
-
-                const year = item.release_date ? ` (${item.release_date.split('-')[0]})` : "";
-                const img = item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : 'https://via.placeholder.com/92x138?text=No+Image';
-                
-                favSearchResults.appendChild(createSearchRow(item.title, year, 'movie', img, "Movie", () => {
-                    addFavorite({ id: item.id, title: `${item.title}${year}`, type: 'movie', image: img.replace('w92', 'w500') });
-                    favSearchResults.innerHTML = ''; favSearchInput.value = '';
-                }));
-            }
-
-            // --- TV ---
-            for (const item of tvRes.results.slice(0, 5)) {
-                if (seenIds.has(item.id)) continue;
-                seenIds.add(item.id);
-
-                const year = item.first_air_date ? ` (${item.first_air_date.split('-')[0]})` : "";
-                const img = item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : 'https://via.placeholder.com/92x138?text=No+Image';
-                
-                favSearchResults.appendChild(createSearchRow(item.name, year, 'tv', img, "TV Show", () => {
-                    addFavorite({ id: item.id, title: `${item.name}${year}`, type: 'tv', image: img.replace('w92', 'w500') });
-                    favSearchResults.innerHTML = ''; favSearchInput.value = '';
-                }));
-            }
-
-            // --- BOOKS ---
-            bookRes.docs.forEach(book => {
-                if (seenIds.has(book.key)) return;
-                seenIds.add(book.key);
-
-                const year = book.first_publish_year ? ` (${book.first_publish_year})` : "";
-                const img = book.cover_i ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg` : 'https://via.placeholder.com/92x138?text=No+Cover';
-                const author = book.author_name ? book.author_name[0] : "Unknown Author";
-
-                favSearchResults.appendChild(createSearchRow(book.title, year, 'book', img, author, () => {
-                    addFavorite({ id: book.key, title: `${book.title}${year}`, type: 'book', image: img });
-                    favSearchResults.innerHTML = ''; favSearchInput.value = '';
-                }));
-            });
-
-            // --- ALBUMS ---
-            if (albumRes?.results?.albummatches?.album) {
-                for (const a of albumRes.results.albummatches.album.slice(0, 5)) {
-                    const compositeId = encodeURIComponent(`${a.artist}|||${a.name}`);
-                    if (seenIds.has(compositeId)) continue;
-                    seenIds.add(compositeId);
-
-                    const img = a.image && a.image[2]['#text'] ? a.image[2]['#text'] : `https://placehold.co/92x138/1b2228/eb3486?text=Music`;
-                    
-                    favSearchResults.appendChild(createSearchRow(a.name, "", 'album', img, a.artist, () => {
-                        addFavorite({ id: compositeId, title: a.name, type: 'album', image: img.replace('92x138', '500x500') });
-                        favSearchResults.innerHTML = ''; favSearchInput.value = '';
-                    }));
-                }
-            }
-
-        } catch (error) {
-            console.error("Search error:", error);
-        }
-    }, 300);
-}
-
-// --- Render the Favorites Manager in Settings ---
-function renderFavManager() {
-    const container = document.getElementById('favorites-manager');
-    container.innerHTML = ''; // Clear existing
-
-    // Reordered: 'album' before 'youtube'
-    const categories = ['movie', 'tv', 'book', 'album', 'youtube']; 
-    
-    categories.forEach(cat => {
-        const section = document.createElement('div');
-        section.className = 'fav-category-admin';
-        section.style.marginBottom = '20px';
-        
-        let label = "";
-        if (cat === 'youtube') label = "YouTube Videos";
-        else if (cat === 'tv') label = "TV Shows";
-        else if (cat === 'album') label = "Music Albums"; 
-        else label = cat.charAt(0).toUpperCase() + cat.slice(1) + 's';
-        
-        section.innerHTML = `<h4 style="color: #9ab; margin-bottom: 10px;">Top 5 ${label}</h4>`;
-        
-        const list = currentFavs[cat] || [];
-        
-        const itemContainer = document.createElement('div');
-        itemContainer.style.display = 'flex';
-        itemContainer.style.gap = '10px';
-        itemContainer.style.flexWrap = 'wrap';
-
-        list.forEach((item, index) => {
-            const itemDiv = document.createElement('div');
-            // Added data-id and a grab handle for SortableJS
-            itemDiv.style.cssText = "background: #14181c; padding: 5px 10px; border-radius: 6px; display: flex; align-items: center; gap: 8px; border: 1px solid #2c3440;";
-            itemDiv.innerHTML = `
-                <span class="drag-handle" style="cursor: grab; color: #678; margin-right: 5px;" title="Drag to reorder">☰</span>
-                <span class="fav-rank" style="color: var(--accent); font-weight: bold;">#${index + 1}</span>
-                <span style="font-size: 0.9rem;">${item.title}</span>
-                <span data-remove-favorite="${cat}" data-favorite-index="${index}" style="cursor: pointer; color: #ff4d4d; font-weight: bold; margin-left: auto;">×</span>
-            `;
-            itemContainer.appendChild(itemDiv);
-        });
-
-        if (list.length === 0) {
-            itemContainer.innerHTML = `<p style="font-size: 0.8rem; opacity: 0.5;">No ${cat}s added yet.</p>`;
-        }
-
-        section.appendChild(itemContainer);
-        container.appendChild(section);
-
-        // Initialize SortableJS on the container if there are items to sort
-        if (list.length > 0) {
-            new Sortable(itemContainer, {
-                animation: 150,
-                handle: '.drag-handle', // Only allow dragging from the hamburger icon
-                onEnd: (evt) => {
-                    // Update the underlying data array to match the new DOM order
-                    const movedItem = currentFavs[cat].splice(evt.oldIndex, 1)[0];
-                    currentFavs[cat].splice(evt.newIndex, 0, movedItem);
-                    
-                    // Visually update the #1, #2, #3 text without needing a full re-render
-                    itemContainer.querySelectorAll('.fav-rank').forEach((el, i) => {
-                        el.textContent = `#${i + 1}`;
-                    });
-                    
-                    updateTopAll();
-                }
-        });
-        }
-    });
-}
-
-// --- Helper to Remove Favorites ---
-window.removeFavorite = (type, index) => {
-    currentFavs[type].splice(index, 1);
-    updateTopAll();
-    renderFavManager();
-};
-
-initServicePillDelegation();
 document.querySelectorAll('[data-import-type]').forEach((button) => {
     button.addEventListener('click', () => window.handleAdvancedImport(button.dataset.importType));
 });
+
 document.addEventListener('click', (event) => {
     const removeTarget = event.target.closest('[data-remove-favorite]');
     if (removeTarget) {
@@ -1957,4 +1787,15 @@ document.addEventListener('click', (event) => {
     }
 });
 
+window.removeFavorite = (type, index) => {
+    currentFavs[type].splice(index, 1);
+    updateTopAll();
+    renderFavManager();
+};
+
+document.getElementById('cancel-bulk-log').onclick = () => {
+    document.getElementById('bulk-log-modal').style.display = 'none';
+};
+
+initServicePillDelegation();
 initSettings();

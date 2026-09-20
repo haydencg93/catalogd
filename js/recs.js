@@ -1,13 +1,17 @@
+// Import necessary modules and functions
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
 import { debounce } from './core/utils.js';
 
-let favoriteInputs = [];
+// Load configuration and initialize Supabase client
 let configData = null;
 let supabaseClient = null;
 let PROXY_URL = '';
 
+// Global vars
+let favoriteInputs = [];
 let userStreamingServices = [];
+
 
 // DOM Elements
 const searchInput = document.getElementById('rec-search-input');
@@ -19,6 +23,9 @@ const statusMsg = document.getElementById('status-msg');
 const resultsGrid = document.getElementById('results-grid');
 const resultsHeader = document.getElementById('results-header');
 
+// ----------------------------------------
+// Initialization
+// ----------------------------------------
 async function initRecs() {
     try {
         configData = await loadConfig();
@@ -34,18 +41,9 @@ async function initRecs() {
     }
 }
 
-// Replicates the ID shifting math from your Mass Seeders
-function getUniversalId(id, type) {
-    if (type === 'movie' || type === 'tv') {
-        return parseInt(id);
-    }
-    if (type === 'book') {
-        // OpenLibrary returns keys like "/works/OL123W". We strip the text and add 100M.
-        return parseInt(String(id).replace(/\D/g, ''), 10) + 100000000;
-    }
-    return id;
-}
-
+// ----------------------------------------
+// Search Logic (Debounced)
+// ----------------------------------------
 function setupLiveSearch() {
     searchInput.addEventListener('input', debounce(async (e) => {
         const query = e.target.value.trim();
@@ -130,6 +128,9 @@ function setupLiveSearch() {
     });
 }
 
+// ----------------------------------------
+// Input State Managers
+// ----------------------------------------
 function addVibeInput(item) {
     if (favoriteInputs.length >= 5) {
         return alert("You can only add up to 5 items to define your vibe.");
@@ -141,6 +142,11 @@ function addVibeInput(item) {
     favoriteInputs.push(item);
     renderTags();
 }
+
+window.removeInput = function(index) {
+    favoriteInputs.splice(index, 1);
+    renderTags();
+};
 
 function renderTags() {
     if (favoriteInputs.length === 0) {
@@ -168,11 +174,9 @@ function renderTags() {
     generateBtn.disabled = false;
 }
 
-window.removeInput = function(index) {
-    favoriteInputs.splice(index, 1);
-    renderTags();
-};
-
+// ----------------------------------------
+// Edge Function Controller
+// ----------------------------------------
 generateBtn.addEventListener('click', async () => {
     if (!configData) return;
 
@@ -223,7 +227,9 @@ generateBtn.addEventListener('click', async () => {
     }
 });
 
-// 4. Render the Results (Ensures up to 12 VISIBLE cards, Free services bypass filter)
+// ----------------------------------------
+// UI Rendering (Outputs)
+// ----------------------------------------
 async function renderRecommendations(recs) {
     if (!recs || recs.length === 0) {
         statusMsg.textContent = "No recommendations found. Try adding different items!";
@@ -331,7 +337,9 @@ async function renderRecommendations(recs) {
     }
 }
 
-// 5. The Lazy Loader and Availability Checker
+// ----------------------------------------
+// Lazy Loading & Availability Fallbacks
+// ----------------------------------------
 async function fetchPosterAndAvail(rec, imgElementId, cardId) {
     const imgEl = document.getElementById(imgElementId);
     const cardEl = document.getElementById(cardId);
@@ -396,4 +404,22 @@ async function fetchPosterAndAvail(rec, imgElementId, cardId) {
     }
 }
 
+// ----------------------------------------
+// Lazy Loading & Availability Fallbacks
+// ----------------------------------------
+function getUniversalId(id, type) {
+    if (type === 'movie' || type === 'tv') {
+        return parseInt(id);
+    }
+    if (type === 'book') {
+        // OpenLibrary returns keys like "/works/OL123W". We strip the text and add 100M.
+        return parseInt(String(id).replace(/\D/g, ''), 10) + 100000000;
+    }
+    return id;
+}
+
 initRecs();
+
+
+
+

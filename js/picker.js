@@ -1,12 +1,18 @@
+// Import necessary modules and functions
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
 import { normalizeOpenLibraryId } from './core/media.js';
 
+// Load configuration and initialize Supabase client
 let PROXY_URL = '';
 let supabaseClient = null;
 let configData = null;
+
+
+// Global vars
 let userStreamingProviderIds = [];
 let currentUser = null;
+let currentWinnerMediaId = null;
 
 // UI Elements
 const mediaTypeSelect = document.getElementById('media-type-select');
@@ -30,8 +36,9 @@ const rerollBtn = document.getElementById('reroll-btn');
 const watchBtn = document.getElementById('watch-btn');
 const detailsBtn = document.getElementById('details-btn');
 
-let currentWinnerMediaId = null;
-
+// ----------------------------------------
+// Initialization
+// ----------------------------------------
 async function initPicker() {
     try {
         configData = await loadConfig();
@@ -54,28 +61,6 @@ async function initPicker() {
     } catch (err) {
         console.error("Initialization Error:", err);
     }
-}
-
-function handleMediaTypeChange() {
-    const tasteOption = sourceSelect.querySelector('option[value="taste"]');
-    const supportsTasteProfile = ['movie', 'tv', 'anime'].includes(mediaTypeSelect.value);
-    tasteOption.hidden = !supportsTasteProfile;
-    if (!supportsTasteProfile && sourceSelect.value === 'taste') sourceSelect.value = 'watchlist';
-    handleSourceChange();
-}
-
-function getActionLabel(type) {
-    if (type === 'book') return 'Mark as Currently Reading';
-    if (type === 'album') return 'Mark as Currently Listening';
-    return 'Mark as Currently Watching';
-}
-
-function isAnime(item) {
-    const isAnimation = (item.genres || []).some(genre => genre.id === 16)
-        || (item.genre_ids || []).includes(16);
-    const isJapanese = (item.origin_country || []).includes('JP')
-        || item.original_language === 'ja';
-    return isAnimation && isJapanese;
 }
 
 async function setupHeaderAndUser() {
@@ -106,6 +91,17 @@ async function setupHeaderAndUser() {
         profileMenu.style.display = 'none';
         loginBtn.onclick = () => window.location.href = 'index.html'; 
     }
+}
+
+// ----------------------------------------
+// UI Event Controllers
+// ----------------------------------------
+function handleMediaTypeChange() {
+    const tasteOption = sourceSelect.querySelector('option[value="taste"]');
+    const supportsTasteProfile = ['movie', 'tv', 'anime'].includes(mediaTypeSelect.value);
+    tasteOption.hidden = !supportsTasteProfile;
+    if (!supportsTasteProfile && sourceSelect.value === 'taste') sourceSelect.value = 'watchlist';
+    handleSourceChange();
 }
 
 // Logic to show/hide the specific lists dropdown
@@ -156,15 +152,9 @@ async function handleSourceChange() {
     }
 }
 
-// Fisher-Yates Shuffle
-function shuffleArray(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-    }
-    return array;
-}
-
+// ----------------------------------------
+// Core Business Logic
+// ----------------------------------------
 async function pickRandom() {
     if (!currentUser && sourceSelect.value !== 'taste') {
         alert("Please sign in to use personalized decider options.");
@@ -275,41 +265,26 @@ async function pickRandom() {
     }
 }
 
-async function fetchMediaDetails(type, id) {
-    if (type === 'book') {
-        const response = await fetch(`https://openlibrary.org${normalizeOpenLibraryId(id)}.json`);
-        const item = await response.json();
-        if (!item.title) return null;
-        return {
-            ...item,
-            id,
-            overview: typeof item.description === 'string' ? item.description : item.description?.value,
-            poster_path: item.covers?.[0] ? `https://covers.openlibrary.org/b/id/${item.covers[0]}-L.jpg` : null,
-            release_date: item.first_publish_date
-        };
+// Fisher-Yates Shuffle
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
     }
-
-    if (type === 'album') {
-        const [artist, album] = decodeURIComponent(id).split('|||');
-        const response = await fetch(`${PROXY_URL}/api/lastfm?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}`);
-        const result = await response.json();
-        if (!result.album || result.error) return null;
-        const albumData = result.album;
-        return {
-            id,
-            title: albumData.name,
-            overview: albumData.wiki?.summary?.split('<a href')[0].trim() || 'No description available.',
-            poster_path: albumData.image?.[3]?.['#text'],
-            artist: albumData.artist
-        };
-    }
-
-    const tmdbType = type === 'anime' ? 'tv' : type;
-    const details = await fetch(`${PROXY_URL}/api/tmdb/${tmdbType}/${id}?append_to_response=watch/providers`).then(r => r.json()).catch(() => null);
-    if (type === 'anime' && details && !isAnime(details)) return null;
-    return details;
+    return array;
 }
 
+function isAnime(item) {
+    const isAnimation = (item.genres || []).some(genre => genre.id === 16)
+        || (item.genre_ids || []).includes(16);
+    const isJapanese = (item.origin_country || []).includes('JP')
+        || item.original_language === 'ja';
+    return isAnimation && isJapanese;
+}
+
+// ----------------------------------------
+// Data Fetching (Network)
+// ----------------------------------------
 // Replicates the "For You" API logic, but asks for more pages to build a pool of ~50
 async function getTastePool(type) {
     const storageType = type === 'anime' ? 'tv' : type;
@@ -389,6 +364,44 @@ async function getRewatchPool(type) {
     return validIds;
 }
 
+async function fetchMediaDetails(type, id) {
+    if (type === 'book') {
+        const response = await fetch(`https://openlibrary.org${normalizeOpenLibraryId(id)}.json`);
+        const item = await response.json();
+        if (!item.title) return null;
+        return {
+            ...item,
+            id,
+            overview: typeof item.description === 'string' ? item.description : item.description?.value,
+            poster_path: item.covers?.[0] ? `https://covers.openlibrary.org/b/id/${item.covers[0]}-L.jpg` : null,
+            release_date: item.first_publish_date
+        };
+    }
+
+    if (type === 'album') {
+        const [artist, album] = decodeURIComponent(id).split('|||');
+        const response = await fetch(`${PROXY_URL}/api/lastfm?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}`);
+        const result = await response.json();
+        if (!result.album || result.error) return null;
+        const albumData = result.album;
+        return {
+            id,
+            title: albumData.name,
+            overview: albumData.wiki?.summary?.split('<a href')[0].trim() || 'No description available.',
+            poster_path: albumData.image?.[3]?.['#text'],
+            artist: albumData.artist
+        };
+    }
+
+    const tmdbType = type === 'anime' ? 'tv' : type;
+    const details = await fetch(`${PROXY_URL}/api/tmdb/${tmdbType}/${id}?append_to_response=watch/providers`).then(r => r.json()).catch(() => null);
+    if (type === 'anime' && details && !isAnime(details)) return null;
+    return details;
+}
+
+// ----------------------------------------
+// DOM Mutators
+// ----------------------------------------
 function renderWinner(item, type, providers) {
     currentWinnerMediaId = String(item.id);
     
@@ -446,6 +459,15 @@ async function markAsWatching() {
     }
 }
 
+function getActionLabel(type) {
+    if (type === 'book') return 'Mark as Currently Reading';
+    if (type === 'album') return 'Mark as Currently Listening';
+    return 'Mark as Currently Watching';
+}
+
+// ----------------------------------------
+// Global Window Listeners
+// ----------------------------------------
 // Nav Dropdown Logic
 window.toggleProfileDropdown = function(event) {
     if (event) event.stopPropagation();
