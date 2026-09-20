@@ -1,5 +1,7 @@
+// Impoort supabase client
 import { getSupabaseClient } from './core/supabase.js';
 
+// Check user status (logged in or not)
 async function checkUserStatus() {
     const supabaseClient = await getSupabaseClient();
     
