@@ -1,6 +1,6 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
-const { slugify } = require('./utils');
+const { slugify } = require('../js/core/utils');
 
 async function getFillerData(animeSlug, manualSlug = null) {
     

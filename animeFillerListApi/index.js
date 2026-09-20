@@ -3,7 +3,7 @@ require('dotenv').config({ path: path.join(__dirname, '../misc/.env') });
 
 const { createClient } = require('@supabase/supabase-js');
 const { getFillerData } = require('./scraper');
-const { slugify } = require('./utils');
+const { slugify } = require('../js/core/utils');
 
 // 1. Initialize Supabase with Service Role Key (Private)
 // These variables are pulled from GitHub Secrets or your local .env file

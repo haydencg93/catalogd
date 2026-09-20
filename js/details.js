@@ -2,6 +2,7 @@
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
 import { normalizeOpenLibraryId } from './core/media.js';
+import { slugify } from './core/utils.js';
 
 // Load configuration and initialize Supabase client
 let PROXY_URL = '';
@@ -488,32 +489,29 @@ async function initDetails() {
             try {
                 const slug = slugify(data.title); 
                 
-                // 1. Check DB for pending requests AND content
-                const { data: existingRequest } = await supabaseClient
+                // Check DB for pending requests AND content
+                const { data: existingRequest, error: dbError } = await supabaseClient
                     .from('filler_list_mgnt')
                     .select('filler_exists, notes, filler_content')
                     .eq('name', slug)
                     .maybeSingle();
 
+                // Catch network or database errors directly
+                if (dbError) {
+                    console.error("Supabase filler list error:", dbError);
+                    throw new Error("Database connection failed while checking filler lists.");
+                }
+
                 let hasFiller = false;
                 let fillerData = null;
 
-                // 2. Prioritize Database Content
+                // Check for Database Content
                 if (existingRequest && existingRequest.filler_content) {
                     fillerData = existingRequest.filler_content;
                     hasFiller = true;
-                } else {
-                    // 3. Fallback to check local file (Legacy support)
-                    try {
-                        const fillerFile = await fetch(`animeFillerListApi/data/${slug}.json`);
-                        if (fillerFile.ok) {
-                            fillerData = await fillerFile.json();
-                            if (!fillerData.error) hasFiller = true;
-                        }
-                    } catch(e) {}
                 }
 
-                // 4. Build UI
+                // Build UI
                 let html = '';
                 
                 // View Button (if exists)
