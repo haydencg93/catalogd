@@ -9,3 +9,8 @@ eslint.config.mjs
 .vscode/settings.json
 supabase/
 misc/
+./animeFillerListApi/node_modules/
+./emailWorker/node_modules/
+./seederAi/node_modules/
+./statsWorker/node_modules/
+./vibes/node_modules/
