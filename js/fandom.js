@@ -1,29 +1,34 @@
+// Import necessary modules and functions
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
 
-const params = new URLSearchParams(window.location.search);
-let mediaId = params.get('id');
-let mediaType = params.get('type');
+// Load configuration and initialize Supabase client
+let PROXY_URL = '';
 let supabaseClient = null;
 
-let PROXY_URL = '';
-
+// Global vars
 let currentUser = null;
+const params = new URLSearchParams(window.location.search);
+let allFandomCharacters = [];
+
+// Get params
+let mediaId = params.get('id');
+let mediaType = params.get('type');
 
 // Unblockable Inline SVG Placeholders
 const FALLBACK_POSTER = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='500' height='750'><rect width='500' height='750' fill='%2314181c'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='24' fill='%239ab'>No Image</text></svg>`;
 const FALLBACK_AVATAR = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='450'><rect width='300' height='450' fill='%2314181c'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='18' fill='%239ab'>No Image</text></svg>`;
 
-// We only map standard entertainment media now
+// Maps
 const propertyMap = {
     'movie': 'P4947',   
     'tv': 'P4983',      
     'album': 'P3192'    
 };
 
-// Add a global array for the full character list
-let allFandomCharacters = [];
-
+// ----------------------------------------
+// Initialization
+// ----------------------------------------
 async function initFandomPage() {
     const config = await loadConfig();
     supabaseClient = await getSupabaseClient();
@@ -103,6 +108,9 @@ async function initFandomPage() {
     }
 }
 
+// ----------------------------------------
+// Entity Resolution Helpers
+// ----------------------------------------
 // Ask TMDB to find a record by an external id (imdb_id or tvdb_id).
 async function tmdbFindByExternalId(externalId, source, mediaKind) {
     if (!externalId) return null;
@@ -150,6 +158,29 @@ async function resolveTmdbId(entData) {
     return await tmdbFindByExternalId(imdbEntry.id, 'imdb_id', 'movie');
 }
 
+async function getWikipediaTitle(propertyId, externalId) {
+    const sparqlQuery = `
+        SELECT ?article WHERE {
+            ?item wdt:${propertyId} "${externalId}".
+            ?article schema:about ?item ;
+                     schema:isPartOf <https://en.wikipedia.org/> .
+        } LIMIT 1
+    `;
+
+    const url = `https://query.wikidata.org/sparql?query=${encodeURIComponent(sparqlQuery)}&format=json`;
+
+    const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    const data = await response.json();
+
+    if (data.results.bindings.length > 0) {
+        return data.results.bindings[0].article.value.split('/').pop();
+    }
+    return null;
+}
+
+// ----------------------------------------
+// Primary Content Fetchers
+// ----------------------------------------
 // Fetch & Render Official TVDB Lists
 async function fetchListFandom(listId, config) {
     // Hide standard media sections
@@ -302,56 +333,6 @@ async function fetchListFandom(listId, config) {
     await setupFandomFollowBtn(list.name || "Collection", dbImage);
 }
 
-async function getWikipediaTitle(propertyId, externalId) {
-    const sparqlQuery = `
-        SELECT ?article WHERE {
-            ?item wdt:${propertyId} "${externalId}".
-            ?article schema:about ?item ;
-                     schema:isPartOf <https://en.wikipedia.org/> .
-        } LIMIT 1
-    `;
-
-    const url = `https://query.wikidata.org/sparql?query=${encodeURIComponent(sparqlQuery)}&format=json`;
-
-    const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
-    const data = await response.json();
-
-    if (data.results.bindings.length > 0) {
-        return data.results.bindings[0].article.value.split('/').pop();
-    }
-    return null;
-}
-
-function scrubWikipediaHeaders(htmlString) {
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = htmlString;
-    
-    // Remove headers and edit links
-    tempDiv.querySelectorAll('h1, h2, h3, h4, h5, h6, .mw-editsection').forEach(el => el.remove());
-    
-    // Fix relative Wikipedia links
-    tempDiv.querySelectorAll('a').forEach(link => {
-        const href = link.getAttribute('href');
-        
-        if (href) {
-            // Check if the link is a relative Wikipedia path
-            if (href.startsWith('/wiki/')) {
-                link.setAttribute('href', `https://en.wikipedia.org${href}`);
-                link.setAttribute('target', '_blank'); 
-                link.setAttribute('rel', 'noopener noreferrer'); 
-            }
-            // Wikipedia's REST API sometimes returns paths starting with "./"
-            else if (href.startsWith('./')) {
-                link.setAttribute('href', `https://en.wikipedia.org/wiki/${href.substring(2)}`);
-                link.setAttribute('target', '_blank');
-                link.setAttribute('rel', 'noopener noreferrer');
-            }
-        }
-    });
-    
-    return tempDiv.innerHTML;
-}
-
 async function fetchWikipediaLore(title, overrideTitle = null) {
     try {
         const summaryUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}?redirects=1`;
@@ -403,121 +384,116 @@ async function fetchWikipediaLore(title, overrideTitle = null) {
     }
 }
 
-async function setupFandomCustomArt() {
-    // Only show for logged-in users
-    if (!currentUser) return;
+async function fetchStructuredCharacters(externalId, type) {
+    if (type !== 'movie' && type !== 'tv') return;
 
-    // 1. REPLICATE DETAILS PAGE STRUCTURE: Create the controls wrapper
-    const leftCol = document.getElementById('left-col');
-    const posterArea = document.getElementById('fandom-poster-area');
-    const followBtn = document.getElementById('follow-fandom-btn');
-
-    // Create the wrapper (exactly like #poster-controls-wrapper in details.html)
-    const controlsWrapper = document.createElement('div');
-    controlsWrapper.id = 'fandom-poster-controls-wrapper';
-    
-    // Move poster and follow button into the wrapper to maintain the same DOM hierarchy as Details
-    posterArea.parentNode.insertBefore(controlsWrapper, posterArea);
-    controlsWrapper.appendChild(posterArea);
-    
-    // 2. CREATE EDIT ART BUTTON (Same styles as details.html)
-    const editArtBtn = document.createElement('button');
-    editArtBtn.id = 'edit-art-btn';
-    editArtBtn.className = 'secondary-btn';
-    editArtBtn.textContent = 'Edit Art';
-    editArtBtn.style.cssText = 'width: 100%; margin-top: 10px; display: block;';
-    
-    // 3. WRAP FOLLOW BUTTON (Same as the div wrapper around #fandom-btn in details.html)
-    const followBtnWrapper = document.createElement('div');
-    followBtnWrapper.style.marginTop = '10px';
-    followBtn.style.marginTop = '0px'; // Remove the 15px margin from the HTML to prevent choppiness
-    followBtnWrapper.appendChild(followBtn);
-
-    // Assemble the wrapper in the EXACT order of details.html:
-    // Poster Area -> Edit Art Button -> Follow Button Wrapper
-    controlsWrapper.appendChild(editArtBtn);
-    controlsWrapper.appendChild(followBtnWrapper);
-
-    // 4. CREATE THE MODAL (Exact copy of #custom-art-modal from details.html)
-    const modalHtml = `
-        <div id="fandom-custom-art-modal" class="modal-overlay" style="display:none;">
-            <div class="auth-card">
-                <button class="close-btn" id="close-fandom-art-modal">×</button>
-                <h3>Custom Art</h3>
-                <p class="meta" style="margin-bottom: 15px; font-size: 0.85rem;">Paste image URLs to override the default art. Leave blank to use defaults.</p>
-                <input type="text" id="fandom-custom-poster-input" placeholder="Custom Poster URL" style="width: 100%; box-sizing: border-box; margin-bottom: 10px;">
-                <button id="save-fandom-art-btn" class="primary-btn" style="margin-top: 10px; width: 100%;">Save Art</button>
-            </div>
-        </div>
-    `;
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-
-    const modal = document.getElementById('fandom-custom-art-modal');
-    const closeBtn = document.getElementById('close-fandom-art-modal');
-    const saveBtn = document.getElementById('save-fandom-art-btn');
-    const input = document.getElementById('fandom-custom-poster-input');
-
-    // 5. LOGIC (Mirroring setupCustomArt in scriptingDetails.js)
-    editArtBtn.onclick = async () => {
-        const { data: existingArt } = await supabaseClient
-            .from('custom_imgs')
-            .select('*')
-            .eq('user_id', currentUser.id)
-            .eq('media_id', String(mediaId))
-            .eq('media_type', mediaType)
-            .maybeSingle();
-        
-        input.value = existingArt?.custom_poster || '';
-        modal.style.display = 'flex';
-    };
-
-    closeBtn.onclick = () => modal.style.display = 'none';
-    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
-
-    saveBtn.onclick = async () => {
-        saveBtn.textContent = "Saving...";
-        saveBtn.disabled = true;
-
-        const customPoster = input.value.trim() || null;
-
-        const { error } = await supabaseClient
-            .from('custom_imgs')
-            .upsert({
-                user_id: currentUser.id,
-                media_id: String(mediaId),
-                media_type: mediaType,
-                custom_poster: customPoster
-            }, { onConflict: 'user_id,media_id,media_type' });
-
-        if (!error) {
-            // Mirroring the Details page reload behavior
-            location.reload(); 
-        } else {
-            alert("Error saving art: " + error.message);
-            saveBtn.textContent = "Save Art";
-            saveBtn.disabled = false;
-        }
-    };
-}
-
-async function applyCustomFandomArt() {
-    if (!currentUser) return;
+    document.querySelector('#fandom-cast-section h3').textContent = "Characters";
+    document.getElementById('fandom-cast-section').style.display = 'block';
+    const gridContainer = document.getElementById('fandom-cast-content');
+    gridContainer.innerHTML = '<p class="meta">Loading characters...</p>';
 
     try {
-        const { data: customArt } = await supabaseClient
-            .from('custom_imgs')
-            .select('custom_poster')
-            .eq('user_id', currentUser.id)
-            .eq('media_id', String(mediaId))
-            .eq('media_type', mediaType)
-            .maybeSingle();
-
-        if (customArt && customArt.custom_poster) {
-            document.getElementById('fandom-image').src = customArt.custom_poster;
+        const config = await loadConfig();
+        const endpoint = type === 'tv' ? 'aggregate_credits' : 'credits';
+        const res = await fetch(`${PROXY_URL}/api/tmdb/${type}/${externalId}/${endpoint}?language=en-US`).then(r => r.json());
+        
+        if (!res.cast || res.cast.length === 0) {
+            gridContainer.innerHTML = `<p class="meta">No structured character data found.</p>`;
+            return;
         }
-    } catch (e) {
-        console.warn("Error applying custom art:", e);
+
+        let followedCharacterIds = new Set();
+        if (currentUser) {
+            const { data: userChars } = await supabaseClient
+                .from('user_characters')
+                .select('character_id')
+                .eq('user_id', currentUser.id)
+                .eq('media_id', String(externalId))
+                .eq('media_type', type);
+            
+            if (userChars) {
+                userChars.forEach(c => followedCharacterIds.add(c.character_id));
+            }
+        }
+
+        const characters = res.cast.map(c => {
+            let charName = c.character;
+            if (type === 'tv' && c.roles && c.roles.length > 0) { charName = c.roles[0].character; }
+            let cleanName = charName ? charName.replace(/\(voice\)/gi, '').trim() : "Unknown";
+            cleanName = cleanName.split('/')[0].trim();
+            
+            return {
+                name: cleanName,
+                wikiId: cleanName.replace(/\s+/g, '_'), 
+                tmdbImage: c.profile_path ? `https://image.tmdb.org/t/p/w300${c.profile_path}` : null
+            };
+        }).filter(c => c.name !== "Unknown" && c.name.length > 1);
+
+        allFandomCharacters = characters; 
+        const displayChars = characters.slice(0, 24);
+
+        // Uses the Cast-Grid to perfectly align with your Details page CSS
+        let gridHtml = `<div class="cast-grid" style="margin-top: 20px;">`;
+        
+        displayChars.forEach((char, index) => {
+            const fallbackImg = char.tmdbImage || FALLBACK_AVATAR;
+            const safeDbImage = char.tmdbImage || ''; 
+            
+            const isFollowingChar = followedCharacterIds.has(char.wikiId);
+            const btnClass = isFollowingChar ? 'secondary-btn' : 'primary-btn';
+            const btnText = isFollowingChar ? 'Unfollow' : 'Follow';
+            const escapedName = char.name.replace(/'/g, "\\'"); 
+            const escapedWikiId = char.wikiId.replace(/'/g, "\\'"); // Fix the click bug
+            const currentMediaTitle = document.getElementById('fandom-title').textContent.replace(/'/g, "\\'");
+
+            gridHtml += `
+                <div class="cast-card" data-character-wiki="${encodeURIComponent(char.wikiId)}" style="cursor: pointer; text-align: center; background: rgba(255,255,255,0.03); padding: 10px; border-radius: 12px; border: 1px solid #2c3440;">
+                    <img src="${fallbackImg}" style="width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: 8px; margin-bottom: 10px;" loading="lazy">
+                    <span style="font-weight: bold; color: #fff; font-size: 0.95rem; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${char.name}</span>
+                    <button class="${btnClass}" 
+                        style="width: 100%; padding: 6px; font-size: 0.8rem; border-radius: 6px; margin-top: 10px;"
+                        data-character-follow data-wiki-id="${encodeURIComponent(char.wikiId)}" data-character-name="${encodeURIComponent(char.name)}" data-character-image="${encodeURIComponent(safeDbImage)}" data-character-media-title="${encodeURIComponent(currentMediaTitle)}">
+                        ${btnText}
+                    </button>
+                </div>
+            `;
+        });
+
+        gridHtml += `</div>`;
+        gridContainer.innerHTML = gridHtml;
+
+        if (characters.length > 24) {
+            const viewAllBtn = document.createElement('button');
+            viewAllBtn.id = 'view-all-chars-btn';
+            viewAllBtn.textContent = 'View All Characters';
+            viewAllBtn.style.cssText = `
+                background: rgba(255, 255, 255, 0.05); border: 1px solid #2c3440;
+                color: #9ab; padding: 12px; border-radius: 8px; cursor: pointer;
+                transition: all 0.2s ease; width: 100%; margin-top: 20px; font-weight: bold; font-size: 0.9rem;
+            `;
+            viewAllBtn.onmouseover = () => { viewAllBtn.style.color = '#fff'; viewAllBtn.style.background = 'rgba(255, 255, 255, 0.1)'; viewAllBtn.style.borderColor = 'var(--accent)'; };
+            viewAllBtn.onmouseout = () => { viewAllBtn.style.color = '#9ab'; viewAllBtn.style.background = 'rgba(255, 255, 255, 0.05)'; viewAllBtn.style.borderColor = '#2c3440'; };
+            viewAllBtn.onclick = () => openCharacterModal(followedCharacterIds);
+            
+            document.getElementById('fandom-cast-section').appendChild(viewAllBtn);
+        }
+
+    } catch (err) {
+        console.error("Structured Character Error:", err);
+        gridContainer.innerHTML = `<p class="meta">Failed to load structured character data.</p>`;
     }
+}
+
+async function fetchCharacterPreviewImage(wikiTitle, imgElementId) {
+    try {
+        const url = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(wikiTitle)}?redirects=1`;
+        const res = await fetch(url).then(r => r.json());
+        
+        const imgEl = document.getElementById(imgElementId);
+        if (imgEl && res.thumbnail && res.thumbnail.source) {
+            imgEl.src = res.thumbnail.source;
+        }
+    } catch (e) { }
 }
 
 async function fetchTVDBLists(mId, mType, config) {
@@ -647,106 +623,232 @@ async function fetchTVDBLists(mId, mType, config) {
     }
 }
 
-async function fetchStructuredCharacters(externalId, type) {
-    if (type !== 'movie' && type !== 'tv') return;
-
-    document.querySelector('#fandom-cast-section h3').textContent = "Characters";
-    document.getElementById('fandom-cast-section').style.display = 'block';
-    const gridContainer = document.getElementById('fandom-cast-content');
-    gridContainer.innerHTML = '<p class="meta">Loading characters...</p>';
-
-    try {
-        const config = await loadConfig();
-        const endpoint = type === 'tv' ? 'aggregate_credits' : 'credits';
-        const res = await fetch(`${PROXY_URL}/api/tmdb/${type}/${externalId}/${endpoint}?language=en-US`).then(r => r.json());
+// ----------------------------------------
+// Data Processing & Sanitization
+// ----------------------------------------
+function scrubWikipediaHeaders(htmlString) {
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = htmlString;
+    
+    // Remove headers and edit links
+    tempDiv.querySelectorAll('h1, h2, h3, h4, h5, h6, .mw-editsection').forEach(el => el.remove());
+    
+    // Fix relative Wikipedia links
+    tempDiv.querySelectorAll('a').forEach(link => {
+        const href = link.getAttribute('href');
         
-        if (!res.cast || res.cast.length === 0) {
-            gridContainer.innerHTML = `<p class="meta">No structured character data found.</p>`;
-            return;
-        }
-
-        let followedCharacterIds = new Set();
-        if (currentUser) {
-            const { data: userChars } = await supabaseClient
-                .from('user_characters')
-                .select('character_id')
-                .eq('user_id', currentUser.id)
-                .eq('media_id', String(externalId))
-                .eq('media_type', type);
-            
-            if (userChars) {
-                userChars.forEach(c => followedCharacterIds.add(c.character_id));
+        if (href) {
+            // Check if the link is a relative Wikipedia path
+            if (href.startsWith('/wiki/')) {
+                link.setAttribute('href', `https://en.wikipedia.org${href}`);
+                link.setAttribute('target', '_blank'); 
+                link.setAttribute('rel', 'noopener noreferrer'); 
+            }
+            // Wikipedia's REST API sometimes returns paths starting with "./"
+            else if (href.startsWith('./')) {
+                link.setAttribute('href', `https://en.wikipedia.org/wiki/${href.substring(2)}`);
+                link.setAttribute('target', '_blank');
+                link.setAttribute('rel', 'noopener noreferrer');
             }
         }
+    });
+    
+    return tempDiv.innerHTML;
+}
 
-        const characters = res.cast.map(c => {
-            let charName = c.character;
-            if (type === 'tv' && c.roles && c.roles.length > 0) { charName = c.roles[0].character; }
-            let cleanName = charName ? charName.replace(/\(voice\)/gi, '').trim() : "Unknown";
-            cleanName = cleanName.split('/')[0].trim();
-            
-            return {
-                name: cleanName,
-                wikiId: cleanName.replace(/\s+/g, '_'), 
-                tmdbImage: c.profile_path ? `https://image.tmdb.org/t/p/w300${c.profile_path}` : null
-            };
-        }).filter(c => c.name !== "Unknown" && c.name.length > 1);
+// ----------------------------------------
+// UI Component Managers
+// ----------------------------------------
+async function setupFandomCustomArt() {
+    // Only show for logged-in users
+    if (!currentUser) return;
 
-        allFandomCharacters = characters; 
-        const displayChars = characters.slice(0, 24);
+    // 1. REPLICATE DETAILS PAGE STRUCTURE: Create the controls wrapper
+    const leftCol = document.getElementById('left-col');
+    const posterArea = document.getElementById('fandom-poster-area');
+    const followBtn = document.getElementById('follow-fandom-btn');
 
-        // Uses the Cast-Grid to perfectly align with your Details page CSS
-        let gridHtml = `<div class="cast-grid" style="margin-top: 20px;">`;
+    // Create the wrapper (exactly like #poster-controls-wrapper in details.html)
+    const controlsWrapper = document.createElement('div');
+    controlsWrapper.id = 'fandom-poster-controls-wrapper';
+    
+    // Move poster and follow button into the wrapper to maintain the same DOM hierarchy as Details
+    posterArea.parentNode.insertBefore(controlsWrapper, posterArea);
+    controlsWrapper.appendChild(posterArea);
+    
+    // 2. CREATE EDIT ART BUTTON (Same styles as details.html)
+    const editArtBtn = document.createElement('button');
+    editArtBtn.id = 'edit-art-btn';
+    editArtBtn.className = 'secondary-btn';
+    editArtBtn.textContent = 'Edit Art';
+    editArtBtn.style.cssText = 'width: 100%; margin-top: 10px; display: block;';
+    
+    // 3. WRAP FOLLOW BUTTON (Same as the div wrapper around #fandom-btn in details.html)
+    const followBtnWrapper = document.createElement('div');
+    followBtnWrapper.style.marginTop = '10px';
+    followBtn.style.marginTop = '0px'; // Remove the 15px margin from the HTML to prevent choppiness
+    followBtnWrapper.appendChild(followBtn);
+
+    // Assemble the wrapper in the EXACT order of details.html:
+    // Poster Area -> Edit Art Button -> Follow Button Wrapper
+    controlsWrapper.appendChild(editArtBtn);
+    controlsWrapper.appendChild(followBtnWrapper);
+
+    // 4. CREATE THE MODAL (Exact copy of #custom-art-modal from details.html)
+    const modalHtml = `
+        <div id="fandom-custom-art-modal" class="modal-overlay" style="display:none;">
+            <div class="auth-card">
+                <button class="close-btn" id="close-fandom-art-modal">×</button>
+                <h3>Custom Art</h3>
+                <p class="meta" style="margin-bottom: 15px; font-size: 0.85rem;">Paste image URLs to override the default art. Leave blank to use defaults.</p>
+                <input type="text" id="fandom-custom-poster-input" placeholder="Custom Poster URL" style="width: 100%; box-sizing: border-box; margin-bottom: 10px;">
+                <button id="save-fandom-art-btn" class="primary-btn" style="margin-top: 10px; width: 100%;">Save Art</button>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    const modal = document.getElementById('fandom-custom-art-modal');
+    const closeBtn = document.getElementById('close-fandom-art-modal');
+    const saveBtn = document.getElementById('save-fandom-art-btn');
+    const input = document.getElementById('fandom-custom-poster-input');
+
+    // 5. LOGIC (Mirroring setupCustomArt in scriptingDetails.js)
+    editArtBtn.onclick = async () => {
+        const { data: existingArt } = await supabaseClient
+            .from('custom_imgs')
+            .select('*')
+            .eq('user_id', currentUser.id)
+            .eq('media_id', String(mediaId))
+            .eq('media_type', mediaType)
+            .maybeSingle();
         
-        displayChars.forEach((char, index) => {
-            const fallbackImg = char.tmdbImage || FALLBACK_AVATAR;
-            const safeDbImage = char.tmdbImage || ''; 
-            
-            const isFollowingChar = followedCharacterIds.has(char.wikiId);
-            const btnClass = isFollowingChar ? 'secondary-btn' : 'primary-btn';
-            const btnText = isFollowingChar ? 'Unfollow' : 'Follow';
-            const escapedName = char.name.replace(/'/g, "\\'"); 
-            const escapedWikiId = char.wikiId.replace(/'/g, "\\'"); // Fix the click bug
-            const currentMediaTitle = document.getElementById('fandom-title').textContent.replace(/'/g, "\\'");
+        input.value = existingArt?.custom_poster || '';
+        modal.style.display = 'flex';
+    };
 
-            gridHtml += `
-                <div class="cast-card" data-character-wiki="${encodeURIComponent(char.wikiId)}" style="cursor: pointer; text-align: center; background: rgba(255,255,255,0.03); padding: 10px; border-radius: 12px; border: 1px solid #2c3440;">
-                    <img src="${fallbackImg}" style="width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: 8px; margin-bottom: 10px;" loading="lazy">
-                    <span style="font-weight: bold; color: #fff; font-size: 0.95rem; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${char.name}</span>
-                    <button class="${btnClass}" 
-                        style="width: 100%; padding: 6px; font-size: 0.8rem; border-radius: 6px; margin-top: 10px;"
-                        data-character-follow data-wiki-id="${encodeURIComponent(char.wikiId)}" data-character-name="${encodeURIComponent(char.name)}" data-character-image="${encodeURIComponent(safeDbImage)}" data-character-media-title="${encodeURIComponent(currentMediaTitle)}">
-                        ${btnText}
-                    </button>
-                </div>
-            `;
-        });
+    closeBtn.onclick = () => modal.style.display = 'none';
+    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
 
-        gridHtml += `</div>`;
-        gridContainer.innerHTML = gridHtml;
+    saveBtn.onclick = async () => {
+        saveBtn.textContent = "Saving...";
+        saveBtn.disabled = true;
 
-        if (characters.length > 24) {
-            const viewAllBtn = document.createElement('button');
-            viewAllBtn.id = 'view-all-chars-btn';
-            viewAllBtn.textContent = 'View All Characters';
-            viewAllBtn.style.cssText = `
-                background: rgba(255, 255, 255, 0.05); border: 1px solid #2c3440;
-                color: #9ab; padding: 12px; border-radius: 8px; cursor: pointer;
-                transition: all 0.2s ease; width: 100%; margin-top: 20px; font-weight: bold; font-size: 0.9rem;
-            `;
-            viewAllBtn.onmouseover = () => { viewAllBtn.style.color = '#fff'; viewAllBtn.style.background = 'rgba(255, 255, 255, 0.1)'; viewAllBtn.style.borderColor = 'var(--accent)'; };
-            viewAllBtn.onmouseout = () => { viewAllBtn.style.color = '#9ab'; viewAllBtn.style.background = 'rgba(255, 255, 255, 0.05)'; viewAllBtn.style.borderColor = '#2c3440'; };
-            viewAllBtn.onclick = () => openCharacterModal(followedCharacterIds);
-            
-            document.getElementById('fandom-cast-section').appendChild(viewAllBtn);
+        const customPoster = input.value.trim() || null;
+
+        const { error } = await supabaseClient
+            .from('custom_imgs')
+            .upsert({
+                user_id: currentUser.id,
+                media_id: String(mediaId),
+                media_type: mediaType,
+                custom_poster: customPoster
+            }, { onConflict: 'user_id,media_id,media_type' });
+
+        if (!error) {
+            // Mirroring the Details page reload behavior
+            location.reload(); 
+        } else {
+            alert("Error saving art: " + error.message);
+            saveBtn.textContent = "Save Art";
+            saveBtn.disabled = false;
         }
+    };
+}
 
-    } catch (err) {
-        console.error("Structured Character Error:", err);
-        gridContainer.innerHTML = `<p class="meta">Failed to load structured character data.</p>`;
+async function applyCustomFandomArt() {
+    if (!currentUser) return;
+
+    try {
+        const { data: customArt } = await supabaseClient
+            .from('custom_imgs')
+            .select('custom_poster')
+            .eq('user_id', currentUser.id)
+            .eq('media_id', String(mediaId))
+            .eq('media_type', mediaType)
+            .maybeSingle();
+
+        if (customArt && customArt.custom_poster) {
+            document.getElementById('fandom-image').src = customArt.custom_poster;
+        }
+    } catch (e) {
+        console.warn("Error applying custom art:", e);
     }
 }
 
+async function setupFandomFollowBtn(title, imageUrl) {
+    const btn = document.getElementById('follow-fandom-btn');
+    if (!currentUser) {
+        btn.textContent = "Sign in to Follow Fandom";
+        btn.onclick = () => window.location.href = 'index.html';
+        return;
+    }
+
+    // Check if already following
+    const { data } = await supabaseClient
+        .from('user_fandoms')
+        .select('id')
+        .eq('user_id', currentUser.id)
+        .eq('media_id', String(mediaId))
+        .eq('media_type', mediaType)
+        .maybeSingle();
+
+    let isFollowing = !!data;
+    
+        const updateBtnUI = (following) => {
+        // Determine the label based on whether this is a standard fandom or a collection
+        const label = mediaType === 'collection' ? 'Collection' : 'Fandom';
+        btn.textContent = following ? `Unfollow ${label}` : `Follow ${label}`;
+        
+        if (following) {
+            btn.classList.remove('primary-btn');
+            btn.classList.add('secondary-btn');
+        } else {
+            btn.classList.remove('secondary-btn');
+            btn.classList.add('primary-btn');
+        }
+    };
+
+    updateBtnUI(isFollowing);
+
+    btn.onclick = async () => {
+        btn.disabled = true; // Prevent spam clicks
+        
+        if (isFollowing) {
+            const { error } = await supabaseClient
+                .from('user_fandoms')
+                .delete()
+                .eq('user_id', currentUser.id)
+                .eq('media_id', String(mediaId))
+                .eq('media_type', mediaType);
+            
+            if (!error) {
+                isFollowing = false;
+                updateBtnUI(isFollowing);
+            }
+        } else {
+            const { error } = await supabaseClient
+                .from('user_fandoms')
+                .insert({
+                    user_id: currentUser.id,
+                    media_id: String(mediaId),
+                    media_type: mediaType,
+                    title: title,
+                    image_url: imageUrl
+                });
+            
+            if (!error) {
+                isFollowing = true;
+                updateBtnUI(isFollowing);
+            }
+        }
+        btn.disabled = false;
+    };
+}
+
+// ----------------------------------------
+// Modal & View Controllers
+// ----------------------------------------
 function openCharacterModal(followedCharacterIds) {
     const modal = document.getElementById('character-modal');
     const closeBtn = document.getElementById('close-character-modal');
@@ -830,93 +932,32 @@ function openCharacterModal(followedCharacterIds) {
     modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
 }
 
-async function fetchCharacterPreviewImage(wikiTitle, imgElementId) {
-    try {
-        const url = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(wikiTitle)}?redirects=1`;
-        const res = await fetch(url).then(r => r.json());
-        
-        const imgEl = document.getElementById(imgElementId);
-        if (imgEl && res.thumbnail && res.thumbnail.source) {
-            imgEl.src = res.thumbnail.source;
-        }
-    } catch (e) { }
-}
-
-window.routeToCharacter = function(wikiId) {
-    if (!wikiId) return;
-    const currentMediaTitle = document.getElementById('fandom-title').textContent || '';
-    window.location.href = `cast.html?characterWiki=${encodeURIComponent(wikiId)}&mediaId=${mediaId}&mediaType=${mediaType}&mediaTitle=${encodeURIComponent(currentMediaTitle)}`;
-};
-
-async function setupFandomFollowBtn(title, imageUrl) {
-    const btn = document.getElementById('follow-fandom-btn');
-    if (!currentUser) {
-        btn.textContent = "Sign in to Follow Fandom";
-        btn.onclick = () => window.location.href = 'index.html';
+// ----------------------------------------
+// Event Delegation
+// ----------------------------------------
+document.addEventListener('click', (event) => {
+    const fandomRouteTarget = event.target.closest('[data-fandom-route]');
+    if (fandomRouteTarget) {
+        window.location.href = fandomRouteTarget.dataset.fandomRoute;
         return;
     }
 
-    // Check if already following
-    const { data } = await supabaseClient
-        .from('user_fandoms')
-        .select('id')
-        .eq('user_id', currentUser.id)
-        .eq('media_id', String(mediaId))
-        .eq('media_type', mediaType)
-        .maybeSingle();
+    const followTarget = event.target.closest('[data-character-follow]');
+    if (followTarget) {
+        event.stopPropagation();
+        window.toggleCharacterFollow(
+            followTarget,
+            decodeURIComponent(followTarget.dataset.wikiId),
+            decodeURIComponent(followTarget.dataset.characterName),
+            decodeURIComponent(followTarget.dataset.characterImage),
+            decodeURIComponent(followTarget.dataset.characterMediaTitle || '')
+        );
+        return;
+    }
 
-    let isFollowing = !!data;
-    
-        const updateBtnUI = (following) => {
-        // Determine the label based on whether this is a standard fandom or a collection
-        const label = mediaType === 'collection' ? 'Collection' : 'Fandom';
-        btn.textContent = following ? `Unfollow ${label}` : `Follow ${label}`;
-        
-        if (following) {
-            btn.classList.remove('primary-btn');
-            btn.classList.add('secondary-btn');
-        } else {
-            btn.classList.remove('secondary-btn');
-            btn.classList.add('primary-btn');
-        }
-    };
-
-    updateBtnUI(isFollowing);
-
-    btn.onclick = async () => {
-        btn.disabled = true; // Prevent spam clicks
-        
-        if (isFollowing) {
-            const { error } = await supabaseClient
-                .from('user_fandoms')
-                .delete()
-                .eq('user_id', currentUser.id)
-                .eq('media_id', String(mediaId))
-                .eq('media_type', mediaType);
-            
-            if (!error) {
-                isFollowing = false;
-                updateBtnUI(isFollowing);
-            }
-        } else {
-            const { error } = await supabaseClient
-                .from('user_fandoms')
-                .insert({
-                    user_id: currentUser.id,
-                    media_id: String(mediaId),
-                    media_type: mediaType,
-                    title: title,
-                    image_url: imageUrl
-                });
-            
-            if (!error) {
-                isFollowing = true;
-                updateBtnUI(isFollowing);
-            }
-        }
-        btn.disabled = false;
-    };
-}
+    const characterTarget = event.target.closest('[data-character-wiki]');
+    if (characterTarget) window.routeToCharacter(decodeURIComponent(characterTarget.dataset.characterWiki));
+});
 
 window.toggleCharacterFollow = async function(btn, charId, charName, imageUrl, mediaTitle) {
     if (!currentUser) {
@@ -968,29 +1009,11 @@ window.toggleCharacterFollow = async function(btn, charId, charName, imageUrl, m
     btn.style.opacity = '1';
 };
 
-document.addEventListener('click', (event) => {
-    const fandomRouteTarget = event.target.closest('[data-fandom-route]');
-    if (fandomRouteTarget) {
-        window.location.href = fandomRouteTarget.dataset.fandomRoute;
-        return;
-    }
-
-    const followTarget = event.target.closest('[data-character-follow]');
-    if (followTarget) {
-        event.stopPropagation();
-        window.toggleCharacterFollow(
-            followTarget,
-            decodeURIComponent(followTarget.dataset.wikiId),
-            decodeURIComponent(followTarget.dataset.characterName),
-            decodeURIComponent(followTarget.dataset.characterImage),
-            decodeURIComponent(followTarget.dataset.characterMediaTitle || '')
-        );
-        return;
-    }
-
-    const characterTarget = event.target.closest('[data-character-wiki]');
-    if (characterTarget) window.routeToCharacter(decodeURIComponent(characterTarget.dataset.characterWiki));
-});
+window.routeToCharacter = function(wikiId) {
+    if (!wikiId) return;
+    const currentMediaTitle = document.getElementById('fandom-title').textContent || '';
+    window.location.href = `cast.html?characterWiki=${encodeURIComponent(wikiId)}&mediaId=${mediaId}&mediaType=${mediaType}&mediaTitle=${encodeURIComponent(currentMediaTitle)}`;
+};
 
 function showError(message) {
     document.getElementById('fandom-title').textContent = "Lore Unavailable";
