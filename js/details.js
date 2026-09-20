@@ -8,7 +8,6 @@ let PROXY_URL = '';
 let supabaseClient = null;
 
 // Global vars
-const params = new URLSearchParams(window.location.search);
 let globalData = null;
 let tvmazeEpisodesMap = {};
 let fullCastData = [];
@@ -16,7 +15,8 @@ let fullCrewData = [];
 let directorData = null;
 let allLogsData = [];
 
-// Get params
+// Get parameters
+const params = new URLSearchParams(window.location.search);
 const id = params.get('id');
 const type = params.get('type');
 
