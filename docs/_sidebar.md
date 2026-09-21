@@ -2,7 +2,7 @@
 * [Home](../README.md)
 
 <!-- Category headers using bold text -->
-* **Actions**
+<!-- * **Actions**
   * [Anime Filler List Updater](actions/anime-flist.md)
   * [Email Controller](actions/email-control.md)
   * [Machine Learning Embedding to Qdrant](actions/ml-embeddings.md)
@@ -12,7 +12,7 @@
 * **Features**
   * [Machine Learning Model through Qdrant](features/ml-model.md)
   * [API Proxy Server through Cloudflare](features/proxy.md)
-  * [Supabase Database](features/supabase.md)
+  * [Supabase Database](features/supabase.md) -->
 
 * **Pages**
   * [Home Page](pages/index.md)
