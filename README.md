@@ -97,7 +97,7 @@ This section provides a technical breakdown of Catalogd's background architectur
 +---------------------------------------------------------------------------------------+
 |                              BACKGROUND WORKER SCRIPTS                                |
 |  - process_emails.js   : SMTP Rate-Limit Throttler (2 invites/hr)                     |
-|  - index_2.js/scraper  : Cheerio-based AnimeFillerList Scraper                        |
+|  - index.js/scraper    : Cheerio-based AnimeFillerList Scraper                        |
 |  - fill_characters.js  : TMDB Batch Cast & Character Ingestion                        |
 |  - generate_embeddings : Xenova Transformers -> 384-dim Vectors -> Qdrant DB          |
 |  - update_stats.js     : Aggregation Worker (Actor/Director Tallies + Openverse)      |
