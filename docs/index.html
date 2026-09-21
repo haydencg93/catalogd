@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Catalogd Documentation</title>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+  <!-- Standard Docsify Theme -->
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/docsify@4/lib/themes/vue.css">
+
+  <style>
+    .docs-back-btn {
+      position: relative;
+      display: inline-block;
+      overflow: hidden;
+      background: #050608; /* Matches Catalogd's exact background color */
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: white !important;
+      text-decoration: none;
+      cursor: pointer;
+      z-index: 1;
+      font-family: 'Outfit', sans-serif;
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      
+      /* Specific sizing from the Advanced Search button */
+      padding: 15px 20px;
+      font-size: 1.1rem;
+      border-radius: 20px;
+      box-sizing: border-box;
+    }
+
+    /* The hidden liquid glow */
+    .docs-back-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 50% -20%, rgba(79, 70, 229, 0.3), transparent 70%);
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      z-index: -1;
+    }
+
+    /* The hover physics */
+    .docs-back-btn:hover {
+      background: #0f1219; /* Slightly lighter shade for the hover state */
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .docs-back-btn:hover::before {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="../index.html" class="docs-back-btn" >
+      Back to Catalogd
+    </a>
+  </nav>
+  <div id="app">Loading documentation...</div>
+  <script>
+    window.$docsify = {
+      name: 'Catalogd',
+      repo: 'https://github.com/haydencg93/catalogd', // GitHub repo URL
+      homepage: '../README.md', // Points to the root README
+      loadSidebar: true, // Enables the sidebar navigation
+      subMaxLevel: 2 // Automatically extracts headers from your md files to create a table of contents
+    }
+  </script>
+  <!-- Docsify Core Script -->
+  <script src="//cdn.jsdelivr.net/npm/docsify@4"></script>
+</body>
+</html>
