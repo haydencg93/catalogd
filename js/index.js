@@ -2,7 +2,18 @@
 import { loadConfig as fetchConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
 import { normalizeOpenLibraryId } from './core/media.js';
-
+import { 
+    calculateWeight, 
+    evaluateProviderAvailability,
+    sortSearchResults,
+    resolveBookImage,
+    attributionHtml,
+    buildDiscoverUrls,
+    backgroundStyle,
+    extractYouTubeId,
+    normalizeUserItem,
+    normalizeTMDBItem
+} from './logic/index-logic.js';
 // Load configuration and initialize Supabase client
 let PROXY_URL = '';
 let supabaseClient = null;
@@ -22,7 +33,6 @@ const waitMs = ms => new Promise(res => setTimeout(res, ms));
 const searchInput = document.getElementById('search-input');
 const resultsGrid = document.getElementById('results-grid');
 const loader = document.getElementById('loader');
-const loginBtn = document.getElementById('login-btn');
 const authModal = document.getElementById('auth-modal');
 const authEmail = document.getElementById('auth-email');
 const authPassword = document.getElementById('auth-password');
@@ -35,8 +45,6 @@ const authUsername = document.getElementById('auth-username');
 const authReferral = document.getElementById('auth-referral');
 const authRetype = document.getElementById('auth-retype');
 const signupFields = document.getElementById('signup-fields');
-const profileBtn = document.getElementById('profile-btn');
-const profileMenu = document.getElementById('profile-menu');
 
 // ----------------------------------------
 // Initialization and Config
@@ -406,21 +414,6 @@ async function loadTabContent(type) {
     }
 }
 
-// Handles fetching and deduplicating items
-async function fetchAndMergeTabItems(type) {
-    let forYouItems = [];
-    if (['movie', 'tv'].includes(type)) {
-        forYouItems = await getForYouItems(type);
-        maybeShowServicesNudge();
-    }
-
-    let trendingItems = await getTrendingItems(type);
-    const forYouIds = new Set(forYouItems.map(item => String(item.id)));
-    trendingItems = trendingItems.filter(item => !forYouIds.has(String(item.id)));
-
-    return [...forYouItems, ...trendingItems];
-}
-
 async function unifiedSearch(query) {
     beginContentRequest();
     const requestId = ++contentRequestId;
@@ -437,12 +430,11 @@ async function unifiedSearch(query) {
         return;
     }
 
-    const ytRegex = /(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|embed)\/|.*[?&]v=)|youtu\.be\/)([^"&?/\s]{11})/;
-    const ytMatch = query.match(ytRegex);
+    const extractedId = extractYouTubeId(query);
 
-    if (ytMatch || currentTab === 'youtube') {
-        if (ytMatch?.[1]) {
-            window.location.href = `details.html?id=${ytMatch[1]}&type=youtube`;
+    if (extractedId || currentTab === 'youtube') {
+        if (extractedId) {
+            window.location.href = `details.html?id=${extractedId}&type=youtube`;
         } else {
             loader.textContent = "Please enter a valid YouTube URL.";
             loader.style.display = 'block';
@@ -463,11 +455,8 @@ async function unifiedSearch(query) {
         if (requestId !== contentRequestId) return;
 
         const seenNames = new Set();
-        const mappedUsers = payload.users.map(u => ({
-            title: u.display_name || u.username, year: `@${u.username}`,
-            image: u.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.display_name || u.username)}&background=1b2228&color=9ab&size=512`,
-            type: 'user', id: u.id
-        }));
+        
+        const mappedUsers = payload.users.map(u => normalizeUserItem(u));
 
         const processedAuthors = payload.authorData.filter(author => {
             const nameKey = author.title.toLowerCase();
@@ -476,24 +465,9 @@ async function unifiedSearch(query) {
             return true;
         });
 
-        const tmdbResults = (payload.tmdbRes.results || []).map(item => {
-            if (item.media_type === 'person' || filterValue === 'person') {
-                const nameKey = item.name.toLowerCase();
-                if (seenNames.has(nameKey)) return null; 
-                seenNames.add(nameKey);
-                return {
-                    title: item.name, year: item.known_for_department || 'Person',
-                    image: item.profile_path ? `https://image.tmdb.org/t/p/w500${item.profile_path}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=1b2228&color=9ab&size=512`,
-                    type: 'person', id: item.id
-                };
-            } else if (item.poster_path || item.backdrop_path) {
-                return {
-                    title: item.title || item.name, year: (item.release_date || item.first_air_date || '').split('-')[0],
-                    image: `https://image.tmdb.org/t/p/w500${item.poster_path || item.backdrop_path}`, type: item.media_type || filterValue, id: item.id
-                };
-            }
-            return null;
-        }).filter(Boolean);
+        const tmdbResults = (payload.tmdbRes.results || [])
+            .map(item => normalizeTMDBItem(item, filterValue, seenNames))
+            .filter(Boolean);
 
         let combined = [...mappedUsers, ...processedAuthors, ...tmdbResults, ...payload.bookData, ...payload.lastfmAlbums];
         if (filterValue !== 'all') {
@@ -552,21 +526,6 @@ async function fetchSearchData(query, filterValue, payload) {
         );
     }
     await Promise.all(fetchPromises);
-}
-
-function sortSearchResults(combined, query) {
-    const q = query.toLowerCase().trim();
-    combined.sort((a, b) => {
-        const aTitle = a.title.toLowerCase();
-        const bTitle = b.title.toLowerCase();
-        if (aTitle === q && bTitle !== q) return -1;
-        if (bTitle === q && aTitle !== q) return 1;
-        const aStarts = aTitle.startsWith(q);
-        const bStarts = bTitle.startsWith(q);
-        if (aStarts && !bStarts) return -1;
-        if (bStarts && !aStarts) return 1;
-        return 0; 
-    });
 }
 
 // Fetch Books
@@ -669,12 +628,6 @@ async function fetchTrendingBooks() {
     }));
 }
 
-function resolveBookImage(work) {
-    if (work.cover_edition_key) return `https://covers.openlibrary.org/b/olid/${work.cover_edition_key}-M.jpg`;
-    if (work.cover_i) return `https://covers.openlibrary.org/b/id/${work.cover_i}-M.jpg`;
-    return 'https://placehold.co/500x750/1b2228/9ab?text=No+Cover';
-}
-
 // Music Trending
 async function fetchTrendingAlbums() {
     const res = await contentFetch(`${PROXY_URL}/api/lastfm?method=tag.gettopalbums&tag=pop&limit=15`);
@@ -748,7 +701,7 @@ async function getForYouItems(mediaType) {
             .eq('media_type', mediaType);
             
         const loggedIds = new Set((allDiary || []).map(d => String(d.media_id)));
-        const { keywordUrls, genreOnlyUrls } = buildDiscoverUrls(mediaType, topGenres, topKeywords);
+        const { keywordUrls, genreOnlyUrls } = buildDiscoverUrls(mediaType, topGenres, topKeywords, PROXY_URL);
 
         const contextData = { topGenres, topKeywords, keywordCounts, genreCounts, loggedIds, userStreamingProviderIds, mediaType };
         const uniqueRecs = new Map();
@@ -775,45 +728,6 @@ async function getForYouItems(mediaType) {
         console.error("For you fetch error:", err);
         return [];
     }
-}
-
-// Calculate Rating Weights for For You Calculation
-function calculateWeight(rating) {
-    if (rating === 5) return 5;
-    if (rating >= 4.5) return 2.5;
-    return 1;
-}
-
-function buildDiscoverUrls(mediaType, topGenres, topKeywords) {
-    const providerParams = `&with_watch_monetization_types=flatrate|free|ads`;
-    
-    const keywordUrls = topKeywords.map(keywordId => {
-        let url = `${PROXY_URL}/api/tmdb/discover/${mediaType}?language=en-US&sort_by=popularity.desc&watch_region=US&page=1`;
-        url += `&with_genres=${topGenres.join('|')}&with_keywords=${keywordId}${providerParams}`;
-        return url;
-    });
-
-    const genreOnlyUrls = [1, 2].map(page => {
-        let url = `${PROXY_URL}/api/tmdb/discover/${mediaType}?language=en-US&sort_by=popularity.desc&watch_region=US&page=${page}`;
-        url += `&with_genres=${topGenres.join('|')}${providerParams}`;
-        return url;
-    });
-
-    return { keywordUrls, genreOnlyUrls };
-}
-
-function evaluateProviderAvailability(item, userStreamingProviderIds) {
-    if (userStreamingProviderIds.length === 0) return true;
-    
-    const usProviders = item['watch/providers']?.results?.US || {};
-    const flatrateIds = (usProviders.flatrate || []).map(p => String(p.provider_id));
-    const freeIds = (usProviders.free || []).map(p => String(p.provider_id));
-    const adsIds = (usProviders.ads || []).map(p => String(p.provider_id));
-
-    const isOnUserServices = [...flatrateIds, ...freeIds, ...adsIds].some(id => userStreamingProviderIds.includes(id));
-    const isFreeAnywhere = freeIds.length > 0 || adsIds.length > 0;
-
-    return isOnUserServices || isFreeAnywhere;
 }
 
 async function processDiscoverCandidates(urls, requireTheme, contextData, uniqueRecs, seenCandidateIds) {
@@ -1110,41 +1024,28 @@ async function tallyAlbumVibe(logs) {
     return sortedMusic.length > 0 ? sortedMusic[0] : '';
 }
 
-function backgroundStyle(img) {
-    return img ? `background-image: url('${img}'); background-size: cover; background-position: center;`
-                : `background: ${fallbackGradient};`;
-}
-function attributionHtml(attr) {
-    if (!attr?.text) return '';
-    const style = 'position:absolute;bottom:6px;right:8px;font-size:10px;line-height:1.2;' +
-        'color:rgba(255,255,255,0.65);background:rgba(0,0,0,0.35);padding:2px 6px;' +
-        'border-radius:4px;text-decoration:none;pointer-events:auto;z-index:2;';
-    return attr.url
-        ? `<a href="${attr.url}" target="_blank" rel="noopener noreferrer" class="vibe-attribution-link" style="${style}">${attr.text}</a>`
-        : `<div class="vibe-attribution" style="${style}">${attr.text}</div>`;
-}
-
 function maybeShowServicesNudge() {
-    if (userStreamingProviderIds.length > 0) return; // already configured
+    if (userStreamingProviderIds.filter(Boolean).length > 0) return; 
     if (localStorage.getItem('catalogd_services_nudge_dismissed') === 'true') return;
-    if (document.getElementById('services-nudge-modal')) return; // already shown once this session
+    if (document.getElementById('services-nudge-modal')) return; 
 
     supabaseClient.auth.getUser().then(({ data: { user } }) => {
-        if (!user) return; // only nudge logged-in users
+        if (!user) return; 
 
         const modal = document.createElement('div');
         modal.id = 'services-nudge-modal';
-        modal.className = 'modal-overlay';
-        modal.style.display = 'flex';
+        
+        modal.style.cssText = 'position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 9999; backdrop-filter: blur(5px);';
+        
         modal.innerHTML = `
-            <div class="auth-card" style="max-width: 380px;">
-                <h2 style="margin-top:0;">Get Picks You Can Watch</h2>
-                <p class="meta" style="margin-bottom: 25px;">
+            <div class="auth-card" style="max-width: 380px; background: #1b2228; padding: 40px; border-radius: 16px; text-align: center; border: 1px solid #2c3440; box-shadow: 0 20px 40px rgba(0,0,0,0.6);">
+                <h2 style="margin-top:0; color: #fff;">Get Picks You Can Watch</h2>
+                <p class="meta" style="margin-bottom: 25px; color: #9ab; line-height: 1.5; font-size: 0.95rem;">
                     Add your streaming services in Settings so your "For You" recommendations
                     only include movies and shows available on platforms you actually have.
                 </p>
-                <button id="services-nudge-goto" class="primary-btn">Go to Settings</button>
-                <p id="services-nudge-dismiss" style="color:#9ab; cursor:pointer; font-size:0.8rem; margin-top:15px;">Maybe later</p>
+                <button id="services-nudge-goto" class="primary-btn" style="background: var(--accent); color: #000; border: none; padding: 12px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; transition: transform 0.2s;">Go to Settings</button>
+                <p id="services-nudge-dismiss" style="color:#9ab; cursor:pointer; font-size:0.85rem; margin-top:20px; text-decoration: underline; transition: color 0.2s;">Maybe later</p>
             </div>
         `;
         document.body.appendChild(modal);
@@ -1156,6 +1057,10 @@ function maybeShowServicesNudge() {
             localStorage.setItem('catalogd_services_nudge_dismissed', 'true');
             modal.remove();
         };
+        
+        // Add native hover effects to the dismiss text
+        document.getElementById('services-nudge-dismiss').onmouseover = (e) => e.target.style.color = '#fff';
+        document.getElementById('services-nudge-dismiss').onmouseout = (e) => e.target.style.color = '#9ab';
     }).catch((err) => { 
         console.warn("Nudge check failed:", err);
     });
@@ -1216,11 +1121,11 @@ function renderVibeBox(genreName, themeName, genreImg, themeImg, genreAttr, them
         vibeContainer.innerHTML = `
             <div class="vibe-title">Your Vibe</div>
             <div class="vibe-box">
-                <div class="vibe-half" style="${backgroundStyle(genreImg)}">
+                <div class="vibe-half" style="${backgroundStyle(genreImg, fallbackGradient)}">
                     <span class="vibe-text">${genreName}</span>
                     ${attributionHtml(genreAttr)}
                 </div>
-                <div class="vibe-half" style="${backgroundStyle(themeImg)}">
+                <div class="vibe-half" style="${backgroundStyle(themeImg, fallbackGradient)}">
                     <span class="vibe-text">${themeName}</span>
                     ${attributionHtml(themeAttr)}
                 </div>
@@ -1231,7 +1136,7 @@ function renderVibeBox(genreName, themeName, genreImg, themeImg, genreAttr, them
         vibeContainer.innerHTML = `
             <div class="vibe-title">Your Vibe</div>
             <div class="vibe-box">
-                <div class="vibe-half" style="${backgroundStyle(genreImg)}; flex: 100%;">
+                <div class="vibe-half" style="${backgroundStyle(genreImg, fallbackGradient)}; flex: 100%;">
                     <span class="vibe-text">${genreName}</span>
                     ${attributionHtml(genreAttr)}
                 </div>

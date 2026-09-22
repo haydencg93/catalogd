@@ -2,6 +2,7 @@
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
 import { normalizeOpenLibraryId } from './core/media.js';
+import { calculatePagination } from './logic/watchlist-logic.js';
 
 // Load configuration and initialize Supabase client
 let supabaseClient = null;
@@ -216,36 +217,29 @@ window.changeWatchlistPage = (direction) => {
 };
 
 async function renderWatchlistPage() {
-    // 1. Filter the master list
-    const filtered = currentWatchlistFilter === 'all' 
-        ? allWatchlistItems 
-        : allWatchlistItems.filter(i => i.media_type === currentWatchlistFilter);
-        
-    // 2. Calculate Pagination
-    const totalItems = filtered.length;
-    const totalPages = Math.ceil(totalItems / WATCHLIST_PAGE_SIZE) || 1;
+    // 1. Delegate math to the pure function
+    const { paginatedItems, totalPages, boundedCurrentPage, totalFilteredItems } = calculatePagination(
+        allWatchlistItems, 
+        currentWatchlistPage, 
+        WATCHLIST_PAGE_SIZE, 
+        currentWatchlistFilter
+    );
     
-    if (currentWatchlistPage < 1) currentWatchlistPage = 1;
-    if (currentWatchlistPage > totalPages) currentWatchlistPage = totalPages;
+    // Sync the global variable with the mathematically bounded result
+    currentWatchlistPage = boundedCurrentPage;
 
-    const startIndex = (currentWatchlistPage - 1) * WATCHLIST_PAGE_SIZE;
-    const endIndex = startIndex + WATCHLIST_PAGE_SIZE;
-    
-    // 3. Slice out just the 50 items we need for this page
-    const itemsToRender = filtered.slice(startIndex, endIndex);
-
-    // 4. Update the subtitle with the TRUE TOTAL (Not just the 50 on the page)
+    // 2. Update the subtitle with the TRUE TOTAL (Not just the 50 on the page)
     const subtitle = document.getElementById('watchlist-subtitle');
-    subtitle.textContent = `${totalItems} ${currentWatchlistFilter === 'all' ? 'items' : currentWatchlistFilter + 's'} saved.`;
+    subtitle.textContent = `${totalFilteredItems} ${currentWatchlistFilter === 'all' ? 'items' : currentWatchlistFilter + 's'} saved.`;
 
-    // 5. Pass the small chunk to your existing render engine
-    await renderWatchlist(itemsToRender, currentWatchlistFilter);
+    // 3. Pass the small chunk to your existing render engine
+    await renderWatchlist(paginatedItems, currentWatchlistFilter);
 
-    // 6. Update the UI Pagination Buttons
+    // 4. Update the UI Pagination Buttons
     const paginationContainer = document.getElementById('watchlist-pagination');
     if (!paginationContainer) return;
 
-    if (totalItems > WATCHLIST_PAGE_SIZE) {
+    if (totalFilteredItems > WATCHLIST_PAGE_SIZE) {
         paginationContainer.innerHTML = `
             <button class="secondary-btn" data-watchlist-page="-1" ${currentWatchlistPage === 1 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>Previous</button>
             <span class="meta" style="margin: 0 15px; font-weight: bold;">Page ${currentWatchlistPage} of ${totalPages}</span>
@@ -255,7 +249,7 @@ async function renderWatchlistPage() {
             button.addEventListener('click', () => window.changeWatchlistPage(Number(button.dataset.watchlistPage)));
         });
     } else {
-        paginationContainer.innerHTML = ''; // Hide if 50 items or fewer
+        paginationContainer.innerHTML = ''; 
     }
 }
 

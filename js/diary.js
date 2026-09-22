@@ -2,6 +2,11 @@
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
 import { normalizeOpenLibraryId } from './core/media.js';
+import {
+    filterLogs,
+    sortLogs,
+    calculateStats
+} from './logic/diary-logic.js';
 
 // Load configuration and initialize Supabase client
 let PROXY_URL = '';
@@ -315,41 +320,40 @@ function setupLoadMore(config) {
 // Business Logic & Filtering
 // ----------------------------------------
 window.applyFilters = async () => {
-    const searchTerm = document.getElementById('diary-search').value.toLowerCase();
-    const ratingLimit = document.getElementById('rating-filter').value;
-    const yearLimit = document.getElementById('year-filter').value;
-    const likedLimit = document.getElementById('liked-filter').value;
-    const reviewLimit = document.getElementById('review-filter').value;
-    const rewatchLimit = document.getElementById('rewatch-filter').value;
-    const tagLimit = document.getElementById('tag-filter').value;
-    
     const config = await loadConfig();
 
-    filteredLogs = allLogs.filter(log => {
-        const matchesType = currentType === 'all' || log.media_type === currentType;
-        const matchesRating = ratingLimit === 'all' || Math.floor(log.rating) == parseInt(ratingLimit);
-        
-        const matchesLiked = likedLimit === 'all' || (likedLimit === 'liked' ? log.is_liked : !log.is_liked);
-        const matchesReview = reviewLimit === 'all' || (reviewLimit === 'reviewed' ? (log.notes && log.notes.trim() !== '') : (!log.notes || log.notes.trim() === ''));
-        const matchesRewatch = rewatchLimit === 'all' || (rewatchLimit === 'rewatch' ? log.is_rewatch : !log.is_rewatch);
-        const matchesTag = tagLimit === 'all' || (log.tags && log.tags.includes(tagLimit));
-        const matchesYear = yearLimit === 'all' || 
-            (yearLimit === 'unknown' ? (!log.release_year || isNaN(log.release_year) || log.release_year.toString().trim() === '') :
-            (yearLimit.endsWith('s') ? 
-                (log.release_year && log.release_year.toString().startsWith(yearLimit.substring(0,3))) : 
-                log.release_year == yearLimit));
+    const filters = {
+        searchTerm: document.getElementById('diary-search').value.toLowerCase(),
+        rating: document.getElementById('rating-filter').value,
+        year: document.getElementById('year-filter').value,
+        liked: document.getElementById('liked-filter').value,
+        review: document.getElementById('review-filter').value,
+        rewatch: document.getElementById('rewatch-filter').value,
+        tag: document.getElementById('tag-filter').value,
+        type: currentType
+    };
 
-        // Text Search
-        const matchesSearch = searchTerm === '' || (log.media_title && log.media_title.toLowerCase().includes(searchTerm));
+    // Use the extracted logic
+    filteredLogs = filterLogs(allLogs, filters);
 
-        return matchesType && matchesRating && matchesYear && matchesLiked && matchesReview && matchesRewatch && matchesTag && matchesSearch;
-    });
+    // Ensure we call the window-attached sort function
+    if (typeof window.applyCurrentSort === 'function') {
+        window.applyCurrentSort();
+    }
+};
 
-    applyCurrentSort();
+// Bind directly to the window so the HTML click handlers can find it
+window.applyCurrentSort = () => {
+    console.log(`[APPLY SORT] Sorting ${filteredLogs.length} items by ${currentSortColumn} in ${sortOrder} order.`);
+    
+    // Use the extracted logic
+    filteredLogs = sortLogs(filteredLogs, currentSortColumn, sortOrder);
 
     currentPage = 1;
-    await renderDiary(config); 
-    updateStatsDisplay(config);
+    loadConfig().then(c => {
+        renderDiary(c); 
+        updateStatsDisplay(c);
+    });
 };
 
 function applyCurrentSort() {
@@ -404,34 +408,22 @@ function applyCurrentSort() {
 
 
 async function updateStatsDisplay(config) {
-    const totalLogs = filteredLogs.length;
-    const totalRatingSum = filteredLogs.reduce((acc, log) => acc + (log.rating || 0), 0);
-    const avgRating = totalLogs > 0 ? (totalRatingSum / totalLogs).toFixed(1) : "0.0";
-    const totalMovies = filteredLogs.filter(l => l.media_type === 'movie').length;
-    const totalBooks = filteredLogs.filter(l => l.media_type === 'book' && l.is_finished === true).length;
+    // Use the extracted logic for the math
+    const stats = calculateStats(filteredLogs);
     
-    // Split Albums and Songs
+    // Extra local calculations for specific UI components
     const albumLogs = filteredLogs.filter(l => l.media_type === 'album' && !l.episode_number);
     const songLogs = filteredLogs.filter(l => l.media_type === 'album' && l.episode_number);
     const totalAlbums = albumLogs.length; 
 
     const totalYoutube = filteredLogs.filter(l => l.media_type === 'youtube').length;
     const uniqueSeries = filteredLogs.filter(l => l.media_type === 'tv' && (l.log_level === 'entire' || (!l.season_number && !l.episode_number))).length;
-    const totalSeasons = filteredLogs.filter(l => l.media_type === 'tv' && l.season_number && !l.episode_number).length;
-    const directEpisodes = filteredLogs.filter(l => l.episode_number && l.media_type === 'tv').length;
-    const episodesInSeasons = filteredLogs.reduce((acc, l) => acc + (l.ep_count_in_season || 0), 0);
-    const totalEpisodes = directEpisodes + episodesInSeasons;
-    const totalMinutes = filteredLogs.reduce((acc, log) => acc + (log.runtime || 0), 0);
 
-    const d = Math.floor(totalMinutes / 1440);
-    const h = Math.floor((totalMinutes % 1440) / 60);
-    const m = totalMinutes % 60;
-
-    document.getElementById('total-logs').textContent = totalLogs;
-    document.getElementById('avg-rating').textContent = avgRating;
-    document.getElementById('total-movies').textContent = totalMovies;
+    document.getElementById('total-logs').textContent = stats.totalLogs;
+    document.getElementById('avg-rating').textContent = stats.avgRating;
+    document.getElementById('total-movies').textContent = stats.totalMovies;
     document.getElementById('total-series').textContent = uniqueSeries;
-    document.getElementById('total-books').textContent = totalBooks;
+    document.getElementById('total-books').textContent = stats.totalBooks;
     
     const albumStat = document.getElementById('total-albums');
     if (albumStat) albumStat.textContent = totalAlbums; 
@@ -440,16 +432,14 @@ async function updateStatsDisplay(config) {
     if (ytStat) ytStat.textContent = totalYoutube;
     
     const timeElement = document.getElementById('total-time');
-    if (timeElement) timeElement.textContent = `${d}d ${h}h ${m}m`;
+    if (timeElement) timeElement.textContent = `${stats.days}d ${stats.hours}h ${stats.minutes}m`;
 
     // ASYNC SONG CALCULATION
     const songStat = document.getElementById('total-songs');
     if (songStat) {
-        songStat.textContent = "..."; // Show a loading state briefly
+        songStat.textContent = "..."; 
+        let totalSongs = songLogs.length; 
         
-        let totalSongs = songLogs.length; // Start with individually logged tracks
-        
-        // Asynchronously fetch the track counts for full albums
         for (const log of albumLogs) {
             if (albumTrackCache[log.media_id]) {
                 totalSongs += albumTrackCache[log.media_id];

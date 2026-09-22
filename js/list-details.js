@@ -312,9 +312,7 @@ async function initListDetails() {
 // ----------------------------------------
 // Data Fetching & Rendering
 // ----------------------------------------
-async function fetchListItems() {
-    const container = document.getElementById('list-content');
-    
+async function fetchListItems() {  
     let query = supabaseClient
         .from('list_items')
         .select('*')
@@ -748,7 +746,7 @@ async function fetchMediaDetails(item) {
             };
         }
     } catch (e) {
-        return { title: 'Unknown', poster: 'https://placehold.co/500x750/1b2228/9ab?text=Error' };
+        return { title: 'Unknown', poster: 'https://placehold.co/500x750/1b2228/9ab?text=Error', e };
     }
 }
 

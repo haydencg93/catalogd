@@ -3,6 +3,11 @@ import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
 import { normalizeOpenLibraryId } from './core/media.js';
 import { socialLogoSvgs as exactSocialLogoSvgs } from './components/socialIcons.js';
+import {
+    buildLibraryArray,
+    calculateRevisitCandidates,
+    sortTrackedEntities
+} from './logic/profile-logic.js';
 
 // Load configuration and initialize Supabase client
 let supabaseClient = null;
@@ -423,74 +428,8 @@ async function initProfile() {
             }
         }
 
-        let libraryMap = new Map();
-        let droppedKeys = new Set();
-
-        // Pass 1: Process Statuses
-        if (allStatuses) {
-            allStatuses.forEach(s => {
-                const key = `${s.media_type}_${s.media_id}`;
-                if (s.status === 'dropped') {
-                    droppedKeys.add(key); // Mark as dropped
-                } else {
-                    libraryMap.set(key, {
-                        media_id: s.media_id,
-                        media_type: s.media_type,
-                        media_title: s.media_title,
-                        image_url: s.image_url,
-                        first_added: s.created_at || s.updated_at
-                    });
-                }
-            });
-        }
-
-        // Pass 2: Process Logs (Merge & Deduplicate)
-        if (allUserLogs) {
-            allUserLogs.forEach(l => {
-                const key = `${l.media_type}_${l.media_id}`;
-                // Determine the most relevant date for this log
-                const logDate = new Date(l.watched_on || l.created_at);
-
-                // Only add if it hasn't been dropped
-                if (!droppedKeys.has(key)) {
-                    if (libraryMap.has(key)) {
-                        const existing = libraryMap.get(key);
-                        
-                        // Keep track of the earliest date added for sorting purposes
-                        if (new Date(l.created_at) < new Date(existing.first_added)) {
-                            existing.first_added = l.created_at;
-                        }
-                        
-                        // Keep track of the LATEST rating and like status for the display
-                        if (!existing.latest_log_date || logDate > existing.latest_log_date) {
-                            existing.latest_log_date = logDate;
-                            existing.rating = l.rating;
-                            existing.is_liked = l.is_liked;
-                        }
-
-                        // Prioritize image_url from log if missing
-                        if (!existing.image_url && l.image_url) existing.image_url = l.image_url;
-                        if (!existing.media_title && l.media_title) existing.media_title = l.media_title;
-                    } else {
-                        // New item from logs
-                        libraryMap.set(key, {
-                            media_id: l.media_id,
-                            media_type: l.media_type,
-                            media_title: l.media_title,
-                            image_url: l.image_url,
-                            first_added: l.created_at,
-                            latest_log_date: logDate,
-                            rating: l.rating,
-                            is_liked: l.is_liked
-                        });
-                    }
-                }
-            });
-        }
-
-        // Sort descending (Newest first) by the earliest date they interacted with it
-        allLibraryItems = Array.from(libraryMap.values()).sort((a, b) => new Date(b.first_added) - new Date(a.first_added));
-        filterLibrary('all'); // Initial render
+        allLibraryItems = buildLibraryArray(allStatuses, allUserLogs);
+        filterLibrary('all');
 
         // 7. Watchlist/Follower/Lists Counts
         const { count: watchlistCount } = await supabaseClient.from('user_watchlist').select('*', { count: 'exact', head: true }).eq('user_id', profileUserId);
@@ -705,47 +644,8 @@ async function renderStatusItems(items, gridId) {
 }
 
 function calculateRevisits() {
-    const now = new Date();
-    // Millisecond thresholds
-    const thresholds = {
-        movie: 365 * 24 * 60 * 60 * 1000,     // 1 Year
-        tv: 365 * 24 * 60 * 60 * 1000,        // 1 Year
-        book: 2 * 365 * 24 * 60 * 60 * 1000,  // 2 Years
-        album: 180 * 24 * 60 * 60 * 1000      // 6 Months (1/2 Year)
-    };
-
-    const latestLogs = {};
-
-    // 1. Deduplicate: Find the absolute latest watched_on date for each media
-    allUserLogs.forEach(log => {
-        const key = `${log.media_type}_${log.media_id}`;
-        const logDate = new Date(log.watched_on || log.created_at);
-        
-        if (!latestLogs[key] || logDate > latestLogs[key].date) {
-            latestLogs[key] = { ...log, date: logDate };
-        }
-    });
-
-    // 2. Filter: Compare the latest date against thresholds AND check rating
-    Object.values(latestLogs).forEach(log => {
-        // Excludes YouTube and any unmapped types
-        if (!thresholds[log.media_type]) return; 
-        
-        // Skip the item if it has no rating or the rating is less than 4
-        if (!log.rating || log.rating < 4) return;
-
-        const timeDiff = now - log.date;
-        if (timeDiff > thresholds[log.media_type]) {
-            revisitCandidates[log.media_type].push(log);
-        }
-    });
-
-    // 3. Sort: Furthest away date to the nearest one (Ascending Order)
-    ['movie', 'tv', 'book', 'album'].forEach(type => {
-        revisitCandidates[type].sort((a, b) => a.date - b.date);
-    });
-    
-    // Initial Render
+    const nowMs = new Date().getTime();
+    revisitCandidates = calculateRevisitCandidates(allUserLogs, nowMs);
     filterRevisit('movie'); 
 }
 
@@ -796,7 +696,6 @@ window.filterPeople = (type) => {
     buttons.forEach(btn => {
         btn.classList.remove('active');
         const btnText = btn.textContent.toLowerCase();
-        // Handle exact matching since "crew" doesn't have an "s"
         if (btnText === type + 's' || (type === 'crew' && btnText === 'crew')) {
             btn.classList.add('active');
         }
@@ -805,19 +704,14 @@ window.filterPeople = (type) => {
     const grid = document.getElementById('people-grid');
     if (!grid) return;
 
-    // Destroy any previous Sortable instance before re-rendering
     if (peopleSortableInstance) {
         peopleSortableInstance.destroy();
         peopleSortableInstance = null;
     }
 
-    // Filter by specific category (No 'all' option anymore)
-    const filtered = allTrackedPeople.filter(p => p.person_category === type);
-    
-    // Sort array locally to ensure rank is respected
-    filtered.sort((a, b) => (a.rank || 0) - (b.rank || 0));
+    const filteredPeople = sortTrackedEntities(allTrackedPeople, 'person_category', type);
 
-    if (filtered.length === 0) {
+    if (filteredPeople.length === 0) {
         const typeLabel = type === 'crew' ? 'crew members' : type + 's';
         grid.innerHTML = `<p class="meta">No ${typeLabel} tracked yet.</p>`;
         return;
@@ -825,7 +719,7 @@ window.filterPeople = (type) => {
 
     grid.innerHTML = '';
     
-    filtered.forEach((p, index) => {
+    filteredPeople.forEach((p, index) => {
         let route = `cast.html?personId=${p.character_id}`;
         if (p.person_category === 'character') {
             route = `cast.html?characterWiki=${encodeURIComponent(p.character_id)}&mediaId=${p.media_id || ''}&mediaType=${p.media_type || ''}`;
@@ -836,8 +730,6 @@ window.filterPeople = (type) => {
         }
 
         const label = p.person_category ? (p.person_category.charAt(0).toUpperCase() + p.person_category.slice(1)) : 'Person';
-        
-        // Handle the description text under the title
         let subText = label;
         if (p.person_category === 'character' && p.media_title) {
             subText = `Character from ${p.media_title}`;
@@ -845,9 +737,7 @@ window.filterPeople = (type) => {
 
         let finalImg = p.image_url || 'https://placehold.co/500x750/1b2228/9ab?text=No+Image';
         const customArt = customImgsMap.get(`${p.person_category}_${String(p.character_id)}`);
-        if (customArt && customArt.custom_poster) {
-            finalImg = customArt.custom_poster;
-        }
+        if (customArt && customArt.custom_poster) finalImg = customArt.custom_poster;
 
         const card = document.createElement('div');
         card.className = `media-card ${isManagingPeople ? 'managing' : ''}`;
@@ -858,29 +748,21 @@ window.filterPeople = (type) => {
         card.innerHTML = `
             <div class="poster-wrapper">
                 ${rankBadge}
-                <img src="${finalImg}" 
-                     alt="${p.character_name}" 
-                     data-fallback="https://placehold.co/500x750/1b2228/9ab?text=No+Image">
+                <img src="${finalImg}" alt="${p.character_name}" data-fallback="https://placehold.co/500x750/1b2228/9ab?text=No+Image">
                 <span class="badge badge-movie" style="background: #456; color: #fff;">${label}</span>
             </div>
             <div class="media-info">
                 <div class="title" style="font-weight: bold; margin-bottom: 5px;">${p.character_name}</div>
-                <!-- Inject the subText here -->
                 <div class="meta" style="font-size: 0.8rem; color: #9ab;">${subText}</div>
             </div>
         `;
 
-        if (isManagingPeople) {
-            // While reordering, clicks don't navigate - only dragging is active
-            card.style.cursor = 'grab';
-        } else {
-            card.onclick = () => window.location.href = route;
-        }
+        if (isManagingPeople) card.style.cursor = 'grab';
+        else card.onclick = () => window.location.href = route;
 
         grid.appendChild(card);
     });
 
-    // Enable drag-to-reorder ONLY while in manage mode (and only for the owner)
     if (isOwner && isManagingPeople) {
         peopleSortableInstance = new Sortable(grid, {
             animation: 150,
@@ -903,7 +785,6 @@ window.filterFandoms = (type) => {
         btn.classList.remove('active');
         const btnText = btn.textContent.toLowerCase();
         
-        // Match the button based on the passed type
         if ((type === 'movie' && btnText === 'movies') ||
             (type === 'tv' && btnText === 'tv') ||
             (type === 'collection' && btnText === 'collections') ||
@@ -917,17 +798,14 @@ window.filterFandoms = (type) => {
     const grid = document.getElementById('fandoms-grid');
     if (!grid) return;
 
-    // Destroy any previous Sortable instance before re-rendering
     if (fandomsSortableInstance) {
         fandomsSortableInstance.destroy();
         fandomsSortableInstance = null;
     }
 
-    // FILTER LOGIC: Specifically isolate the media_type
-    const filtered = allFandoms.filter(f => f.media_type === type);
-    filtered.sort((a, b) => (a.rank || 0) - (b.rank || 0));
+    const filteredFandoms = sortTrackedEntities(allFandoms, 'media_type', type);
 
-    if (filtered.length === 0) {
+    if (filteredFandoms.length === 0) {
         const typeLabel = type === 'collection' ? 'collections' : (type === 'album' ? 'music' : type);
         grid.innerHTML = `<p class="meta">No ${typeLabel} followed yet.</p>`;
         return;
@@ -935,51 +813,37 @@ window.filterFandoms = (type) => {
 
     grid.innerHTML = '';
 
-        filtered.forEach((f, index) => {
-            // 1. Start with the default image from the user_fandoms table
-            let finalImg = f.image_url || 'https://placehold.co/500x750/1b2228/9ab?text=No+Image';
-            
-            // 2. Check the Map for a custom override
-            // This uses the key "collection_list_xxx" which matches the insert in scriptingFandom.js
-            const customArtKey = `${f.media_type}_${String(f.media_id)}`;
-            const customArt = customImgsMap.get(customArtKey);
-            
-            if (customArt && customArt.custom_poster) {
-                finalImg = customArt.custom_poster;
-            }
+    filteredFandoms.forEach((f, index) => {
+        let finalImg = f.image_url || 'https://placehold.co/500x750/1b2228/9ab?text=No+Image';
+        const customArtKey = `${f.media_type}_${String(f.media_id)}`;
+        const customArt = customImgsMap.get(customArtKey);
+        
+        if (customArt && customArt.custom_poster) finalImg = customArt.custom_poster;
 
-            const card = document.createElement('div');
-            card.className = `media-card ${isManagingFandoms ? 'managing' : ''}`;
-            card.setAttribute('data-dbid', f.id);
+        const card = document.createElement('div');
+        card.className = `media-card ${isManagingFandoms ? 'managing' : ''}`;
+        card.setAttribute('data-dbid', f.id);
 
-            const rankBadge = `<div class="rank-badge" style="position:absolute; top:8px; left:8px; background: rgba(0,0,0,0.8); padding: 4px 8px; border-radius: 4px; font-weight: bold; z-index: 10;">#${index + 1}</div>`;
+        const rankBadge = `<div class="rank-badge" style="position:absolute; top:8px; left:8px; background: rgba(0,0,0,0.8); padding: 4px 8px; border-radius: 4px; font-weight: bold; z-index: 10;">#${index + 1}</div>`;
+        const label = f.media_type === 'collection' ? 'Collection' : 'Fandom';
 
-            // Adjust badge style for collections specifically if desired
-            const badgeClass = f.media_type === 'collection' ? 'badge-collection' : `badge-${f.media_type}`;
-            const label = f.media_type === 'collection' ? 'Collection' : 'Fandom';
+        card.innerHTML = `
+            <div class="poster-wrapper">
+                ${rankBadge}
+                <img src="${finalImg}" alt="${f.title}" data-fallback="https://placehold.co/500x750/1b2228/9ab?text=No+Image">
+                <span class="badge badge-movie" style="background: #456; color: #fff;">${label}</span>
+            </div>
+            <div class="media-info">
+                <div class="title" style="font-weight: bold; margin-bottom: 5px;">${f.title}</div>
+                <div class="meta" style="font-size: 0.8rem; color: #9ab;">${f.media_type === 'collection' ? 'Official Collection' : 'Fandom'}</div>
+            </div>
+        `;
 
-            card.innerHTML = `
-                <div class="poster-wrapper">
-                    ${rankBadge}
-                    <img src="${finalImg}" 
-                        alt="${f.title}" 
-                        data-fallback="https://placehold.co/500x750/1b2228/9ab?text=No+Image">
-                    <span class="badge badge-movie" style="background: #456; color: #fff;">${label}</span>
-                </div>
-                <div class="media-info">
-                    <div class="title" style="font-weight: bold; margin-bottom: 5px;">${f.title}</div>
-                    <div class="meta" style="font-size: 0.8rem; color: #9ab;">${f.media_type === 'collection' ? 'Official Collection' : 'Fandom'}</div>
-                </div>
-            `;
+        if (isManagingFandoms) card.style.cursor = 'grab';
+        else card.onclick = () => window.location.href = `fandom.html?id=${f.media_id}&type=${f.media_type}`;
 
-            if (isManagingFandoms) {
-                card.style.cursor = 'grab';
-            } else {
-                card.onclick = () => window.location.href = `fandom.html?id=${f.media_id}&type=${f.media_type}`;
-            }
-
-            grid.appendChild(card);
-        });
+        grid.appendChild(card);
+    });
 
     if (isOwner && isManagingFandoms) {
         fandomsSortableInstance = new Sortable(grid, {
@@ -1005,12 +869,12 @@ window.filterRecent = (type) => {
         else if (type === 'movie' && btnText === 'movies') btn.classList.add('active');
         else if (type === 'tv' && btnText === 'tv') btn.classList.add('active');
         else if (type === 'book' && btnText === 'books') btn.classList.add('active');
-        else if (type === 'album' && btnText === 'music') btn.classList.add('active'); // Added
+        else if (type === 'album' && btnText === 'music') btn.classList.add('active'); 
         else if (type === 'youtube' && btnText === 'youtube') btn.classList.add('active');
     });
 
-    const filtered = type === 'all' ? allUserLogs : allUserLogs.filter(l => l.media_type === type);
-    renderRecent(filtered);
+    const filteredRecent = type === 'all' ? allUserLogs : allUserLogs.filter(l => l.media_type === type);
+    renderRecent(filteredRecent);
 };
 
 // ----------------------------------------

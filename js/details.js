@@ -3,6 +3,12 @@ import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
 import { normalizeOpenLibraryId } from './core/media.js';
 import { slugify } from './core/utils.js';
+import {
+    buildYoutubeFallbackData, 
+    getLogScopeLabel,
+    categorizeProviders,
+    normalizeCredits
+} from './logic/details-logic.js';
 
 // Load configuration and initialize Supabase client
 let PROXY_URL = '';
@@ -460,13 +466,13 @@ async function initDetails() {
         
         if (type === 'book') {
             await setupBookTracker(data.pages);
-            const firstAuthor = data.authors && data.authors.length > 0 ? data.authors[0].name : '';
+
             displayBookLinks(data.title, data.authorName); 
             fetchBookAuthors(data.authors);
         } else if (type !== 'youtube' && type !== 'album') {
             // This ensures TMDB provider/credit fetches skip YouTube videos AND Albums!
-            fetchWatchProviders(config);
-            fetchCredits(config, id, type);
+            fetchWatchProviders();
+            fetchCredits(id, type);
         }
 
         let isAnime = false;
@@ -605,7 +611,7 @@ function renderLogs(logsToRender) {
     
     historyList.innerHTML = logsToRender.map(log => {
         // Use the new centralized helper function
-        const label = getLogScopeLabel(log);
+        const label = getLogScopeLabel(log, type, globalData);
 
         let rewatchText = 'Rewatch';
         let actionVerb = 'Watched';
@@ -766,55 +772,15 @@ async function loadEpisodes(config, seriesId, seasonNum, tvmazeId) {
 // ----------------------------------------
 // Secondary Feature Fetching
 // ----------------------------------------
-async function fetchWatchProviders(config) {
+async function fetchWatchProviders() {
     if (type === 'book') return; 
     
     try {
         const res = await fetch(`${PROXY_URL}/api/tmdb/${type}/${id}/watch/providers`).then(r => r.json());
-        
         const results = res.results?.US || {};
         
-        // Grab ALL possible monetization arrays from TMDB to ensure maximum library depth
-        const flatrate = results.flatrate || [];
-        const free = results.free || [];
-        const ads = results.ads || [];
-        const buy = results.buy || [];
-        const rent = results.rent || [];
-
-        // 1. Compile the "FREE TO WATCH" category (AVOD + Completely Free models)
-        // We combine 'free' and 'ads' arrays, then de-duplicate by provider_id
-        const freeToWatchMap = new Map();
-        [...free, ...ads].forEach(p => freeToWatchMap.set(p.provider_id, p));
-        const freeToWatchList = Array.from(freeToWatchMap.values());
-
-        // 2. Compile the standard "STREAM" subscriptions (SVOD)
-        const streamList = [...flatrate];
-
-        // 3. Compile the "BUY / RENT" marketplaces (TVOD)
-        // Combine buy and rent, then de-duplicate by provider_id
-        const buyRentMap = new Map();
-        [...buy, ...rent].forEach(p => buyRentMap.set(p.provider_id, p));
-        const buyRentList = Array.from(buyRentMap.values());
-
-        // 4. Compile the "OTHER" catch-all array
-        // Check if TMDB outputs other unexpected transactional styles (like premium add-on channels)
-        const handledIds = new Set([
-            ...freeToWatchList.map(p => p.provider_id),
-            ...streamList.map(p => p.provider_id),
-            ...buyRentList.map(p => p.provider_id)
-        ]);
-        
-        const otherList = [];
-        for (const key in results) {
-            if (Array.isArray(results[key])) {
-                results[key].forEach(p => {
-                    if (!handledIds.has(p.provider_id)) {
-                        otherList.push(p);
-                        handledIds.add(p.provider_id); // Prevent self-duplication inside other
-                    }
-                });
-            }
-        }
+        // Execute the extracted logic
+        const { freeToWatchList, streamList, buyRentList, otherList } = categorizeProviders(results);
 
         const container = document.getElementById('providers-list');
         let html = '';
@@ -822,7 +788,6 @@ async function fetchWatchProviders(config) {
         if (!freeToWatchList.length && !streamList.length && !buyRentList.length && !otherList.length) {
             html += "<p class='meta' style='margin-bottom: 15px; font-size: 0.9rem;'>Not available to stream or buy.</p>";
         } else {
-            // Helper generator to build uniform icon markup blocks cleanly
             const generateGroupHtml = (label, providersArray) => {
                 if (!providersArray.length) return '';
                 return `
@@ -837,14 +802,12 @@ async function fetchWatchProviders(config) {
                     </div>`;
             };
 
-            // Inject structural rows matching your prioritized design order
             html += generateGroupHtml("Free to Watch", freeToWatchList);
             html += generateGroupHtml("Stream", streamList);
             html += generateGroupHtml("Buy / Rent", buyRentList);
-            html += generateGroupHtml("Other Services", otherList); // Automatically hidden if empty!
+            html += generateGroupHtml("Other Services", otherList); 
         }
 
-        // Build Dynamic Trailer Link (Appended cleanly underneath layouts)
         let yearPart = globalData.meta.split(' • ')[0].trim();
         if (yearPart === 'Unknown Year' || !/^\d{4}$/.test(yearPart)) yearPart = '';
         
@@ -868,56 +831,26 @@ async function fetchWatchProviders(config) {
     }
 }
 
-async function fetchCredits(config, mediaId, mediaType) {
+async function fetchCredits(mediaId, mediaType) {
     if (mediaType === 'book' || mediaType === 'youtube' || mediaType === 'album') return;
     const castList = document.getElementById('cast-list');
     
-    // Switch to aggregate_credits for TV shows to get total episode counts
     const endpoint = mediaType === 'tv' ? 'aggregate_credits' : 'credits';
     const url = `${PROXY_URL}/api/tmdb/${mediaType}/${mediaId}/${endpoint}?language=en-US`;
 
     try {
         const response = await fetch(url);
-
         const text = await response.text();
         if (text.startsWith('\x1F\x8B')) throw new Error("TMDB returned raw corrupted GZIP data.");
         
         const res = JSON.parse(text);
         if (!res || !res.crew || !res.cast) return;
 
-        // Normalize TV vs Movie data structures so the rest of the app doesn't have to guess
-        if (mediaType === 'tv') {
-            fullCastData = res.cast.map(p => ({
-                ...p,
-                displayRole: p.roles && p.roles.length > 0 ? p.roles[0].character : 'Cast',
-                epCountStr: p.total_episode_count ? `${p.total_episode_count} Ep${p.total_episode_count > 1 ? 's' : ''}` : ''
-            }));
-
-            fullCrewData = res.crew.map(p => ({
-                ...p,
-                job: p.jobs && p.jobs.length > 0 ? p.jobs[0].job : 'Crew',
-                displayRole: p.jobs && p.jobs.length > 0 ? p.jobs[0].job : 'Crew',
-                epCountStr: p.total_episode_count ? `${p.total_episode_count} Ep${p.total_episode_count > 1 ? 's' : ''}` : ''
-            }));
-        } else {
-            fullCastData = res.cast.map(p => ({
-                ...p,
-                displayRole: p.character || 'Cast',
-                epCountStr: ''
-            }));
-
-            fullCrewData = res.crew.map(p => ({
-                ...p,
-                job: p.job,
-                displayRole: p.job || 'Crew',
-                epCountStr: ''
-            }));
-        }
-
-        // Store the global data
-        directorData = fullCrewData.find(person => 
-            person.job === 'Director' || (person.job === 'Executive Producer' && mediaType === 'tv')
-        );
+        // Execute extracted logic and update the global variables directly
+        const normalized = normalizeCredits(res, mediaType);
+        fullCastData = normalized.fullCast;
+        fullCrewData = normalized.fullCrew;
+        directorData = normalized.director;
 
         renderMainPageCast();
 
@@ -1882,26 +1815,9 @@ async function checkIfAlreadyRequested(slug, originalName, actionArea) {
     }
 }
 
-// 
+// ----------------------------------------
 // Helpers
-// 
-
-function buildYoutubeFallbackData(id) {
-    const youtubeId = String(id || '').trim();
-    const hasValidId = /^[A-Za-z0-9_-]{11}$/.test(youtubeId);
-
-    return {
-        title: 'Unknown YouTube video',
-        overview: 'This video is unavailable, deleted, or no longer accessible. The YouTube metadata for it could not be loaded.',
-        poster_path: 'https://placehold.co/500x750/1b2228/ff0000?text=YouTube',
-        meta: 'YouTube Video',
-        author_name: 'Unknown Channel',
-        isUnavailable: true,
-        youtubeId: youtubeId,
-        isValidId: hasValidId
-    };
-}
-
+// ----------------------------------------
 async function fetchBookAuthors(authorsList) {
     const castSection = document.getElementById('cast-section');
     const castList = document.getElementById('cast-list');
@@ -2152,30 +2068,6 @@ async function updateSeasonDescription(tvmazeId, seasonNum) {
     } catch(e) {
         descEl.textContent = "Description unavailable.";
     }
-}
-
-function getLogScopeLabel(log) {
-    let label = type.charAt(0).toUpperCase() + type.slice(1); // Default to media type
-    
-    if (type === 'tv') {
-        label = log.episode_number ? `S${log.season_number} E${log.episode_number}` : 
-               (log.season_number ? `Season ${log.season_number}` : `Entire Series`);
-    } else if (type === 'album') {
-        if (log.episode_number && globalData && globalData.tracks && globalData.tracks[log.episode_number - 1]) {
-            label = `Track ${log.episode_number}: ${globalData.tracks[log.episode_number - 1].name}`;
-        } else {
-            label = 'Entire Album';
-        }
-    } else if (type === 'book') {
-        if (log.current_page && !log.is_finished) {
-            label = `Page ${log.current_page}`;
-        } else if (log.chapter_number) {
-            label = `Chapter ${log.chapter_number}`;
-        } else {
-            label = 'Entire Book';
-        }
-    }
-    return label;
 }
 
 window.toggleEpisode = async function(seriesId, seasonNum, epNum) {
@@ -2507,7 +2399,7 @@ async function fetchFollowingLogs() {
                 else if (type === 'album') rewatchText = 'Relisten';
                 const rewatchBadge = log.is_rewatch ? `<span title="${rewatchText}" style="font-size: 0.85rem;">🔁</span>` : '';
 
-                const scopeLabel = getLogScopeLabel(log);
+                const scopeLabel = getLogScopeLabel(log, type, globalData);
 
                 return `
                     <div class="history-item following-log-item" data-details-route="profile.html?userId=${encodeURIComponent(log.user_id)}" style="cursor: pointer; transition: background 0.2s; padding: 10px; border-radius: 8px; margin: 0 -10px 10px -10px;">

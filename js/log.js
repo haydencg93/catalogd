@@ -2,6 +2,7 @@
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
 import { normalizeOpenLibraryId } from './core/media.js';
+import { calculateNewRating, formatTag, determineTotalPages, deriveTVScopePayload } from './logic/log-logic.js';
 
 // Load configuration and initialize Supabase client
 let supabaseClient;
@@ -45,7 +46,6 @@ async function initLog() {
     const scope = document.getElementById('log-scope');
     const bookGroup = document.getElementById('book-input-group');
     const youtubeGroup = document.getElementById('youtube-input-group');
-    const trackGroup = document.getElementById('track-input-group');
 
     const backBtn = document.getElementById('back-to-details-btn');
     if (backBtn) {
@@ -239,6 +239,25 @@ function setupAlbumDropdowns() {
     };
 }
 
+async function loadEpisodeList() {
+    const seasonNum = document.getElementById('season-select').value;
+    const episodeSelect = document.getElementById('episode-select');
+    episodeSelect.innerHTML = '<option value="">Loading episodes...</option>';
+    
+    try {
+        const res = await fetch(`${PROXY_URL}/api/tmdb/tv/${id}/season/${seasonNum}`).then(r => r.json());
+        if (res.episodes && res.episodes.length > 0) {
+            episodeSelect.innerHTML = res.episodes.map(ep => 
+                `<option value="${ep.episode_number}">Episode ${ep.episode_number}: ${ep.name}</option>`
+            ).join('');
+        } else {
+            episodeSelect.innerHTML = '<option value="">No episodes found</option>';
+        }
+    } catch (e) {
+        episodeSelect.innerHTML = '<option value="">Error loading episodes</option>';
+    }
+}
+
 // ----------------------------------------
 // UI Hydration (Edit Mode)
 // ----------------------------------------
@@ -338,20 +357,9 @@ function setupStars() {
             const rect = star.getBoundingClientRect();
             const clickX = e.clientX - rect.left;
             const starValue = parseInt(star.dataset.value);
-            
-            // Determine if the user is clicking the left or right half
             const isLeftHalf = clickX < rect.width / 2;
-            const clickedRating = isLeftHalf ? starValue - 0.5 : starValue;
 
-            // If the user clicks exactly what is already set, we can either 
-            // leave it or reset it. Most users expect "Tap 3, then tap 3 again 
-            // to get 2.5".
-            if (currentRating === starValue && !isLeftHalf) {
-                // If 3 is active and you tap the right side of 3 again, drop to 2.5
-                currentRating = starValue - 0.5;
-            } else {
-                currentRating = clickedRating;
-            }
+            currentRating = calculateNewRating(currentRating, starValue, isLeftHalf);
 
             updateStarUI();
             display.textContent = `${currentRating.toFixed(1)} / 5.0`;
@@ -361,13 +369,10 @@ function setupStars() {
 
 function setupTagsInput() {
     const tagInput = document.getElementById('log-tags-input');
-    
     tagInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
             e.preventDefault();
-
-            // This trims whitespace, makes it lowercase, and replaces spaces with hyphens
-            const newTag = tagInput.value.trim().toLowerCase().replace(/\s+/g, '-');
+            const newTag = formatTag(tagInput.value);
             
             if (newTag && !currentTags.includes(newTag)) {
                 currentTags.push(newTag);
@@ -469,10 +474,10 @@ async function saveLog() {
                 if (error) throw error;
             } else {
                 const olRes = await fetch(`https://openlibrary.org${normalizeOpenLibraryId(id)}.json`).then(r => r.json());
-                let totalPages = olRes.number_of_pages || 0;
-                
-                // Override with custom pages if user inputted one
                 const customPagesInput = document.getElementById('book-custom-pages').value;
+                
+                // Extracted Logic Check
+                let totalPages = determineTotalPages(olRes.number_of_pages, customPagesInput);
                 if (customPagesInput && parseInt(customPagesInput) > 0) {
                     totalPages = parseInt(customPagesInput);
                 }
@@ -510,7 +515,7 @@ async function saveLog() {
                 if (error) throw error;
             }
         } else {
-            let currentScopeValue = document.getElementById('log-scope').value; 
+            let currentScopeValue = document.getElementById('log-scope').value;
             
             if (type === 'youtube') {
                 const ytDuration = document.getElementById('youtube-duration').value;
@@ -532,27 +537,19 @@ async function saveLog() {
             };
 
             if (type === 'tv') {
-                // Trust the user's selected dropdown value entirely
                 currentScopeValue = document.getElementById('log-scope').value;
-                payload.log_level = currentScopeValue; 
-
+                const seasonVal = document.getElementById('season-select')?.value;
+                const episodeVal = document.getElementById('episode-select')?.value;
+                
+                let totalEpisodes = 0;
                 if (currentScopeValue === 'entire') {
-                    // Fetch full TV details to grab total seasons and episodes
                     const tvData = await fetch(`${PROXY_URL}/api/tmdb/tv/${id}`).then(r => r.json());
-                    
-                    payload.ep_count_in_season = tvData.number_of_episodes || 0;
-                    payload.season_number = null;
-                    payload.episode_number = null; // Ensure this is clear
-                } else if (currentScopeValue === 'season') {
-                    const seasonSelect = document.getElementById('season-select');
-                    if (seasonSelect && seasonSelect.value) payload.season_number = parseInt(seasonSelect.value);
-                    payload.episode_number = null;
-                } else if (currentScopeValue === 'episode') {
-                    const seasonSelect = document.getElementById('season-select');
-                    const episodeSelect = document.getElementById('episode-select');
-                    if (seasonSelect && seasonSelect.value) payload.season_number = parseInt(seasonSelect.value);
-                    if (episodeSelect && episodeSelect.value) payload.episode_number = parseInt(episodeSelect.value);
+                    totalEpisodes = tvData.number_of_episodes || 0;
                 }
+
+                // Extracted Logic Check
+                const scopePayload = deriveTVScopePayload(currentScopeValue, seasonVal, episodeVal, totalEpisodes);
+                Object.assign(payload, scopePayload);
             } else if (type === 'album') {
                 const trackSelect = document.getElementById('track-select');
                 if (logId && trackSelect && document.getElementById('track-input-group').style.display !== 'none') {

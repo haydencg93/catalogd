@@ -2,6 +2,11 @@
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
 import { debounce } from './core/utils.js';
+import {
+    getUniversalId,
+    validateVibeInput,
+    evaluateStreamingAvailability
+} from './logic/recs-logic.js';
 
 // Load configuration and initialize Supabase client
 let configData = null;
@@ -132,12 +137,12 @@ function setupLiveSearch() {
 // Input State Managers
 // ----------------------------------------
 function addVibeInput(item) {
-    if (favoriteInputs.length >= 5) {
-        return alert("You can only add up to 5 items to define your vibe.");
+    const { valid, error } = validateVibeInput(favoriteInputs, item);
+    
+    if (!valid) {
+        if (error) alert(error);
+        return;
     }
-
-    const isDuplicate = favoriteInputs.some(f => f.universalId === item.universalId);
-    if (isDuplicate) return;
 
     favoriteInputs.push(item);
     renderTags();
@@ -262,23 +267,7 @@ async function renderRecommendations(recs) {
 
                 if (filterStreaming) {
                     const providers = res['watch/providers']?.results?.US;
-                    let subscriptionProviderIds = [];
-                    let hasFreeOptions = false;
-
-                    if (providers) {
-                        // Collect paid subscriptions to check against user's list
-                        if (providers.flatrate) {
-                            subscriptionProviderIds.push(...providers.flatrate.map(p => String(p.provider_id)));
-                        }
-                        
-                        // Check if it's available for free or with ads
-                        if ((providers.free && providers.free.length > 0) || (providers.ads && providers.ads.length > 0)) {
-                            hasFreeOptions = true;
-                        }
-                    }
-
-                    // It's available if it's free anywhere, OR if the user subscribes to the required service
-                    isAvailable = hasFreeOptions || subscriptionProviderIds.some(id => userStreamingServices.includes(id));
+                    isAvailable = evaluateStreamingAvailability(providers, userStreamingServices);
                 }
 
                 if (res.poster_path) {
@@ -355,30 +344,20 @@ async function fetchPosterAndAvail(rec, imgElementId, cardId) {
             const toggle = document.getElementById('services-toggle');
             if (toggle && toggle.checked && userStreamingServices.length > 0) {
                 const providers = res['watch/providers']?.results?.US;
-                let availableProviderIds = [];
                 
-                if (providers) {
-                    // TMDB separates streaming into flatrate, free, and ads
-                    if (providers.flatrate) availableProviderIds.push(...providers.flatrate.map(p => String(p.provider_id)));
-                    if (providers.ads) availableProviderIds.push(...providers.ads.map(p => String(p.provider_id)));
-                    if (providers.free) availableProviderIds.push(...providers.free.map(p => String(p.provider_id)));
-                }
-
-                // Check if there is an intersection between the media's availability and the user's services
-                const isAvailable = availableProviderIds.some(id => userStreamingServices.includes(id));
+                const isAvailable = evaluateStreamingAvailability(providers, userStreamingServices);
                 
                 if (!isAvailable) {
                     if (cardEl) {
-                        cardEl.style.display = 'none'; // Hide the card from the UI
+                        cardEl.style.display = 'none'; 
                         window.visibleRecsCount--;
                         
-                        // Let the user know if the filter was too aggressive
                         if (window.visibleRecsCount === 0) {
                             statusMsg.textContent = "Matches found, but none are on your streaming services. Try unchecking the filter!";
                             statusMsg.style.color = "#ffb347";
                         }
                     }
-                    return; // Stop rendering
+                    return; 
                 }
             }
 
@@ -404,22 +383,4 @@ async function fetchPosterAndAvail(rec, imgElementId, cardId) {
     }
 }
 
-// ----------------------------------------
-// Lazy Loading & Availability Fallbacks
-// ----------------------------------------
-function getUniversalId(id, type) {
-    if (type === 'movie' || type === 'tv') {
-        return parseInt(id);
-    }
-    if (type === 'book') {
-        // OpenLibrary returns keys like "/works/OL123W". We strip the text and add 100M.
-        return parseInt(String(id).replace(/\D/g, ''), 10) + 100000000;
-    }
-    return id;
-}
-
 initRecs();
-
-
-
-

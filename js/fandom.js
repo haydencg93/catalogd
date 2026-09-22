@@ -16,7 +16,6 @@ let mediaId = params.get('id');
 let mediaType = params.get('type');
 
 // Unblockable Inline SVG Placeholders
-const FALLBACK_POSTER = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='500' height='750'><rect width='500' height='750' fill='%2314181c'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='24' fill='%239ab'>No Image</text></svg>`;
 const FALLBACK_AVATAR = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='450'><rect width='300' height='450' fill='%2314181c'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='18' fill='%239ab'>No Image</text></svg>`;
 
 // Maps

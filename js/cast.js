@@ -1,6 +1,12 @@
 // Import necessary modules and functions
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
+import {
+    extractYear,
+    formatPlays,
+    deduplicateCredits,
+    calculateKnownForScore
+} from './logic/cast-logic.js'
 
 // Load configuration and initialize Supabase client
 let PROXY_URL = '';
@@ -109,7 +115,7 @@ async function initCharacterPage(wikiId, mId, mType) {
             }
         }
     } catch (e) {
-        console.log("Wiki fetch fallback triggered for character");
+        console.log("Wiki fetch fallback triggered for character: " + e);
     }
 
     // 2. Fallback if Wikipedia failed or was a "List of..." page
@@ -243,22 +249,11 @@ async function initPersonPage(id) {
     // For Crew members, use the crew array instead of cast for the known-for/filmography
     const creditArray = category === 'actor' ? (credits.cast || []) : (credits.crew || []);
     
-    const validCredits = creditArray.filter(item => item.poster_path);
-    const uniqueCredits = [];
-    const seenIds = new Set();
-    
-    validCredits.forEach(item => {
-        if (!seenIds.has(item.id)) {
-            uniqueCredits.push(item);
-            seenIds.add(item.id);
-        }
-    });
+    const uniqueCredits = deduplicateCredits(creditArray);
 
     const knownFor = uniqueCredits.sort((a, b) => {
-        const typeWeightA = a.media_type === 'movie' ? 2 : 1;
-        const typeWeightB = b.media_type === 'movie' ? 2 : 1;
-        const scoreA = (a.vote_count || 0) * typeWeightA;
-        const scoreB = (b.vote_count || 0) * typeWeightB;
+        const scoreA = calculateKnownForScore(a);
+        const scoreB = calculateKnownForScore(b);
         return scoreB - scoreA;
     }).slice(0, 4);
 
@@ -671,29 +666,6 @@ async function setupCustomArt(personId, category) {
             saveBtn.disabled = false;
         }
     };
-}
-
-// ----------------------------------------
-// Utility Functions
-// ----------------------------------------
-// Robust year extraction from various Open Library data shapes
-function extractYear(item) {
-    if (!item) return null;
-    const dateSources = [item.first_publish_date, item.publish_date, item.created?.value, item.last_modified?.value];
-    for (let dateStr of dateSources) {
-        if (dateStr) {
-            const match = String(dateStr).match(/\d{4}/);
-            if (match) return match[0];
-        }
-    }
-    return null;
-}
-
-function formatPlays(numStr) {
-    const num = parseInt(numStr);
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-    return num.toString();
 }
 
 // ----------------------------------------

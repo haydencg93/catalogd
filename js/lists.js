@@ -2,6 +2,7 @@
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
 import { normalizeOpenLibraryId } from './core/media.js';
+import { processFetchedLists, filterListsByCategory } from './logic/lists-logic.js';
 
 // Load configuration and initialize Supabase client
 let PROXY_URL = '';
@@ -147,12 +148,8 @@ async function fetchUserLists(userId, currentUserId) {
 
         if (ownedError || collabError) throw (ownedError || collabError);
 
-        const collaborativeLists = (collabRecords || []).map(record => record.media_lists).filter(Boolean);
-        const allListsMap = new Map();
-
         let visitorCollabs = new Set();
         if (!isViewerOwner && currentUserId) {
-            // Fetch what lists the VISITING user is a collaborator on
             const { data: vc } = await supabaseClient
                 .from('list_collaborators')
                 .select('list_id')
@@ -160,26 +157,10 @@ async function fetchUserLists(userId, currentUserId) {
             if (vc) visitorCollabs = new Set(vc.map(c => c.list_id));
         }
 
-        [...(ownedLists || []), ...collaborativeLists].forEach(list => {
-            if (!isViewerOwner) {
-                const isVisitorOwner = list.user_id === currentUserId;
-                const isVisitorCollab = visitorCollabs.has(list.id);
-                
-                // If it's private, AND the visitor doesn't own it, AND the visitor isn't a collaborator, skip it!
-                if (!list.is_public && !isVisitorOwner && !isVisitorCollab) {
-                    return; 
-                }
-            }
-            allListsMap.set(list.id, list);
-        });
+        // Delegate to pure logic function
+        allFetchedLists = processFetchedLists(ownedLists, collabRecords, listOwnerId, currentUserId, visitorCollabs, isViewerOwner);
 
-        allFetchedLists = Array.from(allListsMap.values()).sort((a, b) => {
-            // Sort by manual sort_rank first, then fall back to created_at
-            if (a.sort_rank !== b.sort_rank) return (a.sort_rank || 0) - (b.sort_rank || 0);
-            return new Date(b.created_at) - new Date(a.created_at);
-        });
-
-        filterLists(currentListTab); // Call the renderer through the filter
+        filterLists(currentListTab); 
 
     } catch (err) {
         console.error("Critical Fetch Error:", err);
@@ -219,14 +200,8 @@ async function renderFilteredLists() {
         listsSortableInstance = null;
     }
 
-    let filtered = [];
-    if (currentListTab === 'owned') {
-        filtered = allFetchedLists.filter(l => l.user_id === listOwnerId && !l.is_tiered);
-    } else if (currentListTab === 'shared') {
-        filtered = allFetchedLists.filter(l => l.user_id !== listOwnerId && !l.is_tiered);
-    } else if (currentListTab === 'tier') {
-        filtered = allFetchedLists.filter(l => l.is_tiered);
-    }
+    // Delegate to pure logic function
+    const filtered = filterListsByCategory(allFetchedLists, currentListTab, listOwnerId);
 
     if (filtered.length === 0) {
         container.innerHTML = "<p class='meta'>No lists found in this category.</p>";
@@ -302,7 +277,6 @@ async function renderFilteredLists() {
         container.appendChild(listCard);
     }
 
-    // Enable drag and drop ONLY if the user is managing
     if (isViewerOwner && isManagingLists) {
         listsSortableInstance = new Sortable(container, {
             animation: 150,

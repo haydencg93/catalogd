@@ -1,6 +1,12 @@
 // Import necessary modules and functions
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
+import {
+    getSafeDate,
+    checkIsOngoing,
+    filterStatsData,
+    calculateBasicStats
+} from './logic/stats-logic.js';
 
 // Load configuration and initialize Supabase client
 let supabaseClient = null;
@@ -57,50 +63,6 @@ async function initStats() {
 // ----------------------------------------
 // Time & Date Utilities
 // ----------------------------------------
-function checkIsOngoing(depth, period) {
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth(); // 0-11
-
-    if (depth === 'all-time') return true; 
-    
-    if (depth === 'by-year') {
-        return parseInt(period) === currentYear;
-    }
-
-    if (depth === 'by-season') {
-        // Parse "Season Year" (e.g., "Winter 2023-2024" or "Summer 2024")
-        const parts = period.split(' ');
-        const season = parts[0];
-        
-        let targetStart, targetEnd;
-
-        if (season === 'Winter') {
-            const years = parts[1].split('-');
-            targetStart = new Date(years[0], 11, 1); // Dec 1
-            targetEnd = new Date(years[1], 2, 0);    // Last day of Feb
-        } else if (season === 'Spring') {
-            targetStart = new Date(parts[1], 2, 1);  // Mar 1
-            targetEnd = new Date(parts[1], 5, 0);    // Last day of May
-        } else if (season === 'Summer') {
-            targetStart = new Date(parts[1], 5, 1);  // Jun 1
-            targetEnd = new Date(parts[1], 8, 0);    // Last day of Aug
-        } else if (season === 'Fall') {
-            targetStart = new Date(parts[1], 8, 1);  // Sep 1
-            targetEnd = new Date(parts[1], 11, 0);   // Last day of Nov
-        }
-
-        return now >= targetStart && now <= targetEnd;
-    }
-    return false;
-}
-
-function getSafeDate(log) {
-    let d = log.watched_on || log.created_at;
-    if (d && d.length === 10) d += "T12:00:00"; // Fix timezone offset for YYYY-MM-DD
-    return new Date(d);
-}
-
 function getWeekNumber(d) {
     d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
     d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
@@ -245,9 +207,9 @@ async function loadStatsData() {
     document.getElementById('stats-content').style.display = 'none';
     document.getElementById('stats-loader').style.display = 'block';
 
-    isOngoingPeriod = checkIsOngoing(currentDepth, currentPeriod);
+    isOngoingPeriod = checkIsOngoing(currentDepth, currentPeriod, new Date());
     
-    const filteredLogs = filterLogsLocally();
+    const filteredLogs = filterStatsData(allMediaLogs, currentFilter, currentDepth, currentPeriod);
 
     // 2. Fetch Heavy Stats from `user_stats`
     const { data: dbStats } = await supabaseClient
@@ -309,43 +271,6 @@ async function loadStatsData() {
     document.getElementById('stats-content').style.display = 'block';
 }
 
-function filterLogsLocally() {
-    return allMediaLogs.filter(log => {
-        // 1. Media Type Filter
-        if (currentFilter !== 'all' && log.media_type !== currentFilter) return false;
-
-        // 2. Timeframe Filter
-        const date = getSafeDate(log);
-        
-        if (currentDepth === 'by-year') {
-            return date.getFullYear() === parseInt(currentPeriod);
-        } 
-        else if (currentDepth === 'by-season') {
-            const parts = currentPeriod.split(' ');
-            const season = parts[0];
-            let start, end;
-
-            if (season === 'Winter') {
-                const years = parts[1].split('-');
-                start = new Date(years[0], 11, 1); // Dec 1
-                end = new Date(years[1], 2, 0, 23, 59, 59); // Last day of Feb
-            } else if (season === 'Spring') {
-                start = new Date(parts[1], 2, 1); 
-                end = new Date(parts[1], 5, 0, 23, 59, 59); 
-            } else if (season === 'Summer') {
-                start = new Date(parts[1], 5, 1); 
-                end = new Date(parts[1], 8, 0, 23, 59, 59);
-            } else if (season === 'Fall') {
-                start = new Date(parts[1], 8, 1); 
-                end = new Date(parts[1], 11, 0, 23, 59, 59);
-            }
-            return date >= start && date <= end;
-        }
-
-        return true; // all-time
-    });
-}
-
 // ----------------------------------------
 // Component Renderers
 // ----------------------------------------
@@ -356,73 +281,40 @@ function renderBasicStats(logs) {
         return;
     }
 
-    const totalLogs = logs.length;
-    const totalReviews = logs.filter(l => l.notes && l.notes.trim() !== '').length;
-    const fiveStars = logs.filter(l => l.rating === 5).length;
-    // Calculate TV Show Stats (Only from ENTIRE series logs)
-    const entireTvLogs = logs.filter(l => l.media_type === 'tv' && (l.log_level === 'entire' || (!l.season_number && !l.episode_number)));
-    const totalShows = entireTvLogs.length;
-    
-    // Total episodes and seasons grabbed from the entire series log
-    const totalTvEpisodes = entireTvLogs.reduce((sum, l) => sum + (parseInt(l.ep_count_in_season) || 0), 0);
-    const totalTvSeasons = entireTvLogs.reduce((sum, l) => sum + (parseInt(l.season_number) || 0), 0);
-
-    // Calculate Pages for Books (Fallback to current_page if total_pages isn't set)
-    const totalPages = logs.reduce((sum, l) => {
-        if (l.media_type === 'book' && l.is_finished === true) {
-            return sum + (parseInt(l.total_pages) || 0);
-        }
-        return sum;
-    }, 0);
-
-    // Calculate Hours
-    const totalRuntimeMinutes = logs.reduce((sum, l) => {
-        if (l.media_type === 'movie' || l.media_type === 'youtube' || l.media_type === 'album') {
-            return sum + (parseInt(l.runtime) || 0);
-        } else if (l.media_type === 'tv' && (l.log_level === 'entire' || (!l.season_number && !l.episode_number))) {
-            // TV Show: multiply average episode runtime by total episodes in the show
-            const epRuntime = parseInt(l.runtime) || 30; 
-            const epCount = parseInt(l.ep_count_in_season) || 1; 
-            return sum + (epRuntime * epCount);
-        }
-        return sum;
-    }, 0);
-    const hoursWatched = (totalRuntimeMinutes / 60).toFixed(1);
+    const stats = calculateBasicStats(logs);
 
     // Build the dynamic HTML
     let html = `
-        <div class="stats-box"><div class="stats-box-value">${totalLogs}</div><div class="stats-box-label">Logs</div></div>
+        <div class="stats-box"><div class="stats-box-value">${stats.totalLogs}</div><div class="stats-box-label">Logs</div></div>
     `;
 
-    // Dynamic blocks based on current filter
     if (currentFilter === 'book') {
         const entireBooks = logs.filter(l => l.media_type === 'book' && l.is_finished === true).length;
         html += `<div class="stats-box"><div class="stats-box-value">${entireBooks}</div><div class="stats-box-label">Entire Books Read</div></div>`;
-        html += `<div class="stats-box"><div class="stats-box-value">${totalPages.toLocaleString()}</div><div class="stats-box-label">Pages Read</div></div>`;
+        html += `<div class="stats-box"><div class="stats-box-value">${stats.totalPages.toLocaleString()}</div><div class="stats-box-label">Pages Read</div></div>`;
     } else if (currentFilter === 'tv') {
-        html += `<div class="stats-box"><div class="stats-box-value">${totalShows}</div><div class="stats-box-label">Complete Shows</div></div>`;
-        html += `<div class="stats-box"><div class="stats-box-value">${totalTvSeasons}</div><div class="stats-box-label">Total Seasons</div></div>`;
-        html += `<div class="stats-box"><div class="stats-box-value">${totalTvEpisodes}</div><div class="stats-box-label">Total Episodes</div></div>`;
-        html += `<div class="stats-box"><div class="stats-box-value">${hoursWatched}</div><div class="stats-box-label">Hours</div></div>`;
+        html += `<div class="stats-box"><div class="stats-box-value">${stats.totalShows}</div><div class="stats-box-label">Complete Shows</div></div>`;
+        html += `<div class="stats-box"><div class="stats-box-value">${stats.totalTvSeasons}</div><div class="stats-box-label">Total Seasons</div></div>`;
+        html += `<div class="stats-box"><div class="stats-box-value">${stats.totalTvEpisodes}</div><div class="stats-box-label">Total Episodes</div></div>`;
+        html += `<div class="stats-box"><div class="stats-box-value">${stats.hoursWatched}</div><div class="stats-box-label">Hours</div></div>`;
     } else if (currentFilter === 'all') {
-        html += `<div class="stats-box"><div class="stats-box-value">${hoursWatched}</div><div class="stats-box-label">Hours</div></div>`;
-        html += `<div class="stats-box"><div class="stats-box-value">${totalPages.toLocaleString()}</div><div class="stats-box-label">Pages Read</div></div>`;
+        html += `<div class="stats-box"><div class="stats-box-value">${stats.hoursWatched}</div><div class="stats-box-label">Hours</div></div>`;
+        html += `<div class="stats-box"><div class="stats-box-value">${stats.totalPages.toLocaleString()}</div><div class="stats-box-label">Pages Read</div></div>`;
     } else {
-        html += `<div class="stats-box"><div class="stats-box-value">${hoursWatched}</div><div class="stats-box-label">Hours</div></div>`;
+        html += `<div class="stats-box"><div class="stats-box-value">${stats.hoursWatched}</div><div class="stats-box-label">Hours</div></div>`;
     }
 
     html += `
-        <div class="stats-box"><div class="stats-box-value">${totalReviews}</div><div class="stats-box-label">Reviews</div></div>
-        <div class="stats-box"><div class="stats-box-value">${fiveStars}</div><div class="stats-box-label">5-Star Ratings</div></div>
+        <div class="stats-box"><div class="stats-box-value">${stats.totalReviews}</div><div class="stats-box-label">Reviews</div></div>
+        <div class="stats-box"><div class="stats-box-value">${stats.fiveStars}</div><div class="stats-box-label">5-Star Ratings</div></div>
     `;
 
     // First and Last Logic
-    const sorted = [...logs].sort((a, b) => getSafeDate(a) - getSafeDate(b));
     if (currentFilter === 'all') {
-        const firstWatch = sorted.find(l => l.media_type === 'movie' || l.media_type === 'tv');
-        const firstRead = sorted.find(l => l.media_type === 'book');
-        const firstListen = sorted.find(l => l.media_type === 'album');
-        const firstVid = sorted.find(l => l.media_type === 'youtube');
+        const firstWatch = stats.sortedLogs.find(l => l.media_type === 'movie' || l.media_type === 'tv');
+        const firstRead = stats.sortedLogs.find(l => l.media_type === 'book');
+        const firstListen = stats.sortedLogs.find(l => l.media_type === 'album');
+        const firstVid = stats.sortedLogs.find(l => l.media_type === 'youtube');
 
         if (firstWatch) html += `<div class="stats-box context-box"><div class="stats-box-label">First Watch</div><div class="meta">${firstWatch.media_title || 'Unknown'}</div></div>`;
         if (firstRead) html += `<div class="stats-box context-box"><div class="stats-box-label">First Read</div><div class="meta">${firstRead.media_title || 'Unknown'}</div></div>`;
@@ -430,8 +322,8 @@ function renderBasicStats(logs) {
         if (firstVid) html += `<div class="stats-box context-box"><div class="stats-box-label">First Video</div><div class="meta">${firstVid.media_title || 'Unknown'}</div></div>`;
     } else {
         html += `
-            <div class="stats-box context-box"><div class="stats-box-label">First Log</div><div class="meta">${sorted[0].media_title || 'Unknown'}</div></div>
-            <div class="stats-box context-box"><div class="stats-box-label">Last Log</div><div class="meta">${sorted[sorted.length-1].media_title || 'Unknown'}</div></div>
+            <div class="stats-box context-box"><div class="stats-box-label">First Log</div><div class="meta">${stats.sortedLogs[0].media_title || 'Unknown'}</div></div>
+            <div class="stats-box context-box"><div class="stats-box-label">Last Log</div><div class="meta">${stats.sortedLogs[stats.sortedLogs.length-1].media_title || 'Unknown'}</div></div>
         `;
     }
 

@@ -2,6 +2,12 @@
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
 import { normalizeOpenLibraryId } from './core/media.js';
+import {
+    shuffleArray,
+    isAnime,
+    getActionLabel,
+    evaluatePickerProviderConstraints
+} from './logic/picker-logic.js';
 
 // Load configuration and initialize Supabase client
 let PROXY_URL = '';
@@ -208,38 +214,14 @@ async function pickRandom() {
             if (!details || !details.id) continue;
 
             const providersData = details['watch/providers']?.results?.US || {};
-            const flatrate = (providersData.flatrate || []);
-            const free = (providersData.free || []);
-            const ads = (providersData.ads || []);
             
-            let isAvailable = false;
-            let availableProvidersList = [];
-
-            if (!['movie', 'tv'].includes(type)) {
-                isAvailable = true;
-            } else if (!requireServices) {
-                isAvailable = true;
-                // Just grab top 5 streams/free
-                availableProvidersList = [...flatrate, ...free, ...ads];
-            } else {
-                const flatrateIds = flatrate.map(p => String(p.provider_id));
-                const freeIds = free.map(p => String(p.provider_id));
-                const adsIds = ads.map(p => String(p.provider_id));
-
-                const isOnUserServices = [...flatrateIds, ...freeIds, ...adsIds].some(pid => userStreamingProviderIds.includes(pid));
-                const isFreeAnywhere = freeIds.length > 0;
-                const isFreeWithAdsAnywhere = adsIds.length > 0;
-
-                if (isOnUserServices || isFreeAnywhere || isFreeWithAdsAnywhere) {
-                    isAvailable = true;
-                    // Filter the arrays to only include what they have or what is free
-                    availableProvidersList = [
-                        ...flatrate.filter(p => userStreamingProviderIds.includes(String(p.provider_id))),
-                        ...free,
-                        ...ads
-                    ];
-                }
-            }
+            // USE EXTRACTED LOGIC
+            const { isAvailable, availableProvidersList } = evaluatePickerProviderConstraints(
+                type, 
+                requireServices, 
+                userStreamingProviderIds, 
+                providersData
+            );
 
             if (isAvailable) {
                 winner = details;
@@ -247,7 +229,7 @@ async function pickRandom() {
                 const pMap = new Map();
                 availableProvidersList.forEach(p => pMap.set(p.provider_id, p));
                 winnerProviders = Array.from(pMap.values()).slice(0, 5); // Only show top 5
-                break; // WE FOUND A WINNER! Stop checking.
+                break; // Found a winner
             }
         }
 
@@ -263,23 +245,6 @@ async function pickRandom() {
     } finally {
         loader.style.display = 'none';
     }
-}
-
-// Fisher-Yates Shuffle
-function shuffleArray(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-    }
-    return array;
-}
-
-function isAnime(item) {
-    const isAnimation = (item.genres || []).some(genre => genre.id === 16)
-        || (item.genre_ids || []).includes(16);
-    const isJapanese = (item.origin_country || []).includes('JP')
-        || item.original_language === 'ja';
-    return isAnimation && isJapanese;
 }
 
 // ----------------------------------------
@@ -457,12 +422,6 @@ async function markAsWatching() {
     } else {
         alert("Error saving status.");
     }
-}
-
-function getActionLabel(type) {
-    if (type === 'book') return 'Mark as Currently Reading';
-    if (type === 'album') return 'Mark as Currently Listening';
-    return 'Mark as Currently Watching';
 }
 
 // ----------------------------------------

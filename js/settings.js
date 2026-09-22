@@ -2,6 +2,15 @@
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
 import { debounce } from './core/utils.js';
+import {
+    splitProviders, 
+    sortLanguages, 
+    parseYouTubeId, 
+    buildFavsCsvArray,
+    parseLetterboxdListCsv,
+    parseAdvancedCsv,
+    buildImportPayload
+} from './logic/settings-logic.js';
 
 // Load configuration and initialize Supabase client
 let supabaseClient = null;
@@ -352,43 +361,8 @@ async function fetchAndRenderProviders() {
             fetch(`${PROXY_URL}/api/tmdb/watch/providers/tv?language=en-US&watch_region=US`).then(r => r.json())
         ]);
 
-        const providerMap = new Map();
-        [...(movieProvRes.results || []), ...(tvProvRes.results || [])].forEach(p => {
-            if (!providerMap.has(p.provider_id)) providerMap.set(p.provider_id, p);
-        });
-        
-        // TMDB Provider IDs for major Rent/Buy platforms in the US
-        // This ensures they are routed to the bottom container
-        const buyingIds = new Set([
-            2,   // Apple TV (iTunes)
-            3,   // Google Play Movies
-            7,   // Fandango at Home (Vudu)
-            10,  // Amazon Video (Rent/Buy - distinct from Prime)
-            68,  // Microsoft Store
-            192, // YouTube
-            358, // DirecTV
-            48   // Spectrum On Demand
-        ]);
-
-        const streamingProviders = [];
-        const buyingProviders = [];
-
-        // Sort all by US display priority
-        const sortedProviders = Array.from(providerMap.values())
-            .sort((a, b) => a.display_priorities.US - b.display_priorities.US);
-
-        // Route the providers into their specific buckets
-        sortedProviders.forEach(p => {
-            if (buyingIds.has(p.provider_id)) {
-                buyingProviders.push(p);
-            } else {
-                streamingProviders.push(p);
-            }
-        });
-
-        // Grab the top options for each category
-        const topStreaming = streamingProviders.slice(0, 30);
-        const topBuying = buyingProviders.slice(0, 10); 
+        const rawProviders = [...(movieProvRes.results || []), ...(tvProvRes.results || [])];
+        const { topStreaming, topBuying } = splitProviders(rawProviders);
 
         const generatePillHTML = (p, category) => {
             const isActive = currentServices[category].includes(String(p.provider_id)) ? 'active' : '';
@@ -400,7 +374,6 @@ async function fetchAndRenderProviders() {
             `;
         };
 
-        // Render to the UI
         document.getElementById('settings-streaming-container').innerHTML = topStreaming.map(p => generatePillHTML(p, 'streaming')).join('');
         document.getElementById('settings-buying-container').innerHTML = topBuying.map(p => generatePillHTML(p, 'buying')).join('');
     } catch (e) {
@@ -412,9 +385,7 @@ async function fetchAndRenderProviders() {
 async function fetchAndRenderLanguages() {
     try {
         const langRes = await fetch(`${PROXY_URL}/api/tmdb/configuration/languages`).then(r => r.json());
-
-        // Sort alphabetically by English name
-        const sortedLangs = langRes.sort((a, b) => a.english_name.localeCompare(b.english_name));
+        const sortedLangs = sortLanguages(langRes);
 
         document.getElementById('settings-languages-container').innerHTML = sortedLangs.map(lang => {
             const isActive = currentServices.languages && currentServices.languages.includes(lang.english_name) ? 'active' : '';
@@ -522,11 +493,9 @@ function setupFavoritesSearch() {
             return;
         }
 
-        const ytRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
-        const ytMatch = query.match(ytRegex);
+        const ytId = parseYouTubeId(query);
 
-        if (ytMatch && ytMatch[1]) {
-            const ytId = ytMatch[1];
+        if (ytId) {
             fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${ytId}`)}&format=json`).then(r => r.json()).then(res => {
                 if (res && res.title) {
                     favSearchResults.innerHTML = '';
@@ -894,18 +863,18 @@ async function exportAccountSettings(zip, user, customImgMap) {
     ];
     folder.file("HeaderInfo.csv", Papa.unparse(headerInfo));
 
-    // Favorites
-    const favsData = [["Type", "Title", "ID", "Rank", "Custom Poster", "Custom Background"]];
+    // Favorites using extracted logic
+    const favsData = buildFavsCsvArray(profile.favorites, customImgMap);
+    
+    // We still need to populate the exportTitleCache locally for the rest of the zip process
     if (profile.favorites) {
         for (const [type, list] of Object.entries(profile.favorites)) {
-            for (let i = 0; i < list.length; i++) {
-                const item = list[i];
-                const custom = customImgMap.get(`${type}_${item.id}`) || { poster: "", bg: "" };
-                favsData.push([type, item.title, item.id, i + 1, custom.poster, custom.bg]);
-                exportTitleCache.set(`${type}_${item.id}`, item.title); // Feed the cache
+            for (const item of list) {
+                exportTitleCache.set(`${type}_${item.id}`, item.title);
             }
         }
     }
+
     folder.file("Favorites.csv", Papa.unparse(favsData));
     addExportLog("Account Settings", "Exported profile & favorites", "success");
 }
@@ -1164,23 +1133,14 @@ async function processListData(rawData, userId) {
     document.getElementById('import-log-container').style.display = 'block';
     logList.innerHTML = '';
 
-    // 1. Extract List Metadata (Letterboxd format)
-    // Row 0 is often "Letterboxd list export v7"
-    // Row 1 is "Date, Name, Tags, URL, Description"
-    // Row 2 is the actual values for the list itself
-    const listName = rawData[2][1] || "Imported List";
-    const listDescription = rawData[2][4] || "";
+    const parsedList = parseLetterboxdListCsv(rawData);
+    if (parsedList.error) return alert(parsedList.error);
 
-    // 2. Find where the actual movie data starts (usually after "Position, Name, Year...")
-    const headerRowIndex = rawData.findIndex(row => row.includes("Position") && row.includes("Name"));
-    if (headerRowIndex === -1) return alert("Could not find movie data in CSV.");
-
-    const movieRows = rawData.slice(headerRowIndex + 1);
+    const { listName, listDescription, movieRows } = parsedList;
 
     try {
         progressText.textContent = `Creating list: ${listName}...`;
         
-        // 3. Create the List in media_lists
         const { data: newList, error: listError } = await supabaseClient
             .from('media_lists')
             .insert({
@@ -1196,7 +1156,6 @@ async function processListData(rawData, userId) {
 
         let successCount = 0;
 
-        // 4. Process each movie
         for (let i = 0; i < movieRows.length; i++) {
             const row = movieRows[i];
             const title = row[1]; // Index 1 is 'Name'
@@ -1226,7 +1185,6 @@ async function processListData(rawData, userId) {
             } else {
                 addImportLog(title, "Not found on TMDB", "error");
             }
-            // Small delay to respect TMDB rate limits
             await new Promise(r => setTimeout(r, 150));
         }
 
@@ -1286,39 +1244,27 @@ async function startImport(data, userId) {
                 .eq('watched_on', watchedDate)
                 .maybeSingle();
 
-            const payload = {
-                user_id: userId,
-                media_id: String(mediaInfo.id),
-                media_type: mediaInfo.type,
-                media_title: title,
-                rating: rowRating,
-                watched_on: watchedDate,
-                runtime: mediaInfo.runtime, // ADD THIS LINE
-                is_rewatch: row.Rewatch === 'Yes',
-                created_at: new Date().toISOString()
-            };
+            const isRewatch = row.Rewatch === 'Yes';
+            let payloadId = null;
 
             if (existing) {
                 if (shouldOverwrite) {
-                    // 2. Overwrite mode: Include the existing ID to trigger an update
-                    payload.id = existing.id; 
-                    const { error } = await supabaseClient.from('media_logs').upsert(payload);
-                    if (error) throw error;
-                    
+                    payloadId = existing.id;
                     addImportLog(title, "Updated/Overwritten", "success");
                     overwriteCount++;
                 } else {
-                    // 3. Skip mode
                     addImportLog(title, "Already in Catalogd (Skipped)", "warning");
                     skipCount++;
                     continue;
                 }
             } else {
-                // 4. New entry
-                const { error } = await supabaseClient.from('media_logs').insert(payload);
-                if (error) throw error;
                 successCount++;
             }
+
+            const payload = buildImportPayload(userId, mediaInfo, title, watchedDate, rowRating, isRewatch, payloadId);
+
+            const { error } = await supabaseClient.from('media_logs').upsert(payload);
+            if (error) throw error;
 
         } catch (err) {
             console.error(err);
@@ -1341,19 +1287,13 @@ window.handleAdvancedImport = async (type) => {
     const { data: { user } } = await supabaseClient.auth.getUser();
 
     Papa.parse(file, {
-        header: false, // Set to false first to handle the Letterboxd metadata rows
+        header: false,
         skipEmptyLines: true,
         complete: (results) => {
             if (type === 'list') {
                 processListData(results.data, user.id);
             } else {
-                // For other types, convert back to header-based format or adjust processAdvancedData
-                const headers = results.data[0];
-                const rows = results.data.slice(1).map(row => {
-                    let obj = {};
-                    headers.forEach((h, i) => obj[h] = row[i]);
-                    return obj;
-                });
+                const rows = parseAdvancedCsv(results.data);
                 processAdvancedData(type, rows, user.id);
             }
         }
@@ -1565,6 +1505,21 @@ function addImportLog(title, message, type) {
 // ----------------------------------------
 // Event Delegation
 // ----------------------------------------
+window.toggleServicePill = (pill, category) => {
+    const id = pill.dataset.id;
+    const isActive = pill.classList.contains('active');
+    
+    if (isActive) {
+        pill.classList.remove('active');
+        currentServices[category] = currentServices[category].filter(val => val !== id);
+    } else {
+        pill.classList.add('active');
+        if (!currentServices[category].includes(id)) {
+            currentServices[category].push(id);
+        }
+    }
+};
+
 document.getElementById('start-lastfm-sync-btn').onclick = async () => {
     const username = document.getElementById('lastfm-username-input').value.trim();
     const syncType = document.getElementById('lastfm-sync-type').value;
