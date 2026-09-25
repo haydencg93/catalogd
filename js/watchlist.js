@@ -103,9 +103,8 @@ async function initWatchlist() {
 // ----------------------------------------
 // Data Fetching & Base Rendering
 // ----------------------------------------
-async function renderWatchlist(items, typeLabel) {
+async function renderWatchlist(items) {
     const grid = document.getElementById('watchlist-grid');
-    const subtitle = document.getElementById('watchlist-subtitle');
 
     try {
         const mediaPromises = items.map(async (item) => {
@@ -129,7 +128,7 @@ async function renderWatchlist(items, typeLabel) {
                         const res = await fetch(`${PROXY_URL}/api/lastfm?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(albumName)}`).then(r => r.json());
                         image = res.album?.image?.[3]['#text'] || `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`;
                     } catch (e) {
-                        image = `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`; 
+                        image = `https://placehold.co/500x500/1b2228/eb3486?text=${encodeURIComponent(albumName)}`;
                     }
                 } else {
                     const res = await fetch(`${PROXY_URL}/api/tmdb/${item.media_type}/${item.media_id}`).then(r => r.json());
@@ -256,35 +255,6 @@ async function renderWatchlistPage() {
 // ----------------------------------------
 // Event Delegation
 // ----------------------------------------
-window.filterWatchlist = (type) => {
-    // 1. Update Button UI
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    const activeBtn = document.getElementById(`btn-${type === 'movie' ? 'movie' : type}`);
-    if (activeBtn) activeBtn.classList.add('active');
-
-    // 2. Filter Data
-    const filtered = type === 'all' 
-        ? allWatchlistItems 
-        : allWatchlistItems.filter(item => item.media_type === type);
-
-    // 3. Show Loading State immediately
-    const grid = document.getElementById('watchlist-grid');
-    const subtitle = document.getElementById('watchlist-subtitle');
-    
-    if (filtered.length > 0) {
-        grid.innerHTML = '<div class="loading-spinner">Loading titles...</div>';
-        subtitle.textContent = `Fetching ${filtered.length} ${type === 'all' ? 'items' : type + 's'}...`;
-    } else {
-        grid.innerHTML = "<p class='meta'>Your watchlist is empty.</p>";
-        subtitle.textContent = "0 items saved.";
-        return; // Don't call render if there's nothing to render
-    }
-
-    renderWatchlist(filtered, type);
-};
-
 document.querySelectorAll('[data-watchlist-filter]').forEach((button) => {
     button.addEventListener('click', () => window.filterWatchlist(button.dataset.watchlistFilter));
 });
