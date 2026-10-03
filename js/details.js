@@ -485,76 +485,182 @@ async function initDetails() {
 
         // If it is an Anime, handle the Filler Logic
         if (isAnime) {
-            const fillerContainer = document.getElementById('filler-status-container');
-            const fillerInfo = document.getElementById('filler-info');
-            const fillerAction = document.getElementById('filler-action-area');
-            
+            const fillerContainer =
+                document.getElementById('filler-status-container');
+
+            const fillerInfo =
+                document.getElementById('filler-info');
+
+            const fillerAction =
+                document.getElementById('filler-action-area');
+
             fillerContainer.style.display = 'block';
-            fillerInfo.textContent = ""; // Clear default text
+            fillerInfo.textContent = '';
 
             try {
-                const slug = slugify(data.title); 
-                
-                // Check DB for pending requests AND content
-                const { data: existingRequest, error: dbError } = await supabaseClient
+                const slug = slugify(data.title);
+
+                const {
+                    data: existingRequest,
+                    error: dbError
+                } = await supabaseClient
                     .from('filler_list_mgnt')
-                    .select('filler_exists, notes, filler_content')
+                    .select(
+                        'filler_exists, notes, filler_content, manual_slug, manual_guide_slug'
+                    )
                     .eq('name', slug)
                     .maybeSingle();
 
-                // Catch network or database errors directly
                 if (dbError) {
-                    console.error("Supabase filler list error:", dbError);
-                    throw new Error("Database connection failed while checking filler lists.");
+                    console.error(
+                        'Supabase filler list error:',
+                        dbError
+                    );
+
+                    throw new Error(
+                        'Database connection failed while checking filler lists.'
+                    );
                 }
 
-                let hasFiller = false;
-                let fillerData = null;
+                const fillerData =
+                    existingRequest?.filler_content || null;
 
-                // Check for Database Content
-                if (existingRequest && existingRequest.filler_content) {
-                    fillerData = existingRequest.filler_content;
-                    hasFiller = true;
-                }
+                const hasFiller =
+                    !!(
+                        fillerData &&
+                        Array.isArray(fillerData.episodes) &&
+                        fillerData.episodes.length > 0
+                    );
 
-                // Build UI
+                const isPending =
+                    !!(
+                        existingRequest &&
+                        !existingRequest.notes &&
+                        !hasFiller
+                    );
+
                 let html = '';
-                
-                // View Button (if exists)
+
                 if (hasFiller) {
                     html += `
-                        <button id="view-filler-btn" class="primary-btn" style="background: #ff9800; width: 100%; margin-bottom: 10px; padding: 10px 20px;">
+                        <button
+                            id="view-filler-btn"
+                            class="primary-btn"
+                            style="
+                                background: #ff9800;
+                                width: 100%;
+                                margin-bottom: 10px;
+                                padding: 10px 20px;
+                            "
+                        >
                             View Filler Episodes
                         </button>
                     `;
                 } else {
-                    html += `<p class="meta" style="margin-top: 0; margin-bottom: 15px;">Filler list data not found.</p>`;
+                    html += `
+                        <p
+                            class="meta"
+                            style="
+                                margin-top: 0;
+                                margin-bottom: 15px;
+                            "
+                        >
+                            Filler list data not found.
+                        </p>
+                    `;
                 }
 
-                // Check if there is an active pending request (a record exists, but no notes yet)
-                const isPending = existingRequest && !existingRequest.notes && !hasFiller;
+                /*
+                * Prefer the structured scraper status from schema v2.
+                * Fall back to the old notes field for schema v1 rows.
+                */
+                const sourceStatus =
+                    fillerData?.source_status_message ||
+                    existingRequest?.notes ||
+                    '';
+
+                if (sourceStatus) {
+                    html += `
+                        <div
+                            class="meta"
+                            style="
+                                font-size: 0.85rem;
+                                margin-bottom: 10px;
+                                line-height: 1.5;
+                            "
+                        >
+                            Status:
+                            ${escapeFillerHtml(sourceStatus)}
+                        </div>
+                    `;
+                }
+
+                const hasSourceFailure =
+                    fillerData?.schema_version === 2
+                        ? (
+                            fillerData?.sources?.anime_filler_list?.status === 'failed' ||
+                            fillerData?.sources?.anime_filler_guide?.status === 'failed'
+                        )
+                        : (
+                            String(existingRequest?.notes || '')
+                                .toLowerCase()
+                                .includes('error') ||
+
+                            String(existingRequest?.notes || '')
+                                .toLowerCase()
+                                .includes('failed') ||
+
+                            String(existingRequest?.notes || '')
+                                .toLowerCase()
+                                .includes('not found')
+                        );
+
+                if (hasSourceFailure) {
+                    html += `
+                        <button
+                            id="help-scraper-btn"
+                            class="primary-btn"
+                            style="
+                                width: 100%;
+                                border-color: #ff9800;
+                                color: #14181c;
+                                background: #ff9800;
+                                margin-bottom: 10px;
+                            "
+                        >
+                            Help the Scraper
+                        </button>
+                    `;
+                }
 
                 if (isPending) {
-                    html += `<div class="meta" style="font-size: 0.85rem; color: #ff9800;">${hasFiller ? 'Update' : 'List'} request pending... check back soon!</div>`;
-                } else {
-                    // Show previous scraper notes if they exist (e.g., "Successfully scraped" or an error)
-                    if (existingRequest && existingRequest.notes) {
-                        html += `<div class="meta" style="font-size: 0.85rem; margin-bottom: 10px;">Status: ${existingRequest.notes}</div>`;
-                        
-                        // NEW: If the note indicates an error/failure, show the Help button!
-                        if (existingRequest.notes.toLowerCase().includes("error") || existingRequest.notes.toLowerCase().includes("failed") || existingRequest.notes.toLowerCase().includes("not found")) {
-                            html += `
-                                <button id="help-scraper-btn" class="primary-btn" style="width: 100%; border-color: #ff9800; color: #14181c; background: #ff9800; margin-bottom: 10px;">
-                                    Help the Scraper
-                                </button>
-                            `;
-                        }
-                    }
-                    
-                    // Always render the request button if it's not actively pending!
-                    const btnText = hasFiller ? "Request a Filler List Update" : "Request Filler List";
                     html += `
-                        <button id="request-filler-btn" class="secondary-btn" style="width: 100%; border-color: #ff9800; color: #ff9800;">
+                        <div
+                            class="meta"
+                            style="
+                                font-size: 0.85rem;
+                                color: #ff9800;
+                            "
+                        >
+                            List request pending... check back soon!
+                        </div>
+                    `;
+                } else {
+                    const btnText =
+                        hasFiller
+                            ? 'Request a Filler List Update'
+                            : 'Request Filler List';
+
+                    html += `
+                        <button
+                            id="request-filler-btn"
+                            class="secondary-btn"
+                            style="
+                                width: 100%;
+                                border-color: #ff9800;
+                                color: #ff9800;
+                            "
+                        >
                             ${btnText}
                         </button>
                     `;
@@ -562,25 +668,59 @@ async function initDetails() {
 
                 fillerAction.innerHTML = html;
 
-                // Attach listeners dynamically
                 if (hasFiller) {
-                    document.getElementById('view-filler-btn').onclick = () => openFillerModal(fillerData);
-                }
-                
-                // Only attach the request listener if the button was actually rendered
-                if (!isPending) {
-                    document.getElementById('request-filler-btn').onclick = () => requestFiller(slug, hasFiller);
+                    const viewBtn =
+                        document.getElementById(
+                            'view-filler-btn'
+                        );
+
+                    if (viewBtn) {
+                        viewBtn.onclick =
+                            () =>
+                                openFillerModal(
+                                    fillerData
+                                );
+                    }
                 }
 
-                // Attach Help Scraper listener
-                const helpBtn = document.getElementById('help-scraper-btn');
+                if (!isPending) {
+                    const requestBtn =
+                        document.getElementById(
+                            'request-filler-btn'
+                        );
+
+                    if (requestBtn) {
+                        requestBtn.onclick =
+                            () =>
+                                requestFiller(
+                                    slug,
+                                    hasFiller
+                                );
+                    }
+                }
+
+                const helpBtn =
+                    document.getElementById(
+                        'help-scraper-btn'
+                    );
+
                 if (helpBtn) {
-                    helpBtn.onclick = () => openHelpScraperModal(slug);
+                    helpBtn.onclick =
+                        () =>
+                            openHelpScraperModal(
+                                slug,
+                                existingRequest
+                            );
                 }
 
             } catch (e) {
-                console.error("Filler fetch error:", e);
-                fillerInfo.textContent = "Error loading filler data.";
+                console.error(
+                    'Filler fetch error:',
+                    e
+                );
+
+                fillerInfo.textContent =
+                    'Error loading filler data.';
             }
         }
 
@@ -1389,49 +1529,208 @@ async function openEpisodeModal(epNum, fallbackTitle, seasonNum) {
     modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
 }
 
-function openHelpScraperModal(originalSlug) {
-    const modal = document.getElementById('help-scraper-modal');
-    const closeBtn = document.getElementById('close-help-scraper-modal');
-    const submitBtn = document.getElementById('submit-manual-slug-btn');
-    const input = document.getElementById('manual-slug-input');
+function openHelpScraperModal(
+    originalSlug,
+    existingRequest = null
+) {
+    const modal =
+        document.getElementById(
+            'help-scraper-modal'
+        );
 
-    input.value = '';
-    modal.style.display = 'flex';
+    const closeBtn =
+        document.getElementById(
+            'close-help-scraper-modal'
+        );
 
-    closeBtn.onclick = () => modal.style.display = 'none';
-    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+    const submitBtn =
+        document.getElementById(
+            'submit-manual-slug-btn'
+        );
 
-    submitBtn.onclick = async () => {
-        const url = input.value.trim();
-        if (!url) return alert("Please enter a valid link.");
+    const aflInput =
+        document.getElementById(
+            'manual-slug-input'
+        );
 
-        // Extract the slug (everything after /shows/) using Regex
-        const match = url.match(/\/shows\/([^\/?#]+)/);
-        if (!match || !match[1]) {
-            return alert("Invalid format. Please paste a link like: https://www.animefillerlist.com/shows/jujutsu-kaisen");
-        }
-        
-        const manualSlug = match[1];
+    const afgInput =
+        document.getElementById(
+            'manual-guide-slug-input'
+        );
 
-        submitBtn.textContent = "Submitting...";
-        submitBtn.disabled = true;
+    const statusBox =
+        document.getElementById(
+            'help-scraper-current-status'
+        );
 
-        // Update DB: clear notes (resets queue status) and append manual_slug
-        const { error } = await supabaseClient
-            .from('filler_list_mgnt')
-            .update({ manual_slug: manualSlug, notes: null })
-            .eq('name', originalSlug);
+    aflInput.value =
+        existingRequest?.manual_slug
+            ? buildAflUrl(
+                existingRequest.manual_slug
+            )
+            : '';
 
-        if (!error) {
-            alert("Thank you! The scraper will check this link shortly.");
-            window.location.reload();
+    afgInput.value =
+        existingRequest?.manual_guide_slug
+            ? buildAfgUrl(
+                existingRequest.manual_guide_slug
+            )
+            : '';
+
+    if (statusBox) {
+        const fillerData =
+            existingRequest?.filler_content;
+
+        const aflStatus =
+            fillerData?.sources
+                ?.anime_filler_list
+                ?.status;
+
+        const afgStatus =
+            fillerData?.sources
+                ?.anime_filler_guide
+                ?.status;
+
+        if (aflStatus || afgStatus) {
+            statusBox.style.display =
+                'block';
+
+            statusBox.innerHTML = `
+                <strong>Current source status</strong><br>
+                AnimeFillerList.com:
+                ${escapeFillerHtml(
+                    aflStatus || 'unknown'
+                )}
+                <br>
+                AnimeFillerGuide.com:
+                ${escapeFillerHtml(
+                    afgStatus || 'unknown'
+                )}
+            `;
         } else {
-            console.error(error);
-            alert("Error submitting link.");
-            submitBtn.textContent = "Submit Link";
-            submitBtn.disabled = false;
+            statusBox.style.display =
+                'none';
+
+            statusBox.textContent =
+                '';
         }
-    };
+    }
+
+    submitBtn.disabled = false;
+    submitBtn.textContent =
+        'Submit Links';
+
+    modal.style.display =
+        'flex';
+
+    closeBtn.onclick =
+        () =>
+            modal.style.display =
+                'none';
+
+    modal.onclick =
+        (e) => {
+            if (e.target === modal) {
+                modal.style.display =
+                    'none';
+            }
+        };
+
+    submitBtn.onclick =
+        async () => {
+            const aflUrl =
+                aflInput.value.trim();
+
+            const afgUrl =
+                afgInput.value.trim();
+
+            /*
+             * You wanted the user to ideally provide
+             * both URLs.
+             */
+            if (
+                !aflUrl ||
+                !afgUrl
+            ) {
+                return alert(
+                    'Please provide links for both AnimeFillerList.com and AnimeFillerGuide.com.'
+                );
+            }
+
+            const aflSlug =
+                extractAflSlug(
+                    aflUrl
+                );
+
+            if (!aflSlug) {
+                return alert(
+                    'Invalid AnimeFillerList URL. Example: https://www.animefillerlist.com/shows/hunter-x-hunter'
+                );
+            }
+
+            const afgSlug =
+                extractAfgSlug(
+                    afgUrl
+                );
+
+            if (!afgSlug) {
+                return alert(
+                    'Invalid AnimeFillerGuide URL. Example: https://www.animefillerguide.com/anime/hunter-x-hunter-2011/'
+                );
+            }
+
+            submitBtn.textContent =
+                'Submitting...';
+
+            submitBtn.disabled =
+                true;
+
+            const {
+                error
+            } = await supabaseClient
+                .from(
+                    'filler_list_mgnt'
+                )
+                .update({
+                    manual_slug:
+                        aflSlug,
+
+                    manual_guide_slug:
+                        afgSlug,
+
+                    notes:
+                        null
+                })
+                .eq(
+                    'name',
+                    originalSlug
+                );
+
+            if (!error) {
+                alert(
+                    'Thank you! Both links were submitted and the scraper has been queued to try again.'
+                );
+
+                window.location.reload();
+
+                return;
+            }
+
+            console.error(
+                'Manual scraper link update failed:',
+                error
+            );
+
+            alert(
+                'Error submitting scraper links.'
+            );
+
+            submitBtn.textContent =
+                'Submit Links';
+
+            submitBtn.disabled =
+                false;
+        };
 }
 
 // ----------------------------------------
@@ -1725,49 +2024,647 @@ async function setupBookTracker(automaticTotalPages) {
     renderTracker(useManualPages, savedManualTotal);
 }
 
+function escapeFillerHtml(value) {
+    return String(value ?? '')
+        .replace(
+            /&/g,
+            '&amp;'
+        )
+        .replace(
+            /</g,
+            '&lt;'
+        )
+        .replace(
+            />/g,
+            '&gt;'
+        )
+        .replace(
+            /"/g,
+            '&quot;'
+        )
+        .replace(
+            /'/g,
+            '&#039;'
+        );
+}
+
+function getFillerTypeClass(type) {
+    const typeStr =
+        String(type || '')
+            .toLowerCase();
+
+    if (
+        typeStr.includes(
+            'mixed'
+        )
+    ) {
+        return 'type-mixed';
+    }
+
+    if (
+        typeStr.includes(
+            'filler'
+        )
+    ) {
+        return 'type-filler';
+    }
+
+    return 'type-canon';
+}
+
+function extractAflSlug(value) {
+    const input =
+        String(value || '')
+            .trim();
+
+    if (!input) return null;
+
+    try {
+        const url =
+            new URL(input);
+
+        if (
+            !url.hostname
+                .toLowerCase()
+                .endsWith(
+                    'animefillerlist.com'
+                )
+        ) {
+            return null;
+        }
+
+        const match =
+            url.pathname.match(
+                /\/shows\/([^\/?#]+)/i
+            );
+
+        return match?.[1] || null;
+
+    } catch (_) {
+        const match =
+            input.match(
+                /(?:^|\/shows\/)([^\/?#]+)\/?$/i
+            );
+
+        return match?.[1] || null;
+    }
+}
+
+function extractAfgSlug(value) {
+    const input =
+        String(value || '')
+            .trim();
+
+    if (!input) return null;
+
+    try {
+        const url =
+            new URL(input);
+
+        if (
+            !url.hostname
+                .toLowerCase()
+                .endsWith(
+                    'animefillerguide.com'
+                )
+        ) {
+            return null;
+        }
+
+        const match =
+            url.pathname.match(
+                /\/anime\/([^\/?#]+)/i
+            );
+
+        return match?.[1] || null;
+
+    } catch (_) {
+        const match =
+            input.match(
+                /(?:^|\/anime\/)([^\/?#]+)\/?$/i
+            );
+
+        return match?.[1] || null;
+    }
+}
+
+function buildAflUrl(slug) {
+    if (!slug) return '';
+
+    return `https://www.animefillerlist.com/shows/${encodeURIComponent(
+        slug
+    )}`;
+}
+
+function buildAfgUrl(slug) {
+    if (!slug) return '';
+
+    return `https://www.animefillerguide.com/anime/${encodeURIComponent(
+        slug
+    )}/`;
+}
+
+function renderFlatFillerRows(
+    episodes
+) {
+    return episodes
+        .map(
+            ep => {
+                const typeClass =
+                    getFillerTypeClass(
+                        ep.type
+                    );
+
+                return `
+                    <tr>
+                        <td>
+                            ${escapeFillerHtml(
+                                ep.number
+                            )}
+                        </td>
+
+                        <td>
+                            ${escapeFillerHtml(
+                                ep.title
+                            )}
+                        </td>
+
+                        <td
+                            class="${typeClass}"
+                        >
+                            ${escapeFillerHtml(
+                                ep.type ||
+                                'Unknown'
+                            )}
+                        </td>
+
+                        <td>
+                            ${escapeFillerHtml(
+                                ep.manga_chapters ||
+                                'N/A'
+                            )}
+                        </td>
+                    </tr>
+                `;
+            }
+        )
+        .join('');
+}
+
+function renderFillerSeasons(
+    data
+) {
+    const mediaByAfterEpisode =
+        new Map();
+
+    for (
+        const media
+        of data.media || []
+    ) {
+        const key =
+            String(
+                media.after_episode ??
+                '__before_first__'
+            );
+
+        if (
+            !mediaByAfterEpisode.has(
+                key
+            )
+        ) {
+            mediaByAfterEpisode.set(
+                key,
+                []
+            );
+        }
+
+        mediaByAfterEpisode
+            .get(key)
+            .push(media);
+    }
+
+    return data.seasons
+        .map(
+            season => {
+                const seasonEpisodes =
+                    Array.isArray(
+                        season.episodes
+                    )
+                        ? season.episodes
+                        : (
+                            data.episodes || []
+                        ).filter(
+                            ep =>
+                                ep.season ===
+                                season.number
+                        );
+
+                const metadataPieces = [];
+
+                if (
+                    season.episode_count
+                ) {
+                    metadataPieces.push(
+                        `${season.episode_count} episodes`
+                    );
+                }
+
+                if (
+                    season.episode_range
+                        ?.start &&
+                    season.episode_range
+                        ?.end
+                ) {
+                    metadataPieces.push(
+                        `Episodes ${season.episode_range.start}-${season.episode_range.end}`
+                    );
+                }
+
+                if (
+                    season.manga_range
+                ) {
+                    metadataPieces.push(
+                        `Manga ${season.manga_range}`
+                    );
+                }
+
+                let rows = '';
+
+                for (
+                    const episode
+                    of seasonEpisodes
+                ) {
+                    const typeClass =
+                        getFillerTypeClass(
+                            episode.type
+                        );
+
+                    rows += `
+                        <tr>
+                            <td>
+                                ${escapeFillerHtml(
+                                    episode.number
+                                )}
+                            </td>
+
+                            <td>
+                                ${escapeFillerHtml(
+                                    episode.title
+                                )}
+                            </td>
+
+                            <td
+                                class="${typeClass}"
+                            >
+                                ${escapeFillerHtml(
+                                    episode.type ||
+                                    'Unknown'
+                                )}
+                            </td>
+
+                            <td>
+                                ${escapeFillerHtml(
+                                    episode.manga_chapters ||
+                                    'N/A'
+                                )}
+                            </td>
+                        </tr>
+                    `;
+
+                    const mediaItems =
+                    (
+                        mediaByAfterEpisode.get(
+                            String(
+                                episode.number
+                            )
+                        ) || []
+                    ).filter(
+                        media =>
+                            !media.season ||
+                            media.season ===
+                                season.number
+                    );
+
+                    for (
+                        const media
+                        of mediaItems
+                    ) {
+                        rows +=
+                            renderFillerMediaRow(
+                                media
+                            );
+                    }
+                }
+
+                return `
+                    <section
+                        class="history-section"
+                        style="
+                            margin-bottom: 30px;
+                        "
+                    >
+                        <div
+                            style="
+                                margin-bottom: 16px;
+                            "
+                        >
+                            <h3
+                                style="
+                                    margin:
+                                        0 0 8px 0;
+                                    color:
+                                        #ff9800;
+                                "
+                            >
+                                ${escapeFillerHtml(
+                                    season.heading ||
+                                    `Season ${season.number}`
+                                )}
+                            </h3>
+
+                            ${
+                                metadataPieces.length
+                                    ? `
+                                        <div
+                                            class="meta"
+                                            style="
+                                                margin-bottom:
+                                                    10px;
+                                            "
+                                        >
+                                            ${metadataPieces
+                                                .map(
+                                                    escapeFillerHtml
+                                                )
+                                                .join(
+                                                    ' • '
+                                                )}
+                                        </div>
+                                    `
+                                    : ''
+                            }
+
+                            ${
+                                season.description
+                                    ? `
+                                        <p
+                                            style="
+                                                margin:
+                                                    0;
+                                                color:
+                                                    #ccd6e0;
+                                                line-height:
+                                                    1.65;
+                                            "
+                                        >
+                                            ${escapeFillerHtml(
+                                                season.description
+                                            )}
+                                        </p>
+                                    `
+                                    : ''
+                            }
+                        </div>
+
+                        <div
+                            class="filler-table-container"
+                        >
+                            <table
+                                class="filler-table"
+                            >
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>
+                                            Episode
+                                        </th>
+                                        <th>
+                                            Type
+                                        </th>
+                                        <th>
+                                            Manga Chapters
+                                        </th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    ${rows}
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                `;
+            }
+        )
+        .join('');
+}
+
+function renderFillerMediaRow(
+    media
+) {
+    return `
+        <tr
+            class="filler-media-row"
+        >
+            <td
+                colspan="4"
+                style="
+                    text-align:
+                        center;
+                    padding:
+                        16px 10px;
+                    background:
+                        rgba(255, 152, 0, 0.08);
+                    border-top:
+                        1px solid rgba(255, 152, 0, 0.4);
+                    border-bottom:
+                        1px solid rgba(255, 152, 0, 0.4);
+                    color:
+                        #ffb74d;
+                    font-weight:
+                        700;
+                "
+        >
+            &lt;———————
+            ${escapeFillerHtml(
+                media.title ||
+                media.raw_marker ||
+                'Extra'
+            )}
+            ———————&gt;
+        </td>
+    </tr>
+    `;
+}
+
 // Anime Filler List Integration
 function openFillerModal(data) {
-    const modal = document.getElementById('filler-modal');
-    const tbody = document.getElementById('filler-table-body');
-    const closeBtn = document.getElementById('close-filler-modal');
+    const modal =
+        document.getElementById(
+            'filler-modal'
+        );
 
-    document.getElementById('filler-modal-title').textContent = `${data.anime} Filler List`;
-    
-    // Clear and build table
-    tbody.innerHTML = data.episodes.map(ep => {
-        // Determine class based on type string
-        let typeClass = 'type-canon'; // Default to green
-        const typeStr = ep.type.toLowerCase();
+    const titleEl =
+        document.getElementById(
+            'filler-modal-title'
+        );
 
-        // Check for mixed first!
-        if (typeStr.includes('mixed')) {
-            typeClass = 'type-mixed';
-        } 
-        else if (typeStr.includes('filler')) {
-            typeClass = 'type-filler';
-        }
-        else if (typeStr.includes('canon')) {
-            typeClass = 'type-canon';
-        }
+    const closeBtn =
+        document.getElementById(
+            'close-filler-modal'
+        );
 
-        return `
-            <tr>
-                <td>${ep.number}</td>
-                <td>${ep.title}</td>
-                <td class="${typeClass}">${ep.type}</td>
-            </tr>
-        `;
-    }).join('');
+    const sourceStatus =
+        document.getElementById(
+            'filler-source-status'
+        );
 
-    modal.style.display = 'flex';
-    closeBtn.onclick = () => modal.style.display = 'none';
-    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
-    document.getElementById('filler-modal-title').innerHTML = `
-        ${data.anime} Filler List
-        <div style="font-size: 0.9rem; color: #9ab; font-weight: normal; margin-top: 5px;">
-            Provided Through <a href="https://www.animefillerlist.com" target="_blank" style="color: #ff9800; text-decoration: none;">AnimeFillerList.com</a>
-        </div>
-    `;
+    const seasonContent =
+        document.getElementById(
+            'filler-season-content'
+        );
+
+    const flatContent =
+        document.getElementById(
+            'filler-flat-content'
+        );
+
+    const tbody =
+        document.getElementById(
+            'filler-table-body'
+        );
+
+    const continuationSection =
+        document.getElementById(
+            'filler-continuation-section'
+        );
+
+    const animeEnd =
+        document.getElementById(
+            'filler-anime-end'
+        );
+
+    const mangaStart =
+        document.getElementById(
+            'filler-manga-start'
+        );
+
+    if (
+        !modal ||
+        !titleEl
+    ) {
+        return;
+    }
+
+    const animeName =
+        data?.anime ||
+        globalData?.title ||
+        'Anime';
+
+    titleEl.textContent =
+        `${animeName} Filler List`;
+
+    sourceStatus.textContent =
+        data?.source_status_message ||
+        '';
+
+    /*
+     * Schema v2 with AnimeFillerGuide season data.
+     */
+    const hasSeasonData =
+        data?.schema_version === 2 &&
+        Array.isArray(
+            data.seasons
+        ) &&
+        data.seasons.length > 0;
+
+    if (hasSeasonData) {
+        flatContent.style.display =
+            'none';
+
+        seasonContent.style.display =
+            'block';
+
+        seasonContent.innerHTML =
+            renderFillerSeasons(
+                data
+            );
+    } else {
+        /*
+         * Compatibility fallback for:
+         *
+         * - old schema v1 rows
+         * - AFL-only partial data
+         */
+        seasonContent.style.display =
+            'none';
+
+        seasonContent.innerHTML =
+            '';
+
+        flatContent.style.display =
+            'block';
+
+        tbody.innerHTML =
+            renderFlatFillerRows(
+                data?.episodes || []
+            );
+    }
+
+    const continuation =
+        data?.continuation;
+
+    const hasContinuation =
+        !!(
+            continuation &&
+            (
+                continuation
+                    .where_anime_ends ||
+
+                continuation
+                    .where_to_start_reading
+            )
+        );
+
+    if (hasContinuation) {
+        continuationSection.style.display =
+            'block';
+
+        animeEnd.textContent =
+            continuation
+                .where_anime_ends ||
+            'Not provided.';
+
+        mangaStart.textContent =
+            continuation
+                .where_to_start_reading ||
+            'Not provided.';
+    } else {
+        continuationSection.style.display =
+            'none';
+
+        animeEnd.textContent =
+            '';
+
+        mangaStart.textContent =
+            '';
+    }
+
+    modal.style.display =
+        'flex';
+
+    closeBtn.onclick =
+        () =>
+            modal.style.display =
+                'none';
+
+    modal.onclick =
+        (e) => {
+            if (e.target === modal) {
+                modal.style.display =
+                    'none';
+            }
+        };
 }
 
 async function requestFiller(slug, isUpdate) {

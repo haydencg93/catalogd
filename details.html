@@ -80,10 +80,6 @@
                     <button id="add-to-list-btn" class="secondary-btn">Add to List</button>
                 </div>
             </div>
-            <div id="filler-status-container" style="margin-bottom: 15px; display: none;">
-                <div id="filler-info" class="meta" style="color: #ff9800; font-weight: bold;"></div>
-                <div id="filler-action-area" style="margin-top: 10px;"></div>
-            </div>
         </div>
         <div class="history-split-row">
             <div id="journal-history" class="history-section">
@@ -174,22 +170,318 @@
     </div>
 
     <div id="filler-modal" class="modal-overlay">
-        <div class="auth-card filler-card">
-            <button class="close-btn" id="close-filler-modal">×</button>
-            <h2 id="filler-modal-title">Filler List</h2>
-            <div class="filler-table-container">
+        <div
+            class="auth-card filler-card"
+            style="
+                width: min(1100px, 95vw);
+                max-width: 1100px !important;
+                max-height: 90vh;
+                overflow-y: auto;
+                text-align: left;
+            "
+        >
+            <button
+                class="close-btn"
+                id="close-filler-modal"
+            >
+                ×
+            </button>
+
+            <h2
+                id="filler-modal-title"
+                style="margin-bottom: 8px;"
+            >
+                Filler List
+            </h2>
+
+            <div
+                id="filler-source-status"
+                class="meta"
+                style="
+                    margin-bottom: 20px;
+                    line-height: 1.5;
+                "
+            ></div>
+
+            <div
+                id="filler-season-content"
+                style="display: none;"
+            ></div>
+
+            <!--
+                IMPORTANT:
+                Intentionally preserve filler-table-body
+                so the old filler table can still be populated
+                in case the new filler-season-content view fails
+                to load.
+            -->
+            <div
+                id="filler-flat-content"
+                class="filler-table-container"
+            >
                 <table class="filler-table">
                     <thead>
                         <tr>
                             <th>#</th>
                             <th>Title</th>
                             <th>Type</th>
+                            <th>Manga Chapters</th>
                         </tr>
                     </thead>
+
                     <tbody id="filler-table-body">
-                        </tbody>
+                    </tbody>
                 </table>
             </div>
+
+            <div
+                id="filler-continuation-section"
+                style="
+                    display: none;
+                    margin-top: 30px;
+                "
+            >
+                <h3
+                    style="
+                        margin-bottom: 15px;
+                        color: #ccd6e0;
+                    "
+                >
+                    Continue With the Manga
+                </h3>
+
+                <div
+                    style="
+                        display: grid;
+                        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+                        gap: 15px;
+                    "
+                >
+                    <div
+                        class="history-section"
+                        style="margin: 0;"
+                    >
+                        <h4>
+                            Where Does the Anime End?
+                        </h4>
+
+                        <div
+                            id="filler-anime-end"
+                            style="
+                                line-height: 1.6;
+                                color: #ccd6e0;
+                            "
+                        ></div>
+                    </div>
+
+                    <div
+                        class="history-section"
+                        style="margin: 0;"
+                    >
+                        <h4>
+                            Where Should I Start Reading?
+                        </h4>
+
+                        <div
+                            id="filler-manga-start"
+                            style="
+                                line-height: 1.6;
+                                color: #ccd6e0;
+                            "
+                        ></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data-source attribution -->
+            <div
+                id="filler-source-attribution"
+                class="meta"
+                style="
+                    margin-top: 25px;
+                    padding-top: 15px;
+                    border-top: 1px solid #2c3440;
+                    line-height: 1.6;
+                "
+            >
+                Data provided through
+                <a
+                    href="https://www.animefillerlist.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style="
+                        color: #ff9800;
+                        text-decoration: none;
+                    "
+                >
+                    AnimeFillerList.com
+                </a>
+                and
+                <a
+                    href="https://www.animefillerguide.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style="
+                        color: #ff9800;
+                        text-decoration: none;
+                    "
+                >
+                    AnimeFillerGuide.com
+                </a>.
+            </div>
+        </div>
+    </div>
+
+    <div id="help-scraper-modal" class="modal-overlay">
+        <div
+            class="auth-card"
+            style="
+                width: min(600px, 92vw);
+                max-width: 600px;
+                text-align: left;
+            "
+        >
+            <button
+                class="close-btn"
+                id="close-help-scraper-modal"
+            >
+                ×
+            </button>
+
+            <h3 style="margin-top: 0;">
+                Help the Scraper
+            </h3>
+
+            <p
+                class="meta"
+                style="
+                    margin-bottom: 20px;
+                    font-size: 0.9rem;
+                    line-height: 1.6;
+                "
+            >
+                If we couldn't automatically locate one or both
+                filler guides, you can provide the correct links
+                below. Supplying both links is recommended.
+            </p>
+
+            <!-- AnimeFillerList -->
+            <div style="margin-bottom: 22px;">
+                <label
+                    for="manual-slug-input"
+                    style="
+                        display: block;
+                        margin-bottom: 7px;
+                        font-weight: 700;
+                        color: #ccd6e0;
+                    "
+                >
+                    AnimeFillerList.com
+                </label>
+
+                <p
+                    class="meta"
+                    style="
+                        margin-top: 0;
+                        margin-bottom: 8px;
+                        font-size: 0.82rem;
+                        line-height: 1.5;
+                    "
+                >
+                    Find the anime on
+                    <a
+                        href="https://www.animefillerlist.com/shows"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style="color: var(--accent);"
+                    >
+                        AnimeFillerList.com
+                    </a>
+                    and paste the full page URL.
+                </p>
+
+                <!--
+                    Keep this existing ID because the current
+                    details.js already uses it.
+                -->
+                <input
+                    type="text"
+                    id="manual-slug-input"
+                    placeholder="https://www.animefillerlist.com/shows/hunter-x-hunter"
+                    autocomplete="off"
+                >
+            </div>
+
+            <!-- AnimeFillerGuide -->
+            <div style="margin-bottom: 22px;">
+                <label
+                    for="manual-guide-slug-input"
+                    style="
+                        display: block;
+                        margin-bottom: 7px;
+                        font-weight: 700;
+                        color: #ccd6e0;
+                    "
+                >
+                    AnimeFillerGuide.com
+                </label>
+
+                <p
+                    class="meta"
+                    style="
+                        margin-top: 0;
+                        margin-bottom: 8px;
+                        font-size: 0.82rem;
+                        line-height: 1.5;
+                    "
+                >
+                    Find the anime on
+                    <a
+                        href="https://www.animefillerguide.com"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style="color: var(--accent);"
+                    >
+                        AnimeFillerGuide.com
+                    </a>
+                    and paste the full anime guide URL.
+                </p>
+
+                <input
+                    type="text"
+                    id="manual-guide-slug-input"
+                    placeholder="https://www.animefillerguide.com/anime/hunter-x-hunter-2011/"
+                    autocomplete="off"
+                >
+            </div>
+
+            <div
+                id="help-scraper-current-status"
+                class="meta"
+                style="
+                    display: none;
+                    margin-bottom: 15px;
+                    padding: 10px;
+                    border: 1px solid #2c3440;
+                    border-radius: 8px;
+                    line-height: 1.5;
+                "
+            ></div>
+
+            <!--
+                Keep this existing button ID so current JS
+                does not break before we update details.js.
+            -->
+            <button
+                id="submit-manual-slug-btn"
+                class="primary-btn"
+                style="
+                    margin-top: 5px;
+                    width: 100%;
+                "
+            >
+                Submit Links
+            </button>
         </div>
     </div>
 
@@ -231,20 +523,6 @@
                 <h4 style="color: #9ab; margin-bottom: 12px; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 1px;">Guest Cast</h4>
                 <div id="modal-episode-cast" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 15px; max-height: 180px; overflow-y: auto; padding-right: 5px;"></div>
             </div>
-        </div>
-    </div>
-
-    <div id="help-scraper-modal" class="modal-overlay">
-        <div class="auth-card">
-            <button class="close-btn" id="close-help-scraper-modal">×</button>
-            <h3 style="margin-top: 0;">Help the Scraper</h3>
-            <p class="meta" style="margin-bottom: 15px; font-size: 0.85rem;">
-                We couldn't find this anime automatically. Please search for it on 
-                <a href="https://www.animefillerlist.com/shows" target="_blank" style="color: var(--accent);">AnimeFillerList.com</a> 
-                and paste the full URL below.
-            </p>
-            <input type="text" id="manual-slug-input" placeholder="e.g., https://www.animefillerlist.com/shows/hunter-x-hunter">
-            <button id="submit-manual-slug-btn" class="primary-btn" style="margin-top: 15px; width: 100%;">Submit Link</button>
         </div>
     </div>
 
