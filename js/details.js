@@ -2054,22 +2054,24 @@ function getFillerTypeClass(type) {
             .toLowerCase();
 
     if (
-        typeStr.includes(
-            'mixed'
-        )
+        typeStr.includes('mixed')
     ) {
         return 'type-mixed';
     }
 
     if (
-        typeStr.includes(
-            'filler'
-        )
+        typeStr.includes('filler')
     ) {
         return 'type-filler';
     }
 
-    return 'type-canon';
+    if (
+        typeStr.includes('canon')
+    ) {
+        return 'type-canon';
+    }
+
+    return 'type-unknown';
 }
 
 function extractAflSlug(value) {
@@ -2169,38 +2171,59 @@ function renderFlatFillerRows(
 ) {
     return episodes
         .map(
-            ep => {
+            episode => {
                 const typeClass =
                     getFillerTypeClass(
-                        ep.type
+                        episode.type
                     );
 
                 return `
                     <tr>
                         <td>
                             ${escapeFillerHtml(
-                                ep.number
+                                episode.number
                             )}
                         </td>
 
                         <td>
                             ${escapeFillerHtml(
-                                ep.title
+                                episode.title
                             )}
+
+                            ${
+                                episode.guide_note
+                                    ? `
+                                        <div
+                                            class="meta"
+                                            style="
+                                                margin-top: 5px;
+                                                margin-bottom: 0;
+                                                font-size: 0.78rem;
+                                                line-height: 1.45;
+                                                color: #d6b56d;
+                                            "
+                                        >
+                                            ${escapeFillerHtml(
+                                                episode.guide_note
+                                            )}
+                                        </div>
+                                    `
+                                    : ''
+                            }
                         </td>
 
                         <td
                             class="${typeClass}"
                         >
                             ${escapeFillerHtml(
-                                ep.type ||
+                                episode.type ||
                                 'Unknown'
                             )}
                         </td>
 
                         <td>
                             ${escapeFillerHtml(
-                                ep.manga_chapters ||
+                                episode.manga_chapters ||
                                 'N/A'
                             )}
                         </td>
@@ -2211,10 +2234,38 @@ function renderFlatFillerRows(
         .join('');
 }
 
-function renderFillerSeasons(
-    data
-) {
+function renderFillerSectionRow (marker) {
+    return `
+        <tr
+            class="filler-section-row"
+        >
+            <td
+                colspan="4"
+                style="
+                    text-align: center;
+                    padding: 10px;
+                    background: rgba(154, 171, 188, 0.10);
+                    border-top: 1px solid rgba(154, 171, 188, 0.28);
+                    border-bottom: 1px solid rgba(154, 171, 188, 0.28);
+                    color: #9ab;
+                    font-weight: 700;
+                "
+            >
+                ${escapeFillerHtml(
+                    marker.title ||
+                    marker.raw_marker ||
+                    'Section'
+                )}
+            </td>
+        </tr>
+    `;
+}
+
+function renderFillerSeasons (data) {
     const mediaByAfterEpisode =
+        new Map();
+
+    const markersByAfterEpisode =
         new Map();
 
     for (
@@ -2243,7 +2294,35 @@ function renderFillerSeasons(
             .push(media);
     }
 
-    return data.seasons
+    for (
+        const marker
+        of data.markers || []
+    ) {
+        const key =
+            String(
+                marker.after_episode ??
+                '__before_first__'
+            );
+
+        if (
+            !markersByAfterEpisode.has(
+                key
+            )
+        ) {
+            markersByAfterEpisode.set(
+                key,
+                []
+            );
+        }
+
+        markersByAfterEpisode
+            .get(key)
+            .push(marker);
+    }
+
+    return (
+        data.seasons || []
+    )
         .map(
             season => {
                 const seasonEpisodes =
@@ -2254,12 +2333,13 @@ function renderFillerSeasons(
                         : (
                             data.episodes || []
                         ).filter(
-                            ep =>
-                                ep.season ===
+                            episode =>
+                                episode.season ===
                                 season.number
                         );
 
-                const metadataPieces = [];
+                const metadataPieces =
+                    [];
 
                 if (
                     season.episode_count
@@ -2288,7 +2368,62 @@ function renderFillerSeasons(
                     );
                 }
 
-                let rows = '';
+                const getSeasonMedia =
+                    key =>
+                        (
+                            mediaByAfterEpisode.get(
+                                key
+                            ) || []
+                        ).filter(
+                            media =>
+                                !media.season ||
+                                media.season ===
+                                    season.number
+                        );
+
+                const getSeasonMarkers =
+                    key =>
+                        (
+                            markersByAfterEpisode.get(
+                                key
+                            ) || []
+                        ).filter(
+                            marker =>
+                                !marker.season ||
+                                marker.season ===
+                                    season.number
+                        );
+
+                let rows =
+                    '';
+
+                /*
+                 * Markers/media appearing before the
+                 * first episode.
+                 */
+                for (
+                    const marker
+                    of getSeasonMarkers(
+                        '__before_first__'
+                    )
+                ) {
+                    rows +=
+                        renderFillerSectionRow(
+                            marker
+                        );
+                }
+
+                for (
+                    const media
+                    of getSeasonMedia(
+                        '__before_first__'
+                    )
+                ) {
+                    rows +=
+                        renderFillerMediaRow(
+                            media
+                        );
+                }
 
                 for (
                     const episode
@@ -2311,6 +2446,27 @@ function renderFillerSeasons(
                                 ${escapeFillerHtml(
                                     episode.title
                                 )}
+
+                                ${
+                                    episode.guide_note
+                                        ? `
+                                            <div
+                                                class="meta"
+                                                style="
+                                                    margin-top: 5px;
+                                                    margin-bottom: 0;
+                                                    font-size: 0.78rem;
+                                                    line-height: 1.45;
+                                                    color: #d6b56d;
+                                                "
+                                            >
+                                                ${escapeFillerHtml(
+                                                    episode.guide_note
+                                                )}
+                                            </div>
+                                        `
+                                        : ''
+                                }
                             </td>
 
                             <td
@@ -2331,23 +2487,34 @@ function renderFillerSeasons(
                         </tr>
                     `;
 
-                    const mediaItems =
-                    (
-                        mediaByAfterEpisode.get(
-                            String(
-                                episode.number
-                            )
-                        ) || []
-                    ).filter(
-                        media =>
-                            !media.season ||
-                            media.season ===
-                                season.number
-                    );
+                    const placementKey =
+                        String(
+                            episode.number
+                        );
 
+                    /*
+                     * Gray arc / part separators.
+                     */
+                    for (
+                        const marker
+                        of getSeasonMarkers(
+                            placementKey
+                        )
+                    ) {
+                        rows +=
+                            renderFillerSectionRow(
+                                marker
+                            );
+                    }
+
+                    /*
+                     * Movies / OVAs / specials.
+                     */
                     for (
                         const media
-                        of mediaItems
+                        of getSeasonMedia(
+                            placementKey
+                        )
                     ) {
                         rows +=
                             renderFillerMediaRow(
@@ -2370,10 +2537,8 @@ function renderFillerSeasons(
                         >
                             <h3
                                 style="
-                                    margin:
-                                        0 0 8px 0;
-                                    color:
-                                        #ff9800;
+                                    margin: 0 0 8px 0;
+                                    color: #ff9800;
                                 "
                             >
                                 ${escapeFillerHtml(
@@ -2388,8 +2553,8 @@ function renderFillerSeasons(
                                         <div
                                             class="meta"
                                             style="
-                                                margin-bottom:
-                                                    10px;
+                                                margin-top: 0;
+                                                margin-bottom: 10px;
                                             "
                                         >
                                             ${metadataPieces
@@ -2409,12 +2574,9 @@ function renderFillerSeasons(
                                     ? `
                                         <p
                                             style="
-                                                margin:
-                                                    0;
-                                                color:
-                                                    #ccd6e0;
-                                                line-height:
-                                                    1.65;
+                                                margin: 0;
+                                                color: #ccd6e0;
+                                                line-height: 1.65;
                                             "
                                         >
                                             ${escapeFillerHtml(
@@ -2452,6 +2614,44 @@ function renderFillerSeasons(
                                 </tbody>
                             </table>
                         </div>
+
+                        ${
+                            Array.isArray(
+                                season.notes
+                            ) &&
+                            season.notes.length
+                                ? `
+                                    <div
+                                        style="
+                                            margin-top: 14px;
+                                            display: grid;
+                                            gap: 10px;
+                                        "
+                                    >
+                                        ${season.notes
+                                            .map(
+                                                note => `
+                                                    <div
+                                                        class="meta"
+                                                        style="
+                                                            margin: 0;
+                                                            padding: 12px 14px;
+                                                            background: rgba(154, 171, 188, 0.08);
+                                                            border-left: 3px solid #9ab;
+                                                            line-height: 1.6;
+                                                        "
+                                                    >
+                                                        ${escapeFillerHtml(
+                                                            note
+                                                        )}
+                                                    </div>
+                                                `
+                                            )
+                                            .join('')}
+                                    </div>
+                                `
+                                : ''
+                        }
                     </section>
                 `;
             }
@@ -2549,6 +2749,11 @@ function openFillerModal(data) {
             'filler-manga-start'
         );
 
+    const recommendationsSection =
+        document.getElementById(
+            'filler-recommendations-section'
+        );
+
     if (
         !modal ||
         !titleEl
@@ -2564,12 +2769,19 @@ function openFillerModal(data) {
     titleEl.textContent =
         `${animeName} Filler List`;
 
-    sourceStatus.textContent =
-        data?.source_status_message ||
-        '';
+    if (
+        sourceStatus
+    ) {
+        sourceStatus.textContent =
+            data
+                ?.source_status_message ||
+            '';
+    }
 
     /*
-     * Schema v2 with AnimeFillerGuide season data.
+     * ----------------------------------------
+     * Episode / Season view
+     * ----------------------------------------
      */
     const hasSeasonData =
         data?.schema_version === 2 &&
@@ -2578,7 +2790,9 @@ function openFillerModal(data) {
         ) &&
         data.seasons.length > 0;
 
-    if (hasSeasonData) {
+    if (
+        hasSeasonData
+    ) {
         flatContent.style.display =
             'none';
 
@@ -2591,10 +2805,7 @@ function openFillerModal(data) {
             );
     } else {
         /*
-         * Compatibility fallback for:
-         *
-         * - old schema v1 rows
-         * - AFL-only partial data
+         * Old schema / AFL-only fallback.
          */
         seasonContent.style.display =
             'none';
@@ -2607,10 +2818,16 @@ function openFillerModal(data) {
 
         tbody.innerHTML =
             renderFlatFillerRows(
-                data?.episodes || []
+                data?.episodes ||
+                []
             );
     }
 
+    /*
+     * ----------------------------------------
+     * Manga continuation
+     * ----------------------------------------
+     */
     const continuation =
         data?.continuation;
 
@@ -2626,7 +2843,9 @@ function openFillerModal(data) {
             )
         );
 
-    if (hasContinuation) {
+    if (
+        hasContinuation
+    ) {
         continuationSection.style.display =
             'block';
 
@@ -2650,6 +2869,111 @@ function openFillerModal(data) {
             '';
     }
 
+    /*
+     * ----------------------------------------
+     * Optional "Fillers Worth Watching"
+     * ----------------------------------------
+     */
+    const recommendations =
+        data?.recommendations;
+
+    const hasRecommendations =
+        !!(
+            recommendations &&
+            (
+                recommendations
+                    .paragraphs
+                    ?.length ||
+
+                recommendations
+                    .items
+                    ?.length
+            )
+        );
+
+    if (
+        recommendationsSection
+    ) {
+        if (
+            hasRecommendations
+        ) {
+            recommendationsSection.style.display =
+                'block';
+
+            recommendationsSection.innerHTML = `
+                <div
+                    class="history-section"
+                    style="
+                        margin: 0;
+                    "
+                >
+                    <h3
+                        style="
+                            margin-top: 0;
+                            color: #ff9800;
+                        "
+                    >
+                        ${escapeFillerHtml(
+                            recommendations.heading ||
+                            'Filler Episodes Worth Watching'
+                        )}
+                    </h3>
+
+                    ${(recommendations.paragraphs || [])
+                        .map(
+                            paragraph => `
+                                <p
+                                    style="
+                                        line-height: 1.6;
+                                        color: #ccd6e0;
+                                    "
+                                >
+                                    ${escapeFillerHtml(
+                                        paragraph
+                                    )}
+                                </p>
+                            `
+                        )
+                        .join('')}
+
+                    ${
+                        recommendations.items
+                            ?.length
+                            ? `
+                                <ol
+                                    style="
+                                        margin-bottom: 0;
+                                        padding-left: 22px;
+                                        line-height: 1.7;
+                                        color: #ccd6e0;
+                                    "
+                                >
+                                    ${recommendations.items
+                                        .map(
+                                            item => `
+                                                <li>
+                                                    ${escapeFillerHtml(
+                                                        item
+                                                    )}
+                                                </li>
+                                            `
+                                        )
+                                        .join('')}
+                                </ol>
+                            `
+                            : ''
+                    }
+                </div>
+            `;
+        } else {
+            recommendationsSection.style.display =
+                'none';
+
+            recommendationsSection.innerHTML =
+                '';
+        }
+    }
+
     modal.style.display =
         'flex';
 
@@ -2659,8 +2983,11 @@ function openFillerModal(data) {
                 'none';
 
     modal.onclick =
-        (e) => {
-            if (e.target === modal) {
+        event => {
+            if (
+                event.target ===
+                modal
+            ) {
                 modal.style.display =
                     'none';
             }

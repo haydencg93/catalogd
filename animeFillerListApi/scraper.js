@@ -23,6 +23,74 @@ function cleanText(value) {
         .trim();
 }
 
+function isGuideNoiseText(value) {
+    const text =
+        cleanText(value);
+
+    if (!text) {
+        return true;
+    }
+
+    const lower =
+        text.toLowerCase();
+
+    /*
+     * CDATA / inline script markers.
+     */
+    if (
+        lower.includes('<![cdata[') ||
+        lower.includes('/*<![cdata[') ||
+        lower.includes('/*]]>*/') ||
+        lower.includes('/*]]&gt;*/')
+    ) {
+        return true;
+    }
+
+    if (
+        /\b(var|let|const)\s+[a-z_$][\w$]*\s*=/i.test(text) ||
+        /\bfunction\s+[a-z_$][\w$]*\s*\(/i.test(text) ||
+        /\bdocument\.(queryselector|getelementbyid|queryselectorall)\s*\(/i.test(text) ||
+        /\baddEventListener\s*\(/i.test(text) ||
+        /\bsetTimeout\s*\(/i.test(text) ||
+        /\bclassList\.(toggle|add|remove)\s*\(/i.test(text)
+    ) {
+        return true;
+    }
+
+    const codeSignals = [
+        text.includes('{'),
+        text.includes('}'),
+        text.includes(';'),
+        text.includes('=>'),
+        text.includes('='),
+        text.includes('(') && text.includes(')')
+    ].filter(Boolean).length;
+
+    if (
+        codeSignals >= 4 &&
+        (
+            lower.includes('document.') ||
+            lower.includes('window.') ||
+            lower.includes('.innertext') ||
+            lower.includes('.disabled') ||
+            lower.includes('.classlist')
+        )
+    ) {
+        return true;
+    }
+
+    /*
+     * CSS accidentally exposed as text.
+     */
+    if (
+        /[.#][a-z0-9_-]+\s*\{[^}]*:[^}]*\}/i.test(text)
+    ) {
+        return true;
+    }
+
+    return false;
+}
+
 function normalizeEpisodeNumber(value) {
     const match = cleanText(value).match(/\d+(?:\.\d+)?/);
     if (!match) return null;
@@ -73,12 +141,190 @@ function isGuideFiller(rawTitle, mangaChapters) {
     return hasFillerMarker && hasNoMangaChapters;
 }
 
-function inferGuideCanonType(rawTitle, mangaChapters) {
-    // AnimeFillerGuide can only infer Filler or Manga Canon.
-    // Mixed Canon/Filler is reserved for AnimeFillerList.
-    return isGuideFiller(rawTitle, mangaChapters)
-        ? 'Filler'
-        : 'Manga Canon';
+function isNoSourceMaterial(value) {
+    const text =
+        cleanText(value);
+
+    if (!text) {
+        return true;
+    }
+
+    return /^(?:n\/?a|na|none|unknown|—|-|not applicable)$/i
+        .test(text);
+}
+
+function hasGuideSourceMaterial(value) {
+    const text =
+        cleanText(value);
+
+    if (!text) {
+        return false;
+    }
+
+    /*
+     * NOVEL explicitly counts as source material.
+     *
+     * Numeric manga chapters obviously do too.
+     * Other non-N/A source labels are preserved rather
+     * than thrown away.
+     */
+    return !isNoSourceMaterial(text);
+}
+
+function getGuideExplicitType(rawTitle) {
+    const title =
+        cleanText(rawTitle);
+
+    if (
+        /\*\s*mixed\b/i.test(title)
+    ) {
+        return 'Mixed Canon/Filler';
+    }
+
+    if (
+        /\*\s*filler\b/i.test(title)
+    ) {
+        return 'Filler';
+    }
+
+    return null;
+}
+
+function parseGuideEpisodeTitle(rawValue) {
+    const rawTitle = cleanText(rawValue);
+
+    let displayTitle = rawTitle;
+    let guideNote = null;
+    let explicitType = null;
+
+    const mixedMatch =
+        rawTitle.match(
+            /\*\s*mixed\b(.*)$/i
+        );
+
+    if (mixedMatch) {
+        explicitType =
+            'Mixed Canon/Filler';
+
+        guideNote =
+            cleanText(
+                mixedMatch[1]
+                    .replace(
+                        /^[,\-–—:\s]+/,
+                        ''
+                    )
+            ) || null;
+
+        displayTitle =
+            cleanText(
+                rawTitle.slice(
+                    0,
+                    mixedMatch.index
+                )
+            );
+    } else {
+        const fillerMatch =
+            rawTitle.match(
+                /\*\s*filler\b(.*)$/i
+            );
+
+        if (fillerMatch) {
+            explicitType =
+                'Filler';
+
+            guideNote =
+                cleanText(
+                    fillerMatch[1]
+                        .replace(
+                            /^[,\-–—:\s]+/,
+                            ''
+                        )
+                ) || null;
+
+            displayTitle =
+                cleanText(
+                    rawTitle.slice(
+                        0,
+                        fillerMatch.index
+                    )
+                );
+        }
+    }
+
+    /*
+     * Protect against text-based strikethrough markers.
+     * Actual HTML <del> / <s> tags are already converted
+     * to text by Cheerio.
+     */
+    displayTitle =
+        cleanText(
+            displayTitle
+                .replace(
+                    /^~+|~+$/g,
+                    ''
+                )
+        );
+
+    return {
+        raw_title:
+            rawTitle,
+
+        title:
+            displayTitle ||
+            rawTitle,
+
+        guide_note:
+            guideNote,
+
+        explicit_type:
+            explicitType
+    };
+}
+
+function inferGuideCanonType(rawTitle, sourceMaterial) {
+    const explicitType = getGuideExplicitType(rawTitle);
+    /*
+     * Explicit AFG labels have priority when AFL cannot
+     * safely be used.
+     */
+    if (
+        explicitType ===
+        'Mixed Canon/Filler'
+    ) {
+        return 'Mixed Canon/Filler';
+    }
+
+    /*
+     * Keep your original strict filler rule:
+     *
+     * *Filler + no manga/source backing => Filler.
+     */
+    if (
+        explicitType === 'Filler' &&
+        isNoSourceMaterial(sourceMaterial)
+    ) {
+        return 'Filler';
+    }
+
+    /*
+     * A real manga chapter, chapter range, NOVEL, etc.
+     * means source-backed.
+     */
+    if (
+        hasGuideSourceMaterial(
+            sourceMaterial
+        )
+    ) {
+        return 'Manga Canon';
+    }
+
+    /*
+     * Critical for Cowboy Bebop and other pages that
+     * have no manga column:
+     *
+     * Missing chapters DOES NOT mean filler.
+     */
+    return 'Unknown';
 }
 
 function normalizeAflType(type) {
@@ -266,36 +512,155 @@ async function scrapeAnimeFillerList(animeSlug, manualSlug = null) {
 // ============================================================
 // AnimeFillerGuide.com parsing helpers
 // ============================================================
+function parseSeasonHeading(text, fallbackSeasonNumber = null) {
+    const raw =
+        cleanText(text);
 
-function parseSeasonHeading(text) {
-    const raw = cleanText(text);
-
-    const match = raw.match(
-        /^season\s+(\d+)(?:\s*:\s*(.+))?$/i
-    );
-
-    if (!match) {
+    if (!raw) {
         return null;
     }
 
+    const normalMatch =
+        raw.match(
+            /^season\s+(\d+)\b(.*)$/i
+        );
+
+    if (normalMatch) {
+        const number =
+            Number(
+                normalMatch[1]
+            );
+
+        const remainder =
+            cleanText(
+                normalMatch[2]
+                    .replace(
+                        /^:\s*/,
+                        ''
+                    )
+            );
+
+        /*
+         * Naruto-style:
+         *
+         * Season 1 (001-026)
+         *
+         * The range belongs in heading, but it isn't really
+         * the season "name".
+         */
+        const rangeOnly =
+            /^\(\s*\d+\s*[–—-]\s*\d+\s*\)$/i
+                .test(
+                    remainder
+                );
+
+        return {
+            number,
+
+            heading:
+                raw,
+
+            name:
+                !remainder ||
+                rangeOnly
+                    ? `Season ${number}`
+                    : remainder
+        };
+    }
+
+    /*
+     * Some AFG pages occasionally use season-equivalent
+     * headings that end in an episode range without
+     * literally beginning with "Season".
+     *
+     * Example:
+     *
+     * BLEACH: Thousand-Year Blood War (367-416)
+     *
+     * Treat these as the next season-like block.
+     */
+    if (
+        fallbackSeasonNumber &&
+        /\(\s*\d+\s*[–—-]\s*\d+\s*\)\s*$/i
+            .test(raw)
+    ) {
+        return {
+            number:
+                fallbackSeasonNumber,
+
+            heading:
+                raw,
+
+            name:
+                raw
+                    .replace(
+                        /\s*\(\s*\d+\s*[–—-]\s*\d+\s*\)\s*$/i,
+                        ''
+                    )
+                    .trim()
+        };
+    }
+
+    return null;
+}
+
+function createGuideSeason({number, heading = null, name = null, synthetic = false}) {
     return {
-        number: Number(match[1]),
-        heading: raw,
-        name: cleanText(match[2]) || `Season ${Number(match[1])}`
+        number,
+
+        heading:
+            heading ||
+            `Season ${number}`,
+
+        name:
+            name ||
+            `Season ${number}`,
+
+        /*
+         * Synthetic seasons are used for AFG pages that
+         * don't actually have Season headings at all.
+         *
+         * Cowboy Bebop is the important example.
+         */
+        synthetic,
+
+        description:
+            null,
+
+        episode_count:
+            null,
+
+        detected_episode_count:
+            0,
+
+        opening:
+            null,
+
+        ending:
+            null,
+
+        manga_range:
+            null,
+
+        episode_range:
+            null,
+
+        notes:
+            [],
+
+        markers:
+            [],
+
+        media:
+            [],
+
+        episodes:
+            []
     };
 }
 
 function parseSeasonDescription(description) {
     const text = cleanText(description);
-
-    /*
-     * IMPORTANT:
-     *
-     * `description` remains the COMPLETE season paragraph.
-     *
-     * The fields below are only convenience metadata
-     * extracted from that full original paragraph.
-     */
 
     const episodeCountMatch = text.match(
         /\b(?:has|contains|consists of)\s+(\d+)\s+episodes?\b/i
@@ -354,56 +719,40 @@ function parseSeasonDescription(description) {
 }
 
 function looksLikeMediaMarker(text) {
-    const value = cleanText(text);
+    const value =
+        cleanText(text);
 
-    if (!value) return false;
+    if (!value) {
+        return false;
+    }
 
-    /*
-     * AnimeFillerGuide places movies / OVAs / specials /
-     * other watch-order items inside arrow markers like:
-     *
-     * <——————— Movie 1: ... ———————>
-     * <——————— Pelicula 2: ... ———————>
-     *
-     * We intentionally DO NOT care what the text says.
-     *
-     * If AnimeFillerGuide surrounds something with its
-     * arrow-marker format, it is an ordered media/extra
-     * item and should be preserved.
-     */
     return (
-        /^<[\-—–−_=]{2,}.+[\-—–−_=]{2,}>$/i.test(value)
+        /^<\s*[\-—–−_=←→]{2,}.+[\-—–−_=←→]{2,}\s*>$/i
+            .test(value)
     );
 }
 
-function parseMediaMarker(
-    text,
-    seasonNumber,
-    afterEpisode = null
-) {
-    const raw = cleanText(text);
+function parseMediaMarker(text, seasonNumber, afterEpisode = null) {
+    const raw =
+        cleanText(text);
+
+    const withoutArrows =
+        cleanText(
+            raw
+                .replace(
+                    /^<\s*[\-—–−_=←→\s]{2,}/,
+                    ''
+                )
+                .replace(
+                    /[\-—–−_=←→\s]{2,}\s*>$/,
+                    ''
+                )
+        );
 
     /*
-     * Strip only AnimeFillerGuide's surrounding arrows.
-     * Keep the complete meaningful text inside.
-     */
-    const withoutArrows = cleanText(
-        raw
-            .replace(
-                /^<[\-—–−_=\s]{2,}/,
-                ''
-            )
-            .replace(
-                /[\-—–−_=\s]{2,}>$/,
-                ''
-            )
-    );
-
-    /*
-     * Media type is only metadata.
+     * Media type is only convenience metadata.
      *
-     * Detection of the marker itself DOES NOT depend
-     * on one of these words being present.
+     * It never controls whether the item gets saved.
      */
     const normalized =
         withoutArrows
@@ -414,61 +763,59 @@ function parseMediaMarker(
                 ''
             );
 
-    let type = 'extra';
+    let type =
+        'extra';
 
     if (
-        /\b(movie|movies|film|films|pelicula|peliculas)\b/i.test(
-            normalized
-        )
+        /\b(movie|movies|film|films|pelicula|peliculas)\b/i
+            .test(normalized)
     ) {
-        type = 'movie';
-    }
-    else if (
-        /\b(ova|ovas)\b/i.test(
-            normalized
-        )
+        type =
+            'movie';
+    } else if (
+        /\b(ova|ovas)\b/i
+            .test(normalized)
     ) {
-        type = 'ova';
-    }
-    else if (
-        /\b(oad|oads)\b/i.test(
-            normalized
-        )
+        type =
+            'ova';
+    } else if (
+        /\b(oad|oads)\b/i
+            .test(normalized)
     ) {
-        type = 'oad';
-    }
-    else if (
-        /\b(ona|onas)\b/i.test(
-            normalized
-        )
+        type =
+            'oad';
+    } else if (
+        /\b(ona|onas)\b/i
+            .test(normalized)
     ) {
-        type = 'ona';
-    }
-    else if (
-        /\b(special|specials|episode special)\b/i.test(
-            normalized
-        )
+        type =
+            'ona';
+    } else if (
+        /\b(special|specials|episode special)\b/i
+            .test(normalized)
     ) {
-        type = 'special';
+        type =
+            'special';
     }
 
     return {
-        raw_marker: raw,
+        raw_marker:
+            raw,
 
-        /*
-         * Full text from between the arrows.
-         */
         title:
-            withoutArrows || raw,
+            withoutArrows ||
+            raw,
 
         media_type:
             type,
 
         season:
-            seasonNumber || null,
+            seasonNumber ||
+            null,
 
         after_episode:
-            afterEpisode || null,
+            afterEpisode ||
+            null,
 
         before_episode:
             null
@@ -478,178 +825,896 @@ function parseMediaMarker(
 function getTableColumnMap($, table) {
     let headerCells = [];
 
-    $(table).find('tr').each((_, row) => {
-        if (headerCells.length) return;
+    $(table)
+        .find('tr')
+        .each((_, row) => {
+            if (
+                headerCells.length
+            ) {
+                return;
+            }
 
-        const cells = $(row)
-            .find('th, td')
-            .map((__, cell) =>
-                cleanText($(cell).text()).toLowerCase()
-            )
-            .get();
+            const cells =
+                $(row)
+                    .find('th, td')
+                    .map(
+                        (__, cell) =>
+                            cleanText(
+                                $(cell).text()
+                            )
+                                .toLowerCase()
+                    )
+                    .get();
 
-        if (
-            cells.some(cell => cell === 'title') &&
-            cells.some(cell => cell.includes('chapter'))
-        ) {
-            headerCells = cells;
-        }
-    });
+            /*
+             * Title is the only column we actually require.
+             *
+             * Chapters/source material is optional.
+             */
+            if (
+                cells.some(
+                    cell =>
+                        cell === 'title' ||
+                        cell.includes('title')
+                )
+            ) {
+                headerCells =
+                    cells;
+            }
+        });
 
-    if (!headerCells.length) {
+    if (
+        !headerCells.length
+    ) {
         return null;
     }
 
-    const titleIndex = headerCells.findIndex(
-        cell => cell === 'title'
-    );
+    const titleIndex =
+        headerCells.findIndex(
+            cell =>
+                cell === 'title' ||
+                cell.includes('title')
+        );
 
-    const chaptersIndex = headerCells.findIndex(
-        cell => cell.includes('chapter')
-    );
-
-    if (titleIndex < 0 || chaptersIndex < 0) {
+    if (
+        titleIndex < 0
+    ) {
         return null;
     }
+
+    const chaptersIndex =
+        headerCells.findIndex(
+            cell =>
+                cell.includes('chapter') ||
+                cell.includes('manga') ||
+                cell.includes('source')
+        );
 
     return {
         titleIndex,
-        chaptersIndex,
 
-        // AnimeFillerGuide's first numeric column is the global
-        // episode number.
-        globalNumberIndex: 0,
+        chaptersIndex:
+            chaptersIndex >= 0
+                ? chaptersIndex
+                : null,
 
-        // Some tables contain:
-        // Global Episode | Season Episode | Title | Chapters
-        localNumberIndex: titleIndex > 1
-            ? 1
-            : null
+        globalNumberIndex:
+            0,
+
+        localNumberIndex:
+            titleIndex > 1
+                ? 1
+                : null
     };
 }
 
-function parseGuideEpisodeTable(
+function looksLikeGuideSeparator(
+    text
+) {
+    const value =
+        cleanText(text);
+
+    if (!value) {
+        return false;
+    }
+
+    /*
+     * Actual media uses < ... > and is handled separately.
+     */
+    if (
+        looksLikeMediaMarker(value)
+    ) {
+        return false;
+    }
+
+    /*
+     * Arrow/highlight separator.
+     */
+    if (
+        /^[↓↑].*[↓↑]$/i.test(
+            value
+        )
+    ) {
+        return true;
+    }
+
+    /*
+     * Generic arc / part labels.
+     *
+     * Examples:
+     * Kyoto Arc
+     * Nerima Arc
+     * Part 1
+     */
+    if (
+        /^(?:.+\s+arc|part\s+\d+)$/i
+            .test(value)
+    ) {
+        return true;
+    }
+
+    return false;
+}
+
+function parseGuideSeparator(text, seasonNumber, afterEpisode = null) {
+    const raw =
+        cleanText(text);
+
+    const title =
+        cleanText(
+            raw
+                .replace(
+                    /^[↓↑<>\-—–−_=\s]+/,
+                    ''
+                )
+                .replace(
+                    /[↓↑<>\-—–−_=\s]+$/,
+                    ''
+                )
+        );
+
+    return {
+        title:
+            title || raw,
+
+        raw_marker:
+            raw,
+
+        season:
+            seasonNumber || null,
+
+        after_episode:
+            afterEpisode || null,
+
+        before_episode:
+            null,
+
+        marker_type:
+            'section'
+    };
+}
+
+function parseGuideRecommendationSection ($, root) {
+    let result =
+        null;
+
+    const elements =
+        $(root)
+            .find(
+                'h2, h3, h4, p, ul > li, ol > li'
+            )
+            .toArray();
+
+    let capturing =
+        false;
+
+    let headingLevel =
+        null;
+
+    let paragraphs =
+        [];
+
+    let items =
+        [];
+
+    for (
+        const element
+        of elements
+    ) {
+        const tag =
+            element.tagName
+                ?.toLowerCase();
+
+        const cleanElement =
+            $(element).clone();
+
+        cleanElement
+            .find(
+                'script, style, noscript, template'
+            )
+            .remove();
+
+        const text =
+            cleanText(
+                cleanElement.text()
+            );
+
+        if (
+            !text ||
+            isGuideNoiseText(text)
+        ) {
+            continue;
+        }
+
+        if (
+            /^h[234]$/.test(tag)
+        ) {
+            const level =
+                Number(
+                    tag.slice(1)
+                );
+
+            if (
+                capturing &&
+                level <= headingLevel
+            ) {
+                break;
+            }
+
+            if (
+                /fillers?.*worth watching|worth watching.*fillers?/i
+                    .test(text)
+            ) {
+                capturing =
+                    true;
+
+                headingLevel =
+                    level;
+
+                result = {
+                    heading:
+                        text,
+
+                    paragraphs:
+                        [],
+
+                    items:
+                        []
+                };
+
+                continue;
+            }
+        }
+
+        if (!capturing) {
+            continue;
+        }
+
+        if (tag === 'p') {
+            paragraphs.push(
+                text
+            );
+        }
+
+        if (tag === 'li') {
+            items.push(
+                text
+            );
+        }
+    }
+
+    if (!result) {
+        return null;
+    }
+
+    result.paragraphs =
+        unique(paragraphs);
+
+    result.items =
+        unique(items);
+
+        return result;
+}
+
+function parseGuideEpisodeList(
     $,
-    table,
+    list,
     season,
     lastEpisodeNumber = null
 ) {
-    const map = getTableColumnMap($, table);
+    const episodes = [];
+    const media = [];
+    const markers = [];
+
+    let runningLastEpisode =
+        lastEpisodeNumber;
+
+    $(list)
+        .children('li')
+        .each(
+            (_, item) => {
+                const text =
+                    cleanText(
+                        $(item).text()
+                    );
+
+                if (!text) {
+                    return;
+                }
+
+                if (
+                    looksLikeMediaMarker(
+                        text
+                    )
+                ) {
+                    media.push(
+                        parseMediaMarker(
+                            text,
+                            season.number,
+                            runningLastEpisode
+                        )
+                    );
+
+                    return;
+                }
+
+                if (
+                    looksLikeGuideSeparator(
+                        text
+                    )
+                ) {
+                    markers.push(
+                        parseGuideSeparator(
+                            text,
+                            season.number,
+                            runningLastEpisode
+                        )
+                    );
+
+                    return;
+                }
+
+                /*
+                 * Accept:
+                 *
+                 * 01. "Asteroid Blues"
+                 * 01) "Asteroid Blues"
+                 * 01 - "Asteroid Blues"
+                 * 01: "Asteroid Blues"
+                 */
+                const match =
+                    text.match(
+                        /^(\d+(?:\.\d+)?)\s*(?:[.)]|-|:)\s*(.+)$/i
+                    );
+
+                if (!match) {
+                    return;
+                }
+
+                const number =
+                    normalizeEpisodeNumber(
+                        match[1]
+                    );
+
+                let rawTitle =
+                    cleanText(
+                        match[2]
+                    );
+
+                rawTitle =
+                    rawTitle
+                        .replace(
+                            /^[“"'‘]+/,
+                            ''
+                        )
+                        .replace(
+                            /[”"'’]+$/,
+                            ''
+                        )
+                        .trim();
+
+                const parsedTitle =
+                    parseGuideEpisodeTitle(
+                        rawTitle
+                    );
+
+                /*
+                 * No manga/source column exists here.
+                 *
+                 * AFG alone therefore cannot claim
+                 * "Manga Canon".
+                 *
+                 * AFL may still provide classification later
+                 * if the complete episode numbering matches.
+                 */
+                const inferredType =
+                    parsedTitle
+                        .explicit_type ||
+                    'Unknown';
+
+                episodes.push({
+                    number,
+
+                    season_episode_number:
+                        null,
+
+                    season:
+                        season.number,
+
+                    season_name:
+                        season.name,
+
+                    raw_title:
+                        parsedTitle.raw_title,
+
+                    title:
+                        parsedTitle.title,
+
+                    normalized_title:
+                        normalizeTitleForMatch(
+                            parsedTitle.title
+                        ),
+
+                    manga_chapters:
+                        null,
+
+                    guide_note:
+                        parsedTitle.guide_note,
+
+                    guide_explicit_type:
+                        parsedTitle.explicit_type,
+
+                    guide_filler_marker:
+                        parsedTitle
+                            .explicit_type ===
+                        'Filler',
+
+                    guide_mixed_marker:
+                        parsedTitle
+                            .explicit_type ===
+                        'Mixed Canon/Filler',
+
+                    inferred_type:
+                        inferredType,
+
+                    type:
+                        inferredType,
+
+                    type_source:
+                        'AnimeFillerGuide.com'
+                });
+
+                runningLastEpisode =
+                    number;
+            }
+        );
+
+    return {
+        episodes,
+        media,
+        markers,
+
+        lastEpisodeNumber:
+            runningLastEpisode
+    };
+}
+
+function parseGuideEpisodeTable($, table, season, lastEpisodeNumber = null) {
+    const episodes = [];
+    const media = [];
+    const markers = [];
+
+    let runningLastEpisode =
+        lastEpisodeNumber;
+
+    $(list)
+        .children('li')
+        .each((_, item) => {
+            const text =
+                cleanText(
+                    $(item).text()
+                );
+
+            if (!text) {
+                return;
+            }
+
+            if (
+                looksLikeMediaMarker(
+                    text
+                )
+            ) {
+                media.push(
+                    parseMediaMarker(
+                        text,
+                        season.number,
+                        runningLastEpisode
+                    )
+                );
+
+                return;
+            }
+
+            if (
+                looksLikeGuideSeparator(
+                    text
+                )
+            ) {
+                markers.push(
+                    parseGuideSeparator(
+                        text,
+                        season.number,
+                        runningLastEpisode
+                    )
+                );
+
+                return;
+            }
+
+            /*
+             * Examples:
+             *
+             * 01. “Asteroid Blues”
+             * 26. "The Real Folk Blues"
+             */
+            const match =
+                text.match(
+                    /^(\d+(?:\.\d+)?)\s*\.\s*(.+)$/i
+                );
+
+            if (!match) {
+                return;
+            }
+
+            const number =
+                normalizeEpisodeNumber(
+                    match[1]
+                );
+
+            let rawTitle =
+                cleanText(
+                    match[2]
+                );
+
+            rawTitle =
+                rawTitle
+                    .replace(
+                        /^[“"'‘]+/,
+                        ''
+                    )
+                    .replace(
+                        /[”"'’]+$/,
+                        ''
+                    )
+                    .trim();
+
+            const parsedTitle =
+                parseGuideEpisodeTitle(
+                    rawTitle
+                );
+
+            /*
+             * There is NO chapter column.
+             *
+             * Do not infer canon.
+             * AFL can still classify later if numbering matches.
+             */
+            const inferredType =
+                parsedTitle.explicit_type ||
+                'Unknown';
+
+            episodes.push({
+                number,
+
+                season_episode_number:
+                    null,
+
+                season:
+                    season.number,
+
+                season_name:
+                    season.name,
+
+                raw_title:
+                    parsedTitle.raw_title,
+
+                title:
+                    parsedTitle.title,
+
+                normalized_title:
+                    normalizeTitleForMatch(
+                        parsedTitle.title
+                    ),
+
+                manga_chapters:
+                    null,
+
+                guide_note:
+                    parsedTitle.guide_note,
+
+                guide_explicit_type:
+                    parsedTitle.explicit_type,
+
+                guide_filler_marker:
+                    parsedTitle.explicit_type ===
+                    'Filler',
+
+                guide_mixed_marker:
+                    parsedTitle.explicit_type ===
+                    'Mixed Canon/Filler',
+
+                inferred_type:
+                    inferredType,
+
+                type:
+                    inferredType,
+
+                type_source:
+                    'AnimeFillerGuide.com'
+            });
+
+            runningLastEpisode =
+                number;
+        });
+
+    return {
+        episodes,
+        media,
+        markers,
+        lastEpisodeNumber:
+            runningLastEpisode
+    };
+}
+
+function parseGuideEpisodeTable($, table, season, lastEpisodeNumber = null) {
+    const map =
+        getTableColumnMap(
+            $,
+            table
+        );
 
     if (!map) {
         return {
             episodes: [],
             media: [],
+            markers: [],
             lastEpisodeNumber
         };
     }
 
     const episodes = [];
     const media = [];
+    const markers = [];
 
-    let runningLastEpisode = lastEpisodeNumber;
-    let headerSeen = false;
+    let runningLastEpisode =
+        lastEpisodeNumber;
 
-    $(table).find('tr').each((_, row) => {
-        const cells = $(row).find('th, td');
+    let headerSeen =
+        false;
 
-        if (!cells.length) return;
+    $(table)
+        .find('tr')
+        .each((_, row) => {
+            const cells =
+                $(row)
+                    .find('th, td');
 
-        const values = cells
-            .map((__, cell) => cleanText($(cell).text()))
-            .get();
+            if (
+                !cells.length
+            ) {
+                return;
+            }
 
-        const lowerValues = values.map(
-            value => value.toLowerCase()
-        );
+            const values =
+                cells
+                    .map(
+                        (__, cell) =>
+                            cleanText(
+                                $(cell).text()
+                            )
+                    )
+                    .get();
 
-        if (
-            !headerSeen &&
-            lowerValues.some(value => value === 'title') &&
-            lowerValues.some(value => value.includes('chapter'))
-        ) {
-            headerSeen = true;
-            return;
-        }
+            const lowerValues =
+                values.map(
+                    value =>
+                        value.toLowerCase()
+                );
 
-        const wholeRowText = cleanText(values.join(' '));
+            if (
+                !headerSeen &&
+                lowerValues.some(
+                    value =>
+                        value === 'title' ||
+                        value.includes('title')
+                )
+            ) {
+                headerSeen =
+                    true;
 
-        if (looksLikeMediaMarker(wholeRowText)) {
-            media.push(
-                parseMediaMarker(
-                    wholeRowText,
+                return;
+            }
+
+            const wholeRowText =
+                cleanText(
+                    values.join(' ')
+                );
+
+            if (!wholeRowText) {
+                return;
+            }
+
+            /*
+             * Movie / OVA / special markers.
+             */
+            if (
+                looksLikeMediaMarker(
+                    wholeRowText
+                )
+            ) {
+                media.push(
+                    parseMediaMarker(
+                        wholeRowText,
+                        season.number,
+                        runningLastEpisode
+                    )
+                );
+
+                return;
+            }
+
+            /*
+             * Arc / part / visual separators.
+             */
+            if (
+                looksLikeGuideSeparator(
+                    wholeRowText
+                )
+            ) {
+                markers.push(
+                    parseGuideSeparator(
+                        wholeRowText,
+                        season.number,
+                        runningLastEpisode
+                    )
+                );
+
+                return;
+            }
+
+            const number =
+                normalizeEpisodeNumber(
+                    values[
+                        map.globalNumberIndex
+                    ]
+                );
+
+            /*
+             * A one-cell non-numeric row inside an otherwise
+             * valid episode table is also a section marker.
+             *
+             * This catches future AFG arc labels without
+             * requiring us to know the name beforehand.
+             */
+            if (
+                !number &&
+                values.length <= 2
+            ) {
+                markers.push(
+                    parseGuideSeparator(
+                        wholeRowText,
+                        season.number,
+                        runningLastEpisode
+                    )
+                );
+
+                return;
+            }
+
+            if (!number) {
+                return;
+            }
+
+            const rawTitle =
+                cleanText(
+                    values[
+                        map.titleIndex
+                    ]
+                );
+
+            if (!rawTitle) {
+                return;
+            }
+
+            const sourceMaterial =
+                map.chaptersIndex !== null
+                    ? cleanText(
+                        values[
+                            map.chaptersIndex
+                        ]
+                    )
+                    : null;
+
+            const localNumber =
+                map.localNumberIndex !== null
+                    ? normalizeEpisodeNumber(
+                        values[
+                            map.localNumberIndex
+                        ]
+                    )
+                    : null;
+
+            const parsedTitle =
+                parseGuideEpisodeTitle(
+                    rawTitle
+                );
+
+            const inferredType =
+                inferGuideCanonType(
+                    rawTitle,
+                    sourceMaterial
+                );
+
+            episodes.push({
+                number,
+
+                season_episode_number:
+                    localNumber,
+
+                season:
                     season.number,
-                    runningLastEpisode
-                )
-            );
 
-            return;
-        }
+                season_name:
+                    season.name,
 
-        const number = normalizeEpisodeNumber(
-            values[map.globalNumberIndex]
-        );
+                raw_title:
+                    parsedTitle.raw_title,
 
-        const rawTitle = cleanText(
-            values[map.titleIndex]
-        );
+                title:
+                    parsedTitle.title,
 
-        const mangaChapters = cleanText(
-            values[map.chaptersIndex]
-        );
+                normalized_title:
+                    normalizeTitleForMatch(
+                        parsedTitle.title
+                    ),
 
-        if (!number || !rawTitle) {
-            return;
-        }
+                manga_chapters:
+                    sourceMaterial || null,
 
-        const localNumber =
-            map.localNumberIndex !== null
-                ? normalizeEpisodeNumber(
-                    values[map.localNumberIndex]
-                )
-                : null;
+                guide_note:
+                    parsedTitle.guide_note,
 
-        const title = cleanGuideDisplayTitle(rawTitle);
+                guide_explicit_type:
+                    parsedTitle.explicit_type,
 
-        const inferredType = inferGuideCanonType(
-            rawTitle,
-            mangaChapters
-        );
+                guide_filler_marker:
+                    parsedTitle.explicit_type ===
+                    'Filler',
 
-        episodes.push({
-            number,
-            season_episode_number: localNumber,
+                guide_mixed_marker:
+                    parsedTitle.explicit_type ===
+                    'Mixed Canon/Filler',
 
-            season: season.number,
-            season_name: season.name,
+                inferred_type:
+                    inferredType,
 
-            raw_title: rawTitle,
-            title,
+                type:
+                    inferredType,
 
-            normalized_title:
-                normalizeTitleForMatch(title),
+                type_source:
+                    'AnimeFillerGuide.com'
+            });
 
-            manga_chapters:
-                mangaChapters || null,
-
-            guide_filler_marker:
-                /\*\s*filler\b/i.test(rawTitle),
-
-            inferred_type: inferredType,
-
-            type: inferredType,
-
-            type_source:
-                'AnimeFillerGuide.com'
+            runningLastEpisode =
+                number;
         });
-
-        runningLastEpisode = number;
-    });
 
     return {
         episodes,
         media,
-        lastEpisodeNumber: runningLastEpisode
+        markers,
+        lastEpisodeNumber:
+            runningLastEpisode
     };
 }
 
@@ -721,15 +1786,36 @@ function parseContinuationTable($, root) {
 }
 
 function extractDeclaredGuideEpisodeCount($, root) {
-    const text = cleanText($(root).text());
+    const text =
+        cleanText(
+            $(root).text()
+        );
 
-    const match = text.match(
-        /\bhas\s+(\d+)\s+episodes?\b/i
-    );
+    const patterns = [
+        /\bhas\s+(\d+)\s+episodes?\b/i,
+        /\bcontains\s+(\d+)\s+episodes?\b/i,
+        /\bconsists\s+of\s+(\d+)\s+episodes?\b/i,
+        /\bis\s+(?:an?\s+)?(\d+)[-\s]episode\s+anime\b/i,
+        /\b(\d+)\s+episodes?\s+divided\s+into\b/i
+    ];
 
-    return match
-        ? Number(match[1])
-        : null;
+    for (
+        const pattern
+        of patterns
+    ) {
+        const match =
+            text.match(
+                pattern
+            );
+
+        if (match) {
+            return Number(
+                match[1]
+            );
+        }
+    }
+
+    return null;
 }
 
 function extractGuideAnimeName($) {
@@ -777,49 +1863,68 @@ function resolveGuideContentRoot($) {
     return $('body');
 }
 
-function finalizeMediaPlacement(
-    media,
-    episodes
-) {
-    const sortedEpisodeNumbers = episodes
-        .map(ep => Number(ep.number))
-        .filter(Number.isFinite)
-        .sort((a, b) => a - b);
-
-    return media.map(item => {
-        const after = Number(
-            item.after_episode
-        );
-
-        const next = Number.isFinite(after)
-            ? sortedEpisodeNumbers.find(
-                number => number > after
+function finalizeOrderedPlacement(items, episodes) {
+    const sortedEpisodeNumbers =
+        episodes
+            .map(
+                episode =>
+                    Number(
+                        episode.number
+                    )
             )
-            : sortedEpisodeNumbers[0];
+            .filter(
+                Number.isFinite
+            )
+            .sort(
+                (a, b) =>
+                    a - b
+            );
 
-        return {
-            ...item,
+    return (
+        items || []
+    ).map(
+        item => {
+            const after =
+                Number(
+                    item.after_episode
+                );
 
-            before_episode:
-                next !== undefined
-                    ? String(next)
-                    : null
-        };
-    });
+            const next =
+                Number.isFinite(after)
+                    ? sortedEpisodeNumbers.find(
+                        number =>
+                            number > after
+                    )
+                    : sortedEpisodeNumbers[0];
+
+            return {
+                ...item,
+
+                before_episode:
+                    next !== undefined
+                        ? String(next)
+                        : null
+            };
+        }
+    );
 }
 
-function parseAnimeFillerGuideHtml(
-    html,
-    slug,
-    url
-) {
-    const $ = cheerio.load(html);
+function parseAnimeFillerGuideHtml (html, slug, url) {
+    const $ =
+        cheerio.load(html);
 
     const root =
         resolveGuideContentRoot($);
 
+    root
+        .find(
+            'script, style, noscript, template'
+        )
+        .remove();
+
     const anime =
-        extractGuideAnimeName($) || slug;
+        extractGuideAnimeName($) ||
+        slug;
 
     const declaredEpisodeCount =
         extractDeclaredGuideEpisodeCount(
@@ -833,212 +1938,588 @@ function parseAnimeFillerGuideHtml(
             root
         );
 
+    const recommendations =
+        parseGuideRecommendationSection(
+            $,
+            root
+        );
+
     const seasons = [];
     const allEpisodes = [];
     const allMedia = [];
+    const allMarkers = [];
 
-    let currentSeason = null;
-    let currentSeasonDescriptionParts = [];
-    let currentSeasonHasEpisodeTable = false;
-    let lastEpisodeNumber = null;
+    let currentSeason =
+        null;
 
-    const finishCurrentSeason = () => {
-        if (!currentSeason) {
-            return;
-        }
+    let currentSeasonDescriptionParts =
+        [];
 
-        const parsedDescription =
-            parseSeasonDescription(
-                currentSeasonDescriptionParts.join(
-                    ' '
-                )
+    let currentSeasonNotes =
+        [];
+
+    let currentSeasonHasEpisodes =
+        false;
+
+    let lastEpisodeNumber =
+        null;
+
+    const buildSeasonFromHeading =
+        seasonHeading =>
+            createGuideSeason({
+                number:
+                    seasonHeading.number,
+
+                heading:
+                    seasonHeading.heading,
+
+                name:
+                    seasonHeading.name,
+
+                synthetic:
+                    false
+            });
+
+    const buildSyntheticSeason =
+        () =>
+            createGuideSeason({
+                number:
+                    seasons.length + 1,
+
+                heading:
+                    `Season ${seasons.length + 1}`,
+
+                name:
+                    `Season ${seasons.length + 1}`,
+
+                synthetic:
+                    true
+            });
+
+    const finishCurrentSeason =
+        () => {
+            if (
+                !currentSeason
+            ) {
+                return;
+            }
+
+            const cleanDescriptionParts =
+                currentSeasonDescriptionParts
+                    .map(
+                        part =>
+                            cleanText(part)
+                    )
+                    .filter(
+                        part =>
+                            !isGuideNoiseText(
+                                part
+                            )
+                    );
+
+            const parsedDescription =
+                parseSeasonDescription(
+                    cleanDescriptionParts
+                        .join(' ')
+                );
+
+            Object.assign(
+                currentSeason,
+                parsedDescription
             );
 
-        Object.assign(
-            currentSeason,
-            parsedDescription
-        );
+            currentSeason.notes =
+                unique(
+                    currentSeasonNotes
+                        .map(
+                            note =>
+                                cleanText(note)
+                        )
+                        .filter(
+                            note =>
+                                !isGuideNoiseText(
+                                    note
+                                )
+                        )
+                );
 
-        const seasonEpisodes =
-            allEpisodes.filter(
-                ep =>
-                    ep.season ===
-                    currentSeason.number
+            const seasonEpisodes =
+                allEpisodes.filter(
+                    episode =>
+                        episode.season ===
+                        currentSeason.number
+                );
+
+            /*
+             * Prevent unrelated tables from creating
+             * empty synthetic seasons.
+             */
+            if (
+                currentSeason.synthetic &&
+                seasonEpisodes.length === 0
+            ) {
+                currentSeason =
+                    null;
+
+                currentSeasonDescriptionParts =
+                    [];
+
+                currentSeasonNotes =
+                    [];
+
+                currentSeasonHasEpisodes =
+                    false;
+
+                return;
+            }
+
+            currentSeason.episodes =
+                seasonEpisodes;
+
+            currentSeason.detected_episode_count =
+                seasonEpisodes.length;
+
+            currentSeason.episode_range =
+                seasonEpisodes.length
+                    ? {
+                        start:
+                            seasonEpisodes[0]
+                                .number,
+
+                        end:
+                            seasonEpisodes[
+                                seasonEpisodes.length - 1
+                            ].number
+                    }
+                    : null;
+
+            seasons.push(
+                currentSeason
             );
 
-        currentSeason.episodes =
-            seasonEpisodes;
+            currentSeason =
+                null;
 
-        currentSeason.detected_episode_count =
-            seasonEpisodes.length;
+            currentSeasonDescriptionParts =
+                [];
 
-        if (seasonEpisodes.length) {
-            currentSeason.episode_range = {
-                start:
-                    seasonEpisodes[0].number,
+            currentSeasonNotes =
+                [];
 
-                end:
-                    seasonEpisodes[
-                        seasonEpisodes.length - 1
-                    ].number
-            };
-        } else {
-            currentSeason.episode_range = null;
-        }
-
-        seasons.push(currentSeason);
-
-        currentSeason = null;
-        currentSeasonDescriptionParts = [];
-        currentSeasonHasEpisodeTable = false;
-    };
+            currentSeasonHasEpisodes =
+                false;
+        };
 
     root
-        .find('h2, h3, h4, p, table')
-        .each((_, element) => {
-            const tag =
-                element.tagName?.toLowerCase();
+        .find(
+            'h2, h3, h4, p, blockquote, i, table, ul, ol'
+        )
+        .each(
+            (_, element) => {
+                const tag =
+                    element.tagName
+                        ?.toLowerCase();
 
-            const text = cleanText(
-                $(element).text()
-            );
+                const cleanElement =
+                    $(element).clone();
 
-            if (/^h[234]$/.test(tag)) {
-                const seasonHeading =
-                    parseSeasonHeading(text);
+                cleanElement
+                    .find(
+                        'script, style, noscript, template'
+                    )
+                    .remove();
 
-                if (seasonHeading) {
-                    finishCurrentSeason();
-
-                    currentSeason = {
-                        ...seasonHeading,
-
-                        description: null,
-
-                        episode_count: null,
-
-                        detected_episode_count: 0,
-
-                        opening: null,
-
-                        ending: null,
-
-                        manga_range: null,
-
-                        episode_range: null,
-
-                        episodes: []
-                    };
-
-                    return;
-                }
-
-                if (
-                    tag === 'h2' &&
-                    currentSeason
-                ) {
-                    // AnimeFillerGuide commonly moves
-                    // into continuation/watch-order
-                    // sections using H2 headings.
-                    finishCurrentSeason();
-                }
-
-                return;
-            }
-
-            if (!currentSeason) {
-                return;
-            }
-
-            if (tag === 'p') {
-                if (
-                    looksLikeMediaMarker(text)
-                ) {
-                    allMedia.push(
-                        parseMediaMarker(
-                            text,
-                            currentSeason.number,
-                            lastEpisodeNumber
-                        )
+                const text =
+                    cleanText(
+                        cleanElement.text()
                     );
 
-                    return;
-                }
-
                 if (
-                    !currentSeasonHasEpisodeTable &&
-                    text
-                ) {
-                    currentSeasonDescriptionParts.push(
+                    isGuideNoiseText(
                         text
-                    );
-                }
-
-                return;
-            }
-
-            if (tag === 'table') {
-                const parsed =
-                    parseGuideEpisodeTable(
-                        $,
-                        element,
-                        currentSeason,
-                        lastEpisodeNumber
-                    );
-
-                if (
-                    parsed.episodes.length ||
-                    parsed.media.length
+                    )
                 ) {
-                    currentSeasonHasEpisodeTable =
-                        currentSeasonHasEpisodeTable ||
-                        parsed.episodes.length > 0;
+                    return;
+                }
 
-                    allEpisodes.push(
-                        ...parsed.episodes
-                    );
+                /*
+                 * -------------------------------
+                 * HEADINGS
+                 * -------------------------------
+                 */
+                if (
+                    /^h[234]$/.test(
+                        tag
+                    )
+                ) {
+                    const fallbackNumber =
+                        currentSeason
+                            ? currentSeason.number + 1
+                            : seasons.length + 1;
 
-                    allMedia.push(
-                        ...parsed.media
-                    );
+                    const seasonHeading =
+                        parseSeasonHeading(
+                            text,
+                            fallbackNumber
+                        );
 
-                    lastEpisodeNumber =
-                        parsed.lastEpisodeNumber ||
-                        lastEpisodeNumber;
+                    if (
+                        seasonHeading
+                    ) {
+                        finishCurrentSeason();
+
+                        currentSeason =
+                            buildSeasonFromHeading(
+                                seasonHeading
+                            );
+
+                        return;
+                    }
+
+                    /*
+                     * A new non-season H2 usually means we
+                     * have left the episode/season area and
+                     * entered recommendations, continuation,
+                     * explanation, etc.
+                     */
+                    if (
+                        tag === 'h2' &&
+                        currentSeason
+                    ) {
+                        finishCurrentSeason();
+                    }
+
+                    return;
+                }
+
+                /*
+                 * -------------------------------
+                 * TABLE EPISODE LIST
+                 * -------------------------------
+                 */
+                if (
+                    tag === 'table'
+                ) {
+                    const targetSeason =
+                        currentSeason ||
+                        buildSyntheticSeason();
+
+                    const parsed =
+                        parseGuideEpisodeTable(
+                            $,
+                            element,
+                            targetSeason,
+                            lastEpisodeNumber
+                        );
+
+                    if (
+                        parsed.episodes.length ||
+                        parsed.media.length ||
+                        parsed.markers.length
+                    ) {
+                        if (
+                            !currentSeason
+                        ) {
+                            currentSeason =
+                                targetSeason;
+                        }
+
+                        currentSeasonHasEpisodes =
+                            currentSeasonHasEpisodes ||
+                            parsed.episodes.length > 0;
+
+                        allEpisodes.push(
+                            ...parsed.episodes
+                        );
+
+                        allMedia.push(
+                            ...parsed.media
+                        );
+
+                        allMarkers.push(
+                            ...parsed.markers
+                        );
+
+                        lastEpisodeNumber =
+                            parsed.lastEpisodeNumber ||
+                            lastEpisodeNumber;
+                    }
+
+                    return;
+                }
+
+                /*
+                 * -------------------------------
+                 * LIST EPISODE LIST
+                 * -------------------------------
+                 *
+                 * This covers Cowboy Bebop-style pages.
+                 */
+                if (
+                    tag === 'ul' ||
+                    tag === 'ol'
+                ) {
+                    const targetSeason =
+                        currentSeason ||
+                        buildSyntheticSeason();
+
+                    const parsed =
+                        parseGuideEpisodeList(
+                            $,
+                            element,
+                            targetSeason,
+                            lastEpisodeNumber
+                        );
+
+                    if (
+                        parsed.episodes.length ||
+                        parsed.media.length ||
+                        parsed.markers.length
+                    ) {
+                        if (
+                            !currentSeason
+                        ) {
+                            currentSeason =
+                                targetSeason;
+                        }
+
+                        currentSeasonHasEpisodes =
+                            currentSeasonHasEpisodes ||
+                            parsed.episodes.length > 0;
+
+                        allEpisodes.push(
+                            ...parsed.episodes
+                        );
+
+                        allMedia.push(
+                            ...parsed.media
+                        );
+
+                        allMarkers.push(
+                            ...parsed.markers
+                        );
+
+                        lastEpisodeNumber =
+                            parsed.lastEpisodeNumber ||
+                            lastEpisodeNumber;
+                    }
+
+                    return;
+                }
+
+                /*
+                 * -------------------------------
+                 * TEXT / INFO BLOCKS
+                 * -------------------------------
+                 */
+                if (
+                    tag === 'p' ||
+                    tag === 'blockquote' ||
+                    tag === 'i'
+                ) {
+                    /*
+                     * Do not process an <i> twice if it is
+                     * nested inside another element whose text
+                     * we already consume.
+                     */
+                    if (
+                        tag === 'i'
+                    ) {
+                        const parentTag =
+                            $(element)
+                                .parent()
+                                .prop(
+                                    'tagName'
+                                )
+                                ?.toLowerCase();
+
+                        if (
+                            [
+                                'p',
+                                'blockquote',
+                                'li',
+                                'td',
+                                'th'
+                            ].includes(
+                                parentTag
+                            )
+                        ) {
+                            return;
+                        }
+                    }
+
+                    if (!text) {
+                        return;
+                    }
+
+                    /*
+                     * Media markers can exist as paragraphs
+                     * between episode tables.
+                     */
+                    if (
+                        looksLikeMediaMarker(
+                            text
+                        )
+                    ) {
+                        if (
+                            !currentSeason
+                        ) {
+                            currentSeason =
+                                buildSyntheticSeason();
+                        }
+
+                        allMedia.push(
+                            parseMediaMarker(
+                                text,
+                                currentSeason.number,
+                                lastEpisodeNumber
+                            )
+                        );
+
+                        return;
+                    }
+
+                    /*
+                     * Arc / Part markers can also exist as
+                     * highlighted standalone text.
+                     */
+                    if (
+                        looksLikeGuideSeparator(
+                            text
+                        )
+                    ) {
+                        if (
+                            !currentSeason
+                        ) {
+                            return;
+                        }
+
+                        allMarkers.push(
+                            parseGuideSeparator(
+                                text,
+                                currentSeason.number,
+                                lastEpisodeNumber
+                            )
+                        );
+
+                        return;
+                    }
+
+                    /*
+                     * Intro text before the first real season
+                     * is article text, NOT season description.
+                     */
+                    if (
+                        !currentSeason
+                    ) {
+                        return;
+                    }
+
+                    if (
+                        currentSeasonHasEpisodes
+                    ) {
+                        /*
+                         * Tokyo Ghoul-style <i> blocks and
+                         * explanatory paragraphs after the
+                         * episode table.
+                         */
+                        currentSeasonNotes.push(
+                            text
+                        );
+                    } else {
+                        /*
+                         * Preserve the COMPLETE season
+                         * description paragraph.
+                         */
+                        currentSeasonDescriptionParts.push(
+                            text
+                        );
+                    }
                 }
             }
-        });
+        );
 
     finishCurrentSeason();
 
-    // De-duplicate unusual/nested table rows.
-    // AnimeFillerGuide remains authoritative
-    // for every global episode number.
-    const episodeMap = new Map();
+    /*
+     * AnimeFillerGuide controls global numbering.
+     *
+     * De-duplicate any repeated/nested rows using the
+     * global episode number.
+     */
+    const episodeMap =
+        new Map();
 
-    for (const episode of allEpisodes) {
+    for (
+        const episode
+        of allEpisodes
+    ) {
         episodeMap.set(
-            String(episode.number),
+            String(
+                episode.number
+            ),
             episode
         );
     }
 
     const episodes =
         [...episodeMap.values()]
-            .sort(episodeNumberSort);
+            .sort(
+                episodeNumberSort
+            );
 
     const media =
-        finalizeMediaPlacement(
+        finalizeOrderedPlacement(
             allMedia,
             episodes
         );
 
-    if (episodes.length === 0) {
+    const markers =
+        finalizeOrderedPlacement(
+            allMarkers,
+            episodes
+        );
+
+    /*
+     * Reattach finalized placement data to seasons.
+     */
+    const finalizedSeasons =
+        seasons.map(
+            season => ({
+                ...season,
+
+                episodes:
+                    episodes.filter(
+                        episode =>
+                            episode.season ===
+                            season.number
+                    ),
+
+                media:
+                    media.filter(
+                        item =>
+                            item.season ===
+                            season.number
+                    ),
+
+                markers:
+                    markers.filter(
+                        item =>
+                            item.season ===
+                            season.number
+                    )
+            })
+        );
+
+    if (
+        episodes.length === 0
+    ) {
         return null;
     }
 
     return {
-        site: 'AnimeFillerGuide.com',
+        site:
+            'AnimeFillerGuide.com',
 
         slug,
         url,
@@ -1051,23 +2532,25 @@ function parseAnimeFillerGuideHtml(
         detected_episode_count:
             episodes.length,
 
-        seasons,
+        seasons:
+            finalizedSeasons,
 
         episodes,
 
         media,
 
-        continuation
+        markers,
+
+        continuation,
+
+        recommendations
     };
 }
 
 // ============================================================
 // AnimeFillerGuide.com requests/discovery
 // ============================================================
-
-async function scrapeAnimeFillerGuideBySlug(
-    slug
-) {
+async function scrapeAnimeFillerGuideBySlug (slug) {
     if (!slug) return null;
 
     const url =
@@ -1418,10 +2901,7 @@ function setsEqual(a, b) {
     return true;
 }
 
-function findNumberDifferences(
-    guideEpisodes,
-    aflEpisodes
-) {
+function findNumberDifferences (guideEpisodes, aflEpisodes) {
     const guideSet =
         getEpisodeNumberSet(
             guideEpisodes
@@ -1457,22 +2937,22 @@ function findNumberDifferences(
     };
 }
 
-function mergeWithGuideAuthority(
-    guide,
-    afl
-) {
+function mergeWithGuideAuthority (guide, afl) {
     if (!guide) {
         return null;
     }
 
     const aflByNumber =
         new Map(
-            (afl?.episodes || []).map(
-                ep => [
-                    String(ep.number),
-                    ep
-                ]
-            )
+            (afl?.episodes || [])
+                .map(
+                    episode => [
+                        String(
+                            episode.number
+                        ),
+                        episode
+                    ]
+                )
         );
 
     const guideSet =
@@ -1486,15 +2966,8 @@ function mergeWithGuideAuthority(
         );
 
     /*
-     * IMPORTANT:
-     *
-     * AnimeFillerList classification data is used ONLY
-     * when the entire episode-number set matches.
-     *
-     * If even one episode is missing/extra/different,
-     * AnimeFillerGuide becomes authoritative for the
-     * whole merged list and AFL canon classifications
-     * are not shown/applied.
+     * AnimeFillerList classification data is trusted
+     * ONLY when the COMPLETE episode-number sets match.
      */
     const numberingMatches =
         !!afl &&
@@ -1512,7 +2985,8 @@ function mergeWithGuideAuthority(
             : {
                 guide_only:
                     guide.episodes.map(
-                        ep => ep.number
+                        episode =>
+                            episode.number
                     ),
 
                 anime_filler_list_only:
@@ -1532,20 +3006,26 @@ function mergeWithGuideAuthority(
                         : null;
 
                 /*
-                 * If numbering matches:
-                 * AFL controls canonity.
+                 * Classification priority:
                  *
-                 * If numbering does NOT match:
-                 * AFL is ignored and AFG determines
-                 * Filler/Manga Canon from its own data.
+                 * 1. AFL if numbering fully matches.
+                 *
+                 * 2. Otherwise AFG:
+                 *      explicit *Mixed
+                 *      explicit *Filler
+                 *      manga/NOVEL backing
+                 *
+                 * 3. Otherwise Unknown.
                  */
                 const type =
                     aflEpisode?.type ||
-                    guideEpisode.inferred_type ||
+                    guideEpisode
+                        .inferred_type ||
                     inferGuideCanonType(
                         guideEpisode.raw_title,
                         guideEpisode.manga_chapters
-                    );
+                    ) ||
+                    'Unknown';
 
                 return {
                     number:
@@ -1561,7 +3041,9 @@ function mergeWithGuideAuthority(
                     season_name:
                         guideEpisode.season_name,
 
-                    // AnimeFillerGuide title wins.
+                    /*
+                     * AFG title always wins.
+                     */
                     title:
                         guideEpisode.title,
 
@@ -1583,9 +3065,23 @@ function mergeWithGuideAuthority(
                         guideEpisode
                             .manga_chapters,
 
-                    guide_filler_marker:
+                    guide_note:
                         guideEpisode
+                            .guide_note ||
+                        null,
+
+                    guide_explicit_type:
+                        guideEpisode
+                            .guide_explicit_type ||
+                        null,
+
+                    guide_filler_marker:
+                        !!guideEpisode
                             .guide_filler_marker,
+
+                    guide_mixed_marker:
+                        !!guideEpisode
+                            .guide_mixed_marker,
 
                     source_titles: {
                         anime_filler_guide:
@@ -1608,24 +3104,24 @@ function mergeWithGuideAuthority(
         );
 
     const seasons =
-        guide.seasons.map(
-            season => ({
-                ...season,
+        (guide.seasons || [])
+            .map(
+                season => ({
+                    ...season,
 
-                episodes:
-                    episodes.filter(
-                        ep =>
-                            ep.season ===
-                            season.number
-                    )
-            })
-        );
+                    episodes:
+                        episodes.filter(
+                            episode =>
+                                episode.season ===
+                                season.number
+                        )
+                })
+            );
 
     return {
         anime:
             guide.anime,
 
-        // AnimeFillerGuide controls total episode count.
         total_episodes:
             guide.total_episodes,
 
@@ -1637,10 +3133,25 @@ function mergeWithGuideAuthority(
         seasons,
 
         media:
-            guide.media,
+            guide.media ||
+            [],
+
+        markers:
+            guide.markers ||
+            [],
 
         continuation:
-            guide.continuation,
+            guide.continuation || {
+                where_anime_ends:
+                    null,
+
+                where_to_start_reading:
+                    null
+            },
+
+        recommendations:
+            guide.recommendations ||
+            null,
 
         source_alignment: {
             numbering_matches:
@@ -1661,15 +3172,12 @@ function mergeWithGuideAuthority(
     };
 }
 
-function buildAflOnlyResult(
-    afl,
-    animeSlug
-) {
+function buildAflOnlyResult (afl, animeSlug) {
     const episodes =
         afl.episodes.map(
-            ep => ({
+            episode => ({
                 number:
-                    ep.number,
+                    episode.number,
 
                 season_episode_number:
                     null,
@@ -1681,16 +3189,16 @@ function buildAflOnlyResult(
                     null,
 
                 title:
-                    ep.title,
+                    episode.title,
 
                 raw_title:
-                    ep.title,
+                    episode.title,
 
                 normalized_title:
-                    ep.normalized_title,
+                    episode.normalized_title,
 
                 type:
-                    ep.type,
+                    episode.type,
 
                 type_source:
                     'AnimeFillerList.com',
@@ -1698,7 +3206,16 @@ function buildAflOnlyResult(
                 manga_chapters:
                     null,
 
+                guide_note:
+                    null,
+
+                guide_explicit_type:
+                    null,
+
                 guide_filler_marker:
+                    false,
+
+                guide_mixed_marker:
                     false,
 
                 source_titles: {
@@ -1706,7 +3223,7 @@ function buildAflOnlyResult(
                         null,
 
                     anime_filler_list:
-                        ep.title
+                        episode.title
                 },
 
                 title_match:
@@ -1730,6 +3247,8 @@ function buildAflOnlyResult(
 
         media: [],
 
+        markers: [],
+
         continuation: {
             where_anime_ends:
                 null,
@@ -1737,6 +3256,9 @@ function buildAflOnlyResult(
             where_to_start_reading:
                 null
         },
+
+        recommendations:
+            null,
 
         source_alignment: {
             numbering_matches:
@@ -1754,10 +3276,7 @@ function buildAflOnlyResult(
     };
 }
 
-function buildStatusMessage(
-    aflStatus,
-    guideStatus
-) {
+function buildStatusMessage (aflStatus, guideStatus) {
     const aflOk =
         aflStatus.status === 'success';
 
@@ -1788,50 +3307,6 @@ function buildStatusMessage(
     return 'Scrape from AnimeFillerList.com failed and scrape from AnimeFillerGuide.com failed.';
 }
 
-/**
- * Scrape and merge:
- *
- * AnimeFillerList.com
- * +
- * AnimeFillerGuide.com
- *
- * Authority rules:
- *
- * 1. AnimeFillerGuide controls:
- *    - episode count
- *    - episode numbers
- *    - episode titles
- *    - seasons
- *    - manga chapters
- *    - media placement
- *    - continuation information
- *
- * 2. AnimeFillerList controls:
- *    - Manga Canon
- *    - Mixed Canon/Filler
- *    - Filler
- *
- *    BUT ONLY if the COMPLETE episode-number
- *    set matches AnimeFillerGuide.
- *
- * 3. If episode-number sets differ AT ALL,
- *    AnimeFillerList episode information is
- *    not applied to the displayed merged list.
- *
- * 4. In that mismatch case, AnimeFillerGuide
- *    classifies:
- *
- *      *Filler + N/A -> Filler
- *
- *      everything else with chapter backing
- *      -> Manga Canon
- *
- *    Mixed Canon/Filler can never be inferred
- *    from AnimeFillerGuide.
- *
- * 5. If one website fails, the successful
- *    scrape is still saved as a partial result.
- */
 async function getFillerData(
     animeSlug,
     manualSlug = null,
@@ -1906,10 +3381,7 @@ async function getFillerData(
                 guide,
                 afl
             )
-            : buildAflOnlyResult(
-                afl,
-                animeSlug
-            );
+            : buildAflOnlyResult(afl, animeSlug);
 
     const partial =
         !(afl && guide);
@@ -1955,12 +3427,20 @@ async function getFillerData(
                     guide?.episodes ||
                     [],
 
-                media:
+                                media:
                     guide?.media ||
+                    [],
+
+                markers:
+                    guide?.markers ||
                     [],
 
                 continuation:
                     guide?.continuation ||
+                    null,
+
+                recommendations:
+                    guide?.recommendations ||
                     null
             }
         }

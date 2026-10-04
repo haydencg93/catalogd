@@ -800,7 +800,8 @@ html, body {
 .type-canon { color: #4caf50; font-weight: bold; } /* Green */
 .type-filler { color: #f44336; font-weight: bold; } /* Red */
 .type-mixed { color: #ffeb3b; font-weight: bold; } /* Yellow */
-.type-manga-canon { color: #4caf50; font-weight: bold; } /* Also Green */
+.type-manga-canon { color: #4caf50; font-weight: bold; } /* Green */
+.type-unknown {color: #9aa4ad; font-weight: 700; } /* Gray */
 
 #filler-action-area button {
     display: inline-block;
