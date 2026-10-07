@@ -25,40 +25,103 @@ jobs:
           BETA_TOKEN: ${{ secrets.CATALOGD_BETA_TOKEN }}
         run: |
           beta_dir="$RUNNER_TEMP/catalogd-beta"
-          git clone --branch main --single-branch "https://x-access-token:${BETA_TOKEN}@github.com/haydencg93/catalogd-beta.git" "$beta_dir"
+
+          git clone \
+            --branch main \
+            --single-branch \
+            "https://x-access-token:${BETA_TOKEN}@github.com/haydencg93/catalogd-beta.git" \
+            "$beta_dir"
 
           rsync -a --delete \
             --exclude='.git/' \
-            --exclude='.github/workflows/scrape-anime.yml' \
-            --exclude='.github/workflows/update-stats.yml' \
-            --exclude='.github/workflows/nightly-vibes.yml' \
-            --exclude='.github/workflows/nightly-embed.yml' \
-            --exclude='.github/workflows/hourly-emails.yml' \
-            --exclude='animeFillerListApi/' \
-            --exclude='emailWorker/' \
-            --exclude='seederAi/' \
-            --exclude='statsWorker/' \
-            --exclude='vibes/' \
             "$GITHUB_WORKSPACE/" "$beta_dir/"
 
-          # Use rm -f for workflow files
-          rm -f \
-            "$beta_dir/.github/workflows/scrape-anime.yml" \
-            "$beta_dir/.github/workflows/update-stats.yml" \
-            "$beta_dir/.github/workflows/nightly-vibes.yml" \
-            "$beta_dir/.github/workflows/nightly-embed.yml" \
-            "$beta_dir/.github/workflows/hourly-emails.yml"
+          python3 <<'PY'
+          from pathlib import Path
+          import re
 
-          # Use rm -rf to recursively remove the specified directories and their contents
-          rm -rf \
-            "$beta_dir/animeFillerListApi/" \
-            "$beta_dir/emailWorker/" \
-            "$beta_dir/seederAi/" \
-            "$beta_dir/statsWorker/" \
-            "$beta_dir/vibes/"
+          beta_dir = Path("${{ runner.temp }}/catalogd-beta")
+          workflow_dir = beta_dir / ".github" / "workflows"
+
+          workflow_files = [
+              "hourly-emails.yml",
+              "nightly-embed.yml",
+              "nightly-vibes.yml",
+              "scrape-anime.yml",
+              "scrape-anime(1).yml",
+              "update-stats.yml",
+          ]
+
+          for filename in workflow_files:
+              path = workflow_dir / filename
+
+              if not path.exists():
+                  continue
+
+              text = path.read_text()
+
+              match = re.search(
+                  r'(?ms)^on:\n(?P<body>.*?)(?=^[A-Za-z0-9_-]+:\s*$)',
+                  text
+              )
+
+              if not match:
+                  print(f"Could not find on: block in {filename}")
+                  continue
+
+              body_lines = match.group("body").splitlines()
+              keep = []
+              i = 0
+
+              while i < len(body_lines):
+                  line = body_lines[i]
+
+                  if line.startswith("  workflow_dispatch:"):
+                      keep.append(line)
+                      i += 1
+
+                      while i < len(body_lines):
+                          child = body_lines[i]
+
+                          if not child.strip():
+                              keep.append(child)
+                              i += 1
+                              continue
+
+                          indent = len(child) - len(child.lstrip(" "))
+
+                          if indent >= 4:
+                              keep.append(child)
+                              i += 1
+                          else:
+                              break
+
+                      break
+
+                  i += 1
+
+              if not keep:
+                  keep = ["  workflow_dispatch:"]
+
+              while keep and keep[-1] == "":
+                  keep.pop()
+
+              new_on_block = "on:\n" + "\n".join(keep) + "\n\n"
+
+              text = (
+                  text[:match.start()]
+                  + new_on_block
+                  + text[match.end():]
+              )
+
+              path.write_text(text)
+
+              print(f"Made {filename} manual-only for beta")
+          PY
 
           git -C "$beta_dir" config user.name "github-actions[bot]"
           git -C "$beta_dir" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
           git -C "$beta_dir" add --all
 
           if git -C "$beta_dir" diff --cached --quiet; then
