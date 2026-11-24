@@ -1,7 +1,6 @@
 /* 1. Import general styles from profile */
-@import url('stylingProfile.css');
+@import url('profile.css');
 
-/* 2. Global Body & Container Fixes */
 /* 2. Global Body & Container Fixes */
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -88,6 +87,7 @@ body {
     display: flex;
     gap: 10px;
     margin-right: 0;
+    flex-wrap: wrap;
 }
 
 /* Ensure the header container aligns with your 15% margin-left */

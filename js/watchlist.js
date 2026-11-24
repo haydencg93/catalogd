@@ -1,7 +1,12 @@
 // Import necessary modules and functions
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
-import { normalizeOpenLibraryId } from './core/media.js';
+import {
+    normalizeOpenLibraryId,
+    getAnimeClassification,
+    renderMediaBadge,
+    MEDIA_FILTER_LABELS
+} from './core/media.js';
 import { calculatePagination } from './logic/watchlist-logic.js';
 
 // Load configuration and initialize Supabase client
@@ -132,6 +137,12 @@ async function renderWatchlist(items) {
                     }
                 } else {
                     const res = await fetch(`${PROXY_URL}/api/tmdb/${item.media_type}/${item.media_id}`).then(r => r.json());
+                    if (
+                        ['movie', 'tv'].includes(item.media_type) &&
+                        typeof item.is_anime !== 'boolean'
+                    ) {
+                        item.is_anime = getAnimeClassification(res);
+                    }
                     title = item.media_title || res.title || res.name || 'Unknown Title';
                     image = res.poster_path ? `https://image.tmdb.org/t/p/w500${res.poster_path}` : 'https://placehold.co/500x750/1b2228/9ab?text=No+Image';
                 }
@@ -164,7 +175,7 @@ async function renderWatchlist(items) {
                          alt="${item.title}" 
                          loading="lazy"
                          data-fallback="https://placehold.co/500x750/1b2228/9ab?text=No+Image">
-                    <span class="badge badge-${item.media_type}">${item.media_type}</span>
+                    ${renderMediaBadge(item)}
                 </div>
                 <div class="media-info">
                     <div class="title" style="font-weight:bold;">${item.title}</div>
@@ -186,26 +197,24 @@ async function renderWatchlist(items) {
 // ----------------------------------------
 // State Management (Filters & Pagination)
 // ----------------------------------------
-window.filterWatchlist = (type) => {
-    currentWatchlistFilter = type;
-    currentWatchlistPage = 1; // Reset to page 1 whenever a filter changes
+window.filterWatchlist = (type = 'all') => {
 
-    const filterNav = document.querySelector('.filter-nav');
-    const buttons = filterNav.querySelectorAll('.filter-btn');
-    
-    buttons.forEach(btn => {
-        btn.classList.remove('active');
-        const btnText = btn.textContent.toLowerCase();
-        
-        if (type === 'all' && btnText === 'all') btn.classList.add('active');
-        else if (type === 'movie' && btnText === 'movies') btn.classList.add('active');
-        else if (type === 'tv' && btnText === 'tv') btn.classList.add('active');
-        else if (type === 'book' && btnText === 'books') btn.classList.add('active');
-        else if (type === 'album' && btnText === 'music') btn.classList.add('active');
-        else if (type === 'youtube' && btnText === 'youtube') btn.classList.add('active');
+    currentWatchlistFilter = type;
+
+    currentWatchlistPage = 1;
+
+    document.querySelectorAll(
+        '[data-watchlist-filter]'
+    ).forEach(button => {
+
+        button.classList.toggle(
+            'active',
+            button.dataset.watchlistFilter === type
+        );
+
     });
 
-    renderWatchlistPage(); // Triggers the paginated render
+    renderWatchlistPage();
 };
 
 window.changeWatchlistPage = (direction) => {
@@ -229,7 +238,15 @@ async function renderWatchlistPage() {
 
     // 2. Update the subtitle with the TRUE TOTAL (Not just the 50 on the page)
     const subtitle = document.getElementById('watchlist-subtitle');
-    subtitle.textContent = `${totalFilteredItems} ${currentWatchlistFilter === 'all' ? 'items' : currentWatchlistFilter + 's'} saved.`;
+    const filterLabel = currentWatchlistFilter === 'all'
+        ? 'items'
+        : (
+            MEDIA_FILTER_LABELS[currentWatchlistFilter]
+            || 'items'
+        ).toLowerCase();
+
+    subtitle.textContent =
+        `${totalFilteredItems} ${filterLabel} saved.`;
 
     // 3. Pass the small chunk to your existing render engine
     await renderWatchlist(paginatedItems, currentWatchlistFilter);

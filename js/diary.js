@@ -1,7 +1,13 @@
 // Import necessary modules and functions
 import { loadConfig } from './core/config.js';
 import { getSupabaseClient } from './core/supabase.js';
-import { normalizeOpenLibraryId } from './core/media.js';
+import {
+    normalizeOpenLibraryId,
+    matchesMediaFilter,
+    getAnimeClassification,
+    getMediaBadgeClass,
+    getMediaBadgeLabel
+} from './core/media.js';
 import {
     filterLogs,
     sortLogs,
@@ -119,7 +125,9 @@ async function initDiary() {
         }
 
         // 3. Fetch logs for the SPECIFIC user
-        const diaryLogFields = isViewerOwner ? '*' : 'id,user_id,media_id,media_type,media_title,watched_on,created_at,rating,is_liked,is_rewatch,notes,release_year,season_number,episode_number,log_level,is_finished,ep_count_in_season,runtime';
+        const diaryLogFields = isViewerOwner
+            ? '*'
+            : 'id,user_id,media_id,media_type,is_anime,media_title,watched_on,created_at,rating,is_liked,is_rewatch,notes,release_year,season_number,episode_number,log_level,is_finished,ep_count_in_season,runtime';
         const { data: logs } = await supabaseClient
             .from('media_logs')
             .select(diaryLogFields)
@@ -220,6 +228,13 @@ async function fetchAndFormatRow(log, config) {
             const res = await fetch(`${PROXY_URL}/api/tmdb/${log.media_type}/${log.media_id}?language=en-US`).then(r => r.json());
             
             if (res.success === false) throw new Error("TMDB returned an error JSON");
+
+            if (
+                ['movie', 'tv'].includes(log.media_type) &&
+                typeof log.is_anime !== 'boolean'
+            ) {
+                log.is_anime = getAnimeClassification(res);
+            }
             
             title = log.media_title || res.title || res.name || 'Unknown Title'; // Fallback prevents "undefined"
             year = (res.release_date || res.first_air_date || '').split('-')[0];
@@ -283,8 +298,13 @@ async function fetchAndFormatRow(log, config) {
                 <td class="diary-year">${log.watched_on || 'Unknown'}</td>
                 <td><img src="${image}" class="diary-poster" data-type="${log.media_type}" alt="poster" data-fallback="https://via.placeholder.com/92x138?text=No+Image"></td>
                 <td class="diary-name" data-diary-route="details.html?id=${encodeURIComponent(log.media_id)}&type=${encodeURIComponent(log.media_type)}">
-                    <div style="display: flex; align-items: center; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 6px;">
                         ${displayTitle}
+
+                        <span class="${getMediaBadgeClass(log)} badge-inline">
+                            ${getMediaBadgeLabel(log)}
+                        </span>
+
                         ${badgeRow}
                     </div>
                 </td>
@@ -417,12 +437,26 @@ async function updateStatsDisplay(config) {
     const totalAlbums = albumLogs.length; 
 
     const totalYoutube = filteredLogs.filter(l => l.media_type === 'youtube').length;
-    const uniqueSeries = filteredLogs.filter(l => l.media_type === 'tv' && (l.log_level === 'entire' || (!l.season_number && !l.episode_number))).length;
+    const isEntireSeriesLog = log =>
+        log.log_level === 'entire' ||
+        (!log.season_number && !log.episode_number);
+
+    const uniqueSeries = filteredLogs.filter(log =>
+        matchesMediaFilter(log, 'tv') &&
+        isEntireSeriesLog(log)
+    ).length;
 
     document.getElementById('total-logs').textContent = stats.totalLogs;
     document.getElementById('avg-rating').textContent = stats.avgRating;
     document.getElementById('total-movies').textContent = stats.totalMovies;
     document.getElementById('total-series').textContent = uniqueSeries;
+    document.getElementById(
+        'total-anime-movies'
+    ).textContent = stats.totalAnimeMovies;
+
+    document.getElementById(
+        'total-anime-series'
+    ).textContent = stats.totalAnimeSeries;
     document.getElementById('total-books').textContent = stats.totalBooks;
     
     const albumStat = document.getElementById('total-albums');
