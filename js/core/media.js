@@ -93,7 +93,10 @@ export function getAnimeClassification(item) {
 
     const type = getStorageMediaType(item);
 
-    if (type && !['movie', 'tv'].includes(type)) {
+    if (
+        ['book', 'album', 'youtube', 'game', 'art',
+        'person', 'author', 'user', 'collection'].includes(type)
+    ) {
         return false;
     }
 
@@ -146,6 +149,139 @@ export function getAnimeClassification(item) {
     );
 }
 
+// ==================================================
+// TMDB ANIME CLASSIFICATION LOOKUP
+// ==================================================
+const animeLookupCache = new Map();
+
+export async function resolveAnimeClassification(
+    proxyUrl,
+    mediaType,
+    mediaId
+) {
+    if (!['movie', 'tv'].includes(mediaType)) {
+        return false;
+    }
+
+    if (!/^[1-9]\d*$/.test(String(mediaId))) {
+        return null;
+    }
+
+    const key = `${proxyUrl}_${mediaType}_${mediaId}`;
+
+    if (!animeLookupCache.has(key)) {
+
+        const request = (async () => {
+            try {
+                const response = await fetch(
+                    `${proxyUrl}/api/tmdb/${mediaType}/${encodeURIComponent(mediaId)}`
+                );
+
+                if (!response.ok) return null;
+
+                const data = await response.json();
+
+                if (data.success === false) return null;
+
+                return getAnimeClassification({
+                    ...data,
+                    media_type: mediaType
+                });
+
+            } catch (error) {
+                console.warn(
+                    'Anime classification failed:',
+                    mediaType,
+                    mediaId,
+                    error
+                );
+
+                return null;
+            }
+        })();
+
+        animeLookupCache.set(key, request);
+    }
+
+    const result = await animeLookupCache.get(key);
+
+    // Allow unsuccessful lookups to be retried.
+    if (result === null) {
+        animeLookupCache.delete(key);
+    }
+
+    return result;
+}
+
+
+export async function classifyTMDBItems(
+    items,
+    proxyUrl,
+    fallbackType = ''
+) {
+    const output = [];
+    const batchSize = 8;
+
+    for (let i = 0; i < items.length; i += batchSize) {
+
+        const batch = items.slice(i, i + batchSize);
+
+        const classified = await Promise.all(
+            batch.map(async item => {
+
+                const mediaType =
+                    item.media_type ||
+                    fallbackType ||
+                    item.type;
+
+                if (!['movie', 'tv'].includes(mediaType)) {
+                    return item;
+                }
+
+                let classification = getAnimeClassification({
+                    ...item,
+                    media_type: mediaType
+                });
+
+                const isAnimation =
+                    (item.genre_ids || []).some(
+                        id => Number(id) === 16
+                    ) ||
+                    (item.genres || []).some(
+                        genre => Number(genre.id) === 16
+                    );
+
+                // Search results may omit origin-country data.
+                if (
+                    classification === null ||
+                    (
+                        typeof item.is_anime !== 'boolean' &&
+                        classification === false &&
+                        isAnimation &&
+                        !Array.isArray(item.origin_country)
+                    )
+                ) {
+                    classification =
+                        await resolveAnimeClassification(
+                            proxyUrl,
+                            mediaType,
+                            item.media_id ?? item.id
+                        );
+                }
+
+                return {
+                    ...item,
+                    media_type: mediaType,
+                    is_anime: classification
+                };
+            })
+        );
+
+        output.push(...classified);
+    }
+
+    return output;
+}
 
 /**
  * Boolean helper for existing Picker functionality.
