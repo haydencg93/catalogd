@@ -1,14 +1,14 @@
-const { createClient } = require('@supabase/supabase-js');
-const { QdrantClient } = require('@qdrant/js-client-rest'); 
-const path = require('node:path');
-const WebSocket = require('ws'); 
+const { createClient } = require("@supabase/supabase-js");
+const { QdrantClient } = require("@qdrant/js-client-rest");
+const path = require("node:path");
+const WebSocket = require("ws");
 
-const config = require('../config/config.json');
-require('dotenv').config({ path: path.join(__dirname, '../misc/.env') });
+const config = require("../config/config.json");
+require("dotenv").config({ path: path.join(__dirname, "../misc/.env") });
 
 const supabase = createClient(config.supabase_url, process.env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
-    realtime: { transport: WebSocket } 
+    realtime: { transport: WebSocket },
 });
 
 const qdrant = new QdrantClient({
@@ -18,29 +18,34 @@ const qdrant = new QdrantClient({
 
 async function runUnifiedPipeline() {
     console.log("[I] Initializing Unified Vector Search Pipeline...");
-    
-    const TransformersApi = new Function('return import("@xenova/transformers")')();
-    
-    // 1. Extract 'env' alongside 'pipeline'
-    const { pipeline: transformersPipeline, env } = await TransformersApi;
-    
-    // 2. Bypass the GitHub Actions 429 IP ban by using a reliable mirror!
-    env.remoteHost = 'https://hf-mirror.com';
 
-    const generateEmbedding = await transformersPipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+    const { pipeline: transformersPipeline, env } = await import("@huggingface/transformers");
+
+    env.remoteHost = "https://huggingface.co";
+
+    const generateEmbedding = await transformersPipeline(
+        "feature-extraction",
+        "Xenova/all-MiniLM-L6-v2",
+        {
+            dtype: "q8",
+            device: "cpu",
+        },
+    );
     console.log("[S] Local ML Model loaded.");
 
-    let keepRunning = true;
+    const keepRunning = true;
     let totalProcessed = 0;
 
     while (keepRunning) {
         // Fetching all the rich metadata so we can store it in Qdrant!
         const { data: movies, error: fetchError } = await supabase
-            .from('global_movies')
-            .select('tmdb_id, title, tags, overview, media_type, popularity, release_year, characters')
-            .not('tags', 'is', null)
-            .eq('is_embedded', false)
-            .limit(100); 
+            .from("global_movies")
+            .select(
+                "tmdb_id, title, tags, overview, media_type, popularity, release_year, characters",
+            )
+            .not("tags", "is", null)
+            .eq("is_embedded", false)
+            .limit(100);
 
         if (fetchError) {
             console.error("[E] Error fetching from Supabase:", fetchError.message);
@@ -58,41 +63,47 @@ async function runUnifiedPipeline() {
         for (const movie of movies) {
             try {
                 // 1. Combine the tags and the characters into one giant context string
-                const mathInputString = `${movie.tags}, ${movie.characters || ''}`;
+                const mathInputString = `${movie.tags}, ${movie.characters || ""}`;
 
                 // 2. Generate the math based on the COMBINED string
-                const output = await generateEmbedding(mathInputString, { pooling: 'mean', normalize: true });
+                const output = await generateEmbedding(mathInputString, {
+                    pooling: "mean",
+                    normalize: true,
+                });
 
                 // 3. Push to Qdrant (same as before)
-                await qdrant.upsert('movies', {
+                await qdrant.upsert("movies", {
                     wait: true,
-                    points: [{
-                        id: movie.tmdb_id,
-                        vector: Array.from(output.data),
-                        payload: { 
-                            title: movie.title,
-                            characters: movie.characters,
-                            overview: movie.overview,
-                            media_type: movie.media_type,
-                            popularity: movie.popularity,
-                            release_year: movie.release_year
-                        } 
-                    }]
+                    points: [
+                        {
+                            id: movie.tmdb_id,
+                            vector: Array.from(output.data),
+                            payload: {
+                                title: movie.title,
+                                characters: movie.characters,
+                                overview: movie.overview,
+                                media_type: movie.media_type,
+                                popularity: movie.popularity,
+                                release_year: movie.release_year,
+                            },
+                        },
+                    ],
                 });
 
                 // 3. UPDATE the item in Supabase to mark it as embedded
                 const { error: updateError } = await supabase
-                    .from('global_movies')
+                    .from("global_movies")
                     .update({ is_embedded: true })
-                    .eq('tmdb_id', movie.tmdb_id);
+                    .eq("tmdb_id", movie.tmdb_id);
 
                 if (updateError) {
                     console.error(`[E] DB Update Error for ${movie.title}:`, updateError.message);
                 } else {
                     totalProcessed++;
-                    console.log(`[S] (${totalProcessed}) Synced to Qdrant & Marked as Embedded: ${movie.title}`);
+                    console.log(
+                        `[S] (${totalProcessed}) Synced to Qdrant & Marked as Embedded: ${movie.title}`,
+                    );
                 }
-
             } catch (err) {
                 console.error(`[E] Pipeline Error on ${movie.title}:`, err.message);
             }

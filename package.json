@@ -4,16 +4,24 @@
     "eslint": "^10.10.0",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.12.0",
-    "htmlhint": "^1.9.2",
+    "htmlhint": "1.9.2",
     "prettier": "^3.10.1",
     "stylelint": "^18.1.0",
     "stylelint-config-standard": "^41.1.0"
   },
   "dependencies": {
+    "@huggingface/transformers": "4.3.2",
     "@qdrant/js-client-rest": "^1.19.0",
     "@supabase/supabase-js": "^2.116.0",
-    "@xenova/transformers": "^2.17.2",
     "dotenv": "^17.4.2",
     "ws": "^8.21.3"
+  },
+  "overrides": {
+    "@qdrant/js-client-rest": {
+      "undici": "7.30.2"
+    },
+    "htmlhint": {
+      "glob": "14.0.6"
+    }
   }
 }
