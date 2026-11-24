@@ -103,11 +103,6 @@ input {
 .media-card img { width: 100%; aspect-ratio: 2/3; object-fit: cover; }
 .media-info { padding: 12px; }
 .badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; font-weight: bold; }
-.badge-movie { background: var(--movie-tag); color: #000; }
-.badge-tv { background: var(--tv-tag); color: #fff; }
-.badge-book { background: var(--book-tag); color: #fff; }
-.badge-album { background: var(--album-tag); color: #fff; }
-.badge-youtube { background: var(--youtube-tag); color: #fff; }
 
 /* Modal Styles */
 .modal-overlay {

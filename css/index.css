@@ -9,14 +9,21 @@
     --accent-glow: rgba(65, 56, 231, 0.4);
     --text: #ffffff;
     
-    /* Tag Colors (Muted for Cinematic feel) */
-    --movie-tag: #fb923c;
-    --tv-tag: #38bdf8;
-    --book-tag: #c084fc;
-    --album-tag: #f472b6;
-    --youtube-tag: #f87171;
+    /* Catalogd Media Colors */
+    --movie-tag: #F87171;
+    --tv-tag: #38BDF8;
+    --anime-tag: #FB923C;
+    --book-tag: #C084FC;
+    --album-tag: #F472B6;
+    --game-tag: #10B981;
+    --art-tag: #BE986D;
+    --youtube-tag: #44ABA8;
 
-    --foryou-tag: #10b981; /* Emerald Glow */
+    /* Shared Media Tag Text Color */
+    --media-tag-text: #ffffff;
+
+    /* Recommendation Colors */
+    --foryou-tag: #00e054;
 }
 
 /* Standardize the arrow icon */
@@ -251,34 +258,75 @@ header, main {
     display: flex;
     align-items: center;
     justify-content: center;
+    isolation: isolate;
 }
 
-.circle {
-    width: 18px; /* Slightly smaller to accommodate 5 items */
+.logo-circles .circle {
+    width: 18px;
     height: 18px;
+    box-sizing: border-box;
+    flex-shrink: 0;
     border-radius: 50%;
-    margin-left: -8px; /* Overlap them tightly */
+    margin-left: -6px;
     border: 2px solid var(--bg);
     transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
 }
 
-.circle:first-child {
+.logo-circles .circle:first-child {
     margin-left: 0;
 }
 
-/* Ensure z-index layers them correctly from left to right */
-.c-movie { background: var(--movie-tag); z-index: 5; }
-.c-tv { background: var(--tv-tag); z-index: 4; }
-.c-book { background: var(--book-tag); z-index: 3; }
-.c-album { background: var(--album-tag); z-index: 2; }
-.c-youtube { background: var(--youtube-tag); z-index: 1; }
+/* Media colors and left-to-right layering */
+.c-movie {
+    background: var(--movie-tag);
+    z-index: 8;
+}
 
-/* The Expansion Hover Effect */
-.css-logo:hover .circle {
-    margin-left: 4px; /* Spreads them outward horizontally */
-    transform: translateY(-2px); /* Slight lift */
-    box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+.c-tv {
+    background: var(--tv-tag);
+    z-index: 7;
+}
+
+.c-anime {
+    background: var(--anime-tag);
+    z-index: 6;
+}
+
+.c-book {
+    background: var(--book-tag);
+    z-index: 5;
+}
+
+.c-album {
+    background: var(--album-tag);
+    z-index: 4;
+}
+
+.c-game {
+    background: var(--game-tag);
+    z-index: 3;
+}
+
+.c-art {
+    background: var(--art-tag);
+    z-index: 2;
+}
+
+.c-youtube {
+    background: var(--youtube-tag);
+    z-index: 1;
+}
+
+/* Logo expansion hover effect */
+.css-logo:hover .logo-circles .circle {
+    margin-left: 2px;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+}
+
+.css-logo:hover .logo-circles .circle:first-child {
+    margin-left: 0;
 }
 
 input {
@@ -342,29 +390,49 @@ input {
     font-weight: 700;
     z-index: 2;
 }
+
+/* Global Media Badge Colors */
 .badge-movie {
     background: var(--movie-tag);
-    color: #000;
+    color: var(--media-tag-text);
 }
 
 .badge-tv {
     background: var(--tv-tag);
-    color: #fff;
+    color: var(--media-tag-text);
+}
+
+.badge-anime,
+.badge-anime-movie,
+.badge-anime-tv {
+    background: var(--anime-tag);
+    color: var(--media-tag-text);
+    text-transform: none;
 }
 
 .badge-book {
     background: var(--book-tag);
-    color: #fff;
+    color: var(--media-tag-text);
 }
 
 .badge-album {
     background: var(--album-tag);
-    color: #fff;
+    color: var(--media-tag-text);
+}
+
+.badge-game {
+    background: var(--game-tag);
+    color: var(--media-tag-text);
+}
+
+.badge-art {
+    background: var(--art-tag);
+    color: var(--media-tag-text);
 }
 
 .badge-youtube {
     background: var(--youtube-tag);
-    color: #fff;
+    color: var(--media-tag-text);
 }
 
 /* Modal Styles */

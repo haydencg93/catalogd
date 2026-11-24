@@ -145,13 +145,6 @@
     color: #fff;
 }
 
-/* Inherit badge colors for milestones */
-.badge-movie { background: var(--movie-tag); color: #000; }
-.badge-tv { background: var(--tv-tag); color: #fff; }
-.badge-book { background: var(--book-tag); color: #fff; }
-.badge-album { background: var(--album-tag); color: #fff; }
-.badge-youtube { background: var(--youtube-tag); color: #fff; }
-
 /* --- STATS PAGE MOBILE RESPONSIVENESS (< 768px) --- */
 @media (max-width: 768px) {
     .stats-container {

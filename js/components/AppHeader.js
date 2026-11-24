@@ -18,11 +18,14 @@ export class AppHeader extends HTMLElement {
         <header>
             <a href="index.html" class="css-logo" style="text-decoration: none;">
                 <div class="logo-text">catalog<span>d</span></div>
-                <div class="logo-circles">
+                <div class="logo-circles" aria-hidden="true">
                     <div class="circle c-movie"></div>
                     <div class="circle c-tv"></div>
+                    <div class="circle c-anime"></div>
                     <div class="circle c-book"></div>
                     <div class="circle c-album"></div>
+                    <div class="circle c-game"></div>
+                    <div class="circle c-art"></div>
                     <div class="circle c-youtube"></div>
                 </div>
             </a>
