@@ -897,6 +897,18 @@ a:hover {
     font-weight: bold;
 }
 
+/* =========================================
+   LEGACY LOADERS
+   ========================================= */
+
+/* Preserve styling for pages that have not migrated to AppLoader.js yet. */
+#loader:not(app-loader) {
+    text-align: center;
+    color: #9ab;
+    margin: 25px auto;
+    padding: 10px 20px;
+}
+
 .foryou-label {
     position: absolute;
     top: 12px;
@@ -976,6 +988,18 @@ a:hover {
     inset: 0;
     background: rgb(0 0 0 / 50%);
     transition: background 0.3s ease;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.vibe-half > .vibe-background {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 0;
+    pointer-events: none;
 }
 
 .vibe-half:hover::before {
@@ -1035,6 +1059,13 @@ a:hover {
     padding: 6px 20px;
     font-size: 0.8rem;
     border-radius: 16px;
+}
+
+/* =========================================
+   INDEX: UNIFIED CONTENT VISIBILITY
+   ========================================= */
+#index-tab-content[hidden] {
+    display: none !important;
 }
 
 /* --- GLOBAL MOBILE RESPONSIVENESS (< 768px) --- */
@@ -1098,7 +1129,7 @@ a:hover {
         box-sizing: border-box !important;
     }
 
-    /* Wrap Filter Buttons (Movies, TV, Books, YouTube) */
+    /* Wrap Filter Buttons */
     .filter-nav {
         flex-wrap: wrap;
         justify-content: center;

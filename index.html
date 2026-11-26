@@ -103,8 +103,6 @@
                         </button>
                     </div>
                 </div>
-
-                <div id="loader">Loading configuration...</div>
             </section>
             <div class="filter-nav">
                 <button id="btn-movie" class="filter-btn active" data-tab="movie">Movies</button>
@@ -150,8 +148,17 @@
                 </button>
             </div>
 
-            <h2 id="section-title" class="section-title" style="display: none">Library Section</h2>
-            <div class="grid" id="results-grid"></div>
+            <!-- Reusable Catalogd loading component -->
+            <app-loader id="loader" class="index-feed-loading"> Loading Catalogd... </app-loader>
+
+            <!-- All content belonging to the selected tab -->
+            <div id="index-tab-content" hidden>
+                <h2 id="section-title" class="section-title" style="display: none">
+                    Library Section
+                </h2>
+
+                <div class="grid" id="results-grid"></div>
+            </div>
         </main>
 
         <div id="auth-modal" class="modal-overlay" style="display: none">

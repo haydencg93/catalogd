@@ -1,3 +1,6 @@
+// Import shared components
+import "./components/AppLoader.js";
+
 // Import necessary modules and functions
 import { loadConfig as fetchConfig } from "./core/config.js";
 import { getSupabaseClient } from "./core/supabase.js";
@@ -45,6 +48,7 @@ const waitMs = (ms) => new Promise((res) => setTimeout(res, ms));
 const searchInput = document.getElementById("search-input");
 const resultsGrid = document.getElementById("results-grid");
 const loader = document.getElementById("loader");
+const indexTabContent = document.getElementById("index-tab-content");
 const authModal = document.getElementById("auth-modal");
 const authEmail = document.getElementById("auth-email");
 const authPassword = document.getElementById("auth-password");
@@ -78,9 +82,6 @@ async function loadConfig() {
         searchInput.addEventListener("keypress", (e) => {
             if (e.key === "Enter") unifiedSearch(searchInput.value);
         });
-        searchInput.addEventListener("input", () => {
-            if (searchInput.value.trim()) abortContentRequest();
-        });
 
         const searchFilter = document.getElementById("search-filter");
         searchFilter.addEventListener("change", () => {
@@ -107,7 +108,8 @@ async function loadConfig() {
         }
     } catch (err) {
         console.error("Critical Start Error:", err);
-        loader.textContent = `Error: ${err.message}`;
+
+        loader.showMessage(`Error: ${err.message}`);
     }
 }
 
@@ -411,108 +413,156 @@ async function loadTabContent(type, subtype = currentAnimeSubfilter) {
     const requestId = ++contentRequestId;
     const isCurrent = () => requestId === contentRequestId && !signal.aborted;
     const scope = indexScope(type, subtype);
-    const sectionTitle = document.getElementById("section-title");
+    const supportsForYou = ["movie", "tv", "anime"].includes(type);
+    const supportsVibe = ["movie", "tv", "anime", "book", "album"].includes(type);
 
-    if (sectionTitle) {
-        sectionTitle.style.display = "none";
-    }
-
-    const filterNav = document.querySelector(".filter-nav");
-
-    if (filterNav) {
-        filterNav.style.display = "flex";
-    }
-
+    // =========================================
+    // 1. CLEAR PREVIOUS CONTENT AND SHOW LOADER
+    // =========================================
+    document.getElementById("section-title").style.display = "none";
+    document.querySelector(".filter-nav").style.display = "flex";
     syncAnimeSubfilters();
 
-    // Remove content belonging to the previous tab.
+    // Hide the entire feed before preparing new content.
+    indexTabContent.hidden = true;
+
+    // Remove the previous tab's Vibe and media cards.
     document.querySelector(".vibe-container")?.remove();
-    resultsGrid.innerHTML = "";
-    loader.style.display = "block";
-    loader.textContent = "Fetching trending titles...";
+    resultsGrid.replaceChildren();
+    resultsGrid.setAttribute("aria-busy", "true");
+
+    // Activate the reusable Catalogd loader.
+    loader.start();
+
+    // Prevent an indefinitely stalled request.
+    const timeout = setTimeout(() => {
+        if (!isCurrent()) return;
+        controller.abort();
+        loader.showMessage("Loading took too long. Select the tab again to retry.");
+        resultsGrid.setAttribute("aria-busy", "false");
+    }, 120000);
+    signal.addEventListener("abort", () => clearTimeout(timeout), { once: true });
 
     try {
-        // Retain the existing progressive rendering
-        // until we implement the unified loader.
-        if (["movie", "tv", "anime", "book", "album"].includes(type)) {
-            calculateAndRenderVibe(type, requestId, subtype, signal);
-        }
+        // =========================================
+        // 2. CHECK USER SESSION
+        // =========================================
+        const { data, error } = await supabaseClient.auth.getSession();
+        if (!isCurrent()) return;
+        if (error) throw error;
+        const user = data.session?.user || null;
+        const trendingLimit =
+            supportsForYou && user
+                ? INDEX_TRENDING_LIMIT + INDEX_FOR_YOU_LIMIT
+                : INDEX_TRENDING_LIMIT;
 
-        const supportsForYou = ["movie", "tv", "anime"].includes(type);
-
-        // Reserve additional trending titles so
-        // removing For You duplicates does not
-        // reduce the final trending count.
-        const trendingLimit = supportsForYou
-            ? INDEX_TRENDING_LIMIT + INDEX_FOR_YOU_LIMIT
-            : INDEX_TRENDING_LIMIT;
-
-        const trendingPool = await getTrendingItems(type, subtype, signal, trendingLimit);
+        // =========================================
+        // 3. FETCH ALL THREE SECTIONS CONCURRENTLY
+        // =========================================
+        const settled = await Promise.allSettled([
+            getTrendingItems(type, subtype, signal, trendingLimit),
+            supportsForYou && user
+                ? fetchIndexForYou(
+                      supabaseClient,
+                      user.id,
+                      PROXY_URL,
+                      scope,
+                      userStreamingProviderIds,
+                      signal,
+                  )
+                : Promise.resolve([]),
+            supportsVibe && user
+                ? calculateIndexVibe(type, requestId, subtype, signal)
+                : Promise.resolve(null),
+        ]);
         if (!isCurrent()) return;
 
-        const initialTrending = trendingPool.slice(0, INDEX_TRENDING_LIMIT);
-        if (initialTrending.length > 0) {
-            renderResults(initialTrending);
-        } else {
-            resultsGrid.innerHTML = `
-                <p class="meta"
-                   style="grid-column: 1/-1; text-align: center;">
-                    No titles found.
-                </p>
-            `;
+        // =========================================
+        // 4. PROCESS COMPLETED RESULTS
+        // =========================================
+        const failures = [];
+        function resultAt(index, fallback, label) {
+            const result = settled[index];
+            if (result.status === "fulfilled") {
+                return result.value ?? fallback;
+            }
+            console.error(`${label} loading failed:`, result.reason);
+            failures.push(label);
+            return fallback;
         }
+        const trendingPool = resultAt(0, [], "Trending");
+        const forYouItems = resultAt(1, [], "For You");
+        const vibe = resultAt(2, null, "Your Vibe");
 
-        if (!supportsForYou) {
-            return;
-        }
-
-        const {
-            data: { user },
-        } = await supabaseClient.auth.getUser();
-        if (!isCurrent() || !user) {
-            return;
-        }
-
-        loader.textContent = 'Calculating "For You" recommendations...';
-
-        const forYouItems = await fetchIndexForYou(
-            supabaseClient,
-            user.id,
-            PROXY_URL,
-            scope,
-            userStreamingProviderIds,
-            signal,
-        );
-        if (!isCurrent()) return;
-        maybeShowServicesNudge();
-
+        // =========================================
+        // 5. REMOVE DUPLICATE TITLES
+        // =========================================
         const forYouIds = new Set(forYouItems.map(mediaKey));
         const trendingItems = trendingPool
             .filter((item) => !forYouIds.has(mediaKey(item)))
             .slice(0, INDEX_TRENDING_LIMIT);
         const combined = [...forYouItems, ...trendingItems];
 
-        if (combined.length > 0) {
-            renderResults(combined);
-        }
-    } catch (err) {
+        // =========================================
+        // 6. BUILD EVERYTHING OFF-SCREEN
+        // =========================================
+        const stagingGrid = document.createElement("div");
+        renderResults(combined, stagingGrid, true);
+        const vibeNode = vibe ? buildIndexVibe(vibe) : null;
+
+        // =========================================
+        // 7. WAIT FOR EVERY IMAGE
+        // =========================================
+        await Promise.all([
+            prepareIndexImages(stagingGrid, signal),
+            prepareIndexImages(vibeNode, signal),
+        ]);
         if (!isCurrent()) return;
-        if (err.name === "AbortError") return;
-        console.error("Tab content load failed:", err);
-        loader.textContent = "Failed to load content.";
-        loader.style.display = "block";
-    } finally {
-        // An older request must never hide
-        // the currently active request's loader.
-        if (requestId === contentRequestId) {
-            if (
-                signal.aborted ||
-                loader.textContent.startsWith("Fetching") ||
-                loader.textContent.startsWith("Calculating")
-            ) {
-                loader.style.display = "none";
-            }
+
+        // =========================================
+        // 8. PREPARE ANY STATUS MESSAGES
+        // =========================================
+        if (failures.length || !combined.length) {
+            const message = document.createElement("p");
+            message.className = "meta";
+            message.style.cssText = "grid-column: 1/-1; text-align: center;";
+            message.textContent = failures.length
+                ? `${failures.join(", ")} could not be loaded.`
+                : "No titles found.";
+            stagingGrid.prepend(message);
         }
+
+        // =========================================
+        // 9. REVEAL ALL CONTENT TOGETHER
+        // =========================================
+        // Insert the Vibe inside the hidden tab container,
+        // directly above the media grid.
+        if (vibeNode) {
+            resultsGrid.before(vibeNode);
+        }
+
+        // Insert all prepared media cards.
+        resultsGrid.replaceChildren(...stagingGrid.childNodes);
+
+        // Stop and hide the reusable Catalogd loader.
+        loader.stop();
+
+        // Reveal the entire completed feed.
+        indexTabContent.hidden = false;
+        resultsGrid.setAttribute("aria-busy", "false");
+
+        // Only display the services reminder
+        // after the complete feed is visible.
+        if (supportsForYou && user) {
+            maybeShowServicesNudge(isCurrent);
+        }
+    } catch (error) {
+        if (!isCurrent()) return;
+        console.error("Index feed loading failed:", error);
+        loader.showMessage("Failed to load Catalogd. Select the tab to retry.");
+        resultsGrid.setAttribute("aria-busy", "false");
+    } finally {
+        clearTimeout(timeout);
     }
 }
 
@@ -542,8 +592,7 @@ async function unifiedSearch(query) {
         if (extractedId) {
             window.location.href = `details.html?id=${extractedId}&type=youtube`;
         } else {
-            loader.textContent = "Please enter a valid YouTube URL.";
-            loader.style.display = "block";
+            loader.showMessage("Please enter a valid YouTube URL.");
         }
         return;
     }
@@ -559,14 +608,16 @@ async function unifiedSearch(query) {
 
     document.querySelector(".vibe-container")?.remove();
 
+    // Global search uses the same content container.
+    indexTabContent.hidden = false;
+
     if (sectionTitle) {
         sectionTitle.textContent = `Search Results for "${query}"`;
 
         sectionTitle.style.display = "block";
     }
 
-    loader.style.display = "block";
-    loader.textContent = "Exploring the archives...";
+    loader.start("Exploring the archives...");
     resultsGrid.innerHTML = "";
 
     try {
@@ -625,12 +676,11 @@ async function unifiedSearch(query) {
         }
 
         sortSearchResults(combined, query);
-
         if (combined.length === 0) {
-            loader.textContent = "No results found.";
+            loader.showMessage("No results found.");
         } else {
             renderResults(combined);
-            loader.style.display = "none";
+            loader.stop();
         }
     } catch (err) {
         if (signal.aborted || err.name === "AbortError") {
@@ -638,7 +688,7 @@ async function unifiedSearch(query) {
         }
         if (requestId !== contentRequestId) return;
         console.error("Search failed:", err);
-        loader.textContent = "Search failed.";
+        loader.showMessage("Search failed.");
     }
 }
 
@@ -858,7 +908,7 @@ async function fetchTrendingAlbums(signal) {
 // ----------------------------------------
 // Data Processing & Business Logic
 // ----------------------------------------
-async function calculateAndRenderVibe(mediaType, requestId, subtype = "all", signal) {
+async function calculateIndexVibe(mediaType, requestId, subtype = "all", signal) {
     const isCurrent = () => requestId === contentRequestId && !signal?.aborted;
     try {
         const {
@@ -901,9 +951,9 @@ async function calculateAndRenderVibe(mediaType, requestId, subtype = "all", sig
             if (!isCurrent()) return;
 
             if (mediaType === "book") {
-                topGenre = await tallyBookVibe(logs || []);
+                topGenre = await tallyBookVibe(logs || [], signal);
             } else {
-                topGenre = await tallyAlbumVibe(logs || []);
+                topGenre = await tallyAlbumVibe(logs || [], signal);
             }
         }
 
@@ -914,7 +964,7 @@ async function calculateAndRenderVibe(mediaType, requestId, subtype = "all", sig
             theme: topTheme,
         });
 
-        await updateAndRenderVibeFromDB(
+        return await prepareIndexVibeFromDB(
             scope.vibeKey,
             topGenre,
             topTheme,
@@ -927,23 +977,15 @@ async function calculateAndRenderVibe(mediaType, requestId, subtype = "all", sig
             return;
         }
 
-        console.error("Vibe rendering failed:", error);
+        throw error;
     }
 }
 
-async function updateAndRenderVibeFromDB(
-    mediaType,
-    genreName,
-    themeName,
-    requestId,
-    signal,
-    userId,
-) {
+async function prepareIndexVibeFromDB(mediaType, genreName, themeName, requestId, signal, userId) {
     const isCurrent = () => requestId === contentRequestId && !signal?.aborted;
     if (!isCurrent()) return;
     if (!genreName && !themeName) {
-        document.querySelector(".vibe-container")?.remove();
-        return;
+        return null;
     }
     const cleanGenre = (genreName || "").replace(/\b\w/g, (letter) => letter.toUpperCase());
     const cleanTheme = (themeName || "").replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -1017,8 +1059,14 @@ async function updateAndRenderVibeFromDB(
                       url: vibeData.image_theme_attribution_url?.[mediaType] || null,
                   }
                 : null;
-            renderVibeBox(cleanGenre, cleanTheme, genreImg, themeImg, genreAttr, themeAttr);
-            return;
+            return {
+                genreName: cleanGenre,
+                themeName: cleanTheme,
+                genreImg,
+                themeImg,
+                genreAttr,
+                themeAttr,
+            };
         }
 
         throw new Error("Unable to update the Vibe queue after multiple attempts.");
@@ -1027,9 +1075,16 @@ async function updateAndRenderVibeFromDB(
 
         // The calculated Vibe is still useful
         // without its cached images.
-        if (isCurrent()) {
-            renderVibeBox(cleanGenre, cleanTheme, "", "", null, null);
-        }
+        if (!isCurrent()) return null;
+
+        return {
+            genreName: cleanGenre,
+            themeName: cleanTheme,
+            genreImg: "",
+            themeImg: "",
+            genreAttr: null,
+            themeAttr: null,
+        };
     }
 }
 
@@ -1097,10 +1152,12 @@ async function processVibeQueueUpdate(vibeData, mediaType, cleanGenre, cleanThem
 }
 
 // Book Vibe Tallying
-async function tallyBookVibe(logs) {
+async function tallyBookVibe(logs, signal) {
     const bookCounts = {};
     const bookPromises = logs.map((log) =>
-        contentFetch(`https://openlibrary.org${normalizeOpenLibraryId(log.media_id)}.json`)
+        contentFetch(`https://openlibrary.org${normalizeOpenLibraryId(log.media_id)}.json`, {
+            signal,
+        })
             .then((r) => r.json())
             .catch((error) => {
                 if (error.name === "AbortError") throw error;
@@ -1127,13 +1184,14 @@ async function tallyBookVibe(logs) {
 }
 
 // Album Vibe Tallying
-async function tallyAlbumVibe(logs) {
+async function tallyAlbumVibe(logs, signal) {
     const musicCounts = {};
     const musicPromises = logs.map((log) => {
         const decodedId = decodeURIComponent(log.media_id);
         const [artist, album] = decodedId.split("|||");
         return contentFetch(
             `${PROXY_URL}/api/lastfm?method=album.getinfo&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}`,
+            { signal },
         )
             .then((r) => r.json())
             .catch(() => null);
@@ -1156,7 +1214,8 @@ async function tallyAlbumVibe(logs) {
     return sortedMusic.length > 0 ? sortedMusic[0] : "";
 }
 
-function maybeShowServicesNudge() {
+function maybeShowServicesNudge(isCurrent = () => true) {
+    if (!isCurrent()) return;
     if (userStreamingProviderIds.filter(Boolean).length > 0) return;
     if (localStorage.getItem("catalogd_services_nudge_dismissed") === "true") return;
     if (document.getElementById("services-nudge-modal")) return;
@@ -1164,7 +1223,9 @@ function maybeShowServicesNudge() {
     supabaseClient.auth
         .getUser()
         .then(({ data: { user } }) => {
-            if (!user) return;
+            if (!user || !isCurrent() || document.getElementById("services-nudge-modal")) {
+                return;
+            }
 
             const modal = document.createElement("div");
             modal.id = "services-nudge-modal";
@@ -1204,10 +1265,105 @@ function maybeShowServicesNudge() {
         });
 }
 
+// =========================================
+// INDEX IMAGE PREPARATION
+// =========================================
+const indexPosterFallback = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 750"><rect width="500" height="750" fill="#1b2228"/><text x="250" y="375" text-anchor="middle" fill="#9ab" font-size="26" font-family="sans-serif">No Image</text></svg>',
+)}`;
+
+function waitForIndexImage(image, signal, timeout = 12000) {
+    if (signal.aborted) {
+        return Promise.resolve(false);
+    }
+
+    return new Promise((resolve) => {
+        let done = false;
+
+        const timer = setTimeout(() => finish(false), timeout);
+
+        function finish(ok) {
+            if (done) return;
+
+            done = true;
+
+            clearTimeout(timer);
+
+            signal.removeEventListener("abort", cancel);
+
+            image.removeEventListener("load", loaded);
+
+            image.removeEventListener("error", cancel);
+
+            resolve(ok);
+        }
+
+        function cancel() {
+            finish(false);
+        }
+
+        async function loaded() {
+            try {
+                await image.decode();
+
+                finish(image.naturalWidth > 0);
+            } catch {
+                finish(false);
+            }
+        }
+
+        signal.addEventListener("abort", cancel, { once: true });
+
+        image.addEventListener("load", loaded, { once: true });
+
+        image.addEventListener("error", cancel, { once: true });
+
+        // Cached images may already be ready.
+
+        if (image.complete) {
+            if (image.naturalWidth > 0) {
+                loaded();
+            } else {
+                finish(false);
+            }
+        }
+    });
+}
+
+async function prepareIndexImages(root, signal) {
+    if (!root) return;
+
+    await Promise.all(
+        [...root.querySelectorAll("img")].map(async (image) => {
+            const ok = await waitForIndexImage(image, signal);
+
+            if (ok || signal.aborted) return;
+
+            if (image.classList.contains("vibe-background")) {
+                // Failed Vibe images retain
+                // the original gradient.
+
+                const half = image.parentElement;
+
+                image.remove();
+
+                half.querySelector(".vibe-attribution, .vibe-attribution-link")?.remove();
+            } else {
+                // Use a local placeholder instead
+                // of requesting another external image.
+
+                image.src = indexPosterFallback;
+
+                await waitForIndexImage(image, signal, 2000);
+            }
+        }),
+    );
+}
+
 // ----------------------------------------
 // UI Rendering
 // ----------------------------------------
-function renderResults(items, targetGrid = resultsGrid) {
+function renderResults(items, targetGrid = resultsGrid, prepareImages = false) {
     targetGrid.innerHTML = "";
 
     items.forEach((item) => {
@@ -1240,10 +1396,9 @@ function renderResults(items, targetGrid = resultsGrid) {
                 ${trendingBadge}
                 ${userBadge}
                 ${forYouBadge}
-                <img src="${finalImage}" 
-                     alt="${item.title}" 
-                     loading="lazy" 
-                     onerror="this.onerror=null; this.src='https://via.placeholder.com/500x750?text=No+Image';">
+                <img alt="${item.title}"
+                    loading="${prepareImages ? "eager" : "lazy"}"
+                    decoding="async">
                 ${
                     ["person", "author", "user"].includes(item.type)
                         ? `<span class="badge badge-${item.type}">${item.type}</span>`
@@ -1255,62 +1410,133 @@ function renderResults(items, targetGrid = resultsGrid) {
                 ${item.author ? `<div class="meta" style="color: var(--accent); font-weight: 500;">${item.author}</div>` : ""}
                 <div class="meta">${item.year || ""}</div>
             </div>`;
+        const poster = card.querySelector("img");
+
+        if (!prepareImages) {
+            poster.addEventListener(
+                "error",
+
+                () => {
+                    poster.src = indexPosterFallback;
+                },
+
+                { once: true },
+            );
+        }
+
+        poster.src = finalImage || indexPosterFallback;
+
         targetGrid.appendChild(card);
     });
 }
 
-function renderVibeBox(genreName, themeName, genreImg, themeImg, genreAttr, themeAttr) {
-    // Some Anime titles have meaningful keywords
-    // but no genre beyond Animation.
+function buildIndexVibe(vibe) {
+    let { genreName, themeName, genreImg, themeImg, genreAttr, themeAttr } = vibe;
+
+    // Support meaningful themes even if the
+    // title has no eligible primary genre.
+
     if (!genreName && themeName) {
         genreName = themeName;
         genreImg = themeImg;
         genreAttr = themeAttr;
+
         themeName = "";
         themeImg = "";
         themeAttr = null;
     }
 
-    if (!genreName) return;
+    if (!genreName) return null;
 
     const vibeContainer = document.createElement("div");
+
     vibeContainer.className = "vibe-container";
 
     if (themeName) {
         vibeContainer.innerHTML = `
-            <div class="vibe-title">Your Vibe</div>
+
+            <div class="vibe-title">
+                Your Vibe
+            </div>
+
             <div class="vibe-box">
-                <div class="vibe-half" style="${backgroundStyle(genreImg, fallbackGradient)}">
-                    <span class="vibe-text">${genreName}</span>
+
+                <div class="vibe-half"
+                     style="${backgroundStyle("", fallbackGradient)}">
+
+                    <span class="vibe-text">
+                        ${genreName}
+                    </span>
+
                     ${attributionHtml(genreAttr)}
+
                 </div>
-                <div class="vibe-half" style="${backgroundStyle(themeImg, fallbackGradient)}">
-                    <span class="vibe-text">${themeName}</span>
+
+                <div class="vibe-half"
+                     style="${backgroundStyle("", fallbackGradient)}">
+
+                    <span class="vibe-text">
+                        ${themeName}
+                    </span>
+
                     ${attributionHtml(themeAttr)}
+
                 </div>
-                <div class="vibe-blend"></div> 
-             </div>
+
+                <div class="vibe-blend"></div>
+
+            </div>
         `;
     } else {
         vibeContainer.innerHTML = `
-            <div class="vibe-title">Your Vibe</div>
+
+            <div class="vibe-title">
+                Your Vibe
+            </div>
+
             <div class="vibe-box">
-                <div class="vibe-half" style="${backgroundStyle(genreImg, fallbackGradient)}; flex: 100%;">
-                    <span class="vibe-text">${genreName}</span>
+
+                <div class="vibe-half"
+                     style="${backgroundStyle("", fallbackGradient)}; flex: 100%;">
+
+                    <span class="vibe-text">
+                        ${genreName}
+                    </span>
+
                     ${attributionHtml(genreAttr)}
+
                 </div>
-             </div>
+
+            </div>
         `;
     }
 
-    const existingVibe = document.querySelector(".vibe-container");
-    if (existingVibe) existingVibe.remove();
-    const anchor =
-        document.getElementById("anime-subfilters") || document.querySelector(".filter-nav");
+    // Prepare the actual image elements rather
+    // than loading CSS backgrounds after rendering.
 
-    if (anchor) {
-        anchor.parentNode.insertBefore(vibeContainer, anchor.nextSibling);
-    }
+    const halves = vibeContainer.querySelectorAll(".vibe-half");
+
+    [genreImg, themeImg].forEach((url, index) => {
+        if (!url || !halves[index]) return;
+
+        const image = document.createElement("img");
+
+        image.className = "vibe-background";
+
+        image.alt = "";
+
+        image.loading = "eager";
+
+        image.decoding = "async";
+
+        image.src = url;
+
+        halves[index].prepend(image);
+    });
+
+    // Return the finished element without
+    // inserting it into the visible document.
+    return vibeContainer;
 }
 
 function syncAnimeSubfilters() {
@@ -1353,6 +1579,8 @@ function switchAnimeSubfilter(subtype) {
 // Event Listeners
 // ----------------------------------------
 window.switchTab = function (type) {
+    if (searchInput.disabled) return;
+
     currentTab = type;
 
     // Always reset Anime to All when switching
@@ -1378,18 +1606,14 @@ window.switchTab = function (type) {
 
     if (type === "youtube") {
         // Cancel the previous feed request.
-
         abortContentRequest();
-
         contentRequestId++;
-
-        loader.style.display = "none";
-
+        loader.stop();
+        indexTabContent.hidden = false;
         searchInput.placeholder = "Paste a YouTube link here...";
 
         if (sectionTitle) {
             sectionTitle.style.display = "block";
-
             sectionTitle.textContent = "Add a YouTube Video";
         }
 
@@ -1483,13 +1707,17 @@ function toggleAuthMode() {
 }
 
 function beginContentRequest() {
-    activeContentController?.abort();
+    abortContentRequest();
     activeContentController = new AbortController();
     return activeContentController;
 }
 
 function abortContentRequest() {
     activeContentController?.abort();
+
+    // Hide any active loader or previous status message.
+    loader.stop();
+    resultsGrid.setAttribute("aria-busy", "false");
 }
 
 function contentFetch(url, options = {}) {
