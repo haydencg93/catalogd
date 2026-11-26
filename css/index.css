@@ -569,8 +569,10 @@ input {
 .filter-nav {
     display: flex;
     justify-content: center;
-    gap: 20px;
     margin-bottom: 30px;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
 }
 
 .filter-btn {
@@ -1068,6 +1070,174 @@ a:hover {
     display: none !important;
 }
 
+/* =========================================
+   INDEX: MEDIA TYPE CIRCLE NAVIGATION
+   ========================================= */
+
+/* Main media tabs only */
+.filter-nav > .filter-btn[data-tab] {
+    --tab-animation: 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    --tab-label-width: 0;
+    --tab-label-gap: 0;
+    --tab-initial-width: 0;
+    --tab-initial-gap: 0;
+    --tab-expanded-width: 6em;
+    --tab-text-gap: 8px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    gap: 0;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 10px 18px;
+    box-sizing: border-box;
+    border-radius: 30px;
+    font-family: inherit;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    transition:
+        background var(--tab-animation),
+        border-color var(--tab-animation),
+        color var(--tab-animation),
+        box-shadow var(--tab-animation),
+        transform var(--tab-animation);
+}
+
+/* =========================================
+   MEDIA TYPE COLOR ASSIGNMENTS
+   ========================================= */
+.filter-nav > [data-tab="movie"] {
+    --tab-color: var(--movie-tag);
+}
+
+.filter-nav > [data-tab="tv"] {
+    --tab-color: var(--tv-tag);
+}
+
+.filter-nav > [data-tab="anime"] {
+    --tab-color: var(--anime-tag);
+}
+
+.filter-nav > [data-tab="book"] {
+    --tab-color: var(--book-tag);
+}
+
+.filter-nav > [data-tab="album"] {
+    --tab-color: var(--album-tag);
+}
+
+.filter-nav > [data-tab="youtube"] {
+    --tab-color: var(--youtube-tag);
+}
+
+/* =========================================
+   MEDIA TYPE CIRCLES
+   Match the Catalogd logo circles
+   ========================================= */
+.filter-nav .media-tab-circle {
+    display: block;
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+    box-sizing: border-box;
+    border-radius: 50%;
+    border: 2px solid var(--bg);
+    background: var(--tab-color);
+    box-shadow: none;
+    filter: none;
+    opacity: 1;
+}
+
+/* =========================================
+   ANIMATED MEDIA TAB TEXT
+   ========================================= */
+.filter-nav .media-tab-label,
+.filter-nav .media-tab-initial {
+    display: block;
+    flex: 0 0 auto;
+    width: max-content;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    transition:
+        max-width var(--tab-animation),
+        margin-inline-start var(--tab-animation);
+}
+
+/* Full media name */
+.filter-nav .media-tab-label {
+    max-width: var(--tab-label-width);
+    margin-inline-start: var(--tab-label-gap);
+}
+
+/* Mobile media initial */
+.filter-nav .media-tab-initial {
+    max-width: var(--tab-initial-width);
+    margin-inline-start: var(--tab-initial-gap);
+}
+
+/* =========================================
+   SELECTED AND KEYBOARD-FOCUSED MEDIA TABS
+   ========================================= */
+.filter-nav > .filter-btn[data-tab]:is(.active, :focus-visible) {
+    --tab-label-width: var(--tab-expanded-width);
+    --tab-label-gap: var(--tab-text-gap);
+    --tab-initial-width: 0;
+    --tab-initial-gap: 0;
+
+    color: #fff;
+}
+
+/* Accessible keyboard focus indicator */
+.filter-nav > .filter-btn[data-tab]:focus-visible {
+    outline: 2px solid var(--tab-color);
+    outline-offset: 3px;
+}
+
+/* =========================================
+   DESKTOP HOVER BEHAVIOR
+   ========================================= */
+@media (hover: hover) {
+    .filter-nav > .filter-btn[data-tab]:hover {
+        --tab-label-width: var(--tab-expanded-width);
+        --tab-label-gap: var(--tab-text-gap);
+        --tab-initial-width: 0;
+        --tab-initial-gap: 0;
+    }
+}
+
+/* =========================================
+   INTRINSIC WIDTH ANIMATION
+   Use exact text widths in supported browsers
+   ========================================= */
+@supports (interpolate-size: allow-keywords) {
+    .filter-nav > .filter-btn[data-tab] {
+        interpolate-size: allow-keywords;
+
+        --tab-expanded-width: max-content;
+    }
+
+    .filter-nav .media-tab-label {
+        width: var(--tab-label-width);
+        max-width: none;
+        transition:
+            width var(--tab-animation),
+            margin-inline-start var(--tab-animation);
+    }
+}
+
+/* =========================================
+   ACCESSIBILITY: REDUCED MOTION
+   ========================================= */
+@media (prefers-reduced-motion: reduce) {
+    .filter-nav > .filter-btn[data-tab] {
+        --tab-animation: 0s;
+    }
+}
+
 /* --- GLOBAL MOBILE RESPONSIVENESS (< 768px) --- */
 @media (width <= 768px) {
     /* Stack Header & Navigation */
@@ -1129,10 +1299,30 @@ a:hover {
         box-sizing: border-box !important;
     }
 
-    /* Wrap Filter Buttons */
     .filter-nav {
+        gap: 6px;
         flex-wrap: wrap;
         justify-content: center;
+    }
+
+    .filter-nav > .filter-btn[data-tab] {
+        flex: 0 0 auto;
+        gap: 6px;
+        padding: 8px 10px;
+        min-width: 44px;
+        min-height: 44px;
+        font-size: 0.85rem;
+    }
+
+    .filter-nav .media-tab-circle {
+        width: 12px;
+        height: 12px;
+        flex-basis: 12px;
+    }
+
+    /* Show initials on inactive mobile tabs */
+    .filter-nav .media-tab-initial {
+        display: inline-block;
     }
 
     .filter-btn {

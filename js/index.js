@@ -1588,8 +1588,10 @@ window.switchTab = function (type) {
 
     currentAnimeSubfilter = "all";
 
-    document.querySelectorAll("[data-tab]").forEach((button) => {
-        button.classList.toggle("active", button.dataset.tab === type);
+    document.querySelectorAll(".filter-nav [data-tab]").forEach((button) => {
+        const active = button.dataset.tab === type;
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-pressed", String(active));
     });
 
     const filterNav = document.querySelector(".filter-nav");
