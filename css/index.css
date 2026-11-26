@@ -1350,3 +1350,75 @@ a:hover {
         padding: 7px 15px;
     }
 }
+
+/* =========================================
+   MOBILE MEDIA TYPE NAVIGATION
+   ========================================= */
+@media (width <= 768px), (hover: none) and (pointer: coarse) {
+    .filter-nav {
+        gap: 6px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    /* Inactive mobile media tabs */
+    .filter-nav > .filter-btn[data-tab] {
+        --tab-text-gap: 6px;
+
+        /* Allow both single and double-letter abbreviations */
+        --tab-initial-width: 2em;
+        --tab-initial-gap: 6px;
+
+        flex: 0 0 auto;
+        gap: 0;
+        padding: 8px 10px;
+        min-width: 44px;
+        min-height: 44px;
+        font-size: 0.85rem;
+    }
+
+    /* Maintain logo-style circles */
+    .filter-nav .media-tab-circle {
+        width: 16px;
+        height: 16px;
+        flex-basis: 16px;
+        box-sizing: border-box;
+        border: 2px solid var(--bg);
+        border-radius: 50%;
+        box-shadow: none;
+        filter: none;
+    }
+
+    /* Explicitly enable animated abbreviations */
+    .filter-nav > .filter-btn[data-tab] .media-tab-initial {
+        display: block;
+        flex: 0 0 auto;
+        width: max-content;
+        min-width: 0;
+        max-width: var(--tab-initial-width);
+        margin-inline-start: var(--tab-initial-gap);
+        overflow: hidden;
+        white-space: nowrap;
+        transition:
+            max-width var(--tab-animation),
+            margin-inline-start var(--tab-animation);
+    }
+
+    /* Hide abbreviations when the full name is expanded */
+    .filter-nav > .filter-btn[data-tab]:is(.active, :focus-visible) {
+        --tab-initial-width: 0;
+        --tab-initial-gap: 0;
+        --tab-label-width: var(--tab-expanded-width);
+        --tab-label-gap: var(--tab-text-gap);
+    }
+}
+
+/* Support hovering on smaller mouse-enabled devices */
+@media (width <= 768px) and (hover: hover) {
+    .filter-nav > .filter-btn[data-tab]:hover {
+        --tab-initial-width: 0;
+        --tab-initial-gap: 0;
+        --tab-label-width: var(--tab-expanded-width);
+        --tab-label-gap: var(--tab-text-gap);
+    }
+}
