@@ -1,84 +1,245 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Catalogd</title>
-    <link rel="icon" type="image/x-icon" href="assets/catalogdFavicon.png" />
-    <link rel="stylesheet" href="css/index.css">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700;900&display=swap" rel="stylesheet">
-</head>
-<body>
-    <app-header></app-header>
-    <main>
-        <section class="search-section">
-            <div class="search-bar-wrapper">
-                <select id="search-filter" aria-label="Search filter">
-                    <option value="all">All</option>
-                    <option value="movie">Movies</option>
-                    <option value="tv">TV Shows</option>
-                    <option value="book">Books</option>
-                    <option value="album">Music</option>
-                    <option value="user">Users</option>
-                    <option value="person">Cast Members</option>
-                    <option value="author">Authors</option>
-                </select>
-                <input type="text" id="search-input" aria-label="Search query" placeholder="Preparing library..." disabled>
-            </div>
-
-            <div style="margin-top: 25px; margin-bottom: 40px; display: flex; flex-direction: column; align-items: center; gap: 20px;">
-                <button id="adv-search-btn" class="secondary-btn" data-navigation="adv-search.html" style="width: 350px; max-width: 100%; padding: 15px 20px; font-size: 1.1rem; box-sizing: border-box;">
-                    Advanced Search
-                </button>
-                <div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; width: 100%; max-width: 750px;">
-                    <button id="recs-btn" class="primary-btn" data-navigation="recs.html" style="flex: 1; min-width: 280px; padding: 15px 20px; font-size: 1.1rem; box-shadow: 0 4px 15px rgba(0, 224, 84, 0.2); box-sizing: border-box;">
-                        Discover with ML Recommendations
-                    </button>
-                    <button id="picker-btn" class="primary-btn" data-navigation="picker.html" style="flex: 1; min-width: 280px; padding: 15px 20px; font-size: 1.1rem; box-shadow: 0 4px 15px var(--accent-glow); box-sizing: border-box; background: linear-gradient(135deg, var(--accent), #4338ca);">
-                        Random Decider
-                    </button>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Catalogd</title>
+        <link rel="icon" type="image/x-icon" href="assets/catalogdFavicon.png" />
+        <link rel="stylesheet" href="css/index.css" />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700;900&display=swap"
+            rel="stylesheet"
+        />
+    </head>
+    <body>
+        <app-header></app-header>
+        <main>
+            <section class="search-section">
+                <div class="search-bar-wrapper">
+                    <select id="search-filter" aria-label="Search filter">
+                        <option value="all">All</option>
+                        <option value="movie">Movies</option>
+                        <option value="tv">TV Shows</option>
+                        <option value="anime">Anime</option>
+                        <option value="book">Books</option>
+                        <option value="album">Music</option>
+                        <option value="user">Users</option>
+                        <option value="person">Cast Members</option>
+                        <option value="author">Authors</option>
+                    </select>
+                    <input
+                        type="text"
+                        id="search-input"
+                        aria-label="Search query"
+                        placeholder="Preparing library..."
+                        disabled
+                    />
                 </div>
+
+                <div
+                    style="
+                        margin-top: 25px;
+                        margin-bottom: 40px;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        gap: 20px;
+                    "
+                >
+                    <button
+                        id="adv-search-btn"
+                        class="secondary-btn"
+                        data-navigation="adv-search.html"
+                        style="
+                            width: 350px;
+                            max-width: 100%;
+                            padding: 15px 20px;
+                            font-size: 1.1rem;
+                            box-sizing: border-box;
+                        "
+                    >
+                        Advanced Search
+                    </button>
+                    <div
+                        style="
+                            display: flex;
+                            justify-content: center;
+                            gap: 20px;
+                            flex-wrap: wrap;
+                            width: 100%;
+                            max-width: 750px;
+                        "
+                    >
+                        <button
+                            id="recs-btn"
+                            class="primary-btn"
+                            data-navigation="recs.html"
+                            style="
+                                flex: 1;
+                                min-width: 280px;
+                                padding: 15px 20px;
+                                font-size: 1.1rem;
+                                box-shadow: 0 4px 15px rgba(0, 224, 84, 0.2);
+                                box-sizing: border-box;
+                            "
+                        >
+                            Discover with ML Recommendations
+                        </button>
+                        <button
+                            id="picker-btn"
+                            class="primary-btn"
+                            data-navigation="picker.html"
+                            style="
+                                flex: 1;
+                                min-width: 280px;
+                                padding: 15px 20px;
+                                font-size: 1.1rem;
+                                box-shadow: 0 4px 15px var(--accent-glow);
+                                box-sizing: border-box;
+                                background: linear-gradient(135deg, var(--accent), #4338ca);
+                            "
+                        >
+                            Random Decider
+                        </button>
+                    </div>
+                </div>
+
+                <div id="loader">Loading configuration...</div>
+            </section>
+            <div class="filter-nav">
+                <button id="btn-movie" class="filter-btn active" data-tab="movie">Movies</button>
+                <button id="btn-tv" class="filter-btn" data-tab="tv">TV Shows</button>
+                <button id="btn-anime" class="filter-btn" data-tab="anime">Anime</button>
+                <button id="btn-book" class="filter-btn" data-tab="book">Books</button>
+                <button id="btn-album" class="filter-btn" data-tab="album">Music</button>
+                <button id="btn-youtube" class="filter-btn" data-tab="youtube">YouTube</button>
             </div>
 
-            <div id="loader">Loading configuration...</div>
-        </section>
-        <div class="filter-nav">
-            <button id="btn-movie" class="filter-btn active" data-tab="movie">Movies</button>
-            <button id="btn-tv" class="filter-btn" data-tab="tv">TV Shows</button>
-            <button id="btn-book" class="filter-btn" data-tab="book">Books</button>
-            <button id="btn-album" class="filter-btn" data-tab="album">Music</button>
-            <button id="btn-youtube" class="filter-btn" data-tab="youtube">YouTube</button>
-        </div>
+            <div
+                id="anime-subfilters"
+                class="anime-subfilter-nav"
+                role="group"
+                aria-label="Anime media format"
+                hidden
+            >
+                <button
+                    type="button"
+                    class="filter-btn active"
+                    data-anime-subfilter="all"
+                    aria-pressed="true"
+                >
+                    All
+                </button>
 
-        <h2 id="section-title" class="section-title" style="display: none;">Library Section</h2>
-        <div class="grid" id="results-grid"></div>
-    </main>
+                <button
+                    type="button"
+                    class="filter-btn"
+                    data-anime-subfilter="movie"
+                    aria-pressed="false"
+                >
+                    Movies
+                </button>
 
-    <div id="auth-modal" class="modal-overlay" style="display:none;">
-        <div class="auth-card">
-            <h2 id="modal-title">Welcome Back</h2>
-            
-            <div id="signup-fields" style="display: none;">
-                <input type="text" id="auth-name" aria-label="Full Name" placeholder="Full Name (e.g. John Doe)">
-                <input type="text" id="auth-username" aria-label="Username" placeholder="Username">
-                <input type="text" id="auth-referral" aria-label="Referral Code" placeholder="Referral Code">
+                <button
+                    type="button"
+                    class="filter-btn"
+                    data-anime-subfilter="tv"
+                    aria-pressed="false"
+                >
+                    TV
+                </button>
             </div>
 
-            <input type="email" id="auth-email" aria-label="Email Address" placeholder="Email">
-            <input type="password" id="auth-password" aria-label="Password" placeholder="Password">
+            <h2 id="section-title" class="section-title" style="display: none">Library Section</h2>
+            <div class="grid" id="results-grid"></div>
+        </main>
 
-            <input type="password" id="auth-retype" aria-label="Confirm Password" placeholder="Confirm Password" style="display: none;">
+        <div id="auth-modal" class="modal-overlay" style="display: none">
+            <div class="auth-card">
+                <h2 id="modal-title">Welcome Back</h2>
 
-            <button id="forgot-password-link" style="background: none; border: none; color: #9ab; cursor: pointer; font-size: 0.8rem; margin-bottom: 15px; text-decoration: underline; font-family: inherit;">Forgot password?</button>
+                <div id="signup-fields" style="display: none">
+                    <input
+                        type="text"
+                        id="auth-name"
+                        aria-label="Full Name"
+                        placeholder="Full Name (e.g. John Doe)"
+                    />
+                    <input
+                        type="text"
+                        id="auth-username"
+                        aria-label="Username"
+                        placeholder="Username"
+                    />
+                    <input
+                        type="text"
+                        id="auth-referral"
+                        aria-label="Referral Code"
+                        placeholder="Referral Code"
+                    />
+                </div>
 
-            <button id="auth-confirm-btn" class="primary-btn">Sign In</button>
-            <button id="auth-switch" style="background: none; border: none; color: #9ab; cursor: pointer; margin-top: 15px; font-size: 0.8rem; font-family: inherit;">Need an account? Sign Up</button>
-            <button id="close-auth" class="close-btn">×</button>
+                <input
+                    type="email"
+                    id="auth-email"
+                    aria-label="Email Address"
+                    placeholder="Email"
+                />
+                <input
+                    type="password"
+                    id="auth-password"
+                    aria-label="Password"
+                    placeholder="Password"
+                />
+
+                <input
+                    type="password"
+                    id="auth-retype"
+                    aria-label="Confirm Password"
+                    placeholder="Confirm Password"
+                    style="display: none"
+                />
+
+                <button
+                    id="forgot-password-link"
+                    style="
+                        background: none;
+                        border: none;
+                        color: #9ab;
+                        cursor: pointer;
+                        font-size: 0.8rem;
+                        margin-bottom: 15px;
+                        text-decoration: underline;
+                        font-family: inherit;
+                    "
+                >
+                    Forgot password?
+                </button>
+
+                <button id="auth-confirm-btn" class="primary-btn">Sign In</button>
+                <button
+                    id="auth-switch"
+                    style="
+                        background: none;
+                        border: none;
+                        color: #9ab;
+                        cursor: pointer;
+                        margin-top: 15px;
+                        font-size: 0.8rem;
+                        font-family: inherit;
+                    "
+                >
+                    Need an account? Sign Up
+                </button>
+                <button id="close-auth" class="close-btn">×</button>
+            </div>
         </div>
-    </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous"></script>
-    <script type="module" src="js/index.js"></script>
-    <script src="js/components/AppHeader.js" type="module"></script>
-</body>
+        <script
+            src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
+            crossorigin="anonymous"
+        ></script>
+        <script type="module" src="js/index.js"></script>
+        <script src="js/components/AppHeader.js" type="module"></script>
+    </body>
 </html>

@@ -1,33 +1,33 @@
-const path = require('node:path');
-const fs = require('node:fs');
-require('dotenv').config({ path: path.resolve(__dirname, '../misc/.env') });
+const path = require("node:path");
+const fs = require("node:fs");
+require("dotenv").config({ path: path.resolve(__dirname, "../misc/.env") });
 
-const WebSocket = require('ws');
-const { createClient } = require('@supabase/supabase-js');
+const WebSocket = require("ws");
+const { createClient } = require("@supabase/supabase-js");
 
 const TMDB_TOKEN = process.env.TMDB_TOKEN;
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY; 
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const OPENVERSE_CLIENT_ID = process.env.OPENVERSE_CLIENT_ID;
 const OPENVERSE_CLIENT_SECRET = process.env.OPENVERSE_CLIENT_SECRET;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: {
-        persistSession: false
+        persistSession: false,
     },
     realtime: {
-        transport: WebSocket
-    }
+        transport: WebSocket,
+    },
 });
 
-const vibeMappings = require('./vibe_overrides.json');
+const vibeMappings = require("./vibe_overrides.json");
 
 function translateKeyword(query) {
     if (!query) return "landscape";
     let q = query.toLowerCase().trim();
-    
+
     // 1. Broad Catch-Alls
     for (const [key, value] of Object.entries(vibeMappings.includes)) {
         if (q.includes(key)) return value;
@@ -35,7 +35,7 @@ function translateKeyword(query) {
 
     // 2. Direct Overrides
     if (vibeMappings.exact[q]) return vibeMappings.exact[q];
-    
+
     // 3. Fallback Cleanup
     q = q.replaceAll("based on", "");
     return q.trim();
@@ -52,18 +52,20 @@ async function getOpenverseToken() {
     if (openverseToken && Date.now() < openverseTokenExpiresAt) return openverseToken;
 
     try {
-        const res = await fetch('https://api.openverse.org/v1/auth_tokens/token/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        const res = await fetch("https://api.openverse.org/v1/auth_tokens/token/", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
             body: new URLSearchParams({
-                grant_type: 'client_credentials',
+                grant_type: "client_credentials",
                 client_id: OPENVERSE_CLIENT_ID,
-                client_secret: OPENVERSE_CLIENT_SECRET
-            })
+                client_secret: OPENVERSE_CLIENT_SECRET,
+            }),
         });
 
         if (!res.ok) {
-            console.warn(`[WARNING] Openverse token request failed (${res.status}). Falling back to anonymous requests.`);
+            console.warn(
+                `[WARNING] Openverse token request failed (${res.status}). Falling back to anonymous requests.`,
+            );
             return null;
         }
 
@@ -73,7 +75,7 @@ async function getOpenverseToken() {
         openverseTokenExpiresAt = Date.now() + (data.expires_in - 60) * 1000;
         return openverseToken;
     } catch (err) {
-        console.warn('[WARNING] Openverse token request errored:', err.message);
+        console.warn("[WARNING] Openverse token request errored:", err.message);
         return null;
     }
 }
@@ -82,28 +84,31 @@ async function getOpenverseToken() {
 // CC0/PDM (public domain) technically need no attribution, but we still show a
 // light-touch credit for transparency; CC BY/BY-SA legally require it.
 function buildAttribution(result) {
-    const license = (result.license || '').toUpperCase();
-    const version = result.license_version ? ` ${result.license_version}` : '';
-    const creator = result.creator || 'Unknown creator';
-    const source = result.source || result.provider || 'Openverse';
+    const license = (result.license || "").toUpperCase();
+    const version = result.license_version ? ` ${result.license_version}` : "";
+    const creator = result.creator || "Unknown creator";
+    const source = result.source || result.provider || "Openverse";
 
-    if (license === 'CC0' || license === 'PDM') {
+    if (license === "CC0" || license === "PDM") {
         return { text: `Public domain via ${source}`, url: result.foreign_landing_url || null };
     }
 
     return {
         text: `Photo by ${creator} / ${source}, licensed CC ${license}${version}`,
-        url: result.foreign_landing_url || null
+        url: result.foreign_landing_url || null,
     };
 }
 
 async function fetchImage(query) {
     const visualSearchTerm = translateKeyword(query);
-    console.log(`[DEBUG] Translating TMDB tag "${query}" -> Openverse search "${visualSearchTerm}"`);
+    console.log(
+        `[DEBUG] Translating TMDB tag "${query}" -> Openverse search "${visualSearchTerm}"`,
+    );
 
     // Runs one Openverse search and returns the first result, or null.
     async function searchOpenverse(extraParams, headers) {
-        const url = `https://api.openverse.org/v1/images/?q=${encodeURIComponent(visualSearchTerm)}` +
+        const url =
+            `https://api.openverse.org/v1/images/?q=${encodeURIComponent(visualSearchTerm)}` +
             `&license_type=commercial&category=photograph&aspect_ratio=wide&size=large` +
             `&page_size=3&mature=false${extraParams}`;
         const res = await fetch(url, { headers });
@@ -127,13 +132,15 @@ async function fetchImage(query) {
         // Pass 1: restrict to stocksnap/rawpixel. Both are staged/modeled stock photography
         // (all CC0), which avoids the Flickr/Wikimedia problem of surfacing photojournalism,
         // protest coverage, or portraits of real identifiable people for an unrelated "vibe" tag.
-        let { rateLimited, result } = await searchOpenverse('&source=stocksnap,rawpixel', headers);
+        let { rateLimited, result } = await searchOpenverse("&source=stocksnap,rawpixel", headers);
 
         // Pass 2: those two sources are a small slice of Openverse, so niche queries may come
         // up empty. Fall back to the full source pool rather than going straight to TMDB.
         if (!rateLimited && !result) {
-            console.warn(`[WARNING] No stock-source results for "${visualSearchTerm}". Widening source pool.`);
-            ({ rateLimited, result } = await searchOpenverse('', headers));
+            console.warn(
+                `[WARNING] No stock-source results for "${visualSearchTerm}". Widening source pool.`,
+            );
+            ({ rateLimited, result } = await searchOpenverse("", headers));
         }
 
         if (rateLimited) {
@@ -147,23 +154,30 @@ async function fetchImage(query) {
 
         // Fallback to TMDB
         console.log(`[DEBUG] Attempting TMDB fallback for "${query}"...`);
-        const tmdbRes = await fetch(`https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(query)}`, {
-            headers: { Authorization: `Bearer ${TMDB_TOKEN}` } 
-        });
+        const tmdbRes = await fetch(
+            `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(query)}`,
+            {
+                headers: { Authorization: `Bearer ${TMDB_TOKEN}` },
+            },
+        );
         const tmdbData = await tmdbRes.json();
-        
+
         if (tmdbData.results?.[0]?.backdrop_path) {
             console.log(`[SUCCESS] Found TMDB fallback for "${query}"`);
             return {
                 url: `https://image.tmdb.org/t/p/w1280${tmdbData.results[0].backdrop_path}`,
                 // TMDB's terms require this notice whenever their data/images are used.
-                attribution: { text: 'Image data provided by TMDB', url: 'https://www.themoviedb.org/' }
+                attribution: {
+                    text: "Image data provided by TMDB",
+                    url: "https://www.themoviedb.org/",
+                },
             };
         }
 
-        console.warn(`[FAILED] No images found anywhere for "${query}". Leaving image blank for the frontend's default styling.`);
+        console.warn(
+            `[FAILED] No images found anywhere for "${query}". Leaving image blank for the frontend's default styling.`,
+        );
         return { url: null, attribution: null };
-        
     } catch (err) {
         console.error(`[ERROR] Fetch failed for ${query}:`, err.message);
         return { url: null, attribution: null };
@@ -171,62 +185,184 @@ async function fetchImage(query) {
 }
 
 async function processUserVibe(vibe, mediaTypes) {
-    let updatedCurrentGenre = vibe.current_top_genre || {};
-    let updatedCurrentTheme = vibe.current_top_theme || {};
-    let updatedImageGenre = vibe.image_genre || {};
-    let updatedImageTheme = vibe.image_theme || {};
-    let updatedAttrGenre = vibe.image_genre_attribution || {};
-    let updatedAttrGenreUrl = vibe.image_genre_attribution_url || {};
-    let updatedAttrTheme = vibe.image_theme_attribution || {};
-    let updatedAttrThemeUrl = vibe.image_theme_attribution_url || {};
+    const updatedCurrentGenre = {
+        ...(vibe.current_top_genre || {}),
+    };
+
+    const updatedCurrentTheme = {
+        ...(vibe.current_top_theme || {}),
+    };
+
+    const updatedImageGenre = {
+        ...(vibe.image_genre || {}),
+    };
+
+    const updatedImageTheme = {
+        ...(vibe.image_theme || {}),
+    };
+
+    const updatedAttrGenre = {
+        ...(vibe.image_genre_attribution || {}),
+    };
+
+    const updatedAttrGenreUrl = {
+        ...(vibe.image_genre_attribution_url || {}),
+    };
+
+    const updatedAttrTheme = {
+        ...(vibe.image_theme_attribution || {}),
+    };
+
+    const updatedAttrThemeUrl = {
+        ...(vibe.image_theme_attribution_url || {}),
+    };
+
+    const remainingGenre = {
+        ...(vibe.new_top_genre || {}),
+    };
+
+    const remainingTheme = {
+        ...(vibe.new_top_theme || {}),
+    };
+
+    let processed = 0;
 
     for (const type of mediaTypes) {
-        // FIX: Optional Chaining applied here
-        const targetGenre = vibe.new_top_genre?.[type];
-        const targetTheme = vibe.new_top_theme?.[type];
+        // Process genres, including explicit
+        // requests to clear an old genre.
 
-        if (targetGenre) {
-            const genreResult = await fetchImage(targetGenre);
+        if (Object.hasOwn(remainingGenre, type)) {
+            const targetGenre = remainingGenre[type] || "";
+
+            console.log(`[VIBE] ${type}: genre = ${targetGenre}`);
+
+            const genreResult = targetGenre
+                ? await fetchImage(targetGenre)
+                : {
+                      url: null,
+                      attribution: null,
+                  };
+
             updatedCurrentGenre[type] = targetGenre;
+
             updatedImageGenre[type] = genreResult.url;
+
             updatedAttrGenre[type] = genreResult.attribution?.text || null;
+
             updatedAttrGenreUrl[type] = genreResult.attribution?.url || null;
+
+            delete remainingGenre[type];
+
+            processed++;
         }
 
-        if (targetTheme) {
-            const themeResult = await fetchImage(targetTheme);
+        // Process themes independently.
+
+        if (Object.hasOwn(remainingTheme, type)) {
+            const targetTheme = remainingTheme[type] || "";
+
+            console.log(`[VIBE] ${type}: theme = ${targetTheme}`);
+
+            const themeResult = targetTheme
+                ? await fetchImage(targetTheme)
+                : {
+                      url: null,
+                      attribution: null,
+                  };
+
             updatedCurrentTheme[type] = targetTheme;
+
             updatedImageTheme[type] = themeResult.url;
+
             updatedAttrTheme[type] = themeResult.attribution?.text || null;
+
             updatedAttrThemeUrl[type] = themeResult.attribution?.url || null;
+
+            delete remainingTheme[type];
+
+            processed++;
         }
     }
 
-    await supabase.from('vibes_control').update({
-        current_top_genre: updatedCurrentGenre,
-        current_top_theme: updatedCurrentTheme,
-        image_genre: updatedImageGenre,
-        image_theme: updatedImageTheme,
-        image_genre_attribution: updatedAttrGenre,
-        image_genre_attribution_url: updatedAttrGenreUrl,
-        image_theme_attribution: updatedAttrTheme,
-        image_theme_attribution_url: updatedAttrThemeUrl,
-        needs_update: false,
-        new_top_genre: {}, 
-        new_top_theme: {}, 
-        updated_at: new Date().toISOString()
-    }).eq('id', vibe.id);
+    if (processed === 0) {
+        console.warn(`[VIBE] No supported pending keys for ${vibe.user_id}`);
 
-    console.log(`Updated vibe for user ${vibe.user_id}`);
+        return;
+    }
+
+    const stillNeedsUpdate =
+        Object.keys(remainingGenre).length > 0 || Object.keys(remainingTheme).length > 0;
+
+    let query = supabase
+
+        .from("vibes_control")
+
+        .update({
+            current_top_genre: updatedCurrentGenre,
+
+            current_top_theme: updatedCurrentTheme,
+
+            image_genre: updatedImageGenre,
+
+            image_theme: updatedImageTheme,
+
+            image_genre_attribution: updatedAttrGenre,
+
+            image_genre_attribution_url: updatedAttrGenreUrl,
+
+            image_theme_attribution: updatedAttrTheme,
+
+            image_theme_attribution_url: updatedAttrThemeUrl,
+
+            needs_update: stillNeedsUpdate,
+
+            new_top_genre: remainingGenre,
+
+            new_top_theme: remainingTheme,
+
+            updated_at: new Date().toISOString(),
+        })
+
+        .eq("id", vibe.id)
+
+        .eq("needs_update", true);
+
+    // Ensure no additional requests have arrived
+    // while the worker was retrieving images.
+
+    for (const column of ["new_top_genre", "new_top_theme"]) {
+        query =
+            vibe[column] == null
+                ? query.is(column, null)
+                : query.eq(column, JSON.stringify(vibe[column]));
+    }
+
+    const { data, error } = await query.select("id");
+
+    if (error) {
+        console.error(`[ERROR] Failed to update Vibes for ${vibe.user_id}:`, error.message);
+
+        throw error;
+    }
+
+    if (!data?.length) {
+        console.warn(
+            `[VIBE] Queue changed during processing for ${vibe.user_id}. Pending requests preserved.`,
+        );
+
+        return;
+    }
+
+    console.log(`[SUCCESS] Updated ${processed} Vibe fields for ${vibe.user_id}`);
 }
 
 async function run() {
     console.log("Starting nightly vibe update...");
-    
+
     const { data: usersToUpdate, error } = await supabase
-        .from('vibes_control')
-        .select('*')
-        .eq('needs_update', true);
+        .from("vibes_control")
+        .select("*")
+        .eq("needs_update", true);
 
     if (error) throw error;
     if (!usersToUpdate || usersToUpdate.length === 0) {
@@ -236,11 +372,15 @@ async function run() {
 
     console.log(`Found ${usersToUpdate.length} users to update.`);
 
-    const mediaTypes = ['movie', 'tv', 'book', 'album'];
+    const mediaTypes = ["movie", "tv", "anime", "anime_movie", "anime_tv", "book", "album"];
 
     for (const vibe of usersToUpdate) {
         await processUserVibe(vibe, mediaTypes);
     }
 }
 
-run().catch(console.error);
+run().catch((error) => {
+    console.error("[FATAL] Vibe worker failed:", error);
+
+    process.exitCode = 1;
+});
