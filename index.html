@@ -104,7 +104,9 @@
                     </div>
                 </div>
             </section>
-            <div class="filter-nav" role="group" aria-label="Media types">
+            <!-- Main Catalogd Media Navigation -->
+            <div id="index-media-tabs" class="filter-nav" role="group" aria-label="Media types">
+                <!-- Movies -->
                 <button
                     type="button"
                     id="btn-movie"
@@ -112,12 +114,23 @@
                     data-tab="movie"
                     aria-label="Movies"
                     aria-pressed="true"
+                    title="Movies"
                 >
-                    <span class="media-tab-circle" aria-hidden="true"></span>
-                    <span class="media-tab-initial" aria-hidden="true">M</span>
+                    <span class="media-tab-circle" aria-hidden="true">
+                        <svg
+                            class="media-tab-icon"
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                            focusable="false"
+                        >
+                            <use href="assets/icons/media-icons.svg#media-icon-movie" />
+                        </svg>
+                    </span>
+
                     <span class="media-tab-label">Movies</span>
                 </button>
 
+                <!-- TV Shows -->
                 <button
                     type="button"
                     id="btn-tv"
@@ -125,12 +138,23 @@
                     data-tab="tv"
                     aria-label="TV Shows"
                     aria-pressed="false"
+                    title="TV Shows"
                 >
-                    <span class="media-tab-circle" aria-hidden="true"></span>
-                    <span class="media-tab-initial" aria-hidden="true">TV</span>
+                    <span class="media-tab-circle" aria-hidden="true">
+                        <svg
+                            class="media-tab-icon"
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                            focusable="false"
+                        >
+                            <use href="assets/icons/media-icons.svg#media-icon-tv" />
+                        </svg>
+                    </span>
+
                     <span class="media-tab-label">TV Shows</span>
                 </button>
 
+                <!-- Anime -->
                 <button
                     type="button"
                     id="btn-anime"
@@ -138,12 +162,23 @@
                     data-tab="anime"
                     aria-label="Anime"
                     aria-pressed="false"
+                    title="Anime"
                 >
-                    <span class="media-tab-circle" aria-hidden="true"></span>
-                    <span class="media-tab-initial" aria-hidden="true">A</span>
+                    <span class="media-tab-circle" aria-hidden="true">
+                        <svg
+                            class="media-tab-icon"
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                            focusable="false"
+                        >
+                            <use href="assets/icons/media-icons.svg#media-icon-anime" />
+                        </svg>
+                    </span>
+
                     <span class="media-tab-label">Anime</span>
                 </button>
 
+                <!-- Books -->
                 <button
                     type="button"
                     id="btn-book"
@@ -151,12 +186,23 @@
                     data-tab="book"
                     aria-label="Books"
                     aria-pressed="false"
+                    title="Books"
                 >
-                    <span class="media-tab-circle" aria-hidden="true"></span>
-                    <span class="media-tab-initial" aria-hidden="true">B</span>
+                    <span class="media-tab-circle" aria-hidden="true">
+                        <svg
+                            class="media-tab-icon"
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                            focusable="false"
+                        >
+                            <use href="assets/icons/media-icons.svg#media-icon-book" />
+                        </svg>
+                    </span>
+
                     <span class="media-tab-label">Books</span>
                 </button>
 
+                <!-- Music -->
                 <button
                     type="button"
                     id="btn-album"
@@ -164,12 +210,23 @@
                     data-tab="album"
                     aria-label="Music"
                     aria-pressed="false"
+                    title="Music"
                 >
-                    <span class="media-tab-circle" aria-hidden="true"></span>
-                    <span class="media-tab-initial" aria-hidden="true">M</span>
+                    <span class="media-tab-circle" aria-hidden="true">
+                        <svg
+                            class="media-tab-icon"
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                            focusable="false"
+                        >
+                            <use href="assets/icons/media-icons.svg#media-icon-album" />
+                        </svg>
+                    </span>
+
                     <span class="media-tab-label">Music</span>
                 </button>
 
+                <!-- YouTube -->
                 <button
                     type="button"
                     id="btn-youtube"
@@ -177,9 +234,19 @@
                     data-tab="youtube"
                     aria-label="YouTube"
                     aria-pressed="false"
+                    title="YouTube"
                 >
-                    <span class="media-tab-circle" aria-hidden="true"></span>
-                    <span class="media-tab-initial" aria-hidden="true">YT</span>
+                    <span class="media-tab-circle" aria-hidden="true">
+                        <svg
+                            class="media-tab-icon"
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                            focusable="false"
+                        >
+                            <use href="assets/icons/media-icons.svg#media-icon-youtube" />
+                        </svg>
+                    </span>
+
                     <span class="media-tab-label">YouTube</span>
                 </button>
             </div>

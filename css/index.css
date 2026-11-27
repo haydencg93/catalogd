@@ -1071,17 +1071,38 @@ a:hover {
 }
 
 /* =========================================
-   INDEX: MEDIA TYPE CIRCLE NAVIGATION
+   INDEX: MEDIA TYPE ICON NAVIGATION
    ========================================= */
 
-/* Main media tabs only */
-.filter-nav > .filter-btn[data-tab] {
+/*
+ * All styles are intentionally scoped to
+ * #index-media-tabs.
+ *
+ * Do not modify .logo-circles, .circle,
+ * media badges, or other filter navigation.
+ */
+
+#index-media-tabs {
+    --media-circle-size: 28px;
+    --media-icon-size: 16px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 30px;
+}
+
+/* =========================================
+   MAIN MEDIA TAB BUTTONS
+   ========================================= */
+
+#index-media-tabs > .filter-btn[data-tab] {
     --tab-animation: 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     --tab-label-width: 0;
     --tab-label-gap: 0;
-    --tab-initial-width: 0;
-    --tab-initial-gap: 0;
-    --tab-expanded-width: 6em;
+    --tab-expanded-width: 8em;
     --tab-text-gap: 8px;
 
     display: inline-flex;
@@ -1091,10 +1112,11 @@ a:hover {
     gap: 0;
     min-width: 44px;
     min-height: 44px;
-    padding: 10px 18px;
+    padding: 8px 10px;
     box-sizing: border-box;
     border-radius: 30px;
     font-family: inherit;
+    font-size: 0.95rem;
     line-height: 1.2;
     white-space: nowrap;
     overflow: hidden;
@@ -1109,57 +1131,90 @@ a:hover {
 /* =========================================
    MEDIA TYPE COLOR ASSIGNMENTS
    ========================================= */
-.filter-nav > [data-tab="movie"] {
+
+#index-media-tabs > [data-tab="movie"] {
     --tab-color: var(--movie-tag);
 }
 
-.filter-nav > [data-tab="tv"] {
+#index-media-tabs > [data-tab="tv"] {
     --tab-color: var(--tv-tag);
 }
 
-.filter-nav > [data-tab="anime"] {
+#index-media-tabs > [data-tab="anime"] {
     --tab-color: var(--anime-tag);
 }
 
-.filter-nav > [data-tab="book"] {
+#index-media-tabs > [data-tab="book"] {
     --tab-color: var(--book-tag);
 }
 
-.filter-nav > [data-tab="album"] {
+#index-media-tabs > [data-tab="album"] {
     --tab-color: var(--album-tag);
 }
 
-.filter-nav > [data-tab="youtube"] {
+#index-media-tabs > [data-tab="youtube"] {
     --tab-color: var(--youtube-tag);
 }
 
+/* Future media: currently no matching buttons */
+
+#index-media-tabs > [data-tab="game"] {
+    --tab-color: var(--game-tag);
+}
+
+#index-media-tabs > [data-tab="art"] {
+    --tab-color: var(--art-tag);
+}
+
 /* =========================================
-   MEDIA TYPE CIRCLES
-   Match the Catalogd logo circles
+   COLORED MEDIA ICON CIRCLES
    ========================================= */
-.filter-nav .media-tab-circle {
-    display: block;
-    width: 18px;
-    height: 18px;
-    flex: 0 0 18px;
+
+#index-media-tabs .media-tab-circle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--media-circle-size);
+    height: var(--media-circle-size);
+    flex: 0 0 var(--media-circle-size);
     box-sizing: border-box;
+    border: 2px solid #000;
     border-radius: 50%;
-    border: 2px solid var(--bg);
     background: var(--tab-color);
     box-shadow: none;
     filter: none;
     opacity: 1;
+    overflow: hidden;
 }
 
 /* =========================================
-   ANIMATED MEDIA TAB TEXT
+   WHITE SVG ICONS
    ========================================= */
-.filter-nav .media-tab-label,
-.filter-nav .media-tab-initial {
+
+#index-media-tabs .media-tab-icon {
+    display: block;
+    width: var(--media-icon-size);
+    height: var(--media-icon-size);
+    flex: 0 0 var(--media-icon-size);
+    color: #fff;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+    filter: none;
+    pointer-events: none;
+}
+
+/* =========================================
+   ANIMATED MEDIA TAB LABELS
+   ========================================= */
+
+#index-media-tabs .media-tab-label {
     display: block;
     flex: 0 0 auto;
     width: max-content;
     min-width: 0;
+    max-width: var(--tab-label-width);
+    margin-inline-start: var(--tab-label-gap);
     overflow: hidden;
     white-space: nowrap;
     transition:
@@ -1167,32 +1222,25 @@ a:hover {
         margin-inline-start var(--tab-animation);
 }
 
-/* Full media name */
-.filter-nav .media-tab-label {
-    max-width: var(--tab-label-width);
-    margin-inline-start: var(--tab-label-gap);
-}
-
-/* Mobile media initial */
-.filter-nav .media-tab-initial {
-    max-width: var(--tab-initial-width);
-    margin-inline-start: var(--tab-initial-gap);
-}
-
 /* =========================================
-   SELECTED AND KEYBOARD-FOCUSED MEDIA TABS
+   ACTIVE AND KEYBOARD-FOCUSED TABS
    ========================================= */
-.filter-nav > .filter-btn[data-tab]:is(.active, :focus-visible) {
+
+#index-media-tabs > .filter-btn[data-tab]:is(.active, :focus-visible) {
     --tab-label-width: var(--tab-expanded-width);
     --tab-label-gap: var(--tab-text-gap);
-    --tab-initial-width: 0;
-    --tab-initial-gap: 0;
 
     color: #fff;
 }
 
+/* Preserve the selected Indigo pill */
+#index-media-tabs > .filter-btn[data-tab].active {
+    background: var(--accent);
+    color: #fff;
+}
+
 /* Accessible keyboard focus indicator */
-.filter-nav > .filter-btn[data-tab]:focus-visible {
+#index-media-tabs > .filter-btn[data-tab]:focus-visible {
     outline: 2px solid var(--tab-color);
     outline-offset: 3px;
 }
@@ -1200,27 +1248,28 @@ a:hover {
 /* =========================================
    DESKTOP HOVER BEHAVIOR
    ========================================= */
+
 @media (hover: hover) {
-    .filter-nav > .filter-btn[data-tab]:hover {
+    #index-media-tabs > .filter-btn[data-tab]:hover {
         --tab-label-width: var(--tab-expanded-width);
         --tab-label-gap: var(--tab-text-gap);
-        --tab-initial-width: 0;
-        --tab-initial-gap: 0;
+
+        color: #fff;
     }
 }
 
 /* =========================================
-   INTRINSIC WIDTH ANIMATION
-   Use exact text widths in supported browsers
+   EXACT TEXT WIDTH ANIMATION
    ========================================= */
+
 @supports (interpolate-size: allow-keywords) {
-    .filter-nav > .filter-btn[data-tab] {
+    #index-media-tabs > .filter-btn[data-tab] {
         interpolate-size: allow-keywords;
 
         --tab-expanded-width: max-content;
     }
 
-    .filter-nav .media-tab-label {
+    #index-media-tabs .media-tab-label {
         width: var(--tab-label-width);
         max-width: none;
         transition:
@@ -1230,11 +1279,65 @@ a:hover {
 }
 
 /* =========================================
+   MOBILE MEDIA ICON NAVIGATION
+   ========================================= */
+
+@media (width <= 768px), (hover: none) and (pointer: coarse) {
+    #index-media-tabs {
+        --media-circle-size: 24px;
+        --media-icon-size: 14px;
+
+        gap: 4px;
+    }
+
+    #index-media-tabs > .filter-btn[data-tab] {
+        --tab-text-gap: 6px;
+
+        flex: 0 0 auto;
+        gap: 0;
+        min-width: 44px;
+        min-height: 44px;
+        padding: 8px 9px;
+        font-size: 0.85rem;
+    }
+}
+
+/* =========================================
+   TOUCHSCREEN HOVER PROTECTION
+   ========================================= */
+
+/*
+ * Prevent simulated hover states from
+ * sticking to inactive tabs on touchscreens.
+ */
+
+@media (hover: none) {
+    #index-media-tabs > .filter-btn[data-tab]:hover {
+        transform: none;
+    }
+
+    #index-media-tabs > .filter-btn[data-tab]:not(.active):hover {
+        background: transparent;
+        color: #ccd6e0;
+        box-shadow: inset 0 1px 0 rgb(255 255 255 / 15%);
+    }
+
+    #index-media-tabs > .filter-btn[data-tab]:not(.active):hover::before {
+        opacity: 0;
+    }
+}
+
+/* =========================================
    ACCESSIBILITY: REDUCED MOTION
    ========================================= */
+
 @media (prefers-reduced-motion: reduce) {
-    .filter-nav > .filter-btn[data-tab] {
+    #index-media-tabs > .filter-btn[data-tab] {
         --tab-animation: 0s;
+    }
+
+    #index-media-tabs > .filter-btn[data-tab]::before {
+        transition-duration: 0s;
     }
 }
 
@@ -1303,26 +1406,6 @@ a:hover {
         gap: 6px;
         flex-wrap: wrap;
         justify-content: center;
-    }
-
-    .filter-nav > .filter-btn[data-tab] {
-        flex: 0 0 auto;
-        gap: 6px;
-        padding: 8px 10px;
-        min-width: 44px;
-        min-height: 44px;
-        font-size: 0.85rem;
-    }
-
-    .filter-nav .media-tab-circle {
-        width: 12px;
-        height: 12px;
-        flex-basis: 12px;
-    }
-
-    /* Show initials on inactive mobile tabs */
-    .filter-nav .media-tab-initial {
-        display: inline-block;
     }
 
     .filter-btn {
