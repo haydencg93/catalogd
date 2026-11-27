@@ -13,7 +13,7 @@
         />
     </head>
     <body>
-        <div id="backdrop-overlay"></div>
+        <div id="backdrop-overlay" hidden></div>
         <app-header></app-header>
 
         <app-loader id="details-loader" class="index-feed-loading"> Loading details... </app-loader>
@@ -75,8 +75,8 @@
                 </div>
 
                 <div id="media-info-right">
+                    <div id="details-media-badge"></div>
                     <div id="media-meta" class="meta"></div>
-
                     <div id="watch-providers" class="providers-section">
                         <h4>Where to Watch</h4>
                         <div id="providers-list" class="provider-icons">
@@ -181,6 +181,9 @@
                     <button id="sim-btn-tv" class="filter-btn" data-similar-filter="tv">
                         TV Shows
                     </button>
+                    <button id="sim-btn-anime" class="filter-btn" data-similar-filter="anime">
+                        Anime
+                    </button>
                     <button id="sim-btn-book" class="filter-btn" data-similar-filter="book">
                         Books
                     </button>
@@ -195,12 +198,7 @@
                         gap: 20px;
                     "
                 ></div>
-                <div
-                    id="similar-loader"
-                    style="text-align: center; color: #9ab; display: none; margin-top: 20px"
-                >
-                    Calculating mathematical vectors...
-                </div>
+                <app-loader id="similar-loader" hidden> Finding similar titles... </app-loader>
             </div>
         </main>
 

@@ -47,7 +47,7 @@ const detailsContent = document.getElementById("details-content");
 const detailsBackdrop = document.getElementById("backdrop-overlay");
 
 // Prevent outdated recommendation requests from rendering
-const similarRequestId = 0;
+let similarRequestId = 0;
 
 // ----------------------------------------
 // Initialization
@@ -57,7 +57,7 @@ async function initDetails() {
     detailsContent.setAttribute("aria-busy", "true");
     detailsBackdrop.hidden = true;
 
-    detailsLoader.start();
+    detailsLoader.start("Loading details...");
 
     let timedOut = false;
 
@@ -237,9 +237,19 @@ async function initDetails() {
                 authorName: firstAuthorName,
             };
         }
-        // --- 3. MOVIE & TV FETCH ---
+        // --- 3. MOVIE, TV & ANIME FETCH ---
         else {
-            const res = await fetch(`${PROXY_URL}/api/tmdb/${type}/${id}`).then((r) => r.json());
+            const response = await fetch(`${PROXY_URL}/api/tmdb/${type}/${encodeURIComponent(id)}`);
+
+            if (!response.ok) {
+                throw new Error("TMDB media information could not be loaded.");
+            }
+
+            const res = await response.json();
+
+            if (res.success === false || !res.id) {
+                throw new Error("Media title was not found.");
+            }
 
             // ISO Language name mapper
             let mainLanguageName = res.original_language
@@ -286,16 +296,29 @@ async function initDetails() {
             }
 
             data = {
+                // Preserve original TMDB media type
+                media_type: type,
+                // Use centralized Catalogd anime classification
+                is_anime: getAnimeClassification({
+                    ...res,
+                    media_type: type,
+                }),
                 title: res.title || res.name,
-                overview: res.overview,
-                poster_path: `https://image.tmdb.org/t/p/w500${res.poster_path}`,
+                overview: res.overview || "No overview available.",
+                poster_path: res.poster_path
+                    ? `https://image.tmdb.org/t/p/w500${res.poster_path}`
+                    : detailsImageFallback,
                 backdrop: res.backdrop_path
                     ? `https://image.tmdb.org/t/p/original${res.backdrop_path}`
                     : null,
-                meta: `${(res.release_date || res.first_air_date || "").split("-")[0]} • ${runtimeStr}${res.genres?.map((g) => g.name).join(", ")} • ${mainLanguageName}`,
+                meta: `${(res.release_date || res.first_air_date || "").split("-")[0]} • ${runtimeStr}${res.genres?.map((g) => g.name).join(", ") || ""} • ${mainLanguageName}`,
                 translations: translationArray,
             };
         }
+
+        // Standardize classification for all supported media
+        data.media_type = type;
+        data.is_anime = getAnimeClassification(data);
 
         globalData = data;
 
@@ -323,6 +346,9 @@ async function initDetails() {
         document.getElementById("media-title").textContent = data.title;
         document.getElementById("media-overview").textContent = data.overview;
         document.getElementById("media-meta").textContent = data.meta;
+
+        // Render the standardized Catalogd media badge
+        document.getElementById("details-media-badge").innerHTML = renderMediaBadge(globalData);
 
         // FETCH USER'S PREFERRED LANGUAGES FOR TRANSLATION FILTERING
         let userPreferredLangs = [];
@@ -570,16 +596,8 @@ async function initDetails() {
             displayBookLinks(data.title, data.authorName);
         }
 
-        let isAnime = false;
-        if (type === "tv" || type === "movie") {
-            const keywordUrl = `${PROXY_URL}/api/tmdb/${type}/${id}/keywords`;
-            const kwRes = await fetch(keywordUrl).then((r) => r.json());
-            const keywords = type === "tv" ? kwRes.results : kwRes.keywords;
-            isAnime = keywords.some((k) => k.name.toLowerCase() === "anime");
-        }
-
-        // If it is an Anime, handle the Filler Logic
-        if (isAnime) {
+        // Filler episodes only apply to confirmed Anime TV shows
+        if (type === "tv" && globalData.is_anime === true) {
             const fillerContainer = document.getElementById("filler-status-container");
 
             const fillerInfo = document.getElementById("filler-info");
@@ -1255,7 +1273,8 @@ async function fetchMediaHistory() {
         .from("media_logs")
         .select("*")
         .eq("user_id", user.id)
-        .eq("media_id", id)
+        .eq("media_id", String(id))
+        .eq("media_type", type)
         .order("created_at", { ascending: false });
 
     if (!logs || logs.length === 0) {
@@ -1322,6 +1341,7 @@ async function setupStatusManager(mediaId, mediaType) {
         .select("status")
         .eq("user_id", user.id)
         .eq("media_id", String(mediaId))
+        .eq("media_type", mediaType)
         .maybeSingle();
 
     if (statusData?.status && labels[statusData.status]) {
@@ -1358,7 +1378,8 @@ async function setupStatusManager(mediaId, mediaType) {
                     .from("media_status")
                     .delete()
                     .eq("user_id", user.id)
-                    .eq("media_id", String(mediaId));
+                    .eq("media_id", String(mediaId))
+                    .eq("media_type", mediaType);
 
                 if (!error) {
                     statusBtn.textContent = labels.none;
@@ -1371,6 +1392,7 @@ async function setupStatusManager(mediaId, mediaType) {
                         user_id: user.id,
                         media_id: String(mediaId),
                         media_type: mediaType,
+                        is_anime: globalData.is_anime,
                         media_title: globalData.title,
                         status: selectedStatus,
                         image_url: globalData.poster_path,
@@ -1385,16 +1407,22 @@ async function setupStatusManager(mediaId, mediaType) {
 
                     // Cleanup watchlist if they start the item
                     if (selectedStatus === "active") {
-                        await supabaseClient
+                        const { error: watchlistError } = await supabaseClient
                             .from("user_watchlist")
                             .delete()
                             .eq("user_id", user.id)
-                            .eq("media_id", String(mediaId));
+                            .eq("media_id", String(mediaId))
+                            .eq("media_type", mediaType);
 
-                        const watchlistBtn = document.getElementById("watchlist-btn");
-                        if (watchlistBtn) {
-                            watchlistBtn.classList.remove("active");
-                            watchlistBtn.textContent = "Add to Watchlist";
+                        if (watchlistError) {
+                            console.error("Unable to remove item from watchlist:", watchlistError);
+                        } else {
+                            const watchlistBtn = document.getElementById("watchlist-btn");
+
+                            if (watchlistBtn) {
+                                watchlistBtn.classList.remove("active");
+                                watchlistBtn.textContent = "Add to Watchlist";
+                            }
                         }
                     }
                 } else {
@@ -1408,20 +1436,30 @@ async function setupStatusManager(mediaId, mediaType) {
 
 async function setupWatchlist(mediaId, mediaType) {
     const btn = document.getElementById("watchlist-btn");
+
     const {
         data: { user },
     } = await supabaseClient.auth.getUser();
+
     if (!user) {
         btn.style.display = "none";
         return;
     }
 
-    const { data: exists } = await supabaseClient
+    const { data: exists, error: lookupError } = await supabaseClient
         .from("user_watchlist")
         .select("id")
         .eq("user_id", user.id)
         .eq("media_id", String(mediaId))
+        .eq("media_type", mediaType)
         .maybeSingle();
+
+    if (lookupError) {
+        console.error("Watchlist lookup failed:", lookupError);
+
+        btn.disabled = true;
+        return;
+    }
 
     if (exists) {
         btn.classList.add("active");
@@ -1429,24 +1467,42 @@ async function setupWatchlist(mediaId, mediaType) {
     }
 
     btn.onclick = async () => {
-        if (btn.classList.contains("active")) {
-            await supabaseClient
-                .from("user_watchlist")
-                .delete()
-                .eq("user_id", user.id)
-                .eq("media_id", String(mediaId));
-            btn.classList.remove("active");
-            btn.textContent = "Add to Watchlist";
-        } else {
-            await supabaseClient.from("user_watchlist").insert({
-                user_id: user.id,
-                media_id: String(mediaId),
-                media_type: mediaType,
-                media_title: globalData.title,
-                image_url: globalData.poster_path,
-            });
-            btn.classList.add("active");
-            btn.textContent = "On Watchlist";
+        btn.disabled = true;
+
+        try {
+            if (btn.classList.contains("active")) {
+                const { error } = await supabaseClient
+                    .from("user_watchlist")
+                    .delete()
+                    .eq("user_id", user.id)
+                    .eq("media_id", String(mediaId))
+                    .eq("media_type", mediaType);
+
+                if (error) throw error;
+
+                btn.classList.remove("active");
+                btn.textContent = "Add to Watchlist";
+            } else {
+                const { error } = await supabaseClient.from("user_watchlist").insert({
+                    user_id: user.id,
+                    media_id: String(mediaId),
+                    media_type: mediaType,
+                    is_anime: globalData.is_anime,
+                    media_title: globalData.title,
+                    image_url: globalData.poster_path,
+                });
+
+                if (error) throw error;
+
+                btn.classList.add("active");
+                btn.textContent = "On Watchlist";
+            }
+        } catch (error) {
+            console.error("Watchlist update failed:", error);
+
+            alert("Unable to update watchlist.");
+        } finally {
+            btn.disabled = false;
         }
     };
 }
@@ -1544,7 +1600,8 @@ async function setupListManager(mediaId, mediaType) {
             .from("list_items")
             .select("list_id")
             .in("list_id", listIds)
-            .eq("media_id", String(mediaId));
+            .eq("media_id", String(mediaId))
+            .eq("media_type", mediaType);
 
         itemsInLists = new Set(currentItems?.map((item) => item.list_id) || []);
 
@@ -1567,141 +1624,252 @@ async function setupFavoritesManager(mediaId, mediaType) {
     const {
         data: { user },
     } = await supabaseClient.auth.getUser();
+
     if (!user) {
         btn.style.display = "none";
         return;
     }
 
-    let userFavorites = { movie: [], tv: [], book: [], album: [], youtube: [], all: [] };
+    // DETERMINE THE ACTUAL FAVORITES CATEGORY
+    const category = getMediaCategory(globalData);
 
-    // Fetch current favorites
-    const { data: profile } = await supabaseClient
+    // Do not assign an unclassified title
+    // to an incorrect favorites category.
+    if (!category) {
+        btn.disabled = true;
+        btn.title = "Media classification is currently unavailable.";
+        return;
+    }
+
+    // Match both ID and original storage type.
+    // Movies and TV shows may have identical TMDB IDs.
+    const isCurrentFavorite = (item) =>
+        String(item?.id) === String(mediaId) && getStorageMediaType(item) === mediaType;
+
+    // FETCH AND NORMALIZE FAVORITES
+    const { data: profile, error: profileError } = await supabaseClient
         .from("profiles")
         .select("favorites")
         .eq("id", user.id)
         .single();
-    if (profile && profile.favorites) {
-        userFavorites = profile.favorites;
+
+    if (profileError) {
+        console.error("Unable to load favorites:", profileError);
+
+        btn.disabled = true;
+        btn.title = "Favorites are currently unavailable.";
+        return;
     }
 
-    // Check if it's already a favorite to style the heart solid
-    const currentCategoryList = userFavorites[mediaType] || [];
-    const isAlreadyFav = currentCategoryList.some((fav) => String(fav.id) === String(mediaId));
-    if (isAlreadyFav) {
-        btn.textContent = "♥";
-        btn.style.color = "#ff4d4d"; // Red heart
-    }
+    let userFavorites = normalizeFavorites(profile?.favorites || {});
 
-    btn.onclick = () => {
-        modal.style.display = "flex";
-        renderFavSlots();
+    let saving = false;
+
+    const updateHeart = () => {
+        const isFavorite = (userFavorites[category] || []).some(isCurrentFavorite);
+
+        btn.textContent = isFavorite ? "♥" : "♡";
+
+        btn.style.color = isFavorite ? "#ff4d4d" : "#2c3440";
     };
 
-    closeBtn.onclick = () => (modal.style.display = "none");
-    modal.onclick = (e) => {
-        if (e.target === modal) modal.style.display = "none";
-    };
+    updateHeart();
 
+    // RENDER FAVORITE SLOTS
     const renderFavSlots = () => {
-        const list = userFavorites[mediaType] || [];
+        const list = userFavorites[category] || [];
+
         container.innerHTML = "";
 
-        // Loop through the 5 possible slots
-        for (let i = 0; i < 5; i++) {
+        for (let i = 0; i < MAX_FAVORITES_PER_CATEGORY; i++) {
             const currentItem = list[i];
-            const slotDiv = document.createElement("div");
-            slotDiv.style.cssText =
-                "display: flex; align-items: center; justify-content: space-between; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid #2c3440; border-radius: 8px; cursor: pointer; transition: background 0.2s;";
 
-            slotDiv.onmouseover = () => (slotDiv.style.background = "rgba(255,255,255,0.1)");
-            slotDiv.onmouseout = () => (slotDiv.style.background = "rgba(255,255,255,0.05)");
+            const slotDiv = document.createElement("div");
+
+            slotDiv.style.cssText = `
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 10px;
+                padding: 12px;
+                background: rgba(255,255,255,0.05);
+                border: 1px solid #2c3440;
+                border-radius: 8px;
+                cursor: pointer;
+                transition: background 0.2s;
+            `;
+
+            slotDiv.onmouseover = () => {
+                slotDiv.style.background = "rgba(255,255,255,0.1)";
+            };
+
+            slotDiv.onmouseout = () => {
+                slotDiv.style.background = "rgba(255,255,255,0.05)";
+            };
 
             if (currentItem) {
-                // If the slot is occupied by THIS media, show "Remove" state
-                if (String(currentItem.id) === String(mediaId)) {
+                const currentTitle = escapeFillerHtml(currentItem.title);
+
+                if (isCurrentFavorite(currentItem)) {
                     slotDiv.style.borderColor = "#ff4d4d";
+
                     slotDiv.innerHTML = `
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <span style="font-weight: bold; color: #ff4d4d;">#${i + 1}</span>
-                            <span style="color: #fff; font-weight: 500;">${currentItem.title}</span>
+                        <div>
+                            <span style="color: #ff4d4d; font-weight: bold;">
+                                #${i + 1}
+                            </span>
+
+                            <span style="color: #fff; font-weight: 500;">
+                                ${currentTitle}
+                            </span>
                         </div>
-                        <span style="color: #ff4d4d; font-size: 0.8rem; font-weight: bold;">REMOVE</span>
+
+                        <span style="color: #ff4d4d; font-size: 0.8rem; font-weight: bold;">
+                            REMOVE
+                        </span>
                     `;
-                    slotDiv.onclick = () => updateFavorite(i, null);
+
+                    slotDiv.onclick = () => updateFavorite(i, true);
                 } else {
-                    // Show existing media and "Replace" state
                     slotDiv.innerHTML = `
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <span style="font-weight: bold; color: #9ab;">#${i + 1}</span>
-                            <span style="color: #ccd6e0; font-size: 0.95rem;">${currentItem.title}</span>
+                        <div>
+                            <span style="color: #9ab; font-weight: bold;">
+                                #${i + 1}
+                            </span>
+
+                            <span style="color: #ccd6e0; font-size: 0.95rem;">
+                                ${currentTitle}
+                            </span>
                         </div>
-                        <span style="color: var(--accent); font-size: 0.8rem; font-weight: bold;">REPLACE</span>
+
+                        <span style="color: var(--accent); font-size: 0.8rem; font-weight: bold;">
+                            REPLACE
+                        </span>
                     `;
-                    slotDiv.onclick = () => updateFavorite(i, mediaId);
+
+                    slotDiv.onclick = () => updateFavorite(i, false);
                 }
             } else {
-                // Empty slot
                 slotDiv.innerHTML = `
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <span style="font-weight: bold; color: #9ab;">#${i + 1}</span>
-                        <span style="color: #678; font-style: italic; font-size: 0.95rem;">Empty Slot</span>
+                    <div>
+                        <span style="font-weight: bold; color: #9ab;">
+                            #${i + 1}
+                        </span>
+
+                        <span style="color: #678; font-style: italic; font-size: 0.95rem;">
+                            Empty Slot
+                        </span>
                     </div>
-                    <span style="color: #00e054; font-size: 0.8rem; font-weight: bold;">ADD HERE</span>
+
+                    <span style="color: #00e054; font-size: 0.8rem; font-weight: bold;">
+                        ADD HERE
+                    </span>
                 `;
-                slotDiv.onclick = () => updateFavorite(i, mediaId);
+
+                slotDiv.onclick = () => updateFavorite(i, false);
             }
+
             container.appendChild(slotDiv);
         }
     };
 
-    const updateFavorite = async (index, newMediaId) => {
-        if (!userFavorites[mediaType]) userFavorites[mediaType] = [];
+    // UPDATE FAVORITES
+    const updateFavorite = async (index, remove) => {
+        if (saving) return;
 
-        if (newMediaId === null) {
-            // Remove
-            userFavorites[mediaType].splice(index, 1);
-            btn.textContent = "♡";
-            btn.style.color = "#2c3440";
-        } else {
-            // Replace / Add
-            // Make sure to remove it from elsewhere in the list to prevent duplicates
-            userFavorites[mediaType] = userFavorites[mediaType].filter(
-                (item) => String(item.id) !== String(newMediaId),
-            );
+        saving = true;
 
-            const newFavObject = {
-                id: mediaId,
-                title: globalData.title,
-                type: mediaType,
-                image: globalData.poster_path,
-            };
+        try {
+            const nextFavorites = normalizeFavorites(userFavorites);
 
-            // Insert at specific index, or push if array is shorter
-            if (index >= userFavorites[mediaType].length) {
-                userFavorites[mediaType].push(newFavObject);
+            let list = [...nextFavorites[category]];
+
+            if (remove) {
+                list.splice(index, 1);
             } else {
-                userFavorites[mediaType][index] = newFavObject;
+                const newFavorite = {
+                    id: mediaId,
+
+                    title: globalData.title,
+
+                    // Preserve the original media type
+                    type: mediaType,
+
+                    // Store Anime classification separately
+                    is_anime: globalData.is_anime,
+
+                    image: globalData.poster_path,
+                };
+
+                const targetIndex = Math.min(index, list.length);
+
+                list[targetIndex] = newFavorite;
+
+                // Remove duplicate entries without
+                // confusing Movies and TV Shows.
+                list = list.filter(
+                    (item, itemIndex) => itemIndex === targetIndex || !isCurrentFavorite(item),
+                );
             }
 
-            btn.textContent = "♥";
-            btn.style.color = "#ff4d4d";
+            nextFavorites[category] = list.slice(0, MAX_FAVORITES_PER_CATEGORY);
+
+            // Include the top Anime favorite in All Favorites
+            nextFavorites.all = buildTopAllFavorites(nextFavorites);
+
+            const { error } = await supabaseClient
+                .from("profiles")
+                .update({
+                    favorites: nextFavorites,
+                })
+                .eq("id", user.id);
+
+            if (error) {
+                throw error;
+            }
+
+            userFavorites = nextFavorites;
+
+            updateHeart();
+            renderFavSlots();
+        } catch (error) {
+            console.error("Unable to update favorites:", error);
+
+            alert("Unable to update favorites.");
+        } finally {
+            saving = false;
         }
+    };
 
-        // Sync to "all" list (top 1 of each)
-        const topMovie = userFavorites.movie?.[0];
-        const topTv = userFavorites.tv?.[0];
-        const topBook = userFavorites.book?.[0];
-        const topAlbum = userFavorites.album?.[0];
-        const topYoutube = userFavorites.youtube?.[0];
-        userFavorites.all = [topMovie, topTv, topBook, topAlbum, topYoutube].filter(Boolean);
+    // =========================================
+    // MODAL CONTROLS
+    // =========================================
 
-        // Save to DB
-        await supabaseClient
-            .from("profiles")
-            .update({ favorites: userFavorites })
-            .eq("id", user.id);
+    btn.onclick = () => {
+        const categoryNames = {
+            movie: "Movies",
+            tv: "TV Shows",
+            anime: "Anime",
+            book: "Books",
+            album: "Music",
+            youtube: "YouTube",
+        };
 
-        renderFavSlots(); // Re-render visually to confirm change
+        modal.querySelector("h3").textContent = `Manage ${categoryNames[category]} Favorites`;
+
+        modal.style.display = "flex";
+
+        renderFavSlots();
+    };
+
+    closeBtn.onclick = () => {
+        modal.style.display = "none";
+    };
+
+    modal.onclick = (event) => {
+        if (event.target === modal) {
+            modal.style.display = "none";
+        }
     };
 }
 
@@ -1962,93 +2130,266 @@ function openHelpScraperModal(originalSlug, existingRequest = null) {
 // ----------------------------------------
 window.loadSimilar = async function (filterType = "all") {
     const simSection = document.getElementById("similar-section");
+
     const loader = document.getElementById("similar-loader");
+
     const grid = document.getElementById("similar-grid");
 
-    // Safety check: Only run this for movies, tv, and books
-    if (!["movie", "tv", "book"].includes(type)) return;
+    // Only supported recommendation source types
+    if (!["movie", "tv", "book"].includes(type)) {
+        return;
+    }
+
+    // Only supported filters
+    if (!["all", "movie", "tv", "anime", "book"].includes(filterType)) {
+        return;
+    }
+
+    // Prevent an older request from replacing
+    // the results of a newer filter selection.
+    const requestId = ++similarRequestId;
+
+    let timedOut = false;
+
+    const isCurrent = () => requestId === similarRequestId && !timedOut;
 
     simSection.style.display = "block";
 
-    // Update active filter button
-    document
-        .querySelectorAll("#similar-section .filter-btn")
-        .forEach((btn) => btn.classList.remove("active"));
-    document.getElementById(`sim-btn-${filterType}`).classList.add("active");
-
-    loader.style.display = "block";
-    grid.innerHTML = "";
-
-    // Convert OpenLibrary string keys into Universal IDs just like our mass seeders did
-    const universalId =
-        type === "book"
-            ? parseInt(String(id).replace(/\D/g, ""), 10) + 100000000
-            : parseInt(id, 10);
-
-    // Tell the Edge Function what we want back
-    let desiredOutputs = ["movie", "tv", "book"];
-    if (filterType !== "all") {
-        desiredOutputs = [filterType];
-    }
+    // =========================================
+    // UPDATE SELECTED FILTER
+    // =========================================
 
     document.querySelectorAll("[data-similar-filter]").forEach((button) => {
-        button.addEventListener("click", () => window.loadSimilar(button.dataset.similarFilter));
+        const active = button.dataset.similarFilter === filterType;
+
+        button.classList.toggle("active", active);
+
+        button.setAttribute("aria-pressed", String(active));
     });
 
+    // =========================================
+    // PREPARE LOADING STATE
+    // =========================================
+
+    grid.replaceChildren();
+
+    grid.setAttribute("aria-busy", "true");
+
+    loader.start("Finding similar titles...");
+
+    const loadingTimeout = setTimeout(() => {
+        if (!isCurrent()) return;
+
+        timedOut = true;
+
+        loader.showMessage("Recommendations took too long. Select a filter to retry.");
+
+        grid.setAttribute("aria-busy", "false");
+    }, 60000);
+
     try {
+        // Preserve existing recommendation engine ID rules
+        const universalId =
+            type === "book"
+                ? parseInt(String(id).replace(/\D/g, ""), 10) + 100000000
+                : parseInt(id, 10);
+
+        // =========================================
+        // DETERMINE BACKEND OUTPUT TYPES
+        // =========================================
+
+        let desiredOutputs;
+
+        if (filterType === "all") {
+            desiredOutputs = ["movie", "tv", "book"];
+        } else if (filterType === "anime") {
+            // Anime is not a separate backend media type.
+            desiredOutputs = ["movie", "tv"];
+        } else {
+            desiredOutputs = [filterType];
+        }
+
         const config = await loadConfig();
 
         const response = await fetch(`${config.supabase_url}/functions/v1/get-recommendations`, {
             method: "POST",
+
             headers: {
                 "Content-Type": "application/json",
+
                 Authorization: `Bearer ${config.supabase_key}`,
             },
+
             body: JSON.stringify({
-                favoriteIds: [universalId], // Pass the current page's ID to the AI
+                favoriteIds: [universalId],
                 desiredOutputs,
             }),
         });
 
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
 
-        // Limit to 12 items so the grid looks perfectly balanced (2 rows of 6 on desktop)
-        const toShow = data.recommendations.slice(0, 12);
+        if (!response.ok) {
+            throw new Error(data.error || "Recommendation request failed.");
+        }
 
-        if (toShow.length === 0) {
-            grid.innerHTML = `<p class="meta" style="grid-column: 1/-1; text-align:center;">No similar ${filterType === "all" ? "items" : `${filterType}s`} found in the database yet.</p>`;
+        if (!isCurrent()) return;
+
+        const recommendations = Array.isArray(data.recommendations) ? data.recommendations : [];
+
+        // =========================================
+        // CLASSIFY AND FILTER RECOMMENDATIONS
+        // =========================================
+
+        const preparedItems = [];
+
+        const seen = new Set();
+
+        const limit = 12;
+        const batchSize = 6;
+
+        for (
+            let i = 0;
+            i < recommendations.length && preparedItems.length < limit;
+            i += batchSize
+        ) {
+            if (!isCurrent()) return;
+
+            const batch = recommendations.slice(i, i + batchSize);
+
+            const preparedBatch = await Promise.all(batch.map(prepareSimilarItem));
+
+            if (!isCurrent()) return;
+
+            const filteredBatch = filterMediaItems(preparedBatch.filter(Boolean), filterType);
+
+            for (const item of filteredBatch) {
+                const mediaKey = `${item.media_type}_${item.detailsId}`;
+
+                if (seen.has(mediaKey)) continue;
+
+                seen.add(mediaKey);
+
+                preparedItems.push(item);
+
+                if (preparedItems.length >= limit) {
+                    break;
+                }
+            }
+        }
+
+        // =========================================
+        // BUILD RECOMMENDATIONS OFF-SCREEN
+        // =========================================
+
+        const stagingGrid = document.createElement("div");
+
+        if (preparedItems.length === 0) {
+            const names = {
+                all: "items",
+                movie: "movies",
+                tv: "TV shows",
+                anime: "anime titles",
+                book: "books",
+            };
+
+            stagingGrid.innerHTML = `
+                <p class="meta"
+                   style="grid-column: 1/-1; text-align: center;">
+                    No similar ${names[filterType]}
+                    were found in the returned recommendations.
+                </p>
+            `;
         } else {
-            toShow.forEach((rec) => {
+            preparedItems.forEach((item) => {
                 const card = document.createElement("div");
-                card.className = "media-card";
-                card.setAttribute("data-type", rec.media_type);
-                card.onclick = () =>
-                    (window.location.href = `details.html?id=${encodeURIComponent(rec.id)}&type=${rec.media_type}`);
 
-                const imgId = `sim-poster-${rec.id}`;
+                card.className = "media-card";
+
+                // Preserve the original media type
+                // for poster aspect ratios.
+                card.dataset.type = item.media_type;
+
+                card.onclick = () => {
+                    window.location.href = `details.html?id=${encodeURIComponent(item.detailsId)}&type=${encodeURIComponent(item.media_type)}`;
+                };
+
+                const safeTitle = escapeFillerHtml(item.title || "Unknown Title");
+
+                const match = Number(item.match_percentage);
+
+                const matchLabel = Number.isFinite(match) ? `${match}% Match` : "";
 
                 card.innerHTML = `
                     <div class="poster-wrapper">
-                        <img id="${imgId}" src="https://via.placeholder.com/500x750/1b2228/9ab?text=Loading..." alt="${rec.title}" loading="lazy">
-                        <span class="badge badge-${rec.media_type}">${rec.media_type}</span>
+                        <img
+                            alt="${safeTitle}"
+                            loading="eager"
+                            decoding="async"
+                        >
+
+                        ${renderMediaBadge(item)}
                     </div>
+
                     <div class="media-info">
-                        <div class="title" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${rec.title}</div>
-                        <div class="meta" style="color: var(--accent); font-weight: bold; margin-top: 4px;">${rec.match_percentage}% Match</div>
-                    </div>`;
+                        <div class="title"
+                             style="
+                                 white-space: nowrap;
+                                 overflow: hidden;
+                                 text-overflow: ellipsis;
+                             ">
+                            ${safeTitle}
+                        </div>
 
-                grid.appendChild(card);
+                        <div class="meta"
+                             style="
+                                 color: var(--accent);
+                                 font-weight: bold;
+                                 margin-top: 4px;
+                             ">
+                            ${matchLabel}
+                        </div>
+                    </div>
+                `;
 
-                // Fire off the lazy-loader to grab the poster
-                fetchSimPoster(rec, imgId, config);
+                card.querySelector("img").src = item.image || detailsImageFallback;
+
+                stagingGrid.appendChild(card);
             });
         }
-    } catch (e) {
-        console.error("AI Recommendation Fetch Error:", e);
-        grid.innerHTML = `<p class="meta" style="grid-column: 1/-1; text-align:center;">AI Engine is currently unavailable.</p>`;
+
+        // =========================================
+        // WAIT FOR RECOMMENDATION POSTERS
+        // =========================================
+
+        await prepareDetailsImages(stagingGrid);
+
+        if (!isCurrent()) return;
+
+        // =========================================
+        // REVEAL ALL RECOMMENDATIONS TOGETHER
+        // =========================================
+
+        grid.replaceChildren(...stagingGrid.childNodes);
+    } catch (error) {
+        if (!isCurrent()) return;
+
+        console.error("AI Recommendation Fetch Error:", error);
+
+        grid.innerHTML = `
+            <p class="meta"
+               style="grid-column: 1/-1; text-align: center;">
+                AI Engine is currently unavailable.
+            </p>
+        `;
     } finally {
-        loader.style.display = "none";
+        clearTimeout(loadingTimeout);
+
+        // Only the most recent request may hide the loader
+        if (isCurrent()) {
+            loader.stop();
+
+            grid.setAttribute("aria-busy", "false");
+        }
     }
 };
 
@@ -3049,6 +3390,7 @@ async function updatePageProgress() {
         total_pages: totalPages,
         is_finished: false,
         media_type: "book",
+        is_anime: false,
         media_title: globalData.title,
         watched_on: new Date().toISOString().split("T")[0],
     };
@@ -3379,32 +3721,107 @@ async function setupCustomArt(mediaId, mediaType) {
     };
 }
 
-// Lazy loader specifically for the grid posters
-async function fetchSimPoster(rec, imgId, config) {
-    const imgEl = document.getElementById(imgId);
-    if (!imgEl) return;
+// ----------------------------------------
+// Prepare Similar Recommendation Metadata
+// ----------------------------------------
+async function prepareSimilarItem(rec) {
+    const mediaType = rec.media_type;
+
+    if (!["movie", "tv", "book"].includes(mediaType)) {
+        return null;
+    }
+
+    const item = {
+        ...rec,
+
+        media_type: mediaType,
+
+        is_anime: getAnimeClassification(rec),
+
+        image: detailsImageFallback,
+
+        detailsId: rec.id,
+    };
 
     try {
-        if (rec.media_type === "movie" || rec.media_type === "tv") {
-            const res = await fetch(`${PROXY_URL}/api/tmdb/${rec.media_type}/${rec.id}`).then((r) =>
-                r.json(),
+        if (mediaType === "movie" || mediaType === "tv") {
+            const response = await fetch(
+                `${PROXY_URL}/api/tmdb/${mediaType}/${encodeURIComponent(rec.id)}`,
             );
-            imgEl.src = res.poster_path
-                ? `https://image.tmdb.org/t/p/w342${res.poster_path}`
-                : "https://via.placeholder.com/500x750/1b2228/9ab?text=No+Poster";
-        } else if (rec.media_type === "book") {
-            const rawNum = parseInt(rec.id) - 100000000;
-            const res = await fetch(`https://openlibrary.org/works/OL${rawNum}W.json`).then((r) =>
-                r.json(),
-            );
-            imgEl.src =
-                res.covers && res.covers.length > 0
-                    ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg`
-                    : "https://via.placeholder.com/500x750/1b2228/9ab?text=No+Cover";
+
+            if (!response.ok) {
+                throw new Error("TMDB request failed.");
+            }
+
+            const res = await response.json();
+
+            if (!res.id) {
+                throw new Error("TMDB title not found.");
+            }
+
+            // Use the same classification as the main page
+            const classification = getAnimeClassification({
+                ...res,
+                media_type: mediaType,
+            });
+
+            if (classification !== null) {
+                item.is_anime = classification;
+            }
+
+            item.title = res.title || res.name || rec.title;
+
+            if (res.poster_path) {
+                item.image = `https://image.tmdb.org/t/p/w342${res.poster_path}`;
+            }
+        } else if (mediaType === "book") {
+            // Convert the recommendation engine's
+            // universal numeric ID back to OpenLibrary.
+            const rawId = String(rec.id);
+
+            let bookId;
+
+            if (/^\d+$/.test(rawId)) {
+                const rawNumber = Number(rawId) - 100000000;
+
+                if (rawNumber <= 0) {
+                    return null;
+                }
+
+                bookId = `/works/OL${rawNumber}W`;
+            } else {
+                bookId = normalizeOpenLibraryId(rawId);
+            }
+
+            if (!bookId) return null;
+
+            // Use the actual OpenLibrary ID for navigation
+            item.detailsId = bookId;
+
+            item.is_anime = false;
+
+            const response = await fetch(`https://openlibrary.org${bookId}.json`);
+
+            if (!response.ok) {
+                throw new Error("OpenLibrary request failed.");
+            }
+
+            const res = await response.json();
+
+            item.title = res.title || rec.title;
+
+            if (res.covers?.length > 0) {
+                item.image = `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg`;
+            }
         }
-    } catch (e) {
-        imgEl.src = "https://via.placeholder.com/500x750/1b2228/ff4d4d?text=Error";
+    } catch (error) {
+        console.warn("Recommendation metadata unavailable:", rec.id, error);
+
+        // Preserve the recommendation and use the
+        // local fallback image when possible.
     }
+
+    return item;
 }
 
 async function checkAndQueueMedia(mediaId, mediaType, config) {
@@ -3429,7 +3846,7 @@ async function checkAndQueueMedia(mediaId, mediaType, config) {
             status,
         } = await supabaseClient
             .from("global_movies")
-            .select("tmdb_id, title") // Added title so we can visually confirm it found the right one
+            .select("tmdb_id, title, media_type, is_anime")
             .eq("tmdb_id", universalId)
             .maybeSingle();
 
@@ -3443,11 +3860,42 @@ async function checkAndQueueMedia(mediaId, mediaType, config) {
         console.log(`[ML Debug] Data returned from DB:`, existing);
 
         if (existing) {
-            console.log(
-                `[ML Debug] Match found! "${existing.title}" is already in DB. Stopping here.`,
-            );
+            // Protect against Movie/TV ID collisions.
+            if (existing.media_type !== mediaType) {
+                console.warn("[ML Debug] Media ID collision detected:", {
+                    universalId,
+                    existingType: existing.media_type,
+                    requestedType: mediaType,
+                });
+
+                return;
+            }
+
+            const classification = globalData.is_anime;
+
+            // Only update confirmed classifications.
+            // Never overwrite a known value with null.
+            if (typeof classification === "boolean" && existing.is_anime !== classification) {
+                const { error: classificationError } = await supabaseClient
+                    .from("global_movies")
+                    .update({
+                        is_anime: classification,
+                    })
+                    .eq("tmdb_id", universalId)
+                    .eq("media_type", mediaType);
+
+                if (classificationError) {
+                    console.error(
+                        "[ML Debug] Anime classification update failed:",
+                        classificationError,
+                    );
+                } else {
+                    console.log(`[ML Debug] Updated Anime classification for "${existing.title}".`);
+                }
+            }
+            console.log(`[ML Debug] Match found! "${existing.title}" is already in DB.`);
             console.log(`[ML Debug] ---------------------------------`);
-            return; // It's already in the database. Do nothing!
+            return;
         }
 
         console.log("[I] Media not found in Taste Graph. Queuing for nightly ML embedding...");
@@ -3496,6 +3944,7 @@ async function checkAndQueueMedia(mediaId, mediaType, config) {
         console.log(`[ML Debug] Preparing to upsert: ${title} with ID: ${universalId}`);
 
         // 3. Silently push it to Supabase
+        // 3. Silently push new media to Supabase
         const { error: upsertError } = await supabaseClient.from("global_movies").upsert(
             {
                 tmdb_id: universalId,
@@ -3505,9 +3954,13 @@ async function checkAndQueueMedia(mediaId, mediaType, config) {
                 overview: typeof overview === "string" ? overview : "No overview available.",
                 tags: tags.slice(0, 15).join(", "),
                 media_type: mediaType,
+                is_anime: globalData.is_anime,
                 is_embedded: false,
             },
-            { onConflict: "tmdb_id" },
+            {
+                onConflict: "tmdb_id",
+                ignoreDuplicates: true,
+            },
         );
 
         if (upsertError) {
@@ -3557,6 +4010,7 @@ async function fetchFollowingLogs() {
             .from("media_logs")
             .select("*")
             .eq("media_id", String(id))
+            .eq("media_type", type)
             .in("user_id", followingIds)
             .order("created_at", { ascending: false });
 
@@ -3778,7 +4232,8 @@ window.toggleListItem = async (listId, mediaId, mediaType, btnElement) => {
             .from("list_items")
             .delete()
             .eq("list_id", listId)
-            .eq("media_id", String(mediaId));
+            .eq("media_id", String(mediaId))
+            .eq("media_type", mediaType);
 
         if (!error) {
             btnElement.textContent = "Add";
@@ -3791,4 +4246,12 @@ window.toggleListItem = async (listId, mediaId, mediaType, btnElement) => {
     }
 };
 
+// Register recommendation filters once
+document.querySelectorAll("[data-similar-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+        window.loadSimilar(button.dataset.similarFilter);
+    });
+});
+
+// Initialize the Details page
 initDetails();

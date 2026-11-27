@@ -1069,7 +1069,6 @@ body {
 /* =========================================
    DETAILS: LOADING AND CONTENT VISIBILITY
    ========================================= */
-
 #details-content[hidden],
 #backdrop-overlay[hidden],
 #details-loader[hidden] {
@@ -1081,6 +1080,39 @@ body {
     max-width: 1100px;
     margin: 60px auto;
     box-sizing: border-box;
+}
+
+/* =========================================
+   DETAILS: STANDARDIZED MEDIA BADGE
+   ========================================= */
+#details-media-badge {
+    display: flex;
+    align-items: center;
+    margin-top: 15px;
+}
+
+#details-media-badge .badge {
+    position: static;
+    inset: auto;
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+/* =========================================
+   DETAILS: SIMILAR RECOMMENDATION LOADER
+   ========================================= */
+#similar-loader {
+    width: 100%;
+    margin: 10px auto 30px;
+}
+
+#similar-loader[hidden] {
+    display: none !important;
 }
 
 /* --- DETAILS PAGE MOBILE RESPONSIVENESS (< 768px) --- */
@@ -1431,5 +1463,13 @@ body {
 
     #details-loader {
         margin: 30px auto;
+    }
+
+    #details-media-badge {
+        margin-top: 10px;
+    }
+
+    #details-media-badge .badge {
+        font-size: 0.75rem;
     }
 }
