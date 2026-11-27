@@ -16,7 +16,9 @@
         <div id="backdrop-overlay"></div>
         <app-header></app-header>
 
-        <main class="details-container">
+        <app-loader id="details-loader" class="index-feed-loading"> Loading details... </app-loader>
+
+        <main id="details-content" class="details-container" aria-busy="true" hidden>
             <div id="left-col">
                 <div id="poster-controls-wrapper">
                     <div id="poster-area"></div>

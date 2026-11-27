@@ -1,40 +1,51 @@
-html, body {
+html,
+body {
     max-width: 100vw;
     overflow-x: hidden;
 }
 
-.search-results-dropdown { 
-    background: var(--bg); 
-    border: 1px solid var(--glass-border); 
-    border-radius: 8px; 
-    max-height: 300px; 
-    overflow-y: auto; 
-    margin-top: 10px; 
+.search-results-dropdown {
+    background: var(--bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+    margin-top: 10px;
     display: none;
 }
 
-.search-result-item { 
-    display: flex; 
-    align-items: center; 
-    gap: 15px; 
-    padding: 10px; 
-    cursor: pointer; 
-    border-bottom: 1px solid var(--glass-border); 
+.search-result-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 10px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--glass-border);
 }
 
-.search-result-item:hover { 
-    background: var(--accent-glow); 
+.search-result-item:hover {
+    background: var(--accent-glow);
 }
 
 #backdrop-overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100vh;
-    background-size: cover; background-position: center 20%;
-    filter: brightness(0.2) saturate(1.2); z-index: -1;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    background-size: cover;
+    background-position: center 20%;
+    filter: brightness(0.2) saturate(1.2);
+    z-index: -1;
 }
+
 #backdrop-overlay::after {
-    content: ''; position: absolute; inset: 0;
+    content: "";
+    position: absolute;
+    inset: 0;
     background: linear-gradient(to bottom, transparent, #14181c 95%);
 }
+
 .details-container {
     display: grid;
     grid-template-columns: 300px 1fr;
@@ -43,12 +54,14 @@ html, body {
     margin: 80px auto;
     padding: 0 20px;
 }
+
 .details-container > *,
 #left-col,
 .info-pane {
     min-width: 0;
     max-width: 100%;
 }
+
 #poster-area,
 #poster-area img,
 .info-pane img,
@@ -57,6 +70,7 @@ html, body {
     max-width: 100%;
     box-sizing: border-box;
 }
+
 #media-overview,
 .info-pane p,
 .info-pane pre,
@@ -65,32 +79,54 @@ html, body {
     overflow-wrap: anywhere;
     word-break: break-word;
 }
-#poster-area img { width: 100%; border-radius: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.6); }
-.info-pane h1, 
+
+#poster-area img {
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 20px 40px rgb(0 0 0 / 60%);
+}
+
+.info-pane h1,
 #media-title {
     overflow-wrap: break-word;
-    word-wrap: break-word;
     word-break: break-word;
     max-width: 100%;
 }
+
 .info-pane h1 {
     font-size: 3.5rem;
     margin: 0;
 }
 
-.meta { margin: 15px 0 30px; font-size: 1.2rem; color: #9ab; }
-.rating-section, .log-entry {
-    background: rgba(27, 34, 40, 0.7);
+.meta {
+    margin: 15px 0 30px;
+    font-size: 1.2rem;
+    color: #9ab;
+}
+
+.rating-section,
+.log-entry {
+    background: rgb(27 34 40 / 70%);
     backdrop-filter: blur(12px);
     padding: 25px;
     border-radius: 16px;
     display: block; /* Change from inline-block to block */
-    width: 100%;    /* Ensure it fills the info-pane column */
+    width: 100%; /* Ensure it fills the info-pane column */
     box-sizing: border-box; /* Prevents padding from adding to width */
     margin-top: 30px;
 }
-.star { font-size: 2.5rem; color: #14181c; cursor: pointer; transition: color 0.2s; }
-.star.active { color: #00e054; text-shadow: 0 0 10px rgba(0, 224, 84, 0.5); }
+
+.star {
+    font-size: 2.5rem;
+    color: #14181c;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.star.active {
+    color: #00e054;
+    text-shadow: 0 0 10px rgb(0 224 84 / 50%);
+}
 
 /* Highlights stars from left to right when hovering */
 .star:hover,
@@ -103,19 +139,39 @@ html, body {
 #star-rater:hover .star {
     color: #00e054;
 }
+
 #star-rater .star:hover ~ .star {
     color: #14181c;
 }
 
-.providers-section { margin-top: 20px; }
-.provider-logo { width: 40px; height: 40px; border-radius: 8px; margin-right: 10px; }
+.providers-section {
+    margin-top: 20px;
+}
 
-.log-entry { margin-top: 30px; display: flex; flex-direction: column; gap: 15px; }
-#user-notes { 
+.provider-logo {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    margin-right: 10px;
+}
+
+.log-entry {
+    margin-top: 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+#user-notes {
     width: 100%;
     box-sizing: border-box;
-    background: #14181c; color: white; border: 1px solid #2c3440; 
-    border-radius: 8px; padding: 15px; min-height: 120px; font-family: inherit;
+    background: #14181c;
+    color: white;
+    border: 1px solid #2c3440;
+    border-radius: 8px;
+    padding: 15px;
+    min-height: 120px;
+    font-family: inherit;
     resize: vertical;
 }
 
@@ -200,7 +256,7 @@ html, body {
     align-items: center;
     gap: 10px;
     padding: 8px;
-    background: rgba(255,255,255,0.05);
+    background: rgb(255 255 255 / 5%);
     border-radius: 6px;
     font-size: 0.9rem;
 }
@@ -263,11 +319,9 @@ html, body {
 }
 
 /* Update your grid to handle the left column better */
-.details-container
-
-.history-section {
+.details-container .history-section {
     margin-top: 30px;
-    background: rgba(255, 255, 255, 0.03);
+    background: rgb(255 255 255 / 3%);
     padding: 15px;
     border-radius: 12px;
     border: 1px solid #2c3440;
@@ -283,7 +337,9 @@ html, body {
     padding-bottom: 5px;
 }
 
-.history-item:last-child { border: none; }
+.history-item:last-child {
+    border: none;
+}
 
 .history-header {
     display: flex;
@@ -329,13 +385,14 @@ html, body {
     gap: 15px;
 }
 
-.main-actions .primary-btn, 
+.main-actions .primary-btn,
 .main-actions .secondary-btn {
     flex: 1;
     text-align: center;
 }
 
 /* Watch Providers Organization */
+
 /* Stack Stream and Buy vertically */
 #providers-list {
     display: flex;
@@ -368,7 +425,7 @@ html, body {
     width: 45px;
     height: 45px;
     border-radius: 10px;
-    border: 1px solid rgba(255,255,255,0.1);
+    border: 1px solid rgb(255 255 255 / 10%);
     transition: transform 0.2s;
 }
 
@@ -484,7 +541,7 @@ html, body {
     display: flex;
     flex-direction: row; /* Keep them on one line for a cleaner look */
     gap: 12px;
-    background: rgba(255, 255, 255, 0.05);
+    background: rgb(255 255 255 / 5%);
     padding: 12px;
     border-radius: 8px;
     margin-top: 15px;
@@ -515,8 +572,8 @@ html, body {
 
 /* 1. Ensure the container can handle a full-width section at the bottom */
 .details-container {
-    display: grid; 
-    grid-template-columns: 300px 1fr; 
+    display: grid;
+    grid-template-columns: 300px 1fr;
     gap: 40px;
     max-width: 1200px;
     margin: 80px auto;
@@ -528,14 +585,15 @@ html, body {
     grid-column: 1 / -1; /* This makes the section span BOTH columns */
     margin-top: 50px;
     padding-top: 30px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid rgb(255 255 255 / 10%);
 }
 
 /* 3. Improve the Cast Grid responsiveness */
 .cast-grid {
     display: grid;
+
     /* This makes the cards a fixed width so they don't stretch weirdly */
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); 
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     gap: 25px;
     margin-top: 20px;
 }
@@ -543,15 +601,17 @@ html, body {
 /* 4. Refine the Card Styling */
 .cast-card {
     text-align: left;
-    background: rgba(255, 255, 255, 0.03);
+    background: rgb(255 255 255 / 3%);
     padding: 10px;
     border-radius: 12px;
-    transition: transform 0.2s ease, background 0.2s ease;
+    transition:
+        transform 0.2s ease,
+        background 0.2s ease;
 }
 
 .cast-card:hover {
     transform: translateY(-5px);
-    background: rgba(255, 255, 255, 0.08);
+    background: rgb(255 255 255 / 8%);
 }
 
 .cast-card img {
@@ -588,7 +648,7 @@ html, body {
 
 .director-highlight {
     border: 2px solid var(--accent) !important; /* Uses --accent from stylingIndex.css */
-    background: rgba(3, 0, 59, 0.15) !important; /* Faded Indigo background */
+    background: rgb(3 0 59 / 15%) !important; /* Faded Indigo background */
 }
 
 .director-highlight .cast-role {
@@ -608,6 +668,7 @@ html, body {
 #user-lists-selection::-webkit-scrollbar {
     width: 6px;
 }
+
 #user-lists-selection::-webkit-scrollbar-thumb {
     background: #2c3440;
     border-radius: 10px;
@@ -651,35 +712,35 @@ html, body {
 
 /* Core Modal Background */
 .modal-overlay {
-    position: fixed; 
-    inset: 0; 
-    background: rgba(0,0,0,0.85);
+    position: fixed;
+    inset: 0;
+    background: rgb(0 0 0 / 85%);
     display: none;
-    justify-content: center; 
-    align-items: center; 
+    justify-content: center;
+    align-items: center;
     z-index: 2000;
 }
 
 /* The Box inside the modal */
-.auth-card { 
-    background: #1b2228; 
-    padding: 40px; 
-    border-radius: 16px; 
-    width: 320px; 
-    text-align: center; 
+.auth-card {
+    background: #1b2228;
+    padding: 40px;
+    border-radius: 16px;
+    width: 320px;
+    text-align: center;
     position: relative;
     border: 1px solid #2c3440;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    box-shadow: 0 20px 40px rgb(0 0 0 / 40%);
 }
 
 /* Force the list buttons to be much smaller */
 #user-lists-selection .list-select-item button {
-    width: auto !important;     /* Stop it from filling the row */
-    flex: 0 1 auto !important;  /* Override any flex-grow settings */
+    width: auto !important; /* Stop it from filling the row */
+    flex: 0 1 auto !important; /* Override any flex-grow settings */
     padding: 4px 10px !important; /* Very tight padding for 1/4 size look */
     font-size: 0.7rem !important; /* Smaller text for a smaller button */
-    min-width: 60px !important;   /* Minimum width so it's still clickable */
-    height: 28px !important;      /* Fixed height for consistency */
+    min-width: 60px !important; /* Minimum width so it's still clickable */
+    height: 28px !important; /* Fixed height for consistency */
     border-radius: 14px !important;
     margin: 0 !important;
 }
@@ -719,7 +780,7 @@ html, body {
     align-items: center;
     justify-content: flex-start; /* Keeps icons and text aligned to the left */
     gap: 15px;
-    background: rgba(255, 255, 255, 0.05);
+    background: rgb(255 255 255 / 5%);
     border: 1px solid #2c3440;
     color: #fff;
     padding: 14px 20px;
@@ -732,7 +793,7 @@ html, body {
 
 /* Hover effects for a premium feel */
 .status-option:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgb(255 255 255 / 10%);
     border-color: #456;
     transform: translateX(5px); /* Subtle slide effect */
 }
@@ -744,21 +805,37 @@ html, body {
     text-align: center;
 }
 
-.status-option[data-status="active"] .status-icon { color: var(--accent); }
-.status-option[data-status="paused"] .status-icon { color: #ffcc00; }
-.status-option[data-status="dropped"] .status-icon { color: #ff4d4d; }
+.status-option[data-status="active"] .status-icon {
+    color: var(--accent);
+}
+
+.status-option[data-status="paused"] .status-icon {
+    color: #fc0;
+}
+
+.status-option[data-status="dropped"] .status-icon {
+    color: #ff4d4d;
+}
 
 /* Status-specific hover borders */
-.status-option[data-status="active"]:hover { border-color: var(--accent); }
-.status-option[data-status="paused"]:hover { border-color: #ffcc00; }
-.status-option[data-status="dropped"]:hover { border-color: #ff4d4d; }
+.status-option[data-status="active"]:hover {
+    border-color: var(--accent);
+}
+
+.status-option[data-status="paused"]:hover {
+    border-color: #fc0;
+}
+
+.status-option[data-status="dropped"]:hover {
+    border-color: #ff4d4d;
+}
 
 /* Clear Status button (Danger style) */
 .status-option.danger-btn {
     margin-top: 10px;
     justify-content: center; /* Centers the text for the clear button */
-    background: rgba(255, 77, 77, 0.05);
-    border-color: rgba(255, 77, 77, 0.2);
+    background: rgb(255 77 77 / 5%);
+    border-color: rgb(255 77 77 / 20%);
     color: #ff4d4d;
 }
 
@@ -790,18 +867,34 @@ html, body {
     color: #eee;
 }
 
-.filler-table th, .filler-table td {
+.filler-table th,
+.filler-table td {
     padding: 12px;
     text-align: left;
     border-bottom: 1px solid #333;
 }
 
 /* Status Colors */
-.type-canon { color: #4caf50; font-weight: bold; } /* Green */
-.type-filler { color: #f44336; font-weight: bold; } /* Red */
-.type-mixed { color: #ffeb3b; font-weight: bold; } /* Yellow */
-.type-manga-canon { color: #4caf50; font-weight: bold; } /* Green */
-.type-unknown {color: #9aa4ad; font-weight: 700; } /* Gray */
+.type-canon {
+    color: #4caf50;
+    font-weight: bold;
+} /* Green */
+.type-filler {
+    color: #f44336;
+    font-weight: bold;
+} /* Red */
+.type-mixed {
+    color: #ffeb3b;
+    font-weight: bold;
+} /* Yellow */
+.type-manga-canon {
+    color: #4caf50;
+    font-weight: bold;
+} /* Green */
+.type-unknown {
+    color: #9aa4ad;
+    font-weight: 700;
+} /* Gray */
 
 #filler-action-area button {
     display: inline-block;
@@ -809,7 +902,9 @@ html, body {
     border: none;
     border-radius: 8px;
     font-weight: bold;
-    transition: transform 0.2s, background 0.2s;
+    transition:
+        transform 0.2s,
+        background 0.2s;
 }
 
 #filler-action-area button:hover {
@@ -823,6 +918,7 @@ html, body {
     font-style: italic;
     margin: 8px 0 0;
     line-height: 1.4;
+
     /* Preview constraints */
     display: -webkit-box;
     -webkit-line-clamp: 3; /* Limits to 3 lines */
@@ -830,8 +926,9 @@ html, body {
     overflow: hidden;
 }
 
-#show-more-logs, #show-more-following-logs {
-    background: rgba(255, 255, 255, 0.05);
+#show-more-logs,
+#show-more-following-logs {
+    background: rgb(255 255 255 / 5%);
     border: 1px solid #2c3440;
     color: #9ab;
     padding: 8px;
@@ -840,21 +937,22 @@ html, body {
     transition: all 0.2s;
 }
 
-#show-more-logs:hover, #show-more-following-logs:hover {
+#show-more-logs:hover,
+#show-more-following-logs:hover {
     color: #fff;
-    background: rgba(255, 255, 255, 0.1);
+    background: rgb(255 255 255 / 10%);
     border-color: var(--accent);
 }
 
 .history-item {
     margin-bottom: 20px;
     padding-bottom: 15px;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
+    border-bottom: 1px solid rgb(255 255 255 / 5%);
     cursor: default; /* Ensures the mouse doesn't turn into a hand/pointer */
 }
 
 .following-log-item:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgb(255 255 255 / 5%);
 }
 
 /* Keep the pointer ONLY for the delete trash can */
@@ -870,18 +968,20 @@ html, body {
 }
 
 .log-tag-pill {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgb(255 255 255 / 5%);
     border: 1px solid #2c3440;
     color: #9ab;
     padding: 2px 8px;
     border-radius: 12px;
     font-size: 0.75rem;
     white-space: nowrap;
-    transition: background 0.2s, color 0.2s;
+    transition:
+        background 0.2s,
+        color 0.2s;
 }
 
 .log-tag-pill:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgb(255 255 255 / 10%);
     color: #fff;
 }
 
@@ -889,7 +989,7 @@ html, body {
 .history-split-row {
     grid-column: 1 / -1; /* Forces it to span both left and right columns */
     display: flex;
-    gap: 40px; 
+    gap: 40px;
     align-items: flex-start; /* Stops them from stretching to unequal heights */
     margin-top: 20px;
 }
@@ -898,14 +998,17 @@ html, body {
     flex: 1; /* Tells them to share exactly half the space */
     min-width: 0; /* Prevents wide content from blowing out the flexbox */
     margin-top: 0; /* Overrides the default margin so they align neatly */
-}   
+}
 
 #similar-grid .media-card:hover {
     opacity: 1 !important;
     transform: scale(1.05) translateY(-10px) !important;
+
     /* Indigo shadow and border */
-    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5), 0 0 15px rgba(13, 7, 118, 0.6);
-    border-color: #0d0776; 
+    box-shadow:
+        0 15px 30px rgb(0 0 0 / 50%),
+        0 0 15px rgb(13 7 118 / 60%);
+    border-color: #0d0776;
 }
 
 /* --- Cast & Crew Modal --- */
@@ -933,36 +1036,57 @@ html, body {
 #cast-search-input {
     width: 100%;
     max-width: 500px; /* Stops it from stretching the full width of the modal */
-    display: block; 
-    margin: 10px auto 25px auto; /* 'auto' on the left and right centers it */
+    display: block;
+    margin: 10px auto 25px; /* 'auto' on the left and right centers it */
     padding: 12px 20px;
     border-radius: 30px; /* Making it pill-shaped looks great for centered search bars! */
-    background: rgba(255, 255, 255, 0.05);
+    background: rgb(255 255 255 / 5%);
     border: 1px solid #2c3440;
     color: white;
     box-sizing: border-box;
     font-size: 1rem;
-    transition: border-color 0.2s, background 0.2s;
+    transition:
+        border-color 0.2s,
+        background 0.2s;
 }
 
 #cast-search-input:focus {
     outline: none;
     border-color: var(--accent);
-    background: rgba(255, 255, 255, 0.08);
+    background: rgb(255 255 255 / 8%);
 }
 
 /* Custom scrollbar to match the app theme */
 .modal-cast-grid::-webkit-scrollbar {
     width: 6px;
 }
+
 .modal-cast-grid::-webkit-scrollbar-thumb {
     background: #2c3440;
     border-radius: 10px;
 }
 
+/* =========================================
+   DETAILS: LOADING AND CONTENT VISIBILITY
+   ========================================= */
+
+#details-content[hidden],
+#backdrop-overlay[hidden],
+#details-loader[hidden] {
+    display: none !important;
+}
+
+#details-loader {
+    width: 100%;
+    max-width: 1100px;
+    margin: 60px auto;
+    box-sizing: border-box;
+}
+
 /* --- DETAILS PAGE MOBILE RESPONSIVENESS (< 768px) --- */
-@media (max-width: 768px) {
-    #left-col, .info-pane {
+@media (width <= 768px) {
+    #left-col,
+    .info-pane {
         display: contents !important;
     }
 
@@ -999,8 +1123,8 @@ html, body {
 
     /* ROW 1: Title */
     #media-title {
-        grid-row: 1 !important; 
-        grid-column: 1 / -1 !important; 
+        grid-row: 1 !important;
+        grid-column: 1 / -1 !important;
         text-align: center;
         font-size: 1.8rem;
         margin-bottom: 10px;
@@ -1008,8 +1132,8 @@ html, body {
     }
 
     .info-pane > div:first-child {
-        grid-row: 1 !important; 
-        grid-column: 1 / -1 !important; 
+        grid-row: 1 !important;
+        grid-column: 1 / -1 !important;
         justify-content: center !important; /* This centers the title and heart together */
         width: 100%;
         margin-bottom: 10px;
@@ -1020,7 +1144,7 @@ html, body {
         grid-column: 1 !important;
         grid-row: 2 !important;
     }
-    
+
     #poster-area img {
         width: 100% !important;
         height: auto !important;
@@ -1028,9 +1152,10 @@ html, body {
     }
 
     #media-meta {
-        margin-bottom: 0 !important; 
+        margin-bottom: 0 !important;
         padding-top: 5px;
     }
+
     #watch-providers {
         margin-top: 0 !important;
     }
@@ -1040,7 +1165,7 @@ html, body {
         width: 100% !important;
         box-sizing: border-box !important;
         margin-top: 10px !important;
-        padding: 10px !important; 
+        padding: 10px !important;
     }
 
     #filler-action-area button,
@@ -1048,10 +1173,9 @@ html, body {
     #filler-info {
         width: 100% !important;
         box-sizing: border-box !important;
-        white-space: normal !important; /* Allows text to wrap */
-        word-wrap: break-word !important; /* Force breaks long unbroken strings */
+        white-space: normal !important; /* Allows text to wrap */ /* Force breaks long unbroken strings */
         overflow-wrap: break-word !important;
-        font-size: 0.85rem !important; 
+        font-size: 0.85rem !important;
         line-height: 1.3 !important;
     }
 
@@ -1060,6 +1184,7 @@ html, body {
         grid-column: 1 / -1 !important;
         grid-row: 2 !important;
     }
+
     .details-container:has(iframe) #media-info-right {
         grid-column: 1 / -1 !important;
         grid-row: 3 !important;
@@ -1078,45 +1203,57 @@ html, body {
 
     /* ROW 5: Tracker Section */
     #tv-tracker {
-        display: flex; 
+        display: flex;
         grid-row: 5 !important;
         grid-column: 1 / -1 !important;
         flex-direction: column !important;
     }
 
-    #progress-container { order: 1; margin-bottom: 15px; }
-    .tracker-controls { 
-        order: 2; 
-        display: flex; 
-        flex-direction: column !important; 
-        gap: 10px !important; 
+    #progress-container {
+        order: 1;
+        margin-bottom: 15px;
     }
-    #season-selector { width: 100% !important; }
-    .tracker-btns { 
-        order: 3; 
-        display: grid !important; 
-        grid-template-columns: 1fr 1fr !important; 
-        gap: 10px !important; 
+
+    .tracker-controls {
+        order: 2;
+        display: flex;
+        flex-direction: column !important;
+        gap: 10px !important;
     }
-    #episode-list { 
-        order: 4; 
-        grid-template-columns: 1fr !important; 
-        width: 100% !important; 
+
+    #season-selector {
+        width: 100% !important;
+    }
+
+    .tracker-btns {
+        order: 3;
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 10px !important;
+    }
+
+    #episode-list {
+        order: 4;
+        grid-template-columns: 1fr !important;
+        width: 100% !important;
     }
 
     /* Book Tracker specifics */
     .book-progress-container {
         width: 100% !important;
     }
+
     .quick-update-row {
         display: flex !important;
         flex-direction: column !important;
         gap: 10px !important;
     }
+
     #quick-page-input {
         width: 100% !important;
         box-sizing: border-box;
     }
+
     .book-progress-header {
         flex-direction: column;
         align-items: flex-start;
@@ -1155,7 +1292,7 @@ html, body {
     /* Ensure long episode titles wrap properly */
     #modal-episode-title {
         white-space: normal !important;
-        word-wrap: break-word !important;
+        overflow-wrap: break-word !important;
     }
 
     /* ROW 6: Logs and Rating buttons */
@@ -1173,16 +1310,16 @@ html, body {
         width: 100% !important;
         box-sizing: border-box;
     }
-    
+
     #journal-history {
         grid-row: 7 !important;
         grid-column: 1 / -1 !important; /* Full width */
         margin-top: 10px !important;
     }
-    
+
     #following-history {
         grid-row: 8 !important;
-        grid-column: 1 / -1 !important; 
+        grid-column: 1 / -1 !important;
         margin-top: 10px !important;
     }
 
@@ -1191,11 +1328,13 @@ html, body {
         grid-column: 1 / -1 !important; /* 1 / -1 forces it to span the full screen width */
         margin-top: 10px !important;
     }
+
     .main-actions {
         display: flex !important;
         flex-direction: column !important;
         gap: 10px !important;
     }
+
     .main-actions button {
         width: 100% !important;
     }
@@ -1216,10 +1355,12 @@ html, body {
 
     #cast-list {
         display: grid !important;
+
         /* minmax(0, 1fr) forces items to shrink to fit the column */
-        grid-template-columns: repeat(2, minmax(0, 1fr)) !important; 
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
         gap: 15px !important;
     }
+
     .cast-card {
         display: flex !important;
         flex-direction: column !important;
@@ -1230,16 +1371,18 @@ html, body {
         box-sizing: border-box !important;
         padding: 10px !important;
     }
+
     .cast-card img {
         width: 100% !important;
         max-width: 100% !important;
         height: auto !important;
     }
-    .cast-name, .cast-role {
+
+    .cast-name,
+    .cast-role {
         width: 100% !important;
         white-space: normal !important; /* CRITICAL: Forces text to wrap */
         overflow-wrap: break-word !important;
-        word-wrap: break-word !important;
         display: -webkit-box !important;
         -webkit-line-clamp: 2 !important; /* Max 2 lines before truncating */
         -webkit-box-orient: vertical !important;
@@ -1249,6 +1392,7 @@ html, body {
         grid-row: 10 !important;
         grid-column: 1 / -1 !important;
     }
+
     #similar-grid {
         grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
     }
@@ -1257,6 +1401,7 @@ html, body {
         flex-wrap: wrap;
         justify-content: center;
     }
+
     .filter-btn {
         flex: 1 1 30%;
         text-align: center;
@@ -1275,12 +1420,16 @@ html, body {
     .modal-cast-grid .cast-card {
         padding: 8px !important;
     }
-    
+
     .modal-cast-grid .cast-name {
         font-size: 0.8rem !important;
     }
-    
+
     .modal-cast-grid .cast-role {
         font-size: 0.7rem !important;
+    }
+
+    #details-loader {
+        margin: 30px auto;
     }
 }

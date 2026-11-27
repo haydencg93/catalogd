@@ -1,17 +1,31 @@
+// Import shared components
+import "./components/AppLoader.js";
+
 // Import necessary modules and functions
-import { loadConfig } from './core/config.js';
-import { getSupabaseClient } from './core/supabase.js';
-import { normalizeOpenLibraryId } from './core/media.js';
-import { slugify } from './core/utils.js';
+import { loadConfig } from "./core/config.js";
+import { getSupabaseClient } from "./core/supabase.js";
+
 import {
-    buildYoutubeFallbackData, 
+    normalizeOpenLibraryId,
+    getAnimeClassification,
+    getMediaCategory,
+    getStorageMediaType,
+    filterMediaItems,
+    renderMediaBadge,
+    normalizeFavorites,
+    buildTopAllFavorites,
+    MAX_FAVORITES_PER_CATEGORY,
+} from "./core/media.js";
+import { slugify } from "./core/utils.js";
+import {
+    buildYoutubeFallbackData,
     getLogScopeLabel,
     categorizeProviders,
-    normalizeCredits
-} from './logic/details-logic.js';
+    normalizeCredits,
+} from "./logic/details-logic.js";
 
 // Load configuration and initialize Supabase client
-let PROXY_URL = '';
+let PROXY_URL = "";
 let supabaseClient = null;
 
 // Global vars
@@ -24,26 +38,57 @@ let allLogsData = [];
 
 // Get parameters
 const params = new URLSearchParams(window.location.search);
-const id = params.get('id');
-const type = params.get('type');
+const id = params.get("id");
+const type = params.get("type");
+
+// Details page loading and visibility
+const detailsLoader = document.getElementById("details-loader");
+const detailsContent = document.getElementById("details-content");
+const detailsBackdrop = document.getElementById("backdrop-overlay");
+
+// Prevent outdated recommendation requests from rendering
+const similarRequestId = 0;
 
 // ----------------------------------------
 // Initialization
 // ----------------------------------------
 async function initDetails() {
+    detailsContent.hidden = true;
+    detailsContent.setAttribute("aria-busy", "true");
+    detailsBackdrop.hidden = true;
+
+    detailsLoader.start();
+
+    let timedOut = false;
+
+    // Prevent indefinitely displaying the loading animation
+    const loadingTimeout = setTimeout(() => {
+        timedOut = true;
+
+        detailsLoader.showMessage("Loading took too long. Refresh the page to try again.");
+
+        detailsContent.setAttribute("aria-busy", "false");
+    }, 120000);
+
     try {
+        if (!id || !["movie", "tv", "book", "album", "youtube"].includes(type)) {
+            throw new Error("Invalid media ID or media type.");
+        }
+
         const config = await loadConfig();
         supabaseClient = await getSupabaseClient();
 
         PROXY_URL = config.proxy_url;
 
-        await document.querySelector('app-header')?.initializeAuth(supabaseClient);
+        await customElements.whenDefined("app-header");
+
+        await document.querySelector("app-header")?.initializeAuth(supabaseClient);
 
         let data;
-        
+
         // --- 1. YOUTUBE FETCH ---
-        if (type === 'youtube') {
-            const youtubeId = String(id || '').trim();
+        if (type === "youtube") {
+            const youtubeId = String(id || "").trim();
             let res = null;
             let isUnavailable = false;
 
@@ -52,10 +97,10 @@ async function initDetails() {
             } else {
                 try {
                     const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${youtubeId}`)}&format=json`;
-                    res = await fetch(oembedUrl).then(r => r.json());
+                    res = await fetch(oembedUrl).then((r) => r.json());
                     isUnavailable = !res || !res.title || !res.thumbnail_url;
                 } catch (error) {
-                    console.warn('YouTube metadata unavailable for this video.', error);
+                    console.warn("YouTube metadata unavailable for this video.", error);
                     isUnavailable = true;
                 }
             }
@@ -64,49 +109,57 @@ async function initDetails() {
                 data = buildYoutubeFallbackData(youtubeId);
             } else {
                 data = {
-                    title: res.title || 'Unknown YouTube video',
-                    overview: `A video by ${res.author_name || 'Unknown Channel'}.\n\n(Note: Durations and descriptions are not provided by this API. Please input your watch time manually when logging!)`,
-                    poster_path: res.thumbnail_url || 'https://placehold.co/500x750/1b2228/ff0000?text=YouTube',
-                    meta: 'YouTube Video',
-                    author_name: res.author_name || 'Unknown Channel',
-                    isUnavailable: false
+                    title: res.title || "Unknown YouTube video",
+                    overview: `A video by ${res.author_name || "Unknown Channel"}.\n\n(Note: Durations and descriptions are not provided by this API. Please input your watch time manually when logging!)`,
+                    poster_path:
+                        res.thumbnail_url ||
+                        "https://placehold.co/500x750/1b2228/ff0000?text=YouTube",
+                    meta: "YouTube Video",
+                    author_name: res.author_name || "Unknown Channel",
+                    isUnavailable: false,
                 };
             }
-        } 
-        else if (type === 'album') {
+        } else if (type === "album") {
             const decodedId = decodeURIComponent(id);
-            const [artistName, albumName] = decodedId.split('|||');
-            
-            const res = await fetch(`${PROXY_URL}/api/lastfm?method=album.getinfo&artist=${encodeURIComponent(artistName)}&album=${encodeURIComponent(albumName)}`).then(r => r.json());
-            
+            const [artistName, albumName] = decodedId.split("|||");
+
+            const res = await fetch(
+                `${PROXY_URL}/api/lastfm?method=album.getinfo&artist=${encodeURIComponent(artistName)}&album=${encodeURIComponent(albumName)}`,
+            ).then((r) => r.json());
+
             if (res.error) {
                 alert("Error loading album data.");
-                window.location.href = 'index.html';
+                window.location.href = "index.html";
                 return;
             }
 
             const albumData = res.album;
-            
+
             // 1. Determine the image first
-            let img = 'https://via.placeholder.com/500x750?text=No+Cover';
-            if (albumData.image && albumData.image.length > 3 && albumData.image[3]['#text']) {
-                img = albumData.image[3]['#text'];
+            let img = "https://via.placeholder.com/500x750?text=No+Cover";
+            if (albumData.image && albumData.image.length > 3 && albumData.image[3]["#text"]) {
+                img = albumData.image[3]["#text"];
             }
 
             // 2. Process the summary text BEFORE creating the data object
-            let rawSummary = albumData.wiki?.summary || "No description available.";
-            const cleanSummary = rawSummary.split('<a href')[0].trim();
+            const rawSummary = albumData.wiki?.summary || "No description available.";
+            const cleanSummary = rawSummary.split("<a href")[0].trim();
 
             // 3. Extract tags
-            const tags = albumData.tags?.tag?.map(t => t.name).join(', ') || 'Music';
+            const tags = albumData.tags?.tag?.map((t) => t.name).join(", ") || "Music";
 
             // 3. Calculate total duration
             let totalDuration = 0;
             if (albumData.tracks && albumData.tracks.track) {
-                const trackList = Array.isArray(albumData.tracks.track) ? albumData.tracks.track : [albumData.tracks.track];
-                totalDuration = trackList.reduce((acc, curr) => acc + (parseInt(curr.duration) || 0), 0);
+                const trackList = Array.isArray(albumData.tracks.track)
+                    ? albumData.tracks.track
+                    : [albumData.tracks.track];
+                totalDuration = trackList.reduce(
+                    (acc, curr) => acc + (parseInt(curr.duration) || 0),
+                    0,
+                );
             }
-            const durationStr = totalDuration > 0 ? `${Math.floor(totalDuration / 60)}m • ` : '';
+            const durationStr = totalDuration > 0 ? `${Math.floor(totalDuration / 60)}m • ` : "";
 
             // 5. Now initialize the data object
             data = {
@@ -115,24 +168,28 @@ async function initDetails() {
                 poster_path: img,
                 meta: `${albumData.artist} • ${durationStr}${tags}`,
                 tracks: albumData.tracks?.track || [],
-                artistName: albumData.artist
+                artistName: albumData.artist,
             };
         }
         // --- 2. BOOK FETCH ---
-        else if (type === 'book') {
+        else if (type === "book") {
             // Safely fetch and catch any 404 errors from OpenLibrary
             const normalizedBookId = normalizeOpenLibraryId(id);
-            const res = await fetch(`https://openlibrary.org${normalizedBookId}.json`).then(r => r.json()).catch(() => ({}));
-            
+            const res = await fetch(`https://openlibrary.org${normalizedBookId}.json`)
+                .then((r) => r.json())
+                .catch(() => ({}));
+
             if (res.error || !res.title) {
                 alert("Book not found. It may have been removed or merged by OpenLibrary.");
-                window.location.href = 'index.html';
+                window.location.href = "index.html";
                 return;
             }
 
             let editionsRes = {};
             try {
-                const edFetch = await fetch(`https://openlibrary.org${normalizedBookId}/editions.json`);
+                const edFetch = await fetch(
+                    `https://openlibrary.org${normalizedBookId}/editions.json`,
+                );
                 if (edFetch.ok) {
                     editionsRes = await edFetch.json();
                 }
@@ -140,7 +197,7 @@ async function initDetails() {
                 console.warn("Editions data missing for this book.");
             }
 
-            let firstAuthorName = '';
+            let firstAuthorName = "";
             if (res.authors && res.authors.length > 0) {
                 try {
                     const authorKey = res.authors[0].author.key;
@@ -157,58 +214,71 @@ async function initDetails() {
             // NEW: Actually packaging the fetched data into the global `data` object
             let pageCount = 0;
             if (editionsRes.entries && editionsRes.entries.length > 0) {
-                const edWithPages = editionsRes.entries.find(e => e.number_of_pages);
+                const edWithPages = editionsRes.entries.find((e) => e.number_of_pages);
                 if (edWithPages) pageCount = edWithPages.number_of_pages;
             }
 
-            let coverImg = 'https://via.placeholder.com/500x750/1b2228/9ab?text=No+Cover';
+            let coverImg = "https://via.placeholder.com/500x750/1b2228/9ab?text=No+Cover";
             if (res.covers && res.covers.length > 0) {
                 coverImg = `https://covers.openlibrary.org/b/id/${res.covers[0]}-L.jpg`;
             }
 
             data = {
                 title: res.title,
-                overview: typeof res.description === 'string' ? res.description : (res.description?.value || 'No overview available.'),
+                overview:
+                    typeof res.description === "string"
+                        ? res.description
+                        : res.description?.value || "No overview available.",
                 poster_path: coverImg,
-                backdrop: null, 
-                meta: `${res.first_publish_date || 'Unknown Year'} • Book • ${pageCount ? pageCount + ' Pages' : 'Pages Unknown'}`,
+                backdrop: null,
+                meta: `${res.first_publish_date || "Unknown Year"} • Book • ${pageCount ? `${pageCount} Pages` : "Pages Unknown"}`,
                 pages: pageCount,
                 authors: res.authors || [],
-                authorName: firstAuthorName
+                authorName: firstAuthorName,
             };
         }
         // --- 3. MOVIE & TV FETCH ---
         else {
-            const res = await fetch(`${PROXY_URL}/api/tmdb/${type}/${id}`).then(r => r.json());
-            
+            const res = await fetch(`${PROXY_URL}/api/tmdb/${type}/${id}`).then((r) => r.json());
+
             // ISO Language name mapper
-            let mainLanguageName = res.original_language ? res.original_language.toUpperCase() : 'Unknown';
+            let mainLanguageName = res.original_language
+                ? res.original_language.toUpperCase()
+                : "Unknown";
             try {
-                const langRes = await fetch(`${PROXY_URL}/api/tmdb/configuration/languages`).then(r => r.json());
-                const matchedLang = langRes.find(l => l.iso_639_1 === res.original_language);
+                const langRes = await fetch(`${PROXY_URL}/api/tmdb/configuration/languages`).then(
+                    (r) => r.json(),
+                );
+                const matchedLang = langRes.find((l) => l.iso_639_1 === res.original_language);
                 if (matchedLang) mainLanguageName = matchedLang.english_name;
-            } catch(e) { console.warn("Language config error", e); }
+            } catch (e) {
+                console.warn("Language config error", e);
+            }
 
             // Fetch Translations dynamically
             let translationArray = [];
             try {
-                const transRes = await fetch(`${PROXY_URL}/api/tmdb/${type}/${id}/translations`).then(r => r.json());
+                const transRes = await fetch(
+                    `${PROXY_URL}/api/tmdb/${type}/${id}/translations`,
+                ).then((r) => r.json());
                 if (transRes.translations) {
                     // Extract just the english names and sort them alphabetically
-                    translationArray = transRes.translations.map(t => t.english_name).sort();
+                    translationArray = transRes.translations.map((t) => t.english_name).sort();
                 }
-            } catch(e) { console.warn("Translations config error", e); }
+            } catch (e) {
+                console.warn("Translations config error", e);
+            }
 
             // Calculate runtime/duration
-            let runtimeStr = '';
-            if (type === 'movie' && res.runtime) {
+            let runtimeStr = "";
+            if (type === "movie" && res.runtime) {
                 runtimeStr = `${res.runtime}m • `;
-            } else if (type === 'tv') {
+            } else if (type === "tv") {
                 if (res.episode_run_time && res.episode_run_time.length > 0) {
                     // TMDB returns an array of runtimes for TV shows, calculate the average
                     const sum = res.episode_run_time.reduce((a, b) => a + b, 0);
                     const avg = Math.round(sum / res.episode_run_time.length);
-                    runtimeStr = `${avg}m • `; 
+                    runtimeStr = `${avg}m • `;
                 } else if (res.last_episode_to_air && res.last_episode_to_air.runtime) {
                     // Fallback since TMDB sometimes omits the main array
                     runtimeStr = `${res.last_episode_to_air.runtime}m • `;
@@ -219,9 +289,11 @@ async function initDetails() {
                 title: res.title || res.name,
                 overview: res.overview,
                 poster_path: `https://image.tmdb.org/t/p/w500${res.poster_path}`,
-                backdrop: res.backdrop_path ? `https://image.tmdb.org/t/p/original${res.backdrop_path}` : null,
-                meta: `${(res.release_date || res.first_air_date || '').split('-')[0]} • ${runtimeStr}${res.genres?.map(g => g.name).join(', ')} • ${mainLanguageName}`,
-                translations: translationArray
+                backdrop: res.backdrop_path
+                    ? `https://image.tmdb.org/t/p/original${res.backdrop_path}`
+                    : null,
+                meta: `${(res.release_date || res.first_air_date || "").split("-")[0]} • ${runtimeStr}${res.genres?.map((g) => g.name).join(", ")} • ${mainLanguageName}`,
+                translations: translationArray,
             };
         }
 
@@ -231,23 +303,35 @@ async function initDetails() {
             globalData.backdrop = globalData.poster_path;
         }
 
-        const { data: { session } } = await supabaseClient.auth.getSession();
+        const {
+            data: { session },
+        } = await supabaseClient.auth.getSession();
         if (session?.user) {
-            const { data: customArt } = await supabaseClient.from('custom_imgs').select('*').eq('user_id', session.user.id).eq('media_id', String(id)).eq('media_type', type).maybeSingle();
+            const { data: customArt } = await supabaseClient
+                .from("custom_imgs")
+                .select("*")
+                .eq("user_id", session.user.id)
+                .eq("media_id", String(id))
+                .eq("media_type", type)
+                .maybeSingle();
             if (customArt) {
                 if (customArt.custom_poster) globalData.poster_path = customArt.custom_poster;
                 if (customArt.custom_background) globalData.backdrop = customArt.custom_background;
             }
         }
 
-        document.getElementById('media-title').textContent = data.title;
-        document.getElementById('media-overview').textContent = data.overview;
-        document.getElementById('media-meta').textContent = data.meta;
-        
+        document.getElementById("media-title").textContent = data.title;
+        document.getElementById("media-overview").textContent = data.overview;
+        document.getElementById("media-meta").textContent = data.meta;
+
         // FETCH USER'S PREFERRED LANGUAGES FOR TRANSLATION FILTERING
         let userPreferredLangs = [];
         if (session?.user) {
-            const { data: profile } = await supabaseClient.from('profiles').select('services').eq('id', session.user.id).single();
+            const { data: profile } = await supabaseClient
+                .from("profiles")
+                .select("services")
+                .eq("id", session.user.id)
+                .single();
             if (profile && profile.services && profile.services.languages) {
                 userPreferredLangs = profile.services.languages;
             }
@@ -260,7 +344,9 @@ async function initDetails() {
 
             // If the user has saved preferences, filter the array
             if (userPreferredLangs.length > 0) {
-                displayedLangs = data.translations.filter(lang => userPreferredLangs.includes(lang));
+                displayedLangs = data.translations.filter((lang) =>
+                    userPreferredLangs.includes(lang),
+                );
                 hiddenCount = data.translations.length - displayedLangs.length;
             } else {
                 // Show top 3 languages if no preferences are set
@@ -271,10 +357,12 @@ async function initDetails() {
             // Only render if there are languages to show (either preferred or hidden)
             if (displayedLangs.length > 0 || hiddenCount > 0) {
                 const pillStyle = `background: rgba(255,255,255,0.05); border: 1px solid #2c3440; color: #ccd6e0; padding: 4px 10px; border-radius: 8px; font-size: 0.8rem; cursor: default; transition: all 0.2s ease; display: inline-block;`;
-                const hoverEvents = '';
+                const hoverEvents = "";
 
-                let transHtmlContent = displayedLangs.map(lang => `<span style="${pillStyle}" ${hoverEvents}>${lang}</span>`).join('');
-                
+                let transHtmlContent = displayedLangs
+                    .map((lang) => `<span style="${pillStyle}" ${hoverEvents}>${lang}</span>`)
+                    .join("");
+
                 // Add the "+X more" clickable button if there are translations outside their preferences
                 if (hiddenCount > 0) {
                     const btnStyle = `background: rgba(255,255,255,0.05); border: 1px dashed #2c3440; color: #ccd6e0; padding: 4px 10px; border-radius: 8px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s ease; display: inline-block;`;
@@ -288,25 +376,26 @@ async function initDetails() {
                         ${transHtmlContent}
                     </div>
                 </div>`;
-                
+
                 // Insert cleanly right below the Fandom button wrapper
-                const fandomContainer = document.getElementById('fandom-btn').parentElement;
+                const fandomContainer = document.getElementById("fandom-btn").parentElement;
                 if (fandomContainer) {
-                    fandomContainer.insertAdjacentHTML('afterend', transHtml);
+                    fandomContainer.insertAdjacentHTML("afterend", transHtml);
                 }
             }
         }
-        
+
         if (globalData.backdrop) {
-            document.getElementById('backdrop-overlay').style.backgroundImage = `url(${globalData.backdrop})`;
+            document.getElementById("backdrop-overlay").style.backgroundImage =
+                `url(${globalData.backdrop})`;
         }
 
         // --- YOUTUBE POSTER, PROVIDERS, & CAST RENDERING ---
-        if (type === 'youtube') {
+        if (type === "youtube") {
             const isUnavailable = !!data.isUnavailable;
 
             if (isUnavailable) {
-                document.getElementById('poster-area').innerHTML = `
+                document.getElementById("poster-area").innerHTML = `
                     <div style="position: relative; width: 100%; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.6); background: #14181c;">
                         <img src="${data.poster_path}" alt="${data.title}" style="display: block; width: 100%; height: auto; filter: grayscale(0.2) brightness(0.7);">
                         <div style="position: absolute; inset: 0; display: flex; align-items: flex-end; justify-content: center; padding: 24px; background: linear-gradient(180deg, rgba(8,10,12,0.15), rgba(8,10,12,0.9)); text-align: center;">
@@ -319,7 +408,7 @@ async function initDetails() {
                 `;
             } else {
                 // Replace static poster with a responsive 16:9 playable iframe
-                document.getElementById('poster-area').innerHTML = `
+                document.getElementById("poster-area").innerHTML = `
                     <div style="position: relative; width: 100%; padding-bottom: 56.25%; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.6);">
                         <iframe 
                             style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" 
@@ -331,16 +420,16 @@ async function initDetails() {
                     </div>
                 `;
             }
-            
+
             // 2. Set YouTube as the Watch Provider
-            const providerSection = document.getElementById('watch-providers');
+            const providerSection = document.getElementById("watch-providers");
             if (providerSection) {
-                providerSection.style.display = 'block';
-                providerSection.querySelector('h4').textContent = "Watch on YouTube";
-                document.getElementById('providers-list').innerHTML = `
+                providerSection.style.display = "block";
+                providerSection.querySelector("h4").textContent = "Watch on YouTube";
+                document.getElementById("providers-list").innerHTML = `
                     <div class="provider-group">
                         <div class="provider-icons">
-                            <a href="https://www.youtube.com/watch?v=${encodeURIComponent(id || '')}" target="_blank" style="text-decoration: none; display: inline-block;">
+                            <a href="https://www.youtube.com/watch?v=${encodeURIComponent(id || "")}" target="_blank" style="text-decoration: none; display: inline-block;">
                                 <img src="https://www.youtube.com/s/desktop/40cd5ddc/img/favicon_144x144.png" class="provider-logo" style="width: 60px; object-fit: contain; background: transparent; border: none; transition: transform 0.2s;" title="Open in YouTube">
                             </a>
                         </div>
@@ -349,54 +438,56 @@ async function initDetails() {
             }
 
             // 3. Set the Channel Name as the Cast Member
-            const castSection = document.getElementById('cast-section');
+            const castSection = document.getElementById("cast-section");
             if (castSection) {
-                castSection.style.display = 'block';
-                castSection.querySelector('h3').textContent = "Channel";
-                const channelAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.author_name || 'Y T')}&background=1b2228&color=ff0000&size=185`;
-                
-                document.getElementById('cast-list').innerHTML = `
+                castSection.style.display = "block";
+                castSection.querySelector("h3").textContent = "Channel";
+                const channelAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.author_name || "Y T")}&background=1b2228&color=ff0000&size=185`;
+
+                document.getElementById("cast-list").innerHTML = `
                     <div class="cast-card">
-                        <img src="${channelAvatar}" alt="${data.author_name || 'Channel'}">
+                        <img src="${channelAvatar}" alt="${data.author_name || "Channel"}">
                         <div class="cast-info">
-                            <span class="cast-name">${data.author_name || 'Unknown Channel'}</span>
+                            <span class="cast-name">${data.author_name || "Unknown Channel"}</span>
                             <span class="cast-role">Creator</span>
                         </div>
                     </div>
                 `;
             }
-        } 
+        }
         // --- ALBUM POSTER & TRACKLIST RENDERING ---
-        else if (type === 'album') {
+        else if (type === "album") {
             // Render the standard poster
-            document.getElementById('poster-area').innerHTML = `<img src="${data.poster_path}" alt="poster">`;
-            
+            document.getElementById("poster-area").innerHTML =
+                `<img src="${data.poster_path}" alt="poster">`;
+
             // Hide watch providers
-            const providerSection = document.getElementById('watch-providers');
-            if (providerSection) providerSection.style.display = 'none';
+            const providerSection = document.getElementById("watch-providers");
+            if (providerSection) providerSection.style.display = "none";
 
             // 1. Move Tracklist to the Tracker Section!
-            const trackerSection = document.getElementById('tv-tracker');
-            const episodeList = document.getElementById('episode-list');
-            
-            if (trackerSection && data.tracks.length > 0) {
-                trackerSection.style.display = 'block';
-                trackerSection.querySelector('h3').textContent = "Tracklist";
-                
-                // Hide TV specific progress bars and controls
-                const progressContainer = document.getElementById('progress-container');
-                const controls = document.querySelector('.tracker-controls');
-                if (progressContainer) progressContainer.style.display = 'none';
-                if (controls) controls.style.display = 'none';
+            const trackerSection = document.getElementById("tv-tracker");
+            const episodeList = document.getElementById("episode-list");
 
-                const trackHtml = data.tracks.map((track, index) => {
-                    let durationStr = "--:--";
-                    if (track.duration && parseInt(track.duration) > 0) {
-                        const mins = Math.floor(track.duration / 60);
-                        const secs = (track.duration % 60).toString().padStart(2, '0');
-                        durationStr = `${mins}:${secs}`;
-                    }
-                    return `
+            if (trackerSection && data.tracks.length > 0) {
+                trackerSection.style.display = "block";
+                trackerSection.querySelector("h3").textContent = "Tracklist";
+
+                // Hide TV specific progress bars and controls
+                const progressContainer = document.getElementById("progress-container");
+                const controls = document.querySelector(".tracker-controls");
+                if (progressContainer) progressContainer.style.display = "none";
+                if (controls) controls.style.display = "none";
+
+                const trackHtml = data.tracks
+                    .map((track, index) => {
+                        let durationStr = "--:--";
+                        if (track.duration && parseInt(track.duration) > 0) {
+                            const mins = Math.floor(track.duration / 60);
+                            const secs = (track.duration % 60).toString().padStart(2, "0");
+                            durationStr = `${mins}:${secs}`;
+                        }
+                        return `
                     <div style="display: flex; justify-content: space-between; padding: 12px 15px; border-bottom: 1px solid #2c3440; align-items: center; transition: background 0.2s;">
                         <div style="display: flex; gap: 15px; align-items: center;">
                             <span style="color: #9ab; font-size: 0.9rem; width: 20px; text-align: right;">${index + 1}</span>
@@ -404,10 +495,11 @@ async function initDetails() {
                         </div>
                         <span style="color: #9ab; font-size: 0.85rem;">${durationStr}</span>
                     </div>`;
-                }).join('');
-                
+                    })
+                    .join("");
+
                 // Drop the tracklist into the episode grid but force it to span full width
-                episodeList.style.display = 'block'; 
+                episodeList.style.display = "block";
                 episodeList.innerHTML = `
                     <div style="background: #14181c; border-radius: 12px; border: 1px solid #2c3440; overflow: hidden; margin-top: 10px; grid-column: 1 / -1;">
                         ${trackHtml}
@@ -416,16 +508,16 @@ async function initDetails() {
             }
 
             // 2. Setup Cast Section for the Artist!
-            const castSection = document.getElementById('cast-section');
-            const castList = document.getElementById('cast-list');
-            
+            const castSection = document.getElementById("cast-section");
+            const castList = document.getElementById("cast-list");
+
             if (castSection && data.artistName) {
-                castSection.style.display = 'block';
-                castSection.querySelector('h3').textContent = "Artist";
-                
+                castSection.style.display = "block";
+                castSection.querySelector("h3").textContent = "Artist";
+
                 // Generate a profile picture for the artist
                 const artistAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.artistName)}&background=1b2228&color=9ab&size=512`;
-                
+
                 castList.innerHTML = `
                     <div class="cast-card" data-details-route="cast.html?artist=${encodeURIComponent(data.artistName)}" style="cursor: pointer;">
                         <img src="${artistAvatar}" alt="${data.artistName}">
@@ -436,110 +528,93 @@ async function initDetails() {
                     </div>
                 `;
             }
-        }
-        else {
+        } else {
             // Standard poster logic for movies/tv/books
-            const finalPoster = globalData.poster_path || 'https://placehold.co/500x750/1b2228/9ab?text=No+Cover';
-            document.getElementById('poster-area').innerHTML = `<img src="${finalPoster}" alt="poster" data-type="${type}">`;
+            const finalPoster =
+                globalData.poster_path || "https://placehold.co/500x750/1b2228/9ab?text=No+Cover";
+            document.getElementById("poster-area").innerHTML =
+                `<img src="${finalPoster}" alt="poster" data-type="${type}">`;
         }
 
-        document.getElementById('go-to-log').onclick = () => {
+        document.getElementById("go-to-log").onclick = () => {
             window.location.href = `log.html?id=${encodeURIComponent(id)}&type=${type}`;
         };
 
         // --- FANDOM BUTTON LOGIC ---
-        const fandomBtn = document.getElementById('fandom-btn');
+        const fandomBtn = document.getElementById("fandom-btn");
         if (fandomBtn) {
             // Hide the button for books, albums, and youtube videos
-            if (type === 'book' || type === 'youtube' || type === 'album') {
-                fandomBtn.style.display = 'none';
+            if (type === "book" || type === "youtube" || type === "album") {
+                fandomBtn.style.display = "none";
             } else {
                 // Show it and set the click handler for Movies and TV Shows
-                fandomBtn.style.display = 'block';
+                fandomBtn.style.display = "block";
                 fandomBtn.onclick = () => {
                     window.location.href = `fandom.html?id=${encodeURIComponent(id)}&type=${type}`;
                 };
             }
         }
 
-        if (type === 'tv') setupTVTracker(config, id);
-        
-        if (type === 'book') {
-            await setupBookTracker(data.pages);
+        // Prepare all media-specific content before revealing the page
+        if (type === "tv") {
+            await Promise.all([
+                setupTVTracker(config, id),
+                fetchWatchProviders(),
+                fetchCredits(id, type),
+            ]);
+        } else if (type === "movie") {
+            await Promise.all([fetchWatchProviders(), fetchCredits(id, type)]);
+        } else if (type === "book") {
+            await Promise.all([setupBookTracker(data.pages), fetchBookAuthors(data.authors)]);
 
-            displayBookLinks(data.title, data.authorName); 
-            fetchBookAuthors(data.authors);
-        } else if (type !== 'youtube' && type !== 'album') {
-            // This ensures TMDB provider/credit fetches skip YouTube videos AND Albums!
-            fetchWatchProviders();
-            fetchCredits(id, type);
+            displayBookLinks(data.title, data.authorName);
         }
 
         let isAnime = false;
-        if (type === 'tv' || type === 'movie') {
+        if (type === "tv" || type === "movie") {
             const keywordUrl = `${PROXY_URL}/api/tmdb/${type}/${id}/keywords`;
-            const kwRes = await fetch(keywordUrl).then(r => r.json());
-            const keywords = type === 'tv' ? kwRes.results : kwRes.keywords;
-            isAnime = keywords.some(k => k.name.toLowerCase() === 'anime');
+            const kwRes = await fetch(keywordUrl).then((r) => r.json());
+            const keywords = type === "tv" ? kwRes.results : kwRes.keywords;
+            isAnime = keywords.some((k) => k.name.toLowerCase() === "anime");
         }
 
         // If it is an Anime, handle the Filler Logic
         if (isAnime) {
-            const fillerContainer =
-                document.getElementById('filler-status-container');
+            const fillerContainer = document.getElementById("filler-status-container");
 
-            const fillerInfo =
-                document.getElementById('filler-info');
+            const fillerInfo = document.getElementById("filler-info");
 
-            const fillerAction =
-                document.getElementById('filler-action-area');
+            const fillerAction = document.getElementById("filler-action-area");
 
-            fillerContainer.style.display = 'block';
-            fillerInfo.textContent = '';
+            fillerContainer.style.display = "block";
+            fillerInfo.textContent = "";
 
             try {
                 const slug = slugify(data.title);
 
-                const {
-                    data: existingRequest,
-                    error: dbError
-                } = await supabaseClient
-                    .from('filler_list_mgnt')
-                    .select(
-                        'filler_exists, notes, filler_content, manual_slug, manual_guide_slug'
-                    )
-                    .eq('name', slug)
+                const { data: existingRequest, error: dbError } = await supabaseClient
+                    .from("filler_list_mgnt")
+                    .select("filler_exists, notes, filler_content, manual_slug, manual_guide_slug")
+                    .eq("name", slug)
                     .maybeSingle();
 
                 if (dbError) {
-                    console.error(
-                        'Supabase filler list error:',
-                        dbError
-                    );
+                    console.error("Supabase filler list error:", dbError);
 
-                    throw new Error(
-                        'Database connection failed while checking filler lists.'
-                    );
+                    throw new Error("Database connection failed while checking filler lists.");
                 }
 
-                const fillerData =
-                    existingRequest?.filler_content || null;
+                const fillerData = existingRequest?.filler_content || null;
 
-                const hasFiller =
-                    !!(
-                        fillerData &&
-                        Array.isArray(fillerData.episodes) &&
-                        fillerData.episodes.length > 0
-                    );
+                const hasFiller = !!(
+                    fillerData &&
+                    Array.isArray(fillerData.episodes) &&
+                    fillerData.episodes.length > 0
+                );
 
-                const isPending =
-                    !!(
-                        existingRequest &&
-                        !existingRequest.notes &&
-                        !hasFiller
-                    );
+                const isPending = !!(existingRequest && !existingRequest.notes && !hasFiller);
 
-                let html = '';
+                let html = "";
 
                 if (hasFiller) {
                     html += `
@@ -571,13 +646,11 @@ async function initDetails() {
                 }
 
                 /*
-                * Prefer the structured scraper status from schema v2.
-                * Fall back to the old notes field for schema v1 rows.
-                */
+                 * Prefer the structured scraper status from schema v2.
+                 * Fall back to the old notes field for schema v1 rows.
+                 */
                 const sourceStatus =
-                    fillerData?.source_status_message ||
-                    existingRequest?.notes ||
-                    '';
+                    fillerData?.source_status_message || existingRequest?.notes || "";
 
                 if (sourceStatus) {
                     html += `
@@ -597,23 +670,17 @@ async function initDetails() {
 
                 const hasSourceFailure =
                     fillerData?.schema_version === 2
-                        ? (
-                            fillerData?.sources?.anime_filler_list?.status === 'failed' ||
-                            fillerData?.sources?.anime_filler_guide?.status === 'failed'
-                        )
-                        : (
-                            String(existingRequest?.notes || '')
-                                .toLowerCase()
-                                .includes('error') ||
-
-                            String(existingRequest?.notes || '')
-                                .toLowerCase()
-                                .includes('failed') ||
-
-                            String(existingRequest?.notes || '')
-                                .toLowerCase()
-                                .includes('not found')
-                        );
+                        ? fillerData?.sources?.anime_filler_list?.status === "failed" ||
+                          fillerData?.sources?.anime_filler_guide?.status === "failed"
+                        : String(existingRequest?.notes || "")
+                              .toLowerCase()
+                              .includes("error") ||
+                          String(existingRequest?.notes || "")
+                              .toLowerCase()
+                              .includes("failed") ||
+                          String(existingRequest?.notes || "")
+                              .toLowerCase()
+                              .includes("not found");
 
                 if (hasSourceFailure) {
                     html += `
@@ -646,10 +713,9 @@ async function initDetails() {
                         </div>
                     `;
                 } else {
-                    const btnText =
-                        hasFiller
-                            ? 'Request a Filler List Update'
-                            : 'Request Filler List';
+                    const btnText = hasFiller
+                        ? "Request a Filler List Update"
+                        : "Request Filler List";
 
                     html += `
                         <button
@@ -669,76 +735,196 @@ async function initDetails() {
                 fillerAction.innerHTML = html;
 
                 if (hasFiller) {
-                    const viewBtn =
-                        document.getElementById(
-                            'view-filler-btn'
-                        );
+                    const viewBtn = document.getElementById("view-filler-btn");
 
                     if (viewBtn) {
-                        viewBtn.onclick =
-                            () =>
-                                openFillerModal(
-                                    fillerData
-                                );
+                        viewBtn.onclick = () => openFillerModal(fillerData);
                     }
                 }
 
                 if (!isPending) {
-                    const requestBtn =
-                        document.getElementById(
-                            'request-filler-btn'
-                        );
+                    const requestBtn = document.getElementById("request-filler-btn");
 
                     if (requestBtn) {
-                        requestBtn.onclick =
-                            () =>
-                                requestFiller(
-                                    slug,
-                                    hasFiller
-                                );
+                        requestBtn.onclick = () => requestFiller(slug, hasFiller);
                     }
                 }
 
-                const helpBtn =
-                    document.getElementById(
-                        'help-scraper-btn'
-                    );
+                const helpBtn = document.getElementById("help-scraper-btn");
 
                 if (helpBtn) {
-                    helpBtn.onclick =
-                        () =>
-                            openHelpScraperModal(
-                                slug,
-                                existingRequest
-                            );
+                    helpBtn.onclick = () => openHelpScraperModal(slug, existingRequest);
                 }
-
             } catch (e) {
-                console.error(
-                    'Filler fetch error:',
-                    e
-                );
+                console.error("Filler fetch error:", e);
 
-                fillerInfo.textContent =
-                    'Error loading filler data.';
+                fillerInfo.textContent = "Error loading filler data.";
             }
         }
 
-        fetchMediaHistory();
-        fetchFollowingLogs();
-        setupWatchlist(id, type);
-        setupListManager(id, type);
-        setupStatusManager(id, type);
-        setupCustomArt(id, type);
-        setupFavoritesManager(id, type)
+        // =========================================
+        // PREPARE USER-SPECIFIC CONTENT
+        // =========================================
 
-        if (['movie', 'tv', 'book'].includes(type)) {
-            loadSimilar('all');
+        const initialTasks = [
+            fetchMediaHistory(),
+            fetchFollowingLogs(),
+            setupWatchlist(id, type),
+            setupListManager(id, type),
+            setupStatusManager(id, type),
+            setupCustomArt(id, type),
+            setupFavoritesManager(id, type),
+        ];
+
+        // Prepare the initial recommendations
+        if (["movie", "tv", "book"].includes(type)) {
+            initialTasks.push(window.loadSimilar("all"));
         }
 
-        checkAndQueueMedia(id, type, config);
-    } catch (err) { 
-        console.error(err); 
+        await Promise.all(initialTasks);
+
+        // WAIT FOR IMAGES
+        await Promise.all([prepareDetailsImages(detailsContent), prepareDetailsBackdrop()]);
+
+        // Do not reveal content after the loading timeout
+        if (timedOut) return;
+
+        // REVEAL EVERYTHING TOGETHER
+        detailsLoader.stop();
+
+        detailsBackdrop.hidden = false;
+        detailsContent.hidden = false;
+
+        detailsContent.setAttribute("aria-busy", "false");
+
+        // This background database task does not affect the UI
+        // and should not delay revealing the Details page.
+        void checkAndQueueMedia(id, type, config);
+    } catch (err) {
+        console.error("Details initialization failed:", err);
+
+        detailsContent.hidden = true;
+        detailsBackdrop.hidden = true;
+
+        detailsContent.setAttribute("aria-busy", "false");
+
+        detailsLoader.showMessage("Unable to load this title. Refresh the page to try again.");
+    } finally {
+        clearTimeout(loadingTimeout);
+    }
+}
+
+// ----------------------------------------
+// Details Image Preparation
+// ----------------------------------------
+const detailsImageFallback = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg"
+             width="500"
+             height="750"
+             viewBox="0 0 500 750">
+
+            <rect width="500" height="750" fill="#1b2228"/>
+
+            <text x="250"
+                  y="375"
+                  text-anchor="middle"
+                  dominant-baseline="middle"
+                  fill="#99aabb"
+                  font-family="sans-serif"
+                  font-size="28">
+                No Image
+            </text>
+        </svg>
+    `)}`;
+
+async function waitForDetailsImage(image, timeoutMs = 12000) {
+    if (!image || !image.getAttribute("src")) {
+        return false;
+    }
+
+    let timeout;
+    let cleanup = () => {};
+
+    try {
+        image.loading = "eager";
+
+        const imageReady = new Promise((resolve) => {
+            const finish = (result) => {
+                cleanup();
+                resolve(result);
+            };
+
+            const onLoad = async () => {
+                try {
+                    if (typeof image.decode === "function") {
+                        await image.decode();
+                    }
+
+                    finish(image.naturalWidth > 0);
+                } catch {
+                    finish(false);
+                }
+            };
+
+            const onError = () => finish(false);
+
+            cleanup = () => {
+                image.removeEventListener("load", onLoad);
+                image.removeEventListener("error", onError);
+            };
+
+            image.addEventListener("load", onLoad);
+            image.addEventListener("error", onError);
+
+            if (image.complete) {
+                if (image.naturalWidth > 0) {
+                    onLoad();
+                } else {
+                    finish(false);
+                }
+            }
+        });
+
+        const timeoutPromise = new Promise((resolve) => {
+            timeout = setTimeout(() => resolve(false), timeoutMs);
+        });
+
+        return await Promise.race([imageReady, timeoutPromise]);
+    } finally {
+        clearTimeout(timeout);
+        cleanup();
+    }
+}
+
+async function prepareDetailsImages(root) {
+    if (!root) return;
+
+    const images = [...root.querySelectorAll("img")];
+
+    await Promise.all(
+        images.map(async (image) => {
+            const loaded = await waitForDetailsImage(image);
+
+            if (!loaded) {
+                image.removeAttribute("srcset");
+                image.src = detailsImageFallback;
+
+                await waitForDetailsImage(image, 2000);
+            }
+        }),
+    );
+}
+
+async function prepareDetailsBackdrop() {
+    if (!globalData?.backdrop) return;
+
+    const image = new Image();
+    image.src = globalData.backdrop;
+
+    const loaded = await waitForDetailsImage(image);
+
+    if (!loaded) {
+        detailsBackdrop.style.backgroundImage = "none";
     }
 }
 
@@ -747,47 +933,60 @@ async function initDetails() {
 // ----------------------------------------
 // Rendering Logic
 function renderLogs(logsToRender) {
-    const historyList = document.getElementById('history-list');
-    
-    historyList.innerHTML = logsToRender.map(log => {
-        // Use the new centralized helper function
-        const label = getLogScopeLabel(log, type, globalData);
+    const historyList = document.getElementById("history-list");
 
-        let rewatchText = 'Rewatch';
-        let actionVerb = 'Watched';
-        
-        if (type === 'book') {
-            rewatchText = 'Reread';
-            actionVerb = 'Read';
-        } else if (type === 'album') {
-            rewatchText = 'Relisten';
-            actionVerb = 'Listened';
-        }
-        
-        const heartBadge = log.is_liked ? `<span title="Liked" style="display: flex; align-items: center;">❤️</span>` : '';
-        const rewatchBadge = log.is_rewatch ? 
-            `<span title="${rewatchText}" style="font-size: 0.85rem; display: flex; align-items: center;">🔁</span>` 
-            : '';
-            
-        const badgeRow = (log.is_liked || log.is_rewatch) ? 
-            `<div style="display: flex; gap: 10px; margin-top: 6px; margin-bottom: 2px;">
+    historyList.innerHTML = logsToRender
+        .map((log) => {
+            // Use the new centralized helper function
+            const label = getLogScopeLabel(log, type, globalData);
+
+            let rewatchText = "Rewatch";
+            let actionVerb = "Watched";
+
+            if (type === "book") {
+                rewatchText = "Reread";
+                actionVerb = "Read";
+            } else if (type === "album") {
+                rewatchText = "Relisten";
+                actionVerb = "Listened";
+            }
+
+            const heartBadge = log.is_liked
+                ? `<span title="Liked" style="display: flex; align-items: center;">❤️</span>`
+                : "";
+            const rewatchBadge = log.is_rewatch
+                ? `<span title="${rewatchText}" style="font-size: 0.85rem; display: flex; align-items: center;">🔁</span>`
+                : "";
+
+            const badgeRow =
+                log.is_liked || log.is_rewatch
+                    ? `<div style="display: flex; gap: 10px; margin-top: 6px; margin-bottom: 2px;">
                 ${heartBadge}
                 ${rewatchBadge}
-            </div>` : '';
-        
-        const stars = '★'.repeat(Math.floor(log.rating)) + (log.rating % 1 !== 0 ? '½' : '');
+            </div>`
+                    : "";
 
-        const targetDate = log.watched_on ? log.watched_on : log.created_at.split('T')[0];
-        const logDate = new Date(targetDate + 'T00:00:00').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+            const stars = "★".repeat(Math.floor(log.rating)) + (log.rating % 1 !== 0 ? "½" : "");
 
-        const reviewPreview = log.notes ? `<div class="history-notes">"${log.notes}"</div>` : '';
-        
-        const tagsHtml = (log.tags && log.tags.length > 0) ? 
-            `<div class="log-tags-container">
-                ${log.tags.map(tag => `<span class="log-tag-pill">${tag}</span>`).join('')}
-            </div>` : '';
+            const targetDate = log.watched_on ? log.watched_on : log.created_at.split("T")[0];
+            const logDate = new Date(`${targetDate}T00:00:00`).toLocaleDateString([], {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+            });
 
-        return `
+            const reviewPreview = log.notes
+                ? `<div class="history-notes">"${log.notes}"</div>`
+                : "";
+
+            const tagsHtml =
+                log.tags && log.tags.length > 0
+                    ? `<div class="log-tags-container">
+                ${log.tags.map((tag) => `<span class="log-tag-pill">${tag}</span>`).join("")}
+            </div>`
+                    : "";
+
+            return `
             <div class="history-item" id="log-${log.id}">
                 <div class="history-header">
                     <span class="history-label" style="margin: 0; padding-right: 15px;">${label}</span>
@@ -805,55 +1004,64 @@ function renderLogs(logsToRender) {
                 ${tagsHtml}
             </div>
         `;
-    }).join('');
+        })
+        .join("");
 }
 
 function renderMainPageCast() {
-    const castList = document.getElementById('cast-list');
-    const castSection = document.getElementById('cast-section');
-    let finalDisplayList = [];
+    const castList = document.getElementById("cast-list");
+    const castSection = document.getElementById("cast-section");
+    const finalDisplayList = [];
 
     // 1. Add Director First
     if (directorData) {
         finalDisplayList.push({
             ...directorData,
-            isDirector: true
+            isDirector: true,
         });
     }
 
     // 2. Render Top 11
     const castToShow = fullCastData.slice(0, 11);
-    castToShow.forEach(actor => finalDisplayList.push(actor));
+    castToShow.forEach((actor) => finalDisplayList.push(actor));
 
-    castList.innerHTML = finalDisplayList.map(person => `
-        <div class="cast-card ${person.isDirector ? 'director-highlight' : ''}" 
+    castList.innerHTML = finalDisplayList
+        .map(
+            (person) => `
+        <div class="cast-card ${person.isDirector ? "director-highlight" : ""}" 
              data-details-route="cast.html?personId=${encodeURIComponent(person.id)}">
-            <img src="${person.profile_path ? 'https://image.tmdb.org/t/p/w185' + person.profile_path : 'https://via.placeholder.com/185x278?text=No+Photo'}" alt="${person.name}">
+            <img src="${person.profile_path ? `https://image.tmdb.org/t/p/w185${person.profile_path}` : "https://via.placeholder.com/185x278?text=No+Photo"}" alt="${person.name}">
             <div class="cast-info">
                 <span class="cast-name">${person.name}</span>
-                <span class="cast-role">${person.displayRole} ${person.isDirector ? '🎬' : ''}</span>
-                ${person.epCountStr ? `<span style="display:block; font-size: 0.75rem; color: var(--accent); margin-top: 2px;">${person.epCountStr}</span>` : ''}
+                <span class="cast-role">${person.displayRole} ${person.isDirector ? "🎬" : ""}</span>
+                ${person.epCountStr ? `<span style="display:block; font-size: 0.75rem; color: var(--accent); margin-top: 2px;">${person.epCountStr}</span>` : ""}
             </div>
         </div>
-    `).join('');
+    `,
+        )
+        .join("");
 
     // 3. Add Modal Trigger Button
-    let viewAllBtn = document.getElementById('view-all-cast-btn');
+    let viewAllBtn = document.getElementById("view-all-cast-btn");
     if (!viewAllBtn && (fullCastData.length > 11 || fullCrewData.length > 1)) {
-        viewAllBtn = document.createElement('button');
-        viewAllBtn.id = 'view-all-cast-btn';
-        viewAllBtn.textContent = 'View Full Cast & Crew';
+        viewAllBtn = document.createElement("button");
+        viewAllBtn.id = "view-all-cast-btn";
+        viewAllBtn.textContent = "View Full Cast & Crew";
         viewAllBtn.style.cssText = `
             background: rgba(255, 255, 255, 0.05); border: 1px solid #2c3440;
             color: #9ab; padding: 12px; border-radius: 8px; cursor: pointer;
             transition: all 0.2s ease; width: 100%; margin-top: 20px; font-weight: bold; font-size: 0.9rem;
         `;
-        
+
         viewAllBtn.onmouseover = () => {
-            viewAllBtn.style.color = '#fff'; viewAllBtn.style.background = 'rgba(255, 255, 255, 0.1)'; viewAllBtn.style.borderColor = 'var(--accent)';
+            viewAllBtn.style.color = "#fff";
+            viewAllBtn.style.background = "rgba(255, 255, 255, 0.1)";
+            viewAllBtn.style.borderColor = "var(--accent)";
         };
         viewAllBtn.onmouseout = () => {
-            viewAllBtn.style.color = '#9ab'; viewAllBtn.style.background = 'rgba(255, 255, 255, 0.05)'; viewAllBtn.style.borderColor = '#2c3440';
+            viewAllBtn.style.color = "#9ab";
+            viewAllBtn.style.background = "rgba(255, 255, 255, 0.05)";
+            viewAllBtn.style.borderColor = "#2c3440";
         };
 
         viewAllBtn.onclick = () => openCastModal();
@@ -862,50 +1070,66 @@ function renderMainPageCast() {
 }
 
 async function loadEpisodes(config, seriesId, seasonNum, tvmazeId) {
-    const list = document.getElementById('episode-list');
-    list.innerHTML = 'Loading episodes...';
+    const list = document.getElementById("episode-list");
+    list.innerHTML = "Loading episodes...";
     tvmazeEpisodesMap = {}; // Reset local cache frame
-    
+
     try {
-        const response = await fetch(`${PROXY_URL}/api/tmdb/tv/${seriesId}/season/${seasonNum}?language=en-US`);
+        const response = await fetch(
+            `${PROXY_URL}/api/tmdb/tv/${seriesId}/season/${seasonNum}?language=en-US`,
+        );
         const res = await response.json();
 
         // Populate TVMaze episode data cache framework asynchronously
         if (tvmazeId) {
             try {
-                const tvmazeEps = await fetch(`https://api.tvmaze.com/shows/${tvmazeId}/episodes?special=1`).then(r => r.json());
-                tvmazeEps.forEach(ep => {
+                const tvmazeEps = await fetch(
+                    `https://api.tvmaze.com/shows/${tvmazeId}/episodes?special=1`,
+                ).then((r) => r.json());
+                tvmazeEps.forEach((ep) => {
                     if (String(ep.season) === String(seasonNum)) {
                         tvmazeEpisodesMap[String(ep.number)] = ep;
                     }
                 });
-            } catch(e) { console.warn("Failed caching TVMaze episode metadata structures.", e); }
+            } catch (e) {
+                console.warn("Failed caching TVMaze episode metadata structures.", e);
+            }
         }
 
-        const { data: { user } } = await supabaseClient.auth.getUser();
+        const {
+            data: { user },
+        } = await supabaseClient.auth.getUser();
         let watchedSet = new Set();
         if (user) {
-            const { data: watched } = await supabaseClient.from('episode_logs')
-                .select('episode_number').eq('series_id', String(seriesId)).eq('season_number', seasonNum).eq('user_id', user.id);
-            if (watched) watchedSet = new Set(watched.map(w => w.episode_number));
+            const { data: watched } = await supabaseClient
+                .from("episode_logs")
+                .select("episode_number")
+                .eq("series_id", String(seriesId))
+                .eq("season_number", seasonNum)
+                .eq("user_id", user.id);
+            if (watched) watchedSet = new Set(watched.map((w) => w.episode_number));
         }
 
-        list.innerHTML = res.episodes.map(ep => `
+        list.innerHTML = res.episodes
+            .map(
+                (ep) => `
             <div class="episode-item" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px;">
                 <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0;">
-                    <input type="checkbox" id="ep-${ep.episode_number}" ${watchedSet.has(ep.episode_number) ? 'checked' : ''} 
+                    <input type="checkbox" id="ep-${ep.episode_number}" ${watchedSet.has(ep.episode_number) ? "checked" : ""} 
                         data-toggle-episode="${encodeURIComponent(seriesId)}" data-season-number="${seasonNum}" data-episode-number="${ep.episode_number}">
                     <label style="cursor: pointer; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" 
-                           data-open-episode="${encodeURIComponent(ep.name || 'Untitled')}" data-episode-number="${ep.episode_number}" data-season-number="${seasonNum}">
-                        E${ep.episode_number}: <span style="text-decoration: underline; color: var(--accent);">${ep.name || 'Untitled'}</span>
+                           data-open-episode="${encodeURIComponent(ep.name || "Untitled")}" data-episode-number="${ep.episode_number}" data-season-number="${seasonNum}">
+                        E${ep.episode_number}: <span style="text-decoration: underline; color: var(--accent);">${ep.name || "Untitled"}</span>
                     </label>
                 </div>
             </div>
-        `).join('');
+        `,
+            )
+            .join("");
         updateUnifiedProgress(watchedSet.size, res.episodes.length, "episodes watched");
-    } catch (err) { 
+    } catch (err) {
         console.error("Episode load error:", err);
-        list.innerHTML = "<p class='meta'>Error loading episodes.</p>"; 
+        list.innerHTML = "<p class='meta'>Error loading episodes.</p>";
     }
 }
 
@@ -913,31 +1137,44 @@ async function loadEpisodes(config, seriesId, seasonNum, tvmazeId) {
 // Secondary Feature Fetching
 // ----------------------------------------
 async function fetchWatchProviders() {
-    if (type === 'book') return; 
-    
+    if (type === "book") return;
+
     try {
-        const res = await fetch(`${PROXY_URL}/api/tmdb/${type}/${id}/watch/providers`).then(r => r.json());
+        const res = await fetch(`${PROXY_URL}/api/tmdb/${type}/${id}/watch/providers`).then((r) =>
+            r.json(),
+        );
         const results = res.results?.US || {};
-        
+
         // Execute the extracted logic
-        const { freeToWatchList, streamList, buyRentList, otherList } = categorizeProviders(results);
+        const { freeToWatchList, streamList, buyRentList, otherList } =
+            categorizeProviders(results);
 
-        const container = document.getElementById('providers-list');
-        let html = '';
+        const container = document.getElementById("providers-list");
+        let html = "";
 
-        if (!freeToWatchList.length && !streamList.length && !buyRentList.length && !otherList.length) {
-            html += "<p class='meta' style='margin-bottom: 15px; font-size: 0.9rem;'>Not available to stream or buy.</p>";
+        if (
+            !freeToWatchList.length &&
+            !streamList.length &&
+            !buyRentList.length &&
+            !otherList.length
+        ) {
+            html +=
+                "<p class='meta' style='margin-bottom: 15px; font-size: 0.9rem;'>Not available to stream or buy.</p>";
         } else {
             const generateGroupHtml = (label, providersArray) => {
-                if (!providersArray.length) return '';
+                if (!providersArray.length) return "";
                 return `
                     <div class="provider-group">
                         <span class="provider-type-label">${label}</span>
                         <div class="provider-icons">
-                            ${providersArray.map(p => `
+                            ${providersArray
+                                .map(
+                                    (p) => `
                                 <img src="https://image.tmdb.org/t/p/original${p.logo_path}" 
                                      title="${p.provider_name}" class="provider-logo" alt="${p.provider_name}">
-                            `).join('')}
+                            `,
+                                )
+                                .join("")}
                         </div>
                     </div>`;
             };
@@ -945,15 +1182,17 @@ async function fetchWatchProviders() {
             html += generateGroupHtml("Free to Watch", freeToWatchList);
             html += generateGroupHtml("Stream", streamList);
             html += generateGroupHtml("Buy / Rent", buyRentList);
-            html += generateGroupHtml("Other Services", otherList); 
+            html += generateGroupHtml("Other Services", otherList);
         }
 
-        let yearPart = globalData.meta.split(' • ')[0].trim();
-        if (yearPart === 'Unknown Year' || !/^\d{4}$/.test(yearPart)) yearPart = '';
-        
-        const typeStr = type === 'tv' ? 'tv show' : 'movie';
-        const query = encodeURIComponent(`${globalData.title} ${yearPart ? yearPart + ' ' : ''}${typeStr} trailer`);
-        
+        let yearPart = globalData.meta.split(" • ")[0].trim();
+        if (yearPart === "Unknown Year" || !/^\d{4}$/.test(yearPart)) yearPart = "";
+
+        const typeStr = type === "tv" ? "tv show" : "movie";
+        const query = encodeURIComponent(
+            `${globalData.title} ${yearPart ? `${yearPart} ` : ""}${typeStr} trailer`,
+        );
+
         html += `
             <div class="provider-group">
                 <span class="provider-type-label">Trailer</span>
@@ -967,22 +1206,23 @@ async function fetchWatchProviders() {
         container.innerHTML = html;
     } catch (err) {
         console.error("Watch providers panel failed to render:", err);
-        document.getElementById('providers-list').innerHTML = "<p class='meta'>Availability data currently updating.</p>";
+        document.getElementById("providers-list").innerHTML =
+            "<p class='meta'>Availability data currently updating.</p>";
     }
 }
 
 async function fetchCredits(mediaId, mediaType) {
-    if (mediaType === 'book' || mediaType === 'youtube' || mediaType === 'album') return;
-    const castList = document.getElementById('cast-list');
-    
-    const endpoint = mediaType === 'tv' ? 'aggregate_credits' : 'credits';
+    if (mediaType === "book" || mediaType === "youtube" || mediaType === "album") return;
+    const castList = document.getElementById("cast-list");
+
+    const endpoint = mediaType === "tv" ? "aggregate_credits" : "credits";
     const url = `${PROXY_URL}/api/tmdb/${mediaType}/${mediaId}/${endpoint}?language=en-US`;
 
     try {
         const response = await fetch(url);
         const text = await response.text();
-        if (text.startsWith('\x1F\x8B')) throw new Error("TMDB returned raw corrupted GZIP data.");
-        
+        if (text.startsWith("\x1F\x8B")) throw new Error("TMDB returned raw corrupted GZIP data.");
+
         const res = JSON.parse(text);
         if (!res || !res.crew || !res.cast) return;
 
@@ -993,36 +1233,38 @@ async function fetchCredits(mediaId, mediaType) {
         directorData = normalized.director;
 
         renderMainPageCast();
-
-    } catch (err) { 
-        console.error("Credits error:", err); 
+    } catch (err) {
+        console.error("Credits error:", err);
         castList.innerHTML = `<p class="meta">Cast information is currently unavailable.</p>`;
     }
 }
 
 async function fetchMediaHistory() {
-    const historyList = document.getElementById('history-list');
-    const showMoreBtn = document.getElementById('show-more-logs');
-    const { data: { user } } = await supabaseClient.auth.getUser();
+    const historyList = document.getElementById("history-list");
+    const showMoreBtn = document.getElementById("show-more-logs");
+    const {
+        data: { user },
+    } = await supabaseClient.auth.getUser();
 
-    if (!user) { 
-        if (historyList) historyList.innerHTML = "<p class='meta'>Sign in to see history.</p>"; 
-        return; 
+    if (!user) {
+        if (historyList) historyList.innerHTML = "<p class='meta'>Sign in to see history.</p>";
+        return;
     }
 
-    const { data: logs } = await supabaseClient.from('media_logs')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('media_id', id)
-        .order('created_at', { ascending: false });
+    const { data: logs } = await supabaseClient
+        .from("media_logs")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("media_id", id)
+        .order("created_at", { ascending: false });
 
-    if (!logs || logs.length === 0) { 
-        if (historyList) historyList.innerHTML = "<p class='meta'>No logs yet.</p>"; 
-        if (showMoreBtn) showMoreBtn.style.display = 'none';
-        return; 
+    if (!logs || logs.length === 0) {
+        if (historyList) historyList.innerHTML = "<p class='meta'>No logs yet.</p>";
+        if (showMoreBtn) showMoreBtn.style.display = "none";
+        return;
     }
 
-    allLogsData = logs; 
+    allLogsData = logs;
 
     // 1. Initial render of top 5 (Change the 3 to a 5 here!)
     renderLogs(allLogsData.slice(0, 5));
@@ -1030,16 +1272,16 @@ async function fetchMediaHistory() {
     // 2. Setup the "Show More" button logic
     if (showMoreBtn) {
         if (allLogsData.length > 5) {
-            showMoreBtn.style.display = 'block';
+            showMoreBtn.style.display = "block";
             showMoreBtn.textContent = `Show More (+${allLogsData.length - 5})`;
-            
+
             showMoreBtn.onclick = (e) => {
                 e.preventDefault();
-                renderLogs(allLogsData); 
-                showMoreBtn.style.display = 'none'; 
+                renderLogs(allLogsData);
+                showMoreBtn.style.display = "none";
             };
         } else {
-            showMoreBtn.style.display = 'none';
+            showMoreBtn.style.display = "none";
         }
     }
 }
@@ -1048,42 +1290,44 @@ async function fetchMediaHistory() {
 // UI Component Managers (Modals/State)
 // ----------------------------------------
 async function setupStatusManager(mediaId, mediaType) {
-    const statusBtn = document.getElementById('status-btn');
-    const modal = document.getElementById('status-modal');
-    const closeBtn = document.getElementById('close-status-modal');
-    const options = document.querySelectorAll('.status-option');
-    const { data: { user } } = await supabaseClient.auth.getUser();
+    const statusBtn = document.getElementById("status-btn");
+    const modal = document.getElementById("status-modal");
+    const closeBtn = document.getElementById("close-status-modal");
+    const options = document.querySelectorAll(".status-option");
+    const {
+        data: { user },
+    } = await supabaseClient.auth.getUser();
 
     if (!user) {
-        statusBtn.style.display = 'none';
+        statusBtn.style.display = "none";
         return;
     }
 
     // Dynamically set the active label based on all media types
-    let activeLabelText = 'Currently Watching'; // Default for movies/tv/youtube
-    if (mediaType === 'book') activeLabelText = 'Currently Reading';
-    else if (mediaType === 'album') activeLabelText = 'Currently Listening';
+    let activeLabelText = "Currently Watching"; // Default for movies/tv/youtube
+    if (mediaType === "book") activeLabelText = "Currently Reading";
+    else if (mediaType === "album") activeLabelText = "Currently Listening";
 
     // Map labels for the UI
     const labels = {
         active: activeLabelText,
-        paused: 'Paused',
-        dropped: 'Dropped',
-        none: 'Mark as...'
+        paused: "Paused",
+        dropped: "Dropped",
+        none: "Mark as...",
     };
 
     // 1. Initial State Fetch
     const { data: statusData } = await supabaseClient
-        .from('media_status')
-        .select('status')
-        .eq('user_id', user.id)
-        .eq('media_id', String(mediaId))
+        .from("media_status")
+        .select("status")
+        .eq("user_id", user.id)
+        .eq("media_id", String(mediaId))
         .maybeSingle();
 
     if (statusData?.status && labels[statusData.status]) {
         statusBtn.textContent = labels[statusData.status];
-        if (statusData.status !== 'completed' && statusData.status !== 'none') {
-            statusBtn.classList.add('active');
+        if (statusData.status !== "completed" && statusData.status !== "none") {
+            statusBtn.classList.add("active");
         }
     }
 
@@ -1092,122 +1336,148 @@ async function setupStatusManager(mediaId, mediaType) {
     if (activeLabelElement) activeLabelElement.textContent = labels.active;
 
     // 2. Open/Close Modal
-    statusBtn.onclick = () => modal.style.display = 'flex'
-    closeBtn.onclick = () => modal.style.display = 'none';
-    
+    statusBtn.onclick = () => (modal.style.display = "flex");
+    closeBtn.onclick = () => (modal.style.display = "none");
+
     // Close on backdrop click
-    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+    modal.onclick = (e) => {
+        if (e.target === modal) modal.style.display = "none";
+    };
 
     // 3. Status Selection Logic
-    options.forEach(opt => {
+    options.forEach((opt) => {
         opt.onclick = async (e) => {
             // Stop propagation to ensure we don't trigger the modal backdrop click
             e.stopPropagation();
-            
-            const selectedStatus = opt.getAttribute('data-status');
-            
-            if (selectedStatus === 'none') {
+
+            const selectedStatus = opt.getAttribute("data-status");
+
+            if (selectedStatus === "none") {
                 // Delete the status record
                 const { error } = await supabaseClient
-                    .from('media_status')
+                    .from("media_status")
                     .delete()
-                    .eq('user_id', user.id)
-                    .eq('media_id', String(mediaId));
-                
+                    .eq("user_id", user.id)
+                    .eq("media_id", String(mediaId));
+
                 if (!error) {
                     statusBtn.textContent = labels.none;
-                    statusBtn.classList.remove('active');
+                    statusBtn.classList.remove("active");
                 }
             } else {
                 // Upsert the new status
-                const { error } = await supabaseClient
-                    .from('media_status')
-                    .upsert({
+                const { error } = await supabaseClient.from("media_status").upsert(
+                    {
                         user_id: user.id,
                         media_id: String(mediaId),
                         media_type: mediaType,
                         media_title: globalData.title,
                         status: selectedStatus,
                         image_url: globalData.poster_path,
-                        updated_at: new Date().toISOString()
-                    }, { onConflict: 'user_id,media_id,media_type' });
+                        updated_at: new Date().toISOString(),
+                    },
+                    { onConflict: "user_id,media_id,media_type" },
+                );
 
                 if (!error) {
                     statusBtn.textContent = labels[selectedStatus];
-                    statusBtn.classList.add('active');
-                    
+                    statusBtn.classList.add("active");
+
                     // Cleanup watchlist if they start the item
-                    if (selectedStatus === 'active') {
-                        await supabaseClient.from('user_watchlist').delete()
-                            .eq('user_id', user.id)
-                            .eq('media_id', String(mediaId));
-                            
-                        const watchlistBtn = document.getElementById('watchlist-btn');
+                    if (selectedStatus === "active") {
+                        await supabaseClient
+                            .from("user_watchlist")
+                            .delete()
+                            .eq("user_id", user.id)
+                            .eq("media_id", String(mediaId));
+
+                        const watchlistBtn = document.getElementById("watchlist-btn");
                         if (watchlistBtn) {
-                            watchlistBtn.classList.remove('active');
-                            watchlistBtn.textContent = 'Add to Watchlist';
+                            watchlistBtn.classList.remove("active");
+                            watchlistBtn.textContent = "Add to Watchlist";
                         }
                     }
                 } else {
                     console.error("Error updating status:", error);
                 }
             }
-            modal.style.display = 'none';
+            modal.style.display = "none";
         };
     });
 }
 
 async function setupWatchlist(mediaId, mediaType) {
-    const btn = document.getElementById('watchlist-btn');
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) { btn.style.display = 'none'; return; }
+    const btn = document.getElementById("watchlist-btn");
+    const {
+        data: { user },
+    } = await supabaseClient.auth.getUser();
+    if (!user) {
+        btn.style.display = "none";
+        return;
+    }
 
-    const { data: exists } = await supabaseClient.from('user_watchlist').select('id').eq('user_id', user.id).eq('media_id', String(mediaId)).maybeSingle();
-    
-    if (exists) { btn.classList.add('active'); btn.textContent = 'On Watchlist'; }
+    const { data: exists } = await supabaseClient
+        .from("user_watchlist")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("media_id", String(mediaId))
+        .maybeSingle();
+
+    if (exists) {
+        btn.classList.add("active");
+        btn.textContent = "On Watchlist";
+    }
 
     btn.onclick = async () => {
-        if (btn.classList.contains('active')) {
-            await supabaseClient.from('user_watchlist').delete().eq('user_id', user.id).eq('media_id', String(mediaId));
-            btn.classList.remove('active'); btn.textContent = 'Add to Watchlist';
+        if (btn.classList.contains("active")) {
+            await supabaseClient
+                .from("user_watchlist")
+                .delete()
+                .eq("user_id", user.id)
+                .eq("media_id", String(mediaId));
+            btn.classList.remove("active");
+            btn.textContent = "Add to Watchlist";
         } else {
-            await supabaseClient.from('user_watchlist').insert({ 
-                user_id: user.id, 
-                media_id: String(mediaId), 
+            await supabaseClient.from("user_watchlist").insert({
+                user_id: user.id,
+                media_id: String(mediaId),
                 media_type: mediaType,
                 media_title: globalData.title,
-                image_url: globalData.poster_path
+                image_url: globalData.poster_path,
             });
-            btn.classList.add('active'); btn.textContent = 'On Watchlist';
+            btn.classList.add("active");
+            btn.textContent = "On Watchlist";
         }
     };
 }
 
 async function setupListManager(mediaId, mediaType) {
-    const btn = document.getElementById('add-to-list-btn');
-    const modal = document.getElementById('list-modal');
-    const close = document.getElementById('close-list-modal');
-    const container = document.getElementById('user-lists-selection');
-    const filterBtns = modal.querySelectorAll('.filter-btn');
-    
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) { 
-        btn.style.display = 'none'; 
-        return; 
+    const btn = document.getElementById("add-to-list-btn");
+    const modal = document.getElementById("list-modal");
+    const close = document.getElementById("close-list-modal");
+    const container = document.getElementById("user-lists-selection");
+    const filterBtns = modal.querySelectorAll(".filter-btn");
+
+    const {
+        data: { user },
+    } = await supabaseClient.auth.getUser();
+    if (!user) {
+        btn.style.display = "none";
+        return;
     }
 
     let allAvailableLists = [];
     let itemsInLists = new Set();
-    let currentDetailsListTab = 'owned';
+    let currentDetailsListTab = "owned";
 
     const renderDetailsListModal = () => {
         let filtered = [];
-        if (currentDetailsListTab === 'owned') {
-            filtered = allAvailableLists.filter(l => l.user_id === user.id && !l.is_tiered);
-        } else if (currentDetailsListTab === 'shared') {
-            filtered = allAvailableLists.filter(l => l.user_id !== user.id && !l.is_tiered);
-        } else if (currentDetailsListTab === 'tier') {
-            filtered = allAvailableLists.filter(l => l.is_tiered);
+        if (currentDetailsListTab === "owned") {
+            filtered = allAvailableLists.filter((l) => l.user_id === user.id && !l.is_tiered);
+        } else if (currentDetailsListTab === "shared") {
+            filtered = allAvailableLists.filter((l) => l.user_id !== user.id && !l.is_tiered);
+        } else if (currentDetailsListTab === "tier") {
+            filtered = allAvailableLists.filter((l) => l.is_tiered);
         }
 
         if (filtered.length === 0) {
@@ -1215,50 +1485,52 @@ async function setupListManager(mediaId, mediaType) {
             return;
         }
 
-        container.innerHTML = filtered.map(l => {
-            const isAdded = itemsInLists.has(l.id);
-            const btnClass = isAdded ? 'danger-btn' : 'primary-btn';
-            const btnText = isAdded ? 'Remove' : 'Add';
-            
-            return `
+        container.innerHTML = filtered
+            .map((l) => {
+                const isAdded = itemsInLists.has(l.id);
+                const btnClass = isAdded ? "danger-btn" : "primary-btn";
+                const btnText = isAdded ? "Remove" : "Add";
+
+                return `
                 <div class="list-select-item">
                     <span>${l.name}</span>
                     <button data-list-id="${l.id}" data-media-id="${encodeURIComponent(mediaId)}" data-media-type="${encodeURIComponent(mediaType)}" class="${btnClass}">${btnText}</button>
                 </div>
             `;
-        }).join('');
+            })
+            .join("");
     };
 
-    filterBtns.forEach(fBtn => {
+    filterBtns.forEach((fBtn) => {
         fBtn.onclick = () => {
-            filterBtns.forEach(b => b.classList.remove('active'));
-            fBtn.classList.add('active');
-            currentDetailsListTab = fBtn.getAttribute('data-filter');
+            filterBtns.forEach((b) => b.classList.remove("active"));
+            fBtn.classList.add("active");
+            currentDetailsListTab = fBtn.getAttribute("data-filter");
             if (allAvailableLists.length > 0) renderDetailsListModal();
         };
     });
 
     btn.onclick = async () => {
-        modal.style.display = 'flex';
+        modal.style.display = "flex";
         container.innerHTML = '<p class="meta">Loading your lists...</p>';
 
         // STEP 1: Fetch lists the user owns
         const { data: owned } = await supabaseClient
-            .from('media_lists')
-            .select('id, name, is_tiered, user_id')
-            .eq('user_id', user.id);
+            .from("media_lists")
+            .select("id, name, is_tiered, user_id")
+            .eq("user_id", user.id);
 
         // STEP 2: Fetch lists where the user is a collaborator
         const { data: collabEntries } = await supabaseClient
-            .from('list_collaborators')
-            .select('list_id, media_lists(id, name, is_tiered, user_id)')
-            .eq('user_id', user.id);
+            .from("list_collaborators")
+            .select("list_id, media_lists(id, name, is_tiered, user_id)")
+            .eq("user_id", user.id);
 
-        const collaborative = collabEntries?.map(e => e.media_lists).filter(Boolean) || [];
+        const collaborative = collabEntries?.map((e) => e.media_lists).filter(Boolean) || [];
 
         // STEP 3: Merge and de-duplicate
         const listMap = new Map();
-        [...(owned || []), ...collaborative].forEach(l => listMap.set(l.id, l));
+        [...(owned || []), ...collaborative].forEach((l) => listMap.set(l.id, l));
         allAvailableLists = Array.from(listMap.values());
 
         if (allAvailableLists.length === 0) {
@@ -1267,76 +1539,87 @@ async function setupListManager(mediaId, mediaType) {
         }
 
         // STEP 4: Check which lists already contain this item
-        const listIds = allAvailableLists.map(l => l.id);
+        const listIds = allAvailableLists.map((l) => l.id);
         const { data: currentItems } = await supabaseClient
-            .from('list_items')
-            .select('list_id')
-            .in('list_id', listIds)
-            .eq('media_id', String(mediaId));
-            
-        itemsInLists = new Set(currentItems?.map(item => item.list_id) || []);
+            .from("list_items")
+            .select("list_id")
+            .in("list_id", listIds)
+            .eq("media_id", String(mediaId));
+
+        itemsInLists = new Set(currentItems?.map((item) => item.list_id) || []);
 
         // STEP 5: Render
         renderDetailsListModal();
     };
 
-    close.onclick = () => modal.style.display = 'none';
-    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+    close.onclick = () => (modal.style.display = "none");
+    modal.onclick = (e) => {
+        if (e.target === modal) modal.style.display = "none";
+    };
 }
 
 async function setupFavoritesManager(mediaId, mediaType) {
-    const btn = document.getElementById('favorite-heart-btn');
-    const modal = document.getElementById('favorites-modal');
-    const closeBtn = document.getElementById('close-fav-modal');
-    const container = document.getElementById('fav-slots-container');
+    const btn = document.getElementById("favorite-heart-btn");
+    const modal = document.getElementById("favorites-modal");
+    const closeBtn = document.getElementById("close-fav-modal");
+    const container = document.getElementById("fav-slots-container");
 
-    const { data: { user } } = await supabaseClient.auth.getUser();
+    const {
+        data: { user },
+    } = await supabaseClient.auth.getUser();
     if (!user) {
-        btn.style.display = 'none';
+        btn.style.display = "none";
         return;
     }
 
     let userFavorites = { movie: [], tv: [], book: [], album: [], youtube: [], all: [] };
 
     // Fetch current favorites
-    const { data: profile } = await supabaseClient.from('profiles').select('favorites').eq('id', user.id).single();
+    const { data: profile } = await supabaseClient
+        .from("profiles")
+        .select("favorites")
+        .eq("id", user.id)
+        .single();
     if (profile && profile.favorites) {
         userFavorites = profile.favorites;
     }
 
     // Check if it's already a favorite to style the heart solid
     const currentCategoryList = userFavorites[mediaType] || [];
-    const isAlreadyFav = currentCategoryList.some(fav => String(fav.id) === String(mediaId));
+    const isAlreadyFav = currentCategoryList.some((fav) => String(fav.id) === String(mediaId));
     if (isAlreadyFav) {
-        btn.textContent = '♥';
-        btn.style.color = '#ff4d4d'; // Red heart
+        btn.textContent = "♥";
+        btn.style.color = "#ff4d4d"; // Red heart
     }
 
     btn.onclick = () => {
-        modal.style.display = 'flex';
+        modal.style.display = "flex";
         renderFavSlots();
     };
 
-    closeBtn.onclick = () => modal.style.display = 'none';
-    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+    closeBtn.onclick = () => (modal.style.display = "none");
+    modal.onclick = (e) => {
+        if (e.target === modal) modal.style.display = "none";
+    };
 
     const renderFavSlots = () => {
         const list = userFavorites[mediaType] || [];
-        container.innerHTML = '';
-        
+        container.innerHTML = "";
+
         // Loop through the 5 possible slots
         for (let i = 0; i < 5; i++) {
             const currentItem = list[i];
-            const slotDiv = document.createElement('div');
-            slotDiv.style.cssText = "display: flex; align-items: center; justify-content: space-between; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid #2c3440; border-radius: 8px; cursor: pointer; transition: background 0.2s;";
-            
-            slotDiv.onmouseover = () => slotDiv.style.background = 'rgba(255,255,255,0.1)';
-            slotDiv.onmouseout = () => slotDiv.style.background = 'rgba(255,255,255,0.05)';
+            const slotDiv = document.createElement("div");
+            slotDiv.style.cssText =
+                "display: flex; align-items: center; justify-content: space-between; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid #2c3440; border-radius: 8px; cursor: pointer; transition: background 0.2s;";
+
+            slotDiv.onmouseover = () => (slotDiv.style.background = "rgba(255,255,255,0.1)");
+            slotDiv.onmouseout = () => (slotDiv.style.background = "rgba(255,255,255,0.05)");
 
             if (currentItem) {
                 // If the slot is occupied by THIS media, show "Remove" state
                 if (String(currentItem.id) === String(mediaId)) {
-                    slotDiv.style.borderColor = '#ff4d4d';
+                    slotDiv.style.borderColor = "#ff4d4d";
                     slotDiv.innerHTML = `
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <span style="font-weight: bold; color: #ff4d4d;">#${i + 1}</span>
@@ -1373,22 +1656,24 @@ async function setupFavoritesManager(mediaId, mediaType) {
 
     const updateFavorite = async (index, newMediaId) => {
         if (!userFavorites[mediaType]) userFavorites[mediaType] = [];
-        
+
         if (newMediaId === null) {
             // Remove
             userFavorites[mediaType].splice(index, 1);
-            btn.textContent = '♡';
-            btn.style.color = '#2c3440';
+            btn.textContent = "♡";
+            btn.style.color = "#2c3440";
         } else {
             // Replace / Add
             // Make sure to remove it from elsewhere in the list to prevent duplicates
-            userFavorites[mediaType] = userFavorites[mediaType].filter(item => String(item.id) !== String(newMediaId));
-            
+            userFavorites[mediaType] = userFavorites[mediaType].filter(
+                (item) => String(item.id) !== String(newMediaId),
+            );
+
             const newFavObject = {
                 id: mediaId,
                 title: globalData.title,
                 type: mediaType,
-                image: globalData.poster_path
+                image: globalData.poster_path,
             };
 
             // Insert at specific index, or push if array is shorter
@@ -1398,8 +1683,8 @@ async function setupFavoritesManager(mediaId, mediaType) {
                 userFavorites[mediaType][index] = newFavObject;
             }
 
-            btn.textContent = '♥';
-            btn.style.color = '#ff4d4d';
+            btn.textContent = "♥";
+            btn.style.color = "#ff4d4d";
         }
 
         // Sync to "all" list (top 1 of each)
@@ -1411,28 +1696,32 @@ async function setupFavoritesManager(mediaId, mediaType) {
         userFavorites.all = [topMovie, topTv, topBook, topAlbum, topYoutube].filter(Boolean);
 
         // Save to DB
-        await supabaseClient.from('profiles').update({ favorites: userFavorites }).eq('id', user.id);
-        
+        await supabaseClient
+            .from("profiles")
+            .update({ favorites: userFavorites })
+            .eq("id", user.id);
+
         renderFavSlots(); // Re-render visually to confirm change
     };
 }
 
 function openCastModal() {
-    const modal = document.getElementById('cast-modal');
-    const closeBtn = document.getElementById('close-cast-modal');
-    const searchInput = document.getElementById('cast-search-input');
-    const grid = document.getElementById('full-cast-grid');
-    
+    const modal = document.getElementById("cast-modal");
+    const closeBtn = document.getElementById("close-cast-modal");
+    const searchInput = document.getElementById("cast-search-input");
+    const grid = document.getElementById("full-cast-grid");
+
     // Combine Cast and Crew into one mega-list
     const combinedList = [...fullCastData, ...fullCrewData];
 
     // Function to render the grid based on search text
-    const renderGrid = (filterText = '') => {
+    const renderGrid = (filterText = "") => {
         const lowerFilter = filterText.toLowerCase();
-        
-        const filtered = combinedList.filter(person => 
-            person.name.toLowerCase().includes(lowerFilter) || 
-            person.displayRole.toLowerCase().includes(lowerFilter)
+
+        const filtered = combinedList.filter(
+            (person) =>
+                person.name.toLowerCase().includes(lowerFilter) ||
+                person.displayRole.toLowerCase().includes(lowerFilter),
         );
 
         if (filtered.length === 0) {
@@ -1440,57 +1729,63 @@ function openCastModal() {
             return;
         }
 
-        grid.innerHTML = filtered.map(person => `
-            <div class="cast-card ${person.job === 'Director' ? 'director-highlight' : ''}" 
+        grid.innerHTML = filtered
+            .map(
+                (person) => `
+            <div class="cast-card ${person.job === "Director" ? "director-highlight" : ""}" 
                  data-details-route="cast.html?personId=${encodeURIComponent(person.id)}">
-                <img src="${person.profile_path ? 'https://image.tmdb.org/t/p/w185' + person.profile_path : 'https://via.placeholder.com/185x278?text=No+Photo'}" 
+                <img src="${person.profile_path ? `https://image.tmdb.org/t/p/w185${person.profile_path}` : "https://via.placeholder.com/185x278?text=No+Photo"}" 
                      alt="${person.name}" loading="lazy">
                 <div class="cast-info">
                     <span class="cast-name">${person.name}</span>
-                    <span class="cast-role">${person.displayRole} ${person.job === 'Director' ? '🎬' : ''}</span>
-                    ${person.epCountStr ? `<span style="display:block; font-size: 0.75rem; color: var(--accent); margin-top: 2px;">${person.epCountStr}</span>` : ''}
+                    <span class="cast-role">${person.displayRole} ${person.job === "Director" ? "🎬" : ""}</span>
+                    ${person.epCountStr ? `<span style="display:block; font-size: 0.75rem; color: var(--accent); margin-top: 2px;">${person.epCountStr}</span>` : ""}
                 </div>
             </div>
-        `).join('');
+        `,
+            )
+            .join("");
     };
 
     // Initialize Modal
-    searchInput.value = '';
+    searchInput.value = "";
     renderGrid();
 
     // Attach Search Listener
     searchInput.oninput = (e) => renderGrid(e.target.value);
 
     // Open & Close Logic
-    modal.style.display = 'flex';
-    closeBtn.onclick = () => modal.style.display = 'none';
-    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+    modal.style.display = "flex";
+    closeBtn.onclick = () => (modal.style.display = "none");
+    modal.onclick = (e) => {
+        if (e.target === modal) modal.style.display = "none";
+    };
 }
 
 async function openEpisodeModal(epNum, fallbackTitle, seasonNum) {
-    const modal = document.getElementById('episode-modal');
-    const closeBtn = document.getElementById('close-episode-modal');
-    
-    const imgEl = document.getElementById('modal-episode-img');
-    const titleEl = document.getElementById('modal-episode-title');
-    const metaEl = document.getElementById('modal-episode-meta');
-    const overviewEl = document.getElementById('modal-episode-overview');
-    const castContainer = document.getElementById('modal-episode-cast');
+    const modal = document.getElementById("episode-modal");
+    const closeBtn = document.getElementById("close-episode-modal");
+
+    const imgEl = document.getElementById("modal-episode-img");
+    const titleEl = document.getElementById("modal-episode-title");
+    const metaEl = document.getElementById("modal-episode-meta");
+    const overviewEl = document.getElementById("modal-episode-overview");
+    const castContainer = document.getElementById("modal-episode-cast");
 
     titleEl.textContent = fallbackTitle;
     metaEl.textContent = `Episode ${epNum}`;
     overviewEl.textContent = "No overview description available.";
-    castContainer.innerHTML = '';
-    imgEl.src = 'https://via.placeholder.com/320x180/1b2228/9ab?text=No+Image';
+    castContainer.innerHTML = "";
+    imgEl.src = "https://via.placeholder.com/320x180/1b2228/9ab?text=No+Image";
 
     const localData = tvmazeEpisodesMap[String(epNum)];
     if (localData) {
         if (localData.name) titleEl.textContent = localData.name;
         if (localData.image && localData.image.medium) imgEl.src = localData.image.medium;
         if (localData.airdate) metaEl.textContent = `Episode ${epNum} • Aired ${localData.airdate}`;
-        
+
         if (localData.summary) {
-            const div = document.createElement('div');
+            const div = document.createElement("div");
             div.innerHTML = localData.summary;
             overviewEl.textContent = div.textContent || div.innerText;
         }
@@ -1498,287 +1793,221 @@ async function openEpisodeModal(epNum, fallbackTitle, seasonNum) {
         // Deep-fetch Guest Cast structure directly from TMDB natively to ensure flawless Actor Cast routing
         try {
             const config = await loadConfig();
-            const tmdbRes = await fetch(`${PROXY_URL}/api/tmdb/tv/${id}/season/${seasonNum}/episode/${epNum}/credits?language=en-US`).then(r => r.json());
-            
+            const tmdbRes = await fetch(
+                `${PROXY_URL}/api/tmdb/tv/${id}/season/${seasonNum}/episode/${epNum}/credits?language=en-US`,
+            ).then((r) => r.json());
+
             if (tmdbRes && tmdbRes.guest_stars && tmdbRes.guest_stars.length > 0) {
-                castContainer.innerHTML = tmdbRes.guest_stars.map(g => {
-                    const img = g.profile_path ? `https://image.tmdb.org/t/p/w185${g.profile_path}` : 'https://via.placeholder.com/60x60/1b2228/9ab?text=No+Photo';
-                    
-                    // Route using personId (TMDB ID) instead of characterWiki!
-                    return `
+                castContainer.innerHTML = tmdbRes.guest_stars
+                    .map((g) => {
+                        const img = g.profile_path
+                            ? `https://image.tmdb.org/t/p/w185${g.profile_path}`
+                            : "https://via.placeholder.com/60x60/1b2228/9ab?text=No+Photo";
+
+                        // Route using personId (TMDB ID) instead of characterWiki!
+                        return `
                         <div data-details-route="cast.html?personId=${encodeURIComponent(g.id)}"
                             style="cursor: pointer; background: rgba(255,255,255,0.03); padding: 8px; border-radius: 6px; font-size: 0.8rem; display: flex; flex-direction: column; align-items: center; text-align: center; transition: background 0.2s, transform 0.2s;"
                             >
                             <img src="${img}" style="width: 45px; height: 45px; object-fit: cover; border-radius: 50%; margin-bottom: 6px; border: 1px solid #2c3440;">
                             <span style="font-weight: bold; color: #fff; display: block; overflow: hidden; text-overflow: ellipsis; max-width: 100%; white-space: nowrap;">${g.name}</span>
-                            <span style="color: #9ab; font-size: 0.7rem; display: block; overflow: hidden; text-overflow: ellipsis; max-width: 100%; white-space: nowrap; margin-top: 2px;">${g.character || 'Guest'}</span>
+                            <span style="color: #9ab; font-size: 0.7rem; display: block; overflow: hidden; text-overflow: ellipsis; max-width: 100%; white-space: nowrap; margin-top: 2px;">${g.character || "Guest"}</span>
                         </div>
                     `;
-                }).join('');
+                    })
+                    .join("");
             } else {
-                castContainer.innerHTML = '<p class="meta" style="font-size: 0.8rem; margin: 0;">No guest cast recorded.</p>';
+                castContainer.innerHTML =
+                    '<p class="meta" style="font-size: 0.8rem; margin: 0;">No guest cast recorded.</p>';
             }
-        } catch(e) { 
+        } catch (e) {
             console.error(e);
-            castContainer.innerHTML = '<p class="meta" style="font-size: 0.8rem; margin: 0;">Guest cast lookups failed.</p>'; 
+            castContainer.innerHTML =
+                '<p class="meta" style="font-size: 0.8rem; margin: 0;">Guest cast lookups failed.</p>';
         }
     }
 
-    modal.style.display = 'flex';
-    closeBtn.onclick = () => modal.style.display = 'none';
-    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+    modal.style.display = "flex";
+    closeBtn.onclick = () => (modal.style.display = "none");
+    modal.onclick = (e) => {
+        if (e.target === modal) modal.style.display = "none";
+    };
 }
 
-function openHelpScraperModal(
-    originalSlug,
-    existingRequest = null
-) {
-    const modal =
-        document.getElementById(
-            'help-scraper-modal'
-        );
+function openHelpScraperModal(originalSlug, existingRequest = null) {
+    const modal = document.getElementById("help-scraper-modal");
 
-    const closeBtn =
-        document.getElementById(
-            'close-help-scraper-modal'
-        );
+    const closeBtn = document.getElementById("close-help-scraper-modal");
 
-    const submitBtn =
-        document.getElementById(
-            'submit-manual-slug-btn'
-        );
+    const submitBtn = document.getElementById("submit-manual-slug-btn");
 
-    const aflInput =
-        document.getElementById(
-            'manual-slug-input'
-        );
+    const aflInput = document.getElementById("manual-slug-input");
 
-    const afgInput =
-        document.getElementById(
-            'manual-guide-slug-input'
-        );
+    const afgInput = document.getElementById("manual-guide-slug-input");
 
-    const statusBox =
-        document.getElementById(
-            'help-scraper-current-status'
-        );
+    const statusBox = document.getElementById("help-scraper-current-status");
 
-    aflInput.value =
-        existingRequest?.manual_slug
-            ? buildAflUrl(
-                existingRequest.manual_slug
-            )
-            : '';
+    aflInput.value = existingRequest?.manual_slug ? buildAflUrl(existingRequest.manual_slug) : "";
 
-    afgInput.value =
-        existingRequest?.manual_guide_slug
-            ? buildAfgUrl(
-                existingRequest.manual_guide_slug
-            )
-            : '';
+    afgInput.value = existingRequest?.manual_guide_slug
+        ? buildAfgUrl(existingRequest.manual_guide_slug)
+        : "";
 
     if (statusBox) {
-        const fillerData =
-            existingRequest?.filler_content;
+        const fillerData = existingRequest?.filler_content;
 
-        const aflStatus =
-            fillerData?.sources
-                ?.anime_filler_list
-                ?.status;
+        const aflStatus = fillerData?.sources?.anime_filler_list?.status;
 
-        const afgStatus =
-            fillerData?.sources
-                ?.anime_filler_guide
-                ?.status;
+        const afgStatus = fillerData?.sources?.anime_filler_guide?.status;
 
         if (aflStatus || afgStatus) {
-            statusBox.style.display =
-                'block';
+            statusBox.style.display = "block";
 
             statusBox.innerHTML = `
                 <strong>Current source status</strong><br>
                 AnimeFillerList.com:
-                ${escapeFillerHtml(
-                    aflStatus || 'unknown'
-                )}
+                ${escapeFillerHtml(aflStatus || "unknown")}
                 <br>
                 AnimeFillerGuide.com:
-                ${escapeFillerHtml(
-                    afgStatus || 'unknown'
-                )}
+                ${escapeFillerHtml(afgStatus || "unknown")}
             `;
         } else {
-            statusBox.style.display =
-                'none';
+            statusBox.style.display = "none";
 
-            statusBox.textContent =
-                '';
+            statusBox.textContent = "";
         }
     }
 
     submitBtn.disabled = false;
-    submitBtn.textContent =
-        'Submit Links';
+    submitBtn.textContent = "Submit Links";
 
-    modal.style.display =
-        'flex';
+    modal.style.display = "flex";
 
-    closeBtn.onclick =
-        () =>
-            modal.style.display =
-                'none';
+    closeBtn.onclick = () => (modal.style.display = "none");
 
-    modal.onclick =
-        (e) => {
-            if (e.target === modal) {
-                modal.style.display =
-                    'none';
-            }
-        };
+    modal.onclick = (e) => {
+        if (e.target === modal) {
+            modal.style.display = "none";
+        }
+    };
 
-    submitBtn.onclick =
-        async () => {
-            const aflUrl =
-                aflInput.value.trim();
+    submitBtn.onclick = async () => {
+        const aflUrl = aflInput.value.trim();
 
-            const afgUrl =
-                afgInput.value.trim();
+        const afgUrl = afgInput.value.trim();
 
-            /*
-             * You wanted the user to ideally provide
-             * both URLs.
-             */
-            if (
-                !aflUrl ||
-                !afgUrl
-            ) {
-                return alert(
-                    'Please provide links for both AnimeFillerList.com and AnimeFillerGuide.com.'
-                );
-            }
-
-            const aflSlug =
-                extractAflSlug(
-                    aflUrl
-                );
-
-            if (!aflSlug) {
-                return alert(
-                    'Invalid AnimeFillerList URL. Example: https://www.animefillerlist.com/shows/hunter-x-hunter'
-                );
-            }
-
-            const afgSlug =
-                extractAfgSlug(
-                    afgUrl
-                );
-
-            if (!afgSlug) {
-                return alert(
-                    'Invalid AnimeFillerGuide URL. Example: https://www.animefillerguide.com/anime/hunter-x-hunter-2011/'
-                );
-            }
-
-            submitBtn.textContent =
-                'Submitting...';
-
-            submitBtn.disabled =
-                true;
-
-            const {
-                error
-            } = await supabaseClient
-                .from(
-                    'filler_list_mgnt'
-                )
-                .update({
-                    manual_slug:
-                        aflSlug,
-
-                    manual_guide_slug:
-                        afgSlug,
-
-                    notes:
-                        null
-                })
-                .eq(
-                    'name',
-                    originalSlug
-                );
-
-            if (!error) {
-                alert(
-                    'Thank you! Both links were submitted and the scraper has been queued to try again.'
-                );
-
-                window.location.reload();
-
-                return;
-            }
-
-            console.error(
-                'Manual scraper link update failed:',
-                error
+        /*
+         * You wanted the user to ideally provide
+         * both URLs.
+         */
+        if (!aflUrl || !afgUrl) {
+            return alert(
+                "Please provide links for both AnimeFillerList.com and AnimeFillerGuide.com.",
             );
+        }
 
+        const aflSlug = extractAflSlug(aflUrl);
+
+        if (!aflSlug) {
+            return alert(
+                "Invalid AnimeFillerList URL. Example: https://www.animefillerlist.com/shows/hunter-x-hunter",
+            );
+        }
+
+        const afgSlug = extractAfgSlug(afgUrl);
+
+        if (!afgSlug) {
+            return alert(
+                "Invalid AnimeFillerGuide URL. Example: https://www.animefillerguide.com/anime/hunter-x-hunter-2011/",
+            );
+        }
+
+        submitBtn.textContent = "Submitting...";
+
+        submitBtn.disabled = true;
+
+        const { error } = await supabaseClient
+            .from("filler_list_mgnt")
+            .update({
+                manual_slug: aflSlug,
+
+                manual_guide_slug: afgSlug,
+
+                notes: null,
+            })
+            .eq("name", originalSlug);
+
+        if (!error) {
             alert(
-                'Error submitting scraper links.'
+                "Thank you! Both links were submitted and the scraper has been queued to try again.",
             );
 
-            submitBtn.textContent =
-                'Submit Links';
+            window.location.reload();
 
-            submitBtn.disabled =
-                false;
-        };
+            return;
+        }
+
+        console.error("Manual scraper link update failed:", error);
+
+        alert("Error submitting scraper links.");
+
+        submitBtn.textContent = "Submit Links";
+
+        submitBtn.disabled = false;
+    };
 }
 
 // ----------------------------------------
 // Specialty Integrations
 // ----------------------------------------
-window.loadSimilar = async function(filterType = 'all') {
-    const simSection = document.getElementById('similar-section');
-    const loader = document.getElementById('similar-loader');
-    const grid = document.getElementById('similar-grid');
-    
-    // Safety check: Only run this for movies, tv, and books
-    if (!['movie', 'tv', 'book'].includes(type)) return;
-    
-    simSection.style.display = 'block';
-    
-    // Update active filter button
-    document.querySelectorAll('#similar-section .filter-btn').forEach(btn => btn.classList.remove('active'));
-    document.getElementById(`sim-btn-${filterType}`).classList.add('active');
+window.loadSimilar = async function (filterType = "all") {
+    const simSection = document.getElementById("similar-section");
+    const loader = document.getElementById("similar-loader");
+    const grid = document.getElementById("similar-grid");
 
-    loader.style.display = 'block';
-    grid.innerHTML = '';
-    
+    // Safety check: Only run this for movies, tv, and books
+    if (!["movie", "tv", "book"].includes(type)) return;
+
+    simSection.style.display = "block";
+
+    // Update active filter button
+    document
+        .querySelectorAll("#similar-section .filter-btn")
+        .forEach((btn) => btn.classList.remove("active"));
+    document.getElementById(`sim-btn-${filterType}`).classList.add("active");
+
+    loader.style.display = "block";
+    grid.innerHTML = "";
+
     // Convert OpenLibrary string keys into Universal IDs just like our mass seeders did
-    const universalId = type === 'book' ? parseInt(String(id).replace(/\D/g, ''), 10) + 100000000 : parseInt(id, 10);
-    
+    const universalId =
+        type === "book"
+            ? parseInt(String(id).replace(/\D/g, ""), 10) + 100000000
+            : parseInt(id, 10);
+
     // Tell the Edge Function what we want back
-    let desiredOutputs = ['movie', 'tv', 'book'];
-    if (filterType !== 'all') {
+    let desiredOutputs = ["movie", "tv", "book"];
+    if (filterType !== "all") {
         desiredOutputs = [filterType];
     }
 
-    document.querySelectorAll('[data-similar-filter]').forEach((button) => {
-        button.addEventListener('click', () => window.loadSimilar(button.dataset.similarFilter));
+    document.querySelectorAll("[data-similar-filter]").forEach((button) => {
+        button.addEventListener("click", () => window.loadSimilar(button.dataset.similarFilter));
     });
-    
+
     try {
         const config = await loadConfig();
-        
+
         const response = await fetch(`${config.supabase_url}/functions/v1/get-recommendations`, {
-            method: 'POST',
+            method: "POST",
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${config.supabase_key}` 
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${config.supabase_key}`,
             },
             body: JSON.stringify({
                 favoriteIds: [universalId], // Pass the current page's ID to the AI
-                desiredOutputs: desiredOutputs
-            })
+                desiredOutputs,
+            }),
         });
 
         const data = await response.json();
@@ -1786,18 +2015,19 @@ window.loadSimilar = async function(filterType = 'all') {
 
         // Limit to 12 items so the grid looks perfectly balanced (2 rows of 6 on desktop)
         const toShow = data.recommendations.slice(0, 12);
-        
+
         if (toShow.length === 0) {
-            grid.innerHTML = `<p class="meta" style="grid-column: 1/-1; text-align:center;">No similar ${filterType === 'all' ? 'items' : filterType + 's'} found in the database yet.</p>`;
+            grid.innerHTML = `<p class="meta" style="grid-column: 1/-1; text-align:center;">No similar ${filterType === "all" ? "items" : `${filterType}s`} found in the database yet.</p>`;
         } else {
-            toShow.forEach(rec => {
-                const card = document.createElement('div');
-                card.className = 'media-card';
-                card.setAttribute('data-type', rec.media_type);
-                card.onclick = () => window.location.href = `details.html?id=${encodeURIComponent(rec.id)}&type=${rec.media_type}`;
-                
+            toShow.forEach((rec) => {
+                const card = document.createElement("div");
+                card.className = "media-card";
+                card.setAttribute("data-type", rec.media_type);
+                card.onclick = () =>
+                    (window.location.href = `details.html?id=${encodeURIComponent(rec.id)}&type=${rec.media_type}`);
+
                 const imgId = `sim-poster-${rec.id}`;
-                
+
                 card.innerHTML = `
                     <div class="poster-wrapper">
                         <img id="${imgId}" src="https://via.placeholder.com/500x750/1b2228/9ab?text=Loading..." alt="${rec.title}" loading="lazy">
@@ -1807,9 +2037,9 @@ window.loadSimilar = async function(filterType = 'all') {
                         <div class="title" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${rec.title}</div>
                         <div class="meta" style="color: var(--accent); font-weight: bold; margin-top: 4px;">${rec.match_percentage}% Match</div>
                     </div>`;
-                    
+
                 grid.appendChild(card);
-                
+
                 // Fire off the lazy-loader to grab the poster
                 fetchSimPoster(rec, imgId, config);
             });
@@ -1818,27 +2048,28 @@ window.loadSimilar = async function(filterType = 'all') {
         console.error("AI Recommendation Fetch Error:", e);
         grid.innerHTML = `<p class="meta" style="grid-column: 1/-1; text-align:center;">AI Engine is currently unavailable.</p>`;
     } finally {
-        loader.style.display = 'none';
+        loader.style.display = "none";
     }
 };
 
 async function setupTVTracker(config, seriesId) {
-    const trackerSection = document.getElementById('tv-tracker');
-    trackerSection.style.display = 'block';
-    const seasonSelector = document.getElementById('season-selector');
-    const markBtn = document.getElementById('mark-season-btn');
-    const clearBtn = document.getElementById('clear-season-btn');
-    
+    const trackerSection = document.getElementById("tv-tracker");
+    trackerSection.style.display = "block";
+    const seasonSelector = document.getElementById("season-selector");
+    const markBtn = document.getElementById("mark-season-btn");
+    const clearBtn = document.getElementById("clear-season-btn");
+
     // Inject dynamic season description container if it doesn't exist yet
-    let seasonDescEl = document.getElementById('season-description');
+    let seasonDescEl = document.getElementById("season-description");
     if (!seasonDescEl) {
-        seasonDescEl = document.createElement('p');
-        seasonDescEl.id = 'season-description';
-        seasonDescEl.className = 'meta';
-        seasonDescEl.style.cssText = 'margin: 10px 0 20px 0; font-style: italic; font-size: 0.95rem; line-height: 1.5; color: #ccd6e0;';
-        seasonSelector.parentNode.insertAdjacentElement('afterend', seasonDescEl);
+        seasonDescEl = document.createElement("p");
+        seasonDescEl.id = "season-description";
+        seasonDescEl.className = "meta";
+        seasonDescEl.style.cssText =
+            "margin: 10px 0 20px 0; font-style: italic; font-size: 0.95rem; line-height: 1.5; color: #ccd6e0;";
+        seasonSelector.parentNode.insertAdjacentElement("afterend", seasonDescEl);
     }
-    
+
     try {
         const response = await fetch(`${PROXY_URL}/api/tmdb/tv/${seriesId}?language=en-US`);
         const res = await response.json();
@@ -1846,31 +2077,44 @@ async function setupTVTracker(config, seriesId) {
         // 1. Fetch TVMaze data matching via external IMDB or TMDB ID mappings
         let tvmazeId = null;
         try {
-            const extRes = await fetch(`${PROXY_URL}/api/tmdb/tv/${seriesId}/external_ids`).then(r => r.json());
+            const extRes = await fetch(`${PROXY_URL}/api/tmdb/tv/${seriesId}/external_ids`).then(
+                (r) => r.json(),
+            );
 
-            let lookupUrl = '';
-            if (extRes.imdb_id) lookupUrl = `https://api.tvmaze.com/lookup/shows?imdb=${extRes.imdb_id}`;
+            let lookupUrl = "";
+            if (extRes.imdb_id)
+                lookupUrl = `https://api.tvmaze.com/lookup/shows?imdb=${extRes.imdb_id}`;
             else lookupUrl = `https://api.tvmaze.com/lookup/shows?thetvdb=${extRes.thetvdb_id}`;
 
-            const tvmazeShow = await fetch(lookupUrl).then(r => r.json());
+            const tvmazeShow = await fetch(lookupUrl).then((r) => r.json());
             if (tvmazeShow && tvmazeShow.id) tvmazeId = tvmazeShow.id;
-        } catch(e) { console.warn("TVMaze show link unavailable, falling back.", e); }
+        } catch (e) {
+            console.warn("TVMaze show link unavailable, falling back.", e);
+        }
 
-        seasonSelector.innerHTML = res.seasons.map(s => `<option value="${s.season_number}">${s.name}</option>`).join('');
-        
-        // Define clean event handler wrapper
-        const onSeasonChange = () => {
+        seasonSelector.innerHTML = res.seasons
+            .map((s) => `<option value="${s.season_number}">${s.name}</option>`)
+            .join("");
+
+        // Wait for both the episode list and season description
+        const onSeasonChange = async () => {
             const currentSeason = seasonSelector.value;
-            loadEpisodes(config, seriesId, currentSeason, tvmazeId);
-            updateSeasonDescription(tvmazeId, currentSeason);
+
+            await Promise.all([
+                loadEpisodes(config, seriesId, currentSeason, tvmazeId),
+                updateSeasonDescription(tvmazeId, currentSeason),
+            ]);
         };
-        
+
         seasonSelector.onchange = onSeasonChange;
-        
-        const defaultSeason = res.seasons.find(s => s.season_number === 1) || res.seasons[0];
+
+        const defaultSeason = res.seasons.find((s) => s.season_number === 1) || res.seasons[0];
+
         if (defaultSeason) {
             seasonSelector.value = defaultSeason.season_number;
-            onSeasonChange();
+
+            // Ensure the initial season is fully prepared
+            await onSeasonChange();
         }
 
         markBtn.onclick = () => markSeasonAsWatched();
@@ -1881,39 +2125,41 @@ async function setupTVTracker(config, seriesId) {
 }
 
 async function setupBookTracker(automaticTotalPages) {
-    const trackerSection = document.getElementById('tv-tracker');
-    const list = document.getElementById('episode-list');
-    const sharedProgressContainer = document.getElementById('progress-container');
+    const trackerSection = document.getElementById("tv-tracker");
+    const list = document.getElementById("episode-list");
+    const sharedProgressContainer = document.getElementById("progress-container");
 
-    trackerSection.style.display = 'block';
-    trackerSection.querySelector('h3').textContent = 'Reading Progress';
-    sharedProgressContainer?.style.setProperty('display', 'none');
+    trackerSection.style.display = "block";
+    trackerSection.querySelector("h3").textContent = "Reading Progress";
+    sharedProgressContainer?.style.setProperty("display", "none");
 
-    document.querySelector('.tracker-controls')?.style.setProperty('display', 'none');
+    document.querySelector(".tracker-controls")?.style.setProperty("display", "none");
 
-    const { data: { user } } = await supabaseClient.auth.getUser();
+    const {
+        data: { user },
+    } = await supabaseClient.auth.getUser();
 
     let preference = null;
     let progress = null;
 
     if (user) {
         const { data: preferenceData } = await supabaseClient
-            .from('book_progress_preferences')
-            .select('use_manual_page_count, manual_total_pages')
-            .eq('user_id', user.id)
-            .eq('media_id', String(id))
+            .from("book_progress_preferences")
+            .select("use_manual_page_count, manual_total_pages")
+            .eq("user_id", user.id)
+            .eq("media_id", String(id))
             .maybeSingle();
 
         preference = preferenceData;
 
         const { data: progressData } = await supabaseClient
-            .from('media_logs')
-            .select('current_page, total_pages')
-            .eq('user_id', user.id)
-            .eq('media_id', String(id))
-            .eq('media_type', 'book')
-            .eq('is_finished', false)
-            .order('created_at', { ascending: false })
+            .from("media_logs")
+            .select("current_page, total_pages")
+            .eq("user_id", user.id)
+            .eq("media_id", String(id))
+            .eq("media_type", "book")
+            .eq("is_finished", false)
+            .order("created_at", { ascending: false })
             .limit(1)
             .maybeSingle();
 
@@ -1921,15 +2167,15 @@ async function setupBookTracker(automaticTotalPages) {
     }
 
     const useManualPages = preference?.use_manual_page_count === true;
-    const savedManualTotal = preference?.manual_total_pages || '';
-    const savedCurrentPage = progress?.current_page || '';
+    const savedManualTotal = preference?.manual_total_pages || "";
+    const savedCurrentPage = progress?.current_page || "";
     const automaticPages = Number(automaticTotalPages) || 0;
 
     const renderTracker = (manualMode, manualTotal = savedManualTotal) => {
-        const totalPages = manualMode ? Number(manualTotal) || '' : automaticPages;
+        const totalPages = manualMode ? Number(manualTotal) || "" : automaticPages;
         const hasAutomaticPageCount = automaticPages > 0;
 
-        list.style.display = 'block';
+        list.style.display = "block";
         list.innerHTML = `
             <div class="book-progress-container">
                 <div class="book-progress-header">
@@ -1941,13 +2187,14 @@ async function setupBookTracker(automaticTotalPages) {
                     </div>
 
                     <label class="manual-page-toggle">
-                        <input type="checkbox" id="manual-page-toggle" ${manualMode ? 'checked' : ''}>
+                        <input type="checkbox" id="manual-page-toggle" ${manualMode ? "checked" : ""}>
                         <span>Manual page count</span>
                     </label>
                 </div>
 
-                ${manualMode || hasAutomaticPageCount
-                    ? `
+                ${
+                    manualMode || hasAutomaticPageCount
+                        ? `
                             <div class="quick-update-row">
                                 <input
                                     type="number"
@@ -1969,7 +2216,7 @@ async function setupBookTracker(automaticTotalPages) {
                                                 value="${manualTotal}"
                                             >
                                         `
-                                        : ''
+                                        : ""
                                 }
 
                                 <button data-update-page-progress class="primary-btn">
@@ -1977,47 +2224,44 @@ async function setupBookTracker(automaticTotalPages) {
                                 </button>
                             </div>
                         `
-                    : `<p class="meta">Page count not available.</p>`
+                        : `<p class="meta">Page count not available.</p>`
                 }
             </div>
         `;
 
-        document.getElementById('manual-page-toggle').onchange = async (event) => {
+        document.getElementById("manual-page-toggle").onchange = async (event) => {
             const enabled = event.target.checked;
-            const totalInput = document.getElementById('quick-total-pages-input');
+            const totalInput = document.getElementById("quick-total-pages-input");
             const nextManualTotal = enabled
                 ? Number(totalInput?.value || savedManualTotal) || null
                 : null;
 
             if (user) {
-                const { error } = await supabaseClient
-                    .from('book_progress_preferences')
-                    .upsert({
+                const { error } = await supabaseClient.from("book_progress_preferences").upsert(
+                    {
                         user_id: user.id,
                         media_id: String(id),
                         use_manual_page_count: enabled,
                         manual_total_pages: nextManualTotal,
-                        updated_at: new Date().toISOString()
-                    }, {
-                        onConflict: 'user_id,media_id'
-                    });
+                        updated_at: new Date().toISOString(),
+                    },
+                    {
+                        onConflict: "user_id,media_id",
+                    },
+                );
 
                 if (error) {
-                    console.error('Book page preference error:', error);
+                    console.error("Book page preference error:", error);
                     event.target.checked = !enabled;
                     return;
                 }
             }
 
-            renderTracker(enabled, nextManualTotal || '');
+            renderTracker(enabled, nextManualTotal || "");
         };
 
         if (totalPages) {
-            updateUnifiedProgress(
-                Number(savedCurrentPage) || 0,
-                Number(totalPages),
-                'pages read'
-            );
+            updateUnifiedProgress(Number(savedCurrentPage) || 0, Number(totalPages), "pages read");
         }
     };
 
@@ -2025,170 +2269,101 @@ async function setupBookTracker(automaticTotalPages) {
 }
 
 function escapeFillerHtml(value) {
-    return String(value ?? '')
-        .replace(
-            /&/g,
-            '&amp;'
-        )
-        .replace(
-            /</g,
-            '&lt;'
-        )
-        .replace(
-            />/g,
-            '&gt;'
-        )
-        .replace(
-            /"/g,
-            '&quot;'
-        )
-        .replace(
-            /'/g,
-            '&#039;'
-        );
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
 
 function getFillerTypeClass(type) {
-    const typeStr =
-        String(type || '')
-            .toLowerCase();
+    const typeStr = String(type || "").toLowerCase();
 
-    if (
-        typeStr.includes('mixed')
-    ) {
-        return 'type-mixed';
+    if (typeStr.includes("mixed")) {
+        return "type-mixed";
     }
 
-    if (
-        typeStr.includes('filler')
-    ) {
-        return 'type-filler';
+    if (typeStr.includes("filler")) {
+        return "type-filler";
     }
 
-    if (
-        typeStr.includes('canon')
-    ) {
-        return 'type-canon';
+    if (typeStr.includes("canon")) {
+        return "type-canon";
     }
 
-    return 'type-unknown';
+    return "type-unknown";
 }
 
 function extractAflSlug(value) {
-    const input =
-        String(value || '')
-            .trim();
+    const input = String(value || "").trim();
 
     if (!input) return null;
 
     try {
-        const url =
-            new URL(input);
+        const url = new URL(input);
 
-        if (
-            !url.hostname
-                .toLowerCase()
-                .endsWith(
-                    'animefillerlist.com'
-                )
-        ) {
+        if (!url.hostname.toLowerCase().endsWith("animefillerlist.com")) {
             return null;
         }
 
-        const match =
-            url.pathname.match(
-                /\/shows\/([^\/?#]+)/i
-            );
+        const match = url.pathname.match(/\/shows\/([^\/?#]+)/i);
 
         return match?.[1] || null;
-
     } catch (_) {
-        const match =
-            input.match(
-                /(?:^|\/shows\/)([^\/?#]+)\/?$/i
-            );
+        const match = input.match(/(?:^|\/shows\/)([^\/?#]+)\/?$/i);
 
         return match?.[1] || null;
     }
 }
 
 function extractAfgSlug(value) {
-    const input =
-        String(value || '')
-            .trim();
+    const input = String(value || "").trim();
 
     if (!input) return null;
 
     try {
-        const url =
-            new URL(input);
+        const url = new URL(input);
 
-        if (
-            !url.hostname
-                .toLowerCase()
-                .endsWith(
-                    'animefillerguide.com'
-                )
-        ) {
+        if (!url.hostname.toLowerCase().endsWith("animefillerguide.com")) {
             return null;
         }
 
-        const match =
-            url.pathname.match(
-                /\/anime\/([^\/?#]+)/i
-            );
+        const match = url.pathname.match(/\/anime\/([^\/?#]+)/i);
 
         return match?.[1] || null;
-
     } catch (_) {
-        const match =
-            input.match(
-                /(?:^|\/anime\/)([^\/?#]+)\/?$/i
-            );
+        const match = input.match(/(?:^|\/anime\/)([^\/?#]+)\/?$/i);
 
         return match?.[1] || null;
     }
 }
 
 function buildAflUrl(slug) {
-    if (!slug) return '';
+    if (!slug) return "";
 
-    return `https://www.animefillerlist.com/shows/${encodeURIComponent(
-        slug
-    )}`;
+    return `https://www.animefillerlist.com/shows/${encodeURIComponent(slug)}`;
 }
 
 function buildAfgUrl(slug) {
-    if (!slug) return '';
+    if (!slug) return "";
 
-    return `https://www.animefillerguide.com/anime/${encodeURIComponent(
-        slug
-    )}/`;
+    return `https://www.animefillerguide.com/anime/${encodeURIComponent(slug)}/`;
 }
 
-function renderFlatFillerRows(
-    episodes
-) {
+function renderFlatFillerRows(episodes) {
     return episodes
-        .map(
-            episode => {
-                const typeClass =
-                    getFillerTypeClass(
-                        episode.type
-                    );
+        .map((episode) => {
+            const typeClass = getFillerTypeClass(episode.type);
 
-                return `
+            return `
                     <tr>
                         <td>
-                            ${escapeFillerHtml(
-                                episode.number
-                            )}
+                            ${escapeFillerHtml(episode.number)}
                         </td>
 
                         <td>
-                            ${escapeFillerHtml(
-                                episode.title
-                            )}
+                            ${escapeFillerHtml(episode.title)}
 
                             ${
                                 episode.guide_note
@@ -2203,38 +2378,29 @@ function renderFlatFillerRows(
                                                 color: #d6b56d;
                                             "
                                         >
-                                            ${escapeFillerHtml(
-                                                episode.guide_note
-                                            )}
+                                            ${escapeFillerHtml(episode.guide_note)}
                                         </div>
                                     `
-                                    : ''
+                                    : ""
                             }
                         </td>
 
                         <td
                             class="${typeClass}"
                         >
-                            ${escapeFillerHtml(
-                                episode.type ||
-                                'Unknown'
-                            )}
+                            ${escapeFillerHtml(episode.type || "Unknown")}
                         </td>
 
                         <td>
-                            ${escapeFillerHtml(
-                                episode.manga_chapters ||
-                                'N/A'
-                            )}
+                            ${escapeFillerHtml(episode.manga_chapters || "N/A")}
                         </td>
                     </tr>
                 `;
-            }
-        )
-        .join('');
+        })
+        .join("");
 }
 
-function renderFillerSectionRow (marker) {
+function renderFillerSectionRow(marker) {
     return `
         <tr
             class="filler-section-row"
@@ -2251,201 +2417,94 @@ function renderFillerSectionRow (marker) {
                     font-weight: 700;
                 "
             >
-                ${escapeFillerHtml(
-                    marker.title ||
-                    marker.raw_marker ||
-                    'Section'
-                )}
+                ${escapeFillerHtml(marker.title || marker.raw_marker || "Section")}
             </td>
         </tr>
     `;
 }
 
-function renderFillerSeasons (data) {
-    const mediaByAfterEpisode =
-        new Map();
+function renderFillerSeasons(data) {
+    const mediaByAfterEpisode = new Map();
 
-    const markersByAfterEpisode =
-        new Map();
+    const markersByAfterEpisode = new Map();
 
-    for (
-        const media
-        of data.media || []
-    ) {
-        const key =
-            String(
-                media.after_episode ??
-                '__before_first__'
-            );
+    for (const media of data.media || []) {
+        const key = String(media.after_episode ?? "__before_first__");
 
-        if (
-            !mediaByAfterEpisode.has(
-                key
-            )
-        ) {
-            mediaByAfterEpisode.set(
-                key,
-                []
-            );
+        if (!mediaByAfterEpisode.has(key)) {
+            mediaByAfterEpisode.set(key, []);
         }
 
-        mediaByAfterEpisode
-            .get(key)
-            .push(media);
+        mediaByAfterEpisode.get(key).push(media);
     }
 
-    for (
-        const marker
-        of data.markers || []
-    ) {
-        const key =
-            String(
-                marker.after_episode ??
-                '__before_first__'
-            );
+    for (const marker of data.markers || []) {
+        const key = String(marker.after_episode ?? "__before_first__");
 
-        if (
-            !markersByAfterEpisode.has(
-                key
-            )
-        ) {
-            markersByAfterEpisode.set(
-                key,
-                []
-            );
+        if (!markersByAfterEpisode.has(key)) {
+            markersByAfterEpisode.set(key, []);
         }
 
-        markersByAfterEpisode
-            .get(key)
-            .push(marker);
+        markersByAfterEpisode.get(key).push(marker);
     }
 
-    return (
-        data.seasons || []
-    )
-        .map(
-            season => {
-                const seasonEpisodes =
-                    Array.isArray(
-                        season.episodes
-                    )
-                        ? season.episodes
-                        : (
-                            data.episodes || []
-                        ).filter(
-                            episode =>
-                                episode.season ===
-                                season.number
-                        );
+    return (data.seasons || [])
+        .map((season) => {
+            const seasonEpisodes = Array.isArray(season.episodes)
+                ? season.episodes
+                : (data.episodes || []).filter((episode) => episode.season === season.number);
 
-                const metadataPieces =
-                    [];
+            const metadataPieces = [];
 
-                if (
-                    season.episode_count
-                ) {
-                    metadataPieces.push(
-                        `${season.episode_count} episodes`
-                    );
-                }
+            if (season.episode_count) {
+                metadataPieces.push(`${season.episode_count} episodes`);
+            }
 
-                if (
-                    season.episode_range
-                        ?.start &&
-                    season.episode_range
-                        ?.end
-                ) {
-                    metadataPieces.push(
-                        `Episodes ${season.episode_range.start}-${season.episode_range.end}`
-                    );
-                }
+            if (season.episode_range?.start && season.episode_range?.end) {
+                metadataPieces.push(
+                    `Episodes ${season.episode_range.start}-${season.episode_range.end}`,
+                );
+            }
 
-                if (
-                    season.manga_range
-                ) {
-                    metadataPieces.push(
-                        `Manga ${season.manga_range}`
-                    );
-                }
+            if (season.manga_range) {
+                metadataPieces.push(`Manga ${season.manga_range}`);
+            }
 
-                const getSeasonMedia =
-                    key =>
-                        (
-                            mediaByAfterEpisode.get(
-                                key
-                            ) || []
-                        ).filter(
-                            media =>
-                                !media.season ||
-                                media.season ===
-                                    season.number
-                        );
+            const getSeasonMedia = (key) =>
+                (mediaByAfterEpisode.get(key) || []).filter(
+                    (media) => !media.season || media.season === season.number,
+                );
 
-                const getSeasonMarkers =
-                    key =>
-                        (
-                            markersByAfterEpisode.get(
-                                key
-                            ) || []
-                        ).filter(
-                            marker =>
-                                !marker.season ||
-                                marker.season ===
-                                    season.number
-                        );
+            const getSeasonMarkers = (key) =>
+                (markersByAfterEpisode.get(key) || []).filter(
+                    (marker) => !marker.season || marker.season === season.number,
+                );
 
-                let rows =
-                    '';
+            let rows = "";
 
-                /*
-                 * Markers/media appearing before the
-                 * first episode.
-                 */
-                for (
-                    const marker
-                    of getSeasonMarkers(
-                        '__before_first__'
-                    )
-                ) {
-                    rows +=
-                        renderFillerSectionRow(
-                            marker
-                        );
-                }
+            /*
+             * Markers/media appearing before the
+             * first episode.
+             */
+            for (const marker of getSeasonMarkers("__before_first__")) {
+                rows += renderFillerSectionRow(marker);
+            }
 
-                for (
-                    const media
-                    of getSeasonMedia(
-                        '__before_first__'
-                    )
-                ) {
-                    rows +=
-                        renderFillerMediaRow(
-                            media
-                        );
-                }
+            for (const media of getSeasonMedia("__before_first__")) {
+                rows += renderFillerMediaRow(media);
+            }
 
-                for (
-                    const episode
-                    of seasonEpisodes
-                ) {
-                    const typeClass =
-                        getFillerTypeClass(
-                            episode.type
-                        );
+            for (const episode of seasonEpisodes) {
+                const typeClass = getFillerTypeClass(episode.type);
 
-                    rows += `
+                rows += `
                         <tr>
                             <td>
-                                ${escapeFillerHtml(
-                                    episode.number
-                                )}
+                                ${escapeFillerHtml(episode.number)}
                             </td>
 
                             <td>
-                                ${escapeFillerHtml(
-                                    episode.title
-                                )}
+                                ${escapeFillerHtml(episode.title)}
 
                                 ${
                                     episode.guide_note
@@ -2460,70 +2519,43 @@ function renderFillerSeasons (data) {
                                                     color: #d6b56d;
                                                 "
                                             >
-                                                ${escapeFillerHtml(
-                                                    episode.guide_note
-                                                )}
+                                                ${escapeFillerHtml(episode.guide_note)}
                                             </div>
                                         `
-                                        : ''
+                                        : ""
                                 }
                             </td>
 
                             <td
                                 class="${typeClass}"
                             >
-                                ${escapeFillerHtml(
-                                    episode.type ||
-                                    'Unknown'
-                                )}
+                                ${escapeFillerHtml(episode.type || "Unknown")}
                             </td>
 
                             <td>
-                                ${escapeFillerHtml(
-                                    episode.manga_chapters ||
-                                    'N/A'
-                                )}
+                                ${escapeFillerHtml(episode.manga_chapters || "N/A")}
                             </td>
                         </tr>
                     `;
 
-                    const placementKey =
-                        String(
-                            episode.number
-                        );
+                const placementKey = String(episode.number);
 
-                    /*
-                     * Gray arc / part separators.
-                     */
-                    for (
-                        const marker
-                        of getSeasonMarkers(
-                            placementKey
-                        )
-                    ) {
-                        rows +=
-                            renderFillerSectionRow(
-                                marker
-                            );
-                    }
-
-                    /*
-                     * Movies / OVAs / specials.
-                     */
-                    for (
-                        const media
-                        of getSeasonMedia(
-                            placementKey
-                        )
-                    ) {
-                        rows +=
-                            renderFillerMediaRow(
-                                media
-                            );
-                    }
+                /*
+                 * Gray arc / part separators.
+                 */
+                for (const marker of getSeasonMarkers(placementKey)) {
+                    rows += renderFillerSectionRow(marker);
                 }
 
-                return `
+                /*
+                 * Movies / OVAs / specials.
+                 */
+                for (const media of getSeasonMedia(placementKey)) {
+                    rows += renderFillerMediaRow(media);
+                }
+            }
+
+            return `
                     <section
                         class="history-section"
                         style="
@@ -2541,10 +2573,7 @@ function renderFillerSeasons (data) {
                                     color: #ff9800;
                                 "
                             >
-                                ${escapeFillerHtml(
-                                    season.heading ||
-                                    `Season ${season.number}`
-                                )}
+                                ${escapeFillerHtml(season.heading || `Season ${season.number}`)}
                             </h3>
 
                             ${
@@ -2557,16 +2586,10 @@ function renderFillerSeasons (data) {
                                                 margin-bottom: 10px;
                                             "
                                         >
-                                            ${metadataPieces
-                                                .map(
-                                                    escapeFillerHtml
-                                                )
-                                                .join(
-                                                    ' • '
-                                                )}
+                                            ${metadataPieces.map(escapeFillerHtml).join(" • ")}
                                         </div>
                                     `
-                                    : ''
+                                    : ""
                             }
 
                             ${
@@ -2579,12 +2602,10 @@ function renderFillerSeasons (data) {
                                                 line-height: 1.65;
                                             "
                                         >
-                                            ${escapeFillerHtml(
-                                                season.description
-                                            )}
+                                            ${escapeFillerHtml(season.description)}
                                         </p>
                                     `
-                                    : ''
+                                    : ""
                             }
                         </div>
 
@@ -2616,10 +2637,7 @@ function renderFillerSeasons (data) {
                         </div>
 
                         ${
-                            Array.isArray(
-                                season.notes
-                            ) &&
-                            season.notes.length
+                            Array.isArray(season.notes) && season.notes.length
                                 ? `
                                     <div
                                         style="
@@ -2630,7 +2648,7 @@ function renderFillerSeasons (data) {
                                     >
                                         ${season.notes
                                             .map(
-                                                note => `
+                                                (note) => `
                                                     <div
                                                         class="meta"
                                                         style="
@@ -2641,27 +2659,22 @@ function renderFillerSeasons (data) {
                                                             line-height: 1.6;
                                                         "
                                                     >
-                                                        ${escapeFillerHtml(
-                                                            note
-                                                        )}
+                                                        ${escapeFillerHtml(note)}
                                                     </div>
-                                                `
+                                                `,
                                             )
-                                            .join('')}
+                                            .join("")}
                                     </div>
                                 `
-                                : ''
+                                : ""
                         }
                     </section>
                 `;
-            }
-        )
-        .join('');
+        })
+        .join("");
 }
 
-function renderFillerMediaRow(
-    media
-) {
+function renderFillerMediaRow(media) {
     return `
         <tr
             class="filler-media-row"
@@ -2686,11 +2699,7 @@ function renderFillerMediaRow(
                 "
         >
             &lt;———————
-            ${escapeFillerHtml(
-                media.title ||
-                media.raw_marker ||
-                'Extra'
-            )}
+            ${escapeFillerHtml(media.title || media.raw_marker || "Extra")}
             ———————&gt;
         </td>
     </tr>
@@ -2699,83 +2708,38 @@ function renderFillerMediaRow(
 
 // Anime Filler List Integration
 function openFillerModal(data) {
-    const modal =
-        document.getElementById(
-            'filler-modal'
-        );
+    const modal = document.getElementById("filler-modal");
 
-    const titleEl =
-        document.getElementById(
-            'filler-modal-title'
-        );
+    const titleEl = document.getElementById("filler-modal-title");
 
-    const closeBtn =
-        document.getElementById(
-            'close-filler-modal'
-        );
+    const closeBtn = document.getElementById("close-filler-modal");
 
-    const sourceStatus =
-        document.getElementById(
-            'filler-source-status'
-        );
+    const sourceStatus = document.getElementById("filler-source-status");
 
-    const seasonContent =
-        document.getElementById(
-            'filler-season-content'
-        );
+    const seasonContent = document.getElementById("filler-season-content");
 
-    const flatContent =
-        document.getElementById(
-            'filler-flat-content'
-        );
+    const flatContent = document.getElementById("filler-flat-content");
 
-    const tbody =
-        document.getElementById(
-            'filler-table-body'
-        );
+    const tbody = document.getElementById("filler-table-body");
 
-    const continuationSection =
-        document.getElementById(
-            'filler-continuation-section'
-        );
+    const continuationSection = document.getElementById("filler-continuation-section");
 
-    const animeEnd =
-        document.getElementById(
-            'filler-anime-end'
-        );
+    const animeEnd = document.getElementById("filler-anime-end");
 
-    const mangaStart =
-        document.getElementById(
-            'filler-manga-start'
-        );
+    const mangaStart = document.getElementById("filler-manga-start");
 
-    const recommendationsSection =
-        document.getElementById(
-            'filler-recommendations-section'
-        );
+    const recommendationsSection = document.getElementById("filler-recommendations-section");
 
-    if (
-        !modal ||
-        !titleEl
-    ) {
+    if (!modal || !titleEl) {
         return;
     }
 
-    const animeName =
-        data?.anime ||
-        globalData?.title ||
-        'Anime';
+    const animeName = data?.anime || globalData?.title || "Anime";
 
-    titleEl.textContent =
-        `${animeName} Filler List`;
+    titleEl.textContent = `${animeName} Filler List`;
 
-    if (
-        sourceStatus
-    ) {
-        sourceStatus.textContent =
-            data
-                ?.source_status_message ||
-            '';
+    if (sourceStatus) {
+        sourceStatus.textContent = data?.source_status_message || "";
     }
 
     /*
@@ -2784,43 +2748,25 @@ function openFillerModal(data) {
      * ----------------------------------------
      */
     const hasSeasonData =
-        data?.schema_version === 2 &&
-        Array.isArray(
-            data.seasons
-        ) &&
-        data.seasons.length > 0;
+        data?.schema_version === 2 && Array.isArray(data.seasons) && data.seasons.length > 0;
 
-    if (
-        hasSeasonData
-    ) {
-        flatContent.style.display =
-            'none';
+    if (hasSeasonData) {
+        flatContent.style.display = "none";
 
-        seasonContent.style.display =
-            'block';
+        seasonContent.style.display = "block";
 
-        seasonContent.innerHTML =
-            renderFillerSeasons(
-                data
-            );
+        seasonContent.innerHTML = renderFillerSeasons(data);
     } else {
         /*
          * Old schema / AFL-only fallback.
          */
-        seasonContent.style.display =
-            'none';
+        seasonContent.style.display = "none";
 
-        seasonContent.innerHTML =
-            '';
+        seasonContent.innerHTML = "";
 
-        flatContent.style.display =
-            'block';
+        flatContent.style.display = "block";
 
-        tbody.innerHTML =
-            renderFlatFillerRows(
-                data?.episodes ||
-                []
-            );
+        tbody.innerHTML = renderFlatFillerRows(data?.episodes || []);
     }
 
     /*
@@ -2828,45 +2774,25 @@ function openFillerModal(data) {
      * Manga continuation
      * ----------------------------------------
      */
-    const continuation =
-        data?.continuation;
+    const continuation = data?.continuation;
 
-    const hasContinuation =
-        !!(
-            continuation &&
-            (
-                continuation
-                    .where_anime_ends ||
+    const hasContinuation = !!(
+        continuation &&
+        (continuation.where_anime_ends || continuation.where_to_start_reading)
+    );
 
-                continuation
-                    .where_to_start_reading
-            )
-        );
+    if (hasContinuation) {
+        continuationSection.style.display = "block";
 
-    if (
-        hasContinuation
-    ) {
-        continuationSection.style.display =
-            'block';
+        animeEnd.textContent = continuation.where_anime_ends || "Not provided.";
 
-        animeEnd.textContent =
-            continuation
-                .where_anime_ends ||
-            'Not provided.';
-
-        mangaStart.textContent =
-            continuation
-                .where_to_start_reading ||
-            'Not provided.';
+        mangaStart.textContent = continuation.where_to_start_reading || "Not provided.";
     } else {
-        continuationSection.style.display =
-            'none';
+        continuationSection.style.display = "none";
 
-        animeEnd.textContent =
-            '';
+        animeEnd.textContent = "";
 
-        mangaStart.textContent =
-            '';
+        mangaStart.textContent = "";
     }
 
     /*
@@ -2874,31 +2800,16 @@ function openFillerModal(data) {
      * Optional "Fillers Worth Watching"
      * ----------------------------------------
      */
-    const recommendations =
-        data?.recommendations;
+    const recommendations = data?.recommendations;
 
-    const hasRecommendations =
-        !!(
-            recommendations &&
-            (
-                recommendations
-                    .paragraphs
-                    ?.length ||
+    const hasRecommendations = !!(
+        recommendations &&
+        (recommendations.paragraphs?.length || recommendations.items?.length)
+    );
 
-                recommendations
-                    .items
-                    ?.length
-            )
-        );
-
-    if (
-        recommendationsSection
-    ) {
-        if (
-            hasRecommendations
-        ) {
-            recommendationsSection.style.display =
-                'block';
+    if (recommendationsSection) {
+        if (hasRecommendations) {
+            recommendationsSection.style.display = "block";
 
             recommendationsSection.innerHTML = `
                 <div
@@ -2914,31 +2825,27 @@ function openFillerModal(data) {
                         "
                     >
                         ${escapeFillerHtml(
-                            recommendations.heading ||
-                            'Filler Episodes Worth Watching'
+                            recommendations.heading || "Filler Episodes Worth Watching",
                         )}
                     </h3>
 
                     ${(recommendations.paragraphs || [])
                         .map(
-                            paragraph => `
+                            (paragraph) => `
                                 <p
                                     style="
                                         line-height: 1.6;
                                         color: #ccd6e0;
                                     "
                                 >
-                                    ${escapeFillerHtml(
-                                        paragraph
-                                    )}
+                                    ${escapeFillerHtml(paragraph)}
                                 </p>
-                            `
+                            `,
                         )
-                        .join('')}
+                        .join("")}
 
                     ${
-                        recommendations.items
-                            ?.length
+                        recommendations.items?.length
                             ? `
                                 <ol
                                     style="
@@ -2950,64 +2857,54 @@ function openFillerModal(data) {
                                 >
                                     ${recommendations.items
                                         .map(
-                                            item => `
+                                            (item) => `
                                                 <li>
-                                                    ${escapeFillerHtml(
-                                                        item
-                                                    )}
+                                                    ${escapeFillerHtml(item)}
                                                 </li>
-                                            `
+                                            `,
                                         )
-                                        .join('')}
+                                        .join("")}
                                 </ol>
                             `
-                            : ''
+                            : ""
                     }
                 </div>
             `;
         } else {
-            recommendationsSection.style.display =
-                'none';
+            recommendationsSection.style.display = "none";
 
-            recommendationsSection.innerHTML =
-                '';
+            recommendationsSection.innerHTML = "";
         }
     }
 
-    modal.style.display =
-        'flex';
+    modal.style.display = "flex";
 
-    closeBtn.onclick =
-        () =>
-            modal.style.display =
-                'none';
+    closeBtn.onclick = () => (modal.style.display = "none");
 
-    modal.onclick =
-        event => {
-            if (
-                event.target ===
-                modal
-            ) {
-                modal.style.display =
-                    'none';
-            }
-        };
+    modal.onclick = (event) => {
+        if (event.target === modal) {
+            modal.style.display = "none";
+        }
+    };
 }
 
 async function requestFiller(slug, isUpdate) {
-    const { data: { user } } = await supabaseClient.auth.getUser();
+    const {
+        data: { user },
+    } = await supabaseClient.auth.getUser();
     if (!user) return alert("Please sign in to request filler lists!");
 
     // Use UPSERT and clear the notes to put it back into a "pending" state for your scraper
     const { error } = await supabaseClient
-        .from('filler_list_mgnt')
-        .upsert(
-            { name: slug, filler_exists: isUpdate, notes: null }, 
-            { onConflict: 'name' }
-        );
+        .from("filler_list_mgnt")
+        .upsert({ name: slug, filler_exists: isUpdate, notes: null }, { onConflict: "name" });
 
     if (!error) {
-        alert(isUpdate ? "Update request sent! We'll check for new episodes." : "Request sent! Our scraper will look for this soon.");
+        alert(
+            isUpdate
+                ? "Update request sent! We'll check for new episodes."
+                : "Request sent! Our scraper will look for this soon.",
+        );
         setTimeout(() => window.location.reload(), 100);
     } else {
         console.error(error);
@@ -3017,9 +2914,9 @@ async function requestFiller(slug, isUpdate) {
 
 async function checkIfAlreadyRequested(slug, originalName, actionArea) {
     const { data: existingRequest } = await supabaseClient
-        .from('filler_list_mgnt')
-        .select('filler_exists, notes')
-        .eq('name', slug)
+        .from("filler_list_mgnt")
+        .select("filler_exists, notes")
+        .eq("name", slug)
         .maybeSingle();
 
     if (existingRequest) {
@@ -3034,8 +2931,8 @@ async function checkIfAlreadyRequested(slug, originalName, actionArea) {
             <button id="request-filler-btn" class="secondary-btn" style="background: #ff9800; color: #fff;">
                 Request Filler List
             </button>`;
-        
-        document.getElementById('request-filler-btn').onclick = () => requestFiller(slug);
+
+        document.getElementById("request-filler-btn").onclick = () => requestFiller(slug);
     }
 }
 
@@ -3043,9 +2940,9 @@ async function checkIfAlreadyRequested(slug, originalName, actionArea) {
 // Helpers
 // ----------------------------------------
 async function fetchBookAuthors(authorsList) {
-    const castSection = document.getElementById('cast-section');
-    const castList = document.getElementById('cast-list');
-    castSection.querySelector('h3').textContent = "Authors & Writers";
+    const castSection = document.getElementById("cast-section");
+    const castList = document.getElementById("cast-list");
+    castSection.querySelector("h3").textContent = "Authors & Writers";
 
     if (!authorsList || authorsList.length === 0) {
         castList.innerHTML = "<p class='meta'>Author information not available.</p>";
@@ -3053,15 +2950,18 @@ async function fetchBookAuthors(authorsList) {
     }
 
     try {
-        const authorCards = await Promise.all(authorsList.map(async (auth) => {
-            const authorKey = auth.author.key;
-            const details = await fetch(`https://openlibrary.org${authorKey}.json`).then(r => r.json());
-            const authorId = authorKey.split('/').pop();
-            const photoUrl = details.photos 
-                ? `https://covers.openlibrary.org/a/id/${details.photos[0]}-M.jpg` 
-                : `https://ui-avatars.com/api/?name=${encodeURIComponent(details.name)}&background=1b2228&color=9ab&size=512`;
+        const authorCards = await Promise.all(
+            authorsList.map(async (auth) => {
+                const authorKey = auth.author.key;
+                const details = await fetch(`https://openlibrary.org${authorKey}.json`).then((r) =>
+                    r.json(),
+                );
+                const authorId = authorKey.split("/").pop();
+                const photoUrl = details.photos
+                    ? `https://covers.openlibrary.org/a/id/${details.photos[0]}-M.jpg`
+                    : `https://ui-avatars.com/api/?name=${encodeURIComponent(details.name)}&background=1b2228&color=9ab&size=512`;
 
-            return `
+                return `
                 <div class="cast-card" data-details-route="cast.html?authorId=${encodeURIComponent(authorId)}">
                     <img src="${photoUrl}" alt="${details.name}">
                     <div class="cast-info">
@@ -3070,26 +2970,25 @@ async function fetchBookAuthors(authorsList) {
                     </div>
                 </div>
             `;
-        }));
-        castList.innerHTML = authorCards.join('');
-    } catch (err) { console.error("Error fetching authors:", err); }
+            }),
+        );
+        castList.innerHTML = authorCards.join("");
+    } catch (err) {
+        console.error("Error fetching authors:", err);
+    }
 }
 
-
-
 async function updatePageProgress() {
-    const currentPageInput = document.getElementById('quick-page-input');
-    const totalPagesInput = document.getElementById('quick-total-pages-input');
-    const manualToggle = document.getElementById('manual-page-toggle');
+    const currentPageInput = document.getElementById("quick-page-input");
+    const totalPagesInput = document.getElementById("quick-total-pages-input");
+    const manualToggle = document.getElementById("manual-page-toggle");
 
     const currentPage = Number(currentPageInput?.value);
     const usingManualPages = manualToggle?.checked === true;
-    const totalPages = usingManualPages
-        ? Number(totalPagesInput?.value)
-        : Number(globalData.pages);
+    const totalPages = usingManualPages ? Number(totalPagesInput?.value) : Number(globalData.pages);
 
     if (!totalPages || totalPages < 1) {
-        alert('Enter a valid total page count.');
+        alert("Enter a valid total page count.");
         return;
     }
 
@@ -3098,45 +2997,50 @@ async function updatePageProgress() {
         return;
     }
 
-    const { data: { user } } = await supabaseClient.auth.getUser();
+    const {
+        data: { user },
+    } = await supabaseClient.auth.getUser();
     if (!user) {
-        alert('Please sign in.');
+        alert("Please sign in.");
         return;
     }
 
     if (usingManualPages) {
         const { error: preferenceError } = await supabaseClient
-            .from('book_progress_preferences')
-            .upsert({
-                user_id: user.id,
-                media_id: String(id),
-                use_manual_page_count: true,
-                manual_total_pages: totalPages,
-                updated_at: new Date().toISOString()
-            }, {
-                onConflict: 'user_id,media_id'
-            });
+            .from("book_progress_preferences")
+            .upsert(
+                {
+                    user_id: user.id,
+                    media_id: String(id),
+                    use_manual_page_count: true,
+                    manual_total_pages: totalPages,
+                    updated_at: new Date().toISOString(),
+                },
+                {
+                    onConflict: "user_id,media_id",
+                },
+            );
 
         if (preferenceError) {
-            console.error('Book page preference error:', preferenceError);
-            alert('Unable to save manual page settings.');
+            console.error("Book page preference error:", preferenceError);
+            alert("Unable to save manual page settings.");
             return;
         }
     }
 
     const { data: activeLog, error: lookupError } = await supabaseClient
-        .from('media_logs')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('media_id', String(id))
-        .eq('media_type', 'book')
-        .eq('is_finished', false)
-        .order('created_at', { ascending: false })
+        .from("media_logs")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("media_id", String(id))
+        .eq("media_type", "book")
+        .eq("is_finished", false)
+        .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
     if (lookupError) {
-        console.error('Book progress lookup error:', lookupError);
+        console.error("Book progress lookup error:", lookupError);
         return;
     }
 
@@ -3144,36 +3048,34 @@ async function updatePageProgress() {
         current_page: currentPage,
         total_pages: totalPages,
         is_finished: false,
-        media_type: 'book',
+        media_type: "book",
         media_title: globalData.title,
-        watched_on: new Date().toISOString().split('T')[0]
+        watched_on: new Date().toISOString().split("T")[0],
     };
 
     let saveResult;
 
     if (activeLog) {
         saveResult = await supabaseClient
-            .from('media_logs')
+            .from("media_logs")
             .update(progressData)
-            .eq('id', activeLog.id)
-            .eq('user_id', user.id);
+            .eq("id", activeLog.id)
+            .eq("user_id", user.id);
     } else {
-        saveResult = await supabaseClient
-            .from('media_logs')
-            .insert({
-                ...progressData,
-                user_id: user.id,
-                media_id: String(id)
-            });
+        saveResult = await supabaseClient.from("media_logs").insert({
+            ...progressData,
+            user_id: user.id,
+            media_id: String(id),
+        });
     }
 
     if (saveResult.error) {
-        console.error('Book progress save error:', saveResult.error);
-        alert('Unable to save reading progress.');
+        console.error("Book progress save error:", saveResult.error);
+        alert("Unable to save reading progress.");
         return;
     }
 
-    currentPageInput.value = '';
+    currentPageInput.value = "";
     await fetchBookProgress(totalPages);
     await fetchMediaHistory();
 }
@@ -3181,29 +3083,31 @@ async function updatePageProgress() {
 window.updatePageProgress = updatePageProgress;
 
 async function fetchBookProgress(totalPages) {
-    const { data: { user } } = await supabaseClient.auth.getUser();
+    const {
+        data: { user },
+    } = await supabaseClient.auth.getUser();
     if (!user || !totalPages) return;
 
     const { data: logs } = await supabaseClient
-        .from('media_logs')
-        .select('current_page')
-        .eq('user_id', user.id)
-        .eq('media_id', id)
-        .eq('media_type', 'book')
-        .eq('is_finished', false)
-        .order('created_at', { ascending: false })
+        .from("media_logs")
+        .select("current_page")
+        .eq("user_id", user.id)
+        .eq("media_id", id)
+        .eq("media_type", "book")
+        .eq("is_finished", false)
+        .order("created_at", { ascending: false })
         .limit(1);
 
     const currentPage = logs?.[0]?.current_page || 0;
-    updateUnifiedProgress(currentPage, totalPages, 'pages read');
+    updateUnifiedProgress(currentPage, totalPages, "pages read");
 }
 
 window.updatePageProgress = updatePageProgress;
 
 function displayBookLinks(title, authorName) {
-    const providerSection = document.getElementById('watch-providers');
-    const list = document.getElementById('providers-list');
-    providerSection.querySelector('h4').textContent = "Get this Book";
+    const providerSection = document.getElementById("watch-providers");
+    const list = document.getElementById("providers-list");
+    providerSection.querySelector("h4").textContent = "Get this Book";
 
     // If authorName is missing, just search by title for shopping links
     const searchTerms = authorName ? `${title} ${authorName}` : title;
@@ -3215,13 +3119,15 @@ function displayBookLinks(title, authorName) {
         bwb: "https://www.betterworldbooks.com/images/logos/favicon.ico",
         amazon: "https://www.amazon.com/favicon.ico",
         thriftbooks: "https://static.thriftbooks.com/images/favicon.ico",
-        chirp: "https://www.chirpbooks.com/favicon.ico"
+        chirp: "https://www.chirpbooks.com/favicon.ico",
     };
 
     // Build Dynamic Trailer Query for Books
-    let yearPart = globalData.meta.split(' • ')[0].trim();
-    if (yearPart === 'Unknown Year' || !/^\d{4}$/.test(yearPart)) yearPart = '';
-    const trailerQuery = encodeURIComponent(`${title} ${yearPart ? yearPart + ' ' : ''}book trailer`);
+    let yearPart = globalData.meta.split(" • ")[0].trim();
+    if (yearPart === "Unknown Year" || !/^\d{4}$/.test(yearPart)) yearPart = "";
+    const trailerQuery = encodeURIComponent(
+        `${title} ${yearPart ? `${yearPart} ` : ""}book trailer`,
+    );
 
     list.innerHTML = `
         <div class="provider-group">
@@ -3269,66 +3175,92 @@ function displayBookLinks(title, authorName) {
 }
 
 async function updateSeasonDescription(tvmazeId, seasonNum) {
-    const descEl = document.getElementById('season-description');
+    const descEl = document.getElementById("season-description");
     if (!descEl) return;
     descEl.textContent = "Loading season context...";
-    
+
     if (!tvmazeId) {
         descEl.textContent = "Description unavailable for this season mapping.";
         return;
     }
 
     try {
-        const seasons = await fetch(`https://api.tvmaze.com/shows/${tvmazeId}/seasons`).then(r => r.json());
-        const currentSeasonData = seasons.find(s => String(s.number) === String(seasonNum));
+        const seasons = await fetch(`https://api.tvmaze.com/shows/${tvmazeId}/seasons`).then((r) =>
+            r.json(),
+        );
+        const currentSeasonData = seasons.find((s) => String(s.number) === String(seasonNum));
         if (currentSeasonData && currentSeasonData.summary) {
             // Clean up html tags injected inside summaries safely via standard text content DOM injections
-            const tmp = document.createElement('div');
+            const tmp = document.createElement("div");
             tmp.innerHTML = currentSeasonData.summary;
             descEl.textContent = tmp.textContent || tmp.innerText;
         } else {
             descEl.textContent = "No description description provided for this season.";
         }
-    } catch(e) {
+    } catch (e) {
         descEl.textContent = "Description unavailable.";
     }
 }
 
-window.toggleEpisode = async function(seriesId, seasonNum, epNum) {
-    const { data: { user } } = await supabaseClient.auth.getUser();
+window.toggleEpisode = async function (seriesId, seasonNum, epNum) {
+    const {
+        data: { user },
+    } = await supabaseClient.auth.getUser();
     if (!user) return;
     const isChecked = document.getElementById(`ep-${epNum}`).checked;
     if (isChecked) {
-        await supabaseClient.from('episode_logs').insert({ user_id: user.id, series_id: String(seriesId), season_number: seasonNum, episode_number: epNum });
+        await supabaseClient.from("episode_logs").insert({
+            user_id: user.id,
+            series_id: String(seriesId),
+            season_number: seasonNum,
+            episode_number: epNum,
+        });
     } else {
-        await supabaseClient.from('episode_logs').delete().eq('user_id', user.id).eq('series_id', String(seriesId)).eq('season_number', seasonNum).eq('episode_number', epNum);
+        await supabaseClient
+            .from("episode_logs")
+            .delete()
+            .eq("user_id", user.id)
+            .eq("series_id", String(seriesId))
+            .eq("season_number", seasonNum)
+            .eq("episode_number", epNum);
     }
     refreshProgressBar(seriesId, seasonNum);
-}
+};
 
 async function markSeasonAsWatched() {
-    const seasonNum = parseInt(document.getElementById('season-selector').value);
-    const { data: { user } } = await supabaseClient.auth.getUser();
+    const seasonNum = parseInt(document.getElementById("season-selector").value);
+    const {
+        data: { user },
+    } = await supabaseClient.auth.getUser();
     if (!user) return alert("Please sign in.");
     const config = await loadConfig();
-    
+
     try {
-        const response = await fetch(`${PROXY_URL}/api/tmdb/tv/${id}/season/${seasonNum}?language=en-US`);
-        
+        const response = await fetch(
+            `${PROXY_URL}/api/tmdb/tv/${id}/season/${seasonNum}?language=en-US`,
+        );
+
         const text = await response.text();
         const res = JSON.parse(text);
-        
-        const logs = res.episodes.map(ep => ({ user_id: user.id, series_id: String(id), season_number: seasonNum, episode_number: ep.episode_number }));
-        
+
+        const logs = res.episodes.map((ep) => ({
+            user_id: user.id,
+            series_id: String(id),
+            season_number: seasonNum,
+            episode_number: ep.episode_number,
+        }));
+
         // Delete existing logs for this specific season to prevent duplicates/errors
-        await supabaseClient.from('episode_logs').delete()
-            .eq('user_id', user.id)
-            .eq('series_id', String(id))
-            .eq('season_number', seasonNum);
-            
+        await supabaseClient
+            .from("episode_logs")
+            .delete()
+            .eq("user_id", user.id)
+            .eq("series_id", String(id))
+            .eq("season_number", seasonNum);
+
         // Insert the fresh, complete list
-        await supabaseClient.from('episode_logs').insert(logs);
-        
+        await supabaseClient.from("episode_logs").insert(logs);
+
         loadEpisodes(config, id, seasonNum);
     } catch (err) {
         alert("Error marking season as watched.");
@@ -3336,68 +3268,86 @@ async function markSeasonAsWatched() {
 }
 
 async function refreshProgressBar(seriesId, seasonNum) {
-    const { data: { user } } = await supabaseClient.auth.getUser();
+    const {
+        data: { user },
+    } = await supabaseClient.auth.getUser();
     if (!user) return;
-    const total = document.querySelectorAll('.episode-item').length;
-    const { data: watched } = await supabaseClient.from('episode_logs').select('episode_number').eq('series_id', String(seriesId)).eq('season_number', parseInt(seasonNum)).eq('user_id', user.id);
+    const total = document.querySelectorAll(".episode-item").length;
+    const { data: watched } = await supabaseClient
+        .from("episode_logs")
+        .select("episode_number")
+        .eq("series_id", String(seriesId))
+        .eq("season_number", parseInt(seasonNum))
+        .eq("user_id", user.id);
     updateUnifiedProgress(watched ? watched.length : 0, total, "episodes watched");
 }
 
 function updateUnifiedProgress(current, total, label) {
-    const isBook = type === 'book';
+    const isBook = type === "book";
     const bar = isBook
-        ? document.querySelector('.book-progress-container .progress-bar-fill')
-        : document.getElementById('main-progress-fill');
+        ? document.querySelector(".book-progress-container .progress-bar-fill")
+        : document.getElementById("main-progress-fill");
     const text = isBook
-        ? document.querySelector('.book-progress-container #progress-stats-text')
-        : document.getElementById('progress-stats-text');
+        ? document.querySelector(".book-progress-container #progress-stats-text")
+        : document.getElementById("progress-stats-text");
     const percent = total > 0 ? Math.min(Math.round((current / total) * 100), 100) : 0;
     if (bar) bar.style.width = `${percent}%`;
     if (text) text.textContent = `${current} / ${total} ${label} (${percent}%)`;
 }
 
 async function clearSeasonProgress() {
-    const seasonNum = document.getElementById('season-selector').value;
-    const { data: { user } } = await supabaseClient.auth.getUser();
+    const seasonNum = document.getElementById("season-selector").value;
+    const {
+        data: { user },
+    } = await supabaseClient.auth.getUser();
     if (!user || !confirm(`Clear Season ${seasonNum} progress?`)) return;
-    await supabaseClient.from('episode_logs').delete().eq('user_id', user.id).eq('series_id', String(id)).eq('season_number', seasonNum);
+    await supabaseClient
+        .from("episode_logs")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("series_id", String(id))
+        .eq("season_number", seasonNum);
     refreshProgressBar(id, seasonNum);
-    document.querySelectorAll('.episode-item input').forEach(i => i.checked = false);
+    document.querySelectorAll(".episode-item input").forEach((i) => (i.checked = false));
 }
 
 async function setupCustomArt(mediaId, mediaType) {
-    const editBtn = document.getElementById('edit-art-btn');
-    const modal = document.getElementById('custom-art-modal');
-    const closeBtn = document.getElementById('close-art-modal');
-    const saveBtn = document.getElementById('save-art-btn');
-    const posterInput = document.getElementById('custom-poster-input');
-    const bgInput = document.getElementById('custom-bg-input');
+    const editBtn = document.getElementById("edit-art-btn");
+    const modal = document.getElementById("custom-art-modal");
+    const closeBtn = document.getElementById("close-art-modal");
+    const saveBtn = document.getElementById("save-art-btn");
+    const posterInput = document.getElementById("custom-poster-input");
+    const bgInput = document.getElementById("custom-bg-input");
 
-    const { data: { user } } = await supabaseClient.auth.getUser();
+    const {
+        data: { user },
+    } = await supabaseClient.auth.getUser();
     if (!user) return; // Keep the button hidden if not signed in
 
     // 1. Show the Edit button
-    editBtn.style.display = 'block';
+    editBtn.style.display = "block";
 
     // 2. Fetch existing art to pre-fill the inputs if they exist
     const { data: existingArt } = await supabaseClient
-        .from('custom_imgs')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('media_id', String(mediaId))
-        .eq('media_type', mediaType)
+        .from("custom_imgs")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("media_id", String(mediaId))
+        .eq("media_type", mediaType)
         .maybeSingle();
 
     // 3. Open Modal & Pre-fill
     editBtn.onclick = () => {
-        posterInput.value = existingArt?.custom_poster || '';
-        bgInput.value = existingArt?.custom_background || '';
-        modal.style.display = 'flex';
+        posterInput.value = existingArt?.custom_poster || "";
+        bgInput.value = existingArt?.custom_background || "";
+        modal.style.display = "flex";
     };
 
     // 4. Close Modal Handling
-    closeBtn.onclick = () => modal.style.display = 'none';
-    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+    closeBtn.onclick = () => (modal.style.display = "none");
+    modal.onclick = (e) => {
+        if (e.target === modal) modal.style.display = "none";
+    };
 
     // 5. Save the Art
     saveBtn.onclick = async () => {
@@ -3407,21 +3357,22 @@ async function setupCustomArt(mediaId, mediaType) {
         const customPoster = posterInput.value.trim() || null;
         const customBg = bgInput.value.trim() || null;
 
-        const { error } = await supabaseClient
-            .from('custom_imgs')
-            .upsert({
+        const { error } = await supabaseClient.from("custom_imgs").upsert(
+            {
                 user_id: user.id,
                 media_id: String(mediaId),
                 media_type: mediaType,
                 custom_poster: customPoster,
-                custom_background: customBg
-            }, { onConflict: 'user_id,media_id,media_type' });
+                custom_background: customBg,
+            },
+            { onConflict: "user_id,media_id,media_type" },
+        );
 
         if (!error) {
             // Reload the page to cleanly fetch and apply defaults/customs across all elements
             setTimeout(() => window.location.reload(), 100);
         } else {
-            alert("Error saving art: " + error.message);
+            alert(`Error saving art: ${error.message}`);
             saveBtn.textContent = "Save Art";
             saveBtn.disabled = false;
         }
@@ -3432,26 +3383,38 @@ async function setupCustomArt(mediaId, mediaType) {
 async function fetchSimPoster(rec, imgId, config) {
     const imgEl = document.getElementById(imgId);
     if (!imgEl) return;
-    
+
     try {
-        if (rec.media_type === 'movie' || rec.media_type === 'tv') {
-            const res = await fetch(`${PROXY_URL}/api/tmdb/${rec.media_type}/${rec.id}`).then(r => r.json());
-            imgEl.src = res.poster_path ? `https://image.tmdb.org/t/p/w342${res.poster_path}` : 'https://via.placeholder.com/500x750/1b2228/9ab?text=No+Poster';
-        } else if (rec.media_type === 'book') {
+        if (rec.media_type === "movie" || rec.media_type === "tv") {
+            const res = await fetch(`${PROXY_URL}/api/tmdb/${rec.media_type}/${rec.id}`).then((r) =>
+                r.json(),
+            );
+            imgEl.src = res.poster_path
+                ? `https://image.tmdb.org/t/p/w342${res.poster_path}`
+                : "https://via.placeholder.com/500x750/1b2228/9ab?text=No+Poster";
+        } else if (rec.media_type === "book") {
             const rawNum = parseInt(rec.id) - 100000000;
-            const res = await fetch(`https://openlibrary.org/works/OL${rawNum}W.json`).then(r => r.json());
-            imgEl.src = (res.covers && res.covers.length > 0) ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg` : 'https://via.placeholder.com/500x750/1b2228/9ab?text=No+Cover';
+            const res = await fetch(`https://openlibrary.org/works/OL${rawNum}W.json`).then((r) =>
+                r.json(),
+            );
+            imgEl.src =
+                res.covers && res.covers.length > 0
+                    ? `https://covers.openlibrary.org/b/id/${res.covers[0]}-M.jpg`
+                    : "https://via.placeholder.com/500x750/1b2228/9ab?text=No+Cover";
         }
     } catch (e) {
-        imgEl.src = 'https://via.placeholder.com/500x750/1b2228/ff4d4d?text=Error';
+        imgEl.src = "https://via.placeholder.com/500x750/1b2228/ff4d4d?text=Error";
     }
 }
 
 async function checkAndQueueMedia(mediaId, mediaType, config) {
-    if (!['movie', 'tv', 'book'].includes(mediaType)) return;
+    if (!["movie", "tv", "book"].includes(mediaType)) return;
 
     // Standardize the ID
-    const universalId = mediaType === 'book' ? parseInt(String(mediaId).replace(/\D/g, ''), 10) + 100000000 : parseInt(mediaId, 10);
+    const universalId =
+        mediaType === "book"
+            ? parseInt(String(mediaId).replace(/\D/g, ""), 10) + 100000000
+            : parseInt(mediaId, 10);
 
     console.log(`[ML Debug] ---------------------------------`);
     console.log(`[ML Debug] Starting queue check for ${mediaType}`);
@@ -3460,14 +3423,18 @@ async function checkAndQueueMedia(mediaId, mediaType, config) {
 
     try {
         // 1. Check if it already exists in the Taste Graph
-        const { data: existing, error: selectError, status } = await supabaseClient
-            .from('global_movies')
-            .select('tmdb_id, title') // Added title so we can visually confirm it found the right one
-            .eq('tmdb_id', universalId)
+        const {
+            data: existing,
+            error: selectError,
+            status,
+        } = await supabaseClient
+            .from("global_movies")
+            .select("tmdb_id, title") // Added title so we can visually confirm it found the right one
+            .eq("tmdb_id", universalId)
             .maybeSingle();
 
         console.log(`[ML Debug] Select query finished with HTTP Status: ${status}`);
-        
+
         if (selectError) {
             console.error("[ML Debug] Supabase Select Error details:", selectError);
             return; // Abort if there's a structural error
@@ -3476,7 +3443,9 @@ async function checkAndQueueMedia(mediaId, mediaType, config) {
         console.log(`[ML Debug] Data returned from DB:`, existing);
 
         if (existing) {
-            console.log(`[ML Debug] Match found! "${existing.title}" is already in DB. Stopping here.`);
+            console.log(
+                `[ML Debug] Match found! "${existing.title}" is already in DB. Stopping here.`,
+            );
             console.log(`[ML Debug] ---------------------------------`);
             return; // It's already in the database. Do nothing!
         }
@@ -3484,30 +3453,39 @@ async function checkAndQueueMedia(mediaId, mediaType, config) {
         console.log("[I] Media not found in Taste Graph. Queuing for nightly ML embedding...");
 
         let tags = [];
-        let title = '';
+        let title = "";
         let year = null;
         let popularity = 0;
-        let overview = '';
+        let overview = "";
 
         // 2. Fetch the rich tag data based on type
-        if (mediaType === 'movie' || mediaType === 'tv') {
-            const res = await fetch(`${PROXY_URL}/api/tmdb/${mediaType}/${mediaId}?append_to_response=keywords`).then(r => r.json());
-            
-            title = res.title || res.name || 'Unknown Title';
-            year = (res.release_date || res.first_air_date || '').split('-')[0];
+        if (mediaType === "movie" || mediaType === "tv") {
+            const res = await fetch(
+                `${PROXY_URL}/api/tmdb/${mediaType}/${mediaId}?append_to_response=keywords`,
+            ).then((r) => r.json());
+
+            title = res.title || res.name || "Unknown Title";
+            year = (res.release_date || res.first_air_date || "").split("-")[0];
             popularity = res.popularity;
             overview = res.overview;
-            
-            const genres = res.genres ? res.genres.map(g => g.name) : [];
-            const kwList = mediaType === 'tv' ? (res.keywords?.results || []) : (res.keywords?.keywords || []);
-            tags = [...genres, ...kwList.map(k => k.name)];
-            
-        } else if (mediaType === 'book') {
-            const res = await fetch(`https://openlibrary.org${normalizeOpenLibraryId(mediaId)}.json`).then(r => r.json());
-            title = res.title || 'Unknown Book';
-            year = res.first_publish_date ? res.first_publish_date : null; 
-            overview = typeof res.description === 'string' ? res.description : (res.description?.value || '');
-            tags = res.subjects ? res.subjects.map(s => typeof s === 'string' ? s : s.name || '') : [];
+
+            const genres = res.genres ? res.genres.map((g) => g.name) : [];
+            const kwList =
+                mediaType === "tv" ? res.keywords?.results || [] : res.keywords?.keywords || [];
+            tags = [...genres, ...kwList.map((k) => k.name)];
+        } else if (mediaType === "book") {
+            const res = await fetch(
+                `https://openlibrary.org${normalizeOpenLibraryId(mediaId)}.json`,
+            ).then((r) => r.json());
+            title = res.title || "Unknown Book";
+            year = res.first_publish_date ? res.first_publish_date : null;
+            overview =
+                typeof res.description === "string"
+                    ? res.description
+                    : res.description?.value || "";
+            tags = res.subjects
+                ? res.subjects.map((s) => (typeof s === "string" ? s : s.name || ""))
+                : [];
         }
 
         if (tags.length === 0) {
@@ -3518,16 +3496,19 @@ async function checkAndQueueMedia(mediaId, mediaType, config) {
         console.log(`[ML Debug] Preparing to upsert: ${title} with ID: ${universalId}`);
 
         // 3. Silently push it to Supabase
-        const { error: upsertError } = await supabaseClient.from('global_movies').upsert({
-            tmdb_id: universalId,
-            title: title,
-            release_year: year ? String(year) : null,
-            popularity: popularity || 0,
-            overview: typeof overview === 'string' ? overview : 'No overview available.',
-            tags: tags.slice(0, 15).join(', '),
-            media_type: mediaType,
-            is_embedded: false 
-        }, { onConflict: 'tmdb_id' });
+        const { error: upsertError } = await supabaseClient.from("global_movies").upsert(
+            {
+                tmdb_id: universalId,
+                title,
+                release_year: year ? String(year) : null,
+                popularity: popularity || 0,
+                overview: typeof overview === "string" ? overview : "No overview available.",
+                tags: tags.slice(0, 15).join(", "),
+                media_type: mediaType,
+                is_embedded: false,
+            },
+            { onConflict: "tmdb_id" },
+        );
 
         if (upsertError) {
             console.error("[ML Debug] Upsert Failed:", upsertError);
@@ -3536,96 +3517,114 @@ async function checkAndQueueMedia(mediaId, mediaType, config) {
 
         console.log("[S] Successfully added to the ML queue!");
         console.log(`[ML Debug] ---------------------------------`);
-
     } catch (err) {
         console.error("[E] Background Queue Error:", err);
     }
 }
 
 async function fetchFollowingLogs() {
-    const section = document.getElementById('following-history');
-    const listContainer = document.getElementById('following-history-list');
-    const { data: { user } } = await supabaseClient.auth.getUser();
+    const section = document.getElementById("following-history");
+    const listContainer = document.getElementById("following-history-list");
+    const {
+        data: { user },
+    } = await supabaseClient.auth.getUser();
 
     // If not signed in, show a prompt instead of hiding the section
     if (!user) {
-        section.style.display = 'block';
+        section.style.display = "block";
         listContainer.innerHTML = '<p class="meta">Sign in to see friend reviews.</p>';
-        return; 
+        return;
     }
 
     try {
         // 1. Find who the user follows from the 'follows' table
         const { data: follows, error: followError } = await supabaseClient
-            .from('follows')
-            .select('following_id')
-            .eq('follower_id', user.id);
+            .from("follows")
+            .select("following_id")
+            .eq("follower_id", user.id);
 
         // If the user doesn't follow anyone, show the empty state
         if (followError || !follows || follows.length === 0) {
-            section.style.display = 'block';
+            section.style.display = "block";
             listContainer.innerHTML = '<p class="meta">No reviews from friends yet.</p>';
             return;
         }
 
-        const followingIds = follows.map(f => f.following_id);
+        const followingIds = follows.map((f) => f.following_id);
 
         // 2. Fetch logs for THIS media from THOSE users
         const { data: logs, error: logsError } = await supabaseClient
-            .from('media_logs')
-            .select('*')
-            .eq('media_id', String(id))
-            .in('user_id', followingIds)
-            .order('created_at', { ascending: false });
+            .from("media_logs")
+            .select("*")
+            .eq("media_id", String(id))
+            .in("user_id", followingIds)
+            .order("created_at", { ascending: false });
 
         // If friends haven't reviewed it, show the empty state
         if (logsError || !logs || logs.length === 0) {
-            section.style.display = 'block';
+            section.style.display = "block";
             listContainer.innerHTML = '<p class="meta">No reviews from friends yet.</p>';
             return;
         }
 
         // 3. Fetch the profile info for these specific users
-        const logUserIds = [...new Set(logs.map(log => log.user_id))];
+        const logUserIds = [...new Set(logs.map((log) => log.user_id))];
         const { data: profiles, error: profilesError } = await supabaseClient
-            .from('profiles')
-            .select('id, username, avatar_url')
-            .in('id', logUserIds);
+            .from("profiles")
+            .select("id, username, avatar_url")
+            .in("id", logUserIds);
 
         const profileMap = {};
         if (profiles) {
-            profiles.forEach(p => {
+            profiles.forEach((p) => {
                 profileMap[p.id] = p;
             });
         }
 
         // 4. Render the UI
-        section.style.display = 'block';
-        const showMoreFollowingBtn = document.getElementById('show-more-following-logs');
+        section.style.display = "block";
+        const showMoreFollowingBtn = document.getElementById("show-more-following-logs");
 
         // Wrap the rendering logic in a reusable function for pagination
         const renderFriendLogs = (logsToRender) => {
-            listContainer.innerHTML = logsToRender.map(log => {
-                const profile = profileMap[log.user_id] || {};
-                const username = profile.username || 'Unknown User';
-                const avatar = profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=1b2228&color=9ab`;
-                
-                const stars = '★'.repeat(Math.floor(log.rating || 0)) + ((log.rating || 0) % 1 !== 0 ? '½' : '');
-                
-                const targetDate = log.watched_on ? log.watched_on : log.created_at.split('T')[0];
-                const logDate = new Date(targetDate + 'T00:00:00').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
-                
-                const reviewPreview = log.notes ? `<div class="history-notes">"${log.notes}"</div>` : '';
-                const heartBadge = log.is_liked ? `<span title="Liked" style="font-size: 0.85rem; margin-right: 5px;">❤️</span>` : '';
-                
-                let rewatchText = 'Rewatch';
-                if (type === 'book') rewatchText = 'Reread';
-                else if (type === 'album') rewatchText = 'Relisten';
-                const rewatchBadge = log.is_rewatch ? `<span title="${rewatchText}" style="font-size: 0.85rem;">🔁</span>` : '';
+            listContainer.innerHTML = logsToRender
+                .map((log) => {
+                    const profile = profileMap[log.user_id] || {};
+                    const username = profile.username || "Unknown User";
+                    const avatar =
+                        profile.avatar_url ||
+                        `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=1b2228&color=9ab`;
 
-                const scopeLabel = getLogScopeLabel(log, type, globalData);
+                    const stars =
+                        "★".repeat(Math.floor(log.rating || 0)) +
+                        ((log.rating || 0) % 1 !== 0 ? "½" : "");
 
-                return `
+                    const targetDate = log.watched_on
+                        ? log.watched_on
+                        : log.created_at.split("T")[0];
+                    const logDate = new Date(`${targetDate}T00:00:00`).toLocaleDateString([], {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                    });
+
+                    const reviewPreview = log.notes
+                        ? `<div class="history-notes">"${log.notes}"</div>`
+                        : "";
+                    const heartBadge = log.is_liked
+                        ? `<span title="Liked" style="font-size: 0.85rem; margin-right: 5px;">❤️</span>`
+                        : "";
+
+                    let rewatchText = "Rewatch";
+                    if (type === "book") rewatchText = "Reread";
+                    else if (type === "album") rewatchText = "Relisten";
+                    const rewatchBadge = log.is_rewatch
+                        ? `<span title="${rewatchText}" style="font-size: 0.85rem;">🔁</span>`
+                        : "";
+
+                    const scopeLabel = getLogScopeLabel(log, type, globalData);
+
+                    return `
                     <div class="history-item following-log-item" data-details-route="profile.html?userId=${encodeURIComponent(log.user_id)}" style="cursor: pointer; transition: background 0.2s; padding: 10px; border-radius: 8px; margin: 0 -10px 10px -10px;">
                         <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 8px;">
                             <img src="${avatar}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1px solid #2c3440;">
@@ -3645,31 +3644,31 @@ async function fetchFollowingLogs() {
                         ${reviewPreview}
                     </div>
                 `;
-            }).join('');
+                })
+                .join("");
         };
 
         // 5. Check if we need the "Show More" button
         if (logs.length > 5) {
             renderFriendLogs(logs.slice(0, 5)); // Initial top 5
-            
+
             if (showMoreFollowingBtn) {
-                showMoreFollowingBtn.style.display = 'block';
+                showMoreFollowingBtn.style.display = "block";
                 showMoreFollowingBtn.textContent = `Show More (+${logs.length - 5})`;
-                
+
                 showMoreFollowingBtn.onclick = (e) => {
                     e.preventDefault();
                     renderFriendLogs(logs); // Render all logs when clicked
-                    showMoreFollowingBtn.style.display = 'none'; // Hide the button
+                    showMoreFollowingBtn.style.display = "none"; // Hide the button
                 };
             }
         } else {
             renderFriendLogs(logs);
-            if (showMoreFollowingBtn) showMoreFollowingBtn.style.display = 'none';
+            if (showMoreFollowingBtn) showMoreFollowingBtn.style.display = "none";
         }
-
     } catch (err) {
         console.error("Error fetching friend logs:", err);
-        section.style.display = 'block';
+        section.style.display = "block";
         listContainer.innerHTML = '<p class="meta">Unable to load friend reviews.</p>';
     }
 }
@@ -3677,119 +3676,117 @@ async function fetchFollowingLogs() {
 // ----------------------------------------
 // Event Delegation
 // ----------------------------------------
-document.addEventListener('click', (event) => {
-    const routeTarget = event.target.closest('[data-details-route]');
+document.addEventListener("click", (event) => {
+    const routeTarget = event.target.closest("[data-details-route]");
     if (routeTarget) {
         window.location.href = routeTarget.dataset.detailsRoute;
         return;
     }
-    const expandTarget = event.target.closest('[data-expand-translations]');
+    const expandTarget = event.target.closest("[data-expand-translations]");
     if (expandTarget) {
         window.expandTranslations();
         return;
     }
-    const progressTarget = event.target.closest('[data-update-page-progress]');
+    const progressTarget = event.target.closest("[data-update-page-progress]");
     if (progressTarget) {
         window.updatePageProgress();
         return;
     }
-    const deleteTarget = event.target.closest('[data-delete-log]');
+    const deleteTarget = event.target.closest("[data-delete-log]");
     if (deleteTarget) {
         window.deleteLog(decodeURIComponent(deleteTarget.dataset.deleteLog));
         return;
     }
-    const toggleEpisodeTarget = event.target.closest('[data-toggle-episode]');
+    const toggleEpisodeTarget = event.target.closest("[data-toggle-episode]");
     if (toggleEpisodeTarget) {
         event.stopPropagation();
         toggleEpisode(
             decodeURIComponent(toggleEpisodeTarget.dataset.toggleEpisode),
             Number(toggleEpisodeTarget.dataset.seasonNumber),
-            Number(toggleEpisodeTarget.dataset.episodeNumber)
+            Number(toggleEpisodeTarget.dataset.episodeNumber),
         );
         return;
     }
-    const openEpisodeTarget = event.target.closest('[data-open-episode]');
+    const openEpisodeTarget = event.target.closest("[data-open-episode]");
     if (openEpisodeTarget) {
         event.stopPropagation();
         openEpisodeModal(
             openEpisodeTarget.dataset.episodeNumber,
             decodeURIComponent(openEpisodeTarget.dataset.openEpisode),
-            openEpisodeTarget.dataset.seasonNumber
+            openEpisodeTarget.dataset.seasonNumber,
         );
         return;
     }
-    const listTarget = event.target.closest('[data-list-id]');
+    const listTarget = event.target.closest("[data-list-id]");
     if (listTarget) {
         window.toggleListItem(
             listTarget.dataset.listId,
             decodeURIComponent(listTarget.dataset.mediaId),
             decodeURIComponent(listTarget.dataset.mediaType),
-            listTarget
+            listTarget,
         );
     }
 });
 
-// 
+//
 // Window Object Functions
-// 
-window.expandTranslations = function() {
-    const container = document.getElementById('translations-container');
+//
+window.expandTranslations = function () {
+    const container = document.getElementById("translations-container");
     if (!container || !globalData || !globalData.translations) return;
 
     const pillStyle = `background: rgba(255,255,255,0.05); border: 1px solid #2c3440; color: #ccd6e0; padding: 4px 10px; border-radius: 8px; font-size: 0.8rem; cursor: default; transition: all 0.2s ease; display: inline-block;`;
-    const hoverEvents = '';
-    
+    const hoverEvents = "";
+
     // Re-render the container with ALL translations
-    container.innerHTML = globalData.translations.map(lang => 
-        `<span style="${pillStyle}" ${hoverEvents}>${lang}</span>`
-    ).join('');
+    container.innerHTML = globalData.translations
+        .map((lang) => `<span style="${pillStyle}" ${hoverEvents}>${lang}</span>`)
+        .join("");
 };
 
 window.deleteLog = async (logId) => {
     if (!confirm("Delete this log?")) return;
-    await supabaseClient.from('media_logs').delete().eq('id', logId);
+    await supabaseClient.from("media_logs").delete().eq("id", logId);
     document.getElementById(`log-${logId}`)?.remove();
 };
 
 window.toggleListItem = async (listId, mediaId, mediaType, btnElement) => {
     // Determine if we are adding or removing based on the button's current text
-    const isAdding = btnElement.textContent === 'Add';
-    btnElement.textContent = '...'; // Show a loading state
+    const isAdding = btnElement.textContent === "Add";
+    btnElement.textContent = "..."; // Show a loading state
 
     if (isAdding) {
         // ADD to list
-        const { error } = await supabaseClient
-            .from('list_items')
-            .insert({ 
-                list_id: listId, 
-                media_id: String(mediaId), 
-                media_type: mediaType,
-                media_title: globalData.title
-            });
-        
+        const { error } = await supabaseClient.from("list_items").insert({
+            list_id: listId,
+            media_id: String(mediaId),
+            media_type: mediaType,
+            media_title: globalData.title,
+        });
+
         if (!error) {
-            btnElement.textContent = 'Remove';
-            btnElement.className = 'danger-btn'; // Changes it to the red style
+            btnElement.textContent = "Remove";
+            btnElement.className = "danger-btn"; // Changes it to the red style
         } else {
             console.error("Error adding to list:", error);
             alert("Failed to add to list.");
-            btnElement.textContent = 'Add';
+            btnElement.textContent = "Add";
         }
     } else {
         // REMOVE from list
         const { error } = await supabaseClient
-            .from('list_items')
+            .from("list_items")
             .delete()
-            .eq('list_id', listId)
-            .eq('media_id', String(mediaId));
-        
+            .eq("list_id", listId)
+            .eq("media_id", String(mediaId));
+
         if (!error) {
-            btnElement.textContent = 'Add';
-            btnElement.className = 'primary-btn'; // Changes it back to the green/default style
+            btnElement.textContent = "Add";
+            btnElement.className = "primary-btn"; // Changes it back to the green/default style
         } else {
             console.error("Error removing from list:", error);
             alert("Failed to remove from list.");
-            btnElement.textContent = 'Remove';
+            btnElement.textContent = "Remove";
         }
     }
 };
